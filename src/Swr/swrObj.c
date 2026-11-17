@@ -11,6 +11,7 @@
 #include "swrText.h"
 #include "swrMultiplayer.h"
 #include "swrUI.h"
+#include "swrRender.h"
 #include "swrViewport.h"
 #include "swrRace.h"
 #include "swrSpline.h"
@@ -280,10 +281,38 @@ void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
     cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
 }
 
+// 0x00453e00
+void swrObjcMan_UpdateCamera(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x00454060
+void DrawTerrainTypeDebugText(void* meshBehavior)
+{
+    HANG("TODO");
+}
+
 // 0x004542e0
 void swrObjcMan_F3(swrObjcMan* cman)
 {
-    HANG("TODO");
+    swrObjcMan_UpdateCamera(cman);
+    if (cman->camShake.z > 0.0f) {
+        // compared unrounded on the x87 stack, stored as float
+        double offset = cman->camShake.x + cman->camShake.y * swrRace_deltaTimeSecs;
+        cman->camShake.x = offset;
+        if (offset > cman->camShake.z || -offset > cman->camShake.z) {
+            cman->camShake.y = -cman->camShake.y;
+            cman->camShake.x = cman->camShake.x > 0.0f ? cman->camShake.z : -cman->camShake.z;
+        }
+        cman->focusTransform_mat.vD.z += cman->camShake.x;
+        cman->unk20_mat.vD.z += cman->camShake.x * 0.5f;
+        playASound(7, 7, 0.25f, 1.0f, 1);
+    }
+
+    // stagingTransformFocus.vD.x holds the mesh behavior of the surface under the camera
+    if (cman->mode_type != 0 && cman->metaCamIndex_count >= 0 && debug_showSurfaceFlags != 0)
+        DrawTerrainTypeDebugText(*(void**)&cman->stagingTransformFocus.vD.x);
 }
 
 // 0x004543f0
@@ -642,13 +671,33 @@ void swrObjHang_F0(swrObjHang* hang)
 // 0x00457b00
 void swrObjHang_F2(swrObjHang* hang)
 {
-    HANG("TODO");
+    if ((hang->flag & swrObjHang_FLAG_ACTIVE) == 0)
+        return;
+
+    if (swrObjHang_inspectCameraTimer >= 5.0f && hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE)
+        swrObjHang_CycleInspectCamera(hang);
+
+    if (swrObjHang_lookAtMenuFade > 0.0 && hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+        swrObjHang_UpdateHoloCameraTarget(hang, hang->cameraState);
+        if (hang->activeMenu == 1)
+            swrRace_DrawUpgradesPanel(hang);
+    }
+
+    if (hang->elmoEntityIndex != -1)
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[hang->elmoEntityIndex], &hang->elmoFocusPosition);
 }
 
 // 0x00457b90
 void swrObjHang_F3(swrObjHang* hang)
 {
-    HANG("TODO");
+    swrViewport_Get(1);
+    if ((hang->flag & swrObjHang_FLAG_ACTIVE) == 0)
+        return;
+
+    swrRender_frameClearFlags |= swrRender_FRAME_CLEAR_COLOR;
+    SetClearColor(0, 0, 0);
+    if (hang->unk60)
+        swrObjHang_UpdateLookAtVehicle(hang);
 }
 
 // 0x00457bd0
@@ -3208,7 +3257,10 @@ void LoadTrackSpline(swrObjJdge*)
 // 0x00466370
 void InitPrimaryLight()
 {
-    HANG("TODO");
+    rdVector3 ambient = { 64.0f, 64.0f, 64.0f };
+    rdVector3 color = { 255.0f, 255.0f, 255.0f };
+    rdVector3 direction = { 0.0f, 0.0f, -100.0f };
+    SetLightColorsAndDirection2(-1, &ambient, &color, &direction);
 }
 
 // Seeds the global AI tuning for the track that is about to start. Picks a base
@@ -5090,21 +5142,241 @@ void swrObjTrig_Handle314Or501Trigger(swrObjTrig* obj, int index)
 }
 
 // 0x0047D310
-swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int)
+swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription* trigger, int flags, int modelIndex)
 {
-    HANG("TODO");
+    swrModel_NodeTransformedWithPivot* node = swrObjTrig_InitNodeForTrigger(trigger);
+    if (node != NULL) {
+        node->node.num_children = 1;
+        node->node.children.nodes = &swrObjTrig_ModelArray1[modelIndex];
+        swrObjTrig_SceneChildNodes[swrObjTrig_RootNode.num_children++] = &node->node;
+        swrModel_NodeModifyFlags(&node->node, 2, 0xf, 0x10, 3);
+        swrModel_NodeModifyFlags(&node->node, 2, flags & 0xfffffff0, 0x10, 2);
+    }
+    return &node->node;
+}
+
+// 0x0047d380
+void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions, int param2)
+{
+    rdMatrix44 transform;
+    for (swrModel_TriggerDescription* desc = descriptions; desc != NULL; desc = desc->next) {
+        swrObjTrig_AddTriggerDescription(desc);
+
+        if (desc->type == swrModel_TriggerType_SpawnFlag) {
+            swrModel_Node* node = swrObjTrig_AddNodeToScene(desc, param2, 3);
+            if (node != NULL)
+                swrModel_NodeSetTranslation((swrModel_NodeTransformed*)node, desc->center.x + 8.0f, desc->center.y, desc->center.z - 24.0f);
+        }
+        if (desc->type == swrModel_TriggerType_BreakDestructable_100)
+            desc->flags |= swrModel_TriggerDescription_FLAG_NEEDS_SPEED;
+        if (desc->type == swrModel_TriggerType_CollapsingGlacier) {
+            desc->flags |= swrModel_TriggerDescription_FLAG_IGNORE_AI;
+            swrModel_NodeSetAnimationFlagsAndSpeed(desc->affected_node, ANIMATION_ENABLED | ANIMATION_LOOP, 0, 0.6f);
+        }
+        if (desc->type == swrModel_TriggerType_KillPlayer)
+            specialActiveTrigger = desc;
+        if (desc->type == swrModel_TriggerType_BreakDestructable_201)
+            swrModel_NodeModifyFlags(desc->affected_node, 0, -3, 0x10, 3);
+        if (desc->type == swrModel_TriggerType_BreakDestructable_202) {
+            swrModel_NodeModifyFlags(desc->affected_node, 0, -5, 0x10, 3);
+            desc->flags |= swrModel_TriggerDescription_FLAG_NEEDS_SPEED;
+            if (swrObjTrig_CurrentPlanetId == 1)
+                specialActiveTrigger = desc;
+        }
+        if (desc->type == swrModel_TriggerType_TuskenRaiders)
+            desc->flags |= swrModel_TriggerDescription_FLAG_IGNORE_AI;
+        if (desc->type == swrModel_TriggerType_BalloonSpawner) {
+            swrModel_Node* node = swrObjTrig_AddNodeToScene(desc, param2, 2);
+            swrObjTrig* trig = swrObjTrig_FindOrCreate(desc);
+            trig->unk48_node = node;
+            trig->flag |= swrObjTrig_FLAG_ACTIVE;
+            if (trig->unk44_animation != NULL)
+                swrModel_AnimationSetSpeed(trig->unk44_animation, 1.0f);
+            if (trig->unk40_animation != NULL)
+                swrModel_AnimationSetSpeed(trig->unk40_animation, 1.0f);
+            if (node != NULL && desc->affected_node != NULL) {
+                swrModel_NodeGetTransform((swrModel_NodeTransformed*)trig->trigger_description->affected_node, &transform);
+                if (trig->unk48_node != NULL) {
+                    swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+                    swrModel_NodeSetTransform((swrModel_NodeTransformed*)trig->unk48_node, &transform);
+                }
+            }
+        }
+        if (desc->type == swrModel_TriggerType_BreakDestructable_212) {
+            swrModel_NodeModifyFlags(desc->affected_node, 0, -5, 0x10, 3);
+            desc->flags |= swrModel_TriggerDescription_FLAG_NEEDS_SPEED;
+        }
+        if (desc->type == swrModel_TriggerType_FlameSpawner) {
+            swrModel_Node* node = swrObjTrig_AddNodeToScene(desc, param2, 2);
+            if (node != NULL) {
+                transform.vA = (rdVector4){ 1.0f, 0.0f, 0.0f, 0.0f };
+                transform.vB = (rdVector4){ desc->direction.x, desc->direction.y, desc->direction.z, 0.0f };
+                transform.vC = (rdVector4){ 0.0f, 0.0f, 1.0f, 0.0f };
+                rdVector_Cross3((rdVector3*)&transform.vA, (rdVector3*)&transform.vB, (rdVector3*)&transform.vC);
+                rdVector_Cross3((rdVector3*)&transform.vC, (rdVector3*)&transform.vA, (rdVector3*)&transform.vB);
+                rdVector_Normalize3Acc((rdVector3*)&transform.vA);
+                rdVector_Normalize3Acc((rdVector3*)&transform.vB);
+                transform.vD = (rdVector4){ desc->center.x, desc->center.y, desc->center.z - desc->size_z * 0.5f, 1.0f };
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &transform);
+                if (desc->affected_node != NULL)
+                    swrModel_NodeModifyFlags(desc->affected_node, 2, -4, 0x10, 3);
+            }
+            desc->flags |= swrModel_TriggerDescription_FLAG_ENABLED;
+        }
+        if (desc->type == swrModel_TriggerType_EarthquakeShortcut)
+            desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP1 | swrModel_TriggerDescription_FLAG_IGNORE_AI;
+        if (desc->type == swrModel_TriggerType_Earthquake) {
+            desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP1 | swrModel_TriggerDescription_FLAG_IGNORE_AI;
+            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM > 0.5f)
+                desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP2;
+        }
+        if (desc->type == swrModel_TriggerType_StartAnimDoor2)
+            swrModel_NodeSetAnimationFlagsAndSpeed(desc->affected_node, ANIMATION_LOOP, 0, 1.0f);
+        if (desc->type == swrModel_TriggerType_SpawnFish) {
+            swrModel_Node* node = swrObjTrig_AddNodeToScene(desc, param2, 0);
+            swrObjTrig* trig = swrObjTrig_FindOrCreate(desc);
+            trig->unk48_node = node;
+            trig->flag |= swrObjTrig_FLAG_ACTIVE;
+            if (trig->unk44_animation != NULL)
+                swrModel_AnimationSetSpeed(trig->unk44_animation, 1.0f);
+            if (trig->unk40_animation != NULL)
+                swrModel_AnimationSetSpeed(trig->unk40_animation, 1.0f);
+            if (node != NULL && desc->affected_node != NULL) {
+                swrModel_NodeGetTransform((swrModel_NodeTransformed*)trig->trigger_description->affected_node, &transform);
+                if (trig->unk48_node != NULL) {
+                    swrModel_NodeModifyFlags(trig->unk48_node, 2, 3, 0x10, 2);
+                    swrModel_NodeSetTransform((swrModel_NodeTransformed*)trig->unk48_node, &transform);
+                }
+            }
+        }
+        if (desc->type == swrModel_TriggerType_DozerSpawner) {
+            swrModel_Node* node = swrObjTrig_AddNodeToScene(desc, param2, 0);
+            if (node != NULL && desc->affected_node != NULL) {
+                swrModel_NodeGetTransform((swrModel_NodeTransformed*)desc->affected_node, &transform);
+                swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &transform);
+            }
+            desc->flags |= swrModel_TriggerDescription_FLAG_ENABLED;
+        }
+        if (desc->type == swrModel_TriggerType_FallingPillar) {
+            desc->flags |= swrModel_TriggerDescription_FLAG_IGNORE_AI;
+            swrModel_NodeSetAnimationFlagsAndSpeed(desc->affected_node, ANIMATION_ENABLED | ANIMATION_LOOP, 0, 1.0f);
+        }
+        if (desc->type == swrModel_TriggerType_MethaneVapor) {
+            desc->flags |= swrModel_TriggerDescription_FLAG_IGNORE_AI;
+            if (desc->affected_node != NULL)
+                swrModel_NodeModifyFlags(desc->affected_node, 2, -4, 0x10, 3);
+        }
+        if (desc->type == swrModel_TriggerType_LavaSplash && desc->affected_node != NULL)
+            swrModel_NodeModifyFlags(desc->affected_node, 2, -4, 0x10, 3);
+    }
+}
+
+// 0x0047da10
+unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node)
+{
+    // mesh-group AABB (min xyz, max xyz) follows the node header
+    const float* aabb = (const float*)(node + 1);
+    const float minX = aabb[0];
+    const float minY = aabb[1];
+    const float maxX = aabb[3];
+    const float maxY = aabb[4];
+
+    // one bit per region row the AABB spans: rows 0..7 = bits 16..23
+    unsigned int rows = 0;
+    for (int row = 0; row < 8; row++) {
+        if (minY < swrObjTrig_regionBoundsY[row + 1]) {
+            rows = (0xff0000u << row) & 0xff0000u;
+            break;
+        }
+    }
+    if (rows != 0) {
+        if (maxY < swrObjTrig_regionBoundsY[0]) {
+            rows = 0;
+        } else {
+            for (int row = 1; row < 8; row++) {
+                if (maxY < swrObjTrig_regionBoundsY[row]) {
+                    rows &= (0x10000u << row) - 0x10000u;
+                    break;
+                }
+            }
+        }
+    }
+
+    // the same row bits per column: column 0 in bits 24..31, column 1 in 16..23, column 2 in 8..15
+    unsigned int column0 = rows << 8;
+    unsigned int column1 = rows;
+    unsigned int column2 = (int)rows >> 8;
+    if (column0 != 0) {
+        if (maxX < swrObjTrig_regionBoundsX[0] || minX > swrObjTrig_regionBoundsX[1])
+            column0 = 0;
+        if (maxX < swrObjTrig_regionBoundsX[1] || minX > swrObjTrig_regionBoundsX[2])
+            column1 = 0;
+        if (maxX < swrObjTrig_regionBoundsX[2] || minX > swrObjTrig_regionBoundsX[3])
+            column2 = 0;
+    }
+
+    unsigned int regions = column2 | column1 | column0;
+    swrModel_NodeModifyFlags(node, 0, 0xff, 0x10, 3);
+    swrModel_NodeModifyFlags(node, 0, regions, 0x10, 2);
+    return regions;
 }
 
 // 0x0047DC40
-void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node)
+unsigned int swrObjTrig_FindAndInitializeTriggersInNode(swrModel_Node* node)
 {
-    HANG("TODO");
+    unsigned int result = 0;
+    int nodeFlags = swrModel_NodeGetFlags(node);
+    if (nodeFlags == NODE_MESH_GROUP) {
+        if (swrObjTrig_regionGridLayout != 0 && swrObjTrig_regionGridSuppressed == 0)
+            result = swrObjTrig_ApplyNodeRegionColor_Maybe(node);
+
+        int numChildren = swrModel_NodeGetNumChildren(node);
+        for (int i = 0; i < numChildren; i++) {
+            swrModel_Mesh* mesh = swrModel_NodeGetMesh((swrModel_NodeMeshGroup*)node, i);
+            if (mesh == NULL)
+                continue;
+            swrModel_Behavior* behavior = swrModel_MeshGetBehavior(mesh);
+            if (behavior != NULL && behavior->triggers != NULL)
+                swrObjTrig_AddTriggerDescriptions(behavior->triggers, swrModel_NodeGetFlags1Or2(node, 2));
+        }
+        return result;
+    }
+
+    if ((nodeFlags & NODE_HAS_CHILDREN) == 0)
+        return result;
+
+    int savedSuppressed = 0;
+    if (nodeFlags & NODE_IS_TRANSFORMED) {
+        savedSuppressed = swrObjTrig_regionGridSuppressed;
+        swrObjTrig_regionGridSuppressed = 1;
+    }
+
+    int numChildren = swrModel_NodeGetNumChildren(node);
+    for (int i = 0; i < numChildren; i++) {
+        swrModel_Node* child = node->children.nodes[i];
+        if (child != NULL)
+            result |= swrObjTrig_FindAndInitializeTriggersInNode(child);
+    }
+
+    if (swrObjTrig_regionGridLayout != 0 && swrObjTrig_regionGridSuppressed == 0) {
+        swrModel_NodeModifyFlags(node, 0, 0xff, 0x10, 3);
+        swrModel_NodeModifyFlags(node, 0, result, 0x10, 2);
+    }
+
+    if (nodeFlags & NODE_IS_TRANSFORMED)
+        swrObjTrig_regionGridSuppressed = savedSuppressed;
+
+    return result;
 }
 
 // 0x0047DD90
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode()
 {
-    HANG("TODO");
+    swrModel_NodeInit(&swrObjTrig_RootNode, NODE_BASIC);
+    swrObjTrig_RootNode.num_children = 0;
+    swrObjTrig_RootNode.children.nodes = swrObjTrig_SceneChildNodes;
+    return &swrObjTrig_RootNode;
 }
 
 // 0x0047DDC0
@@ -5142,13 +5414,28 @@ swrModel_TriggerDescription* swrObjTrig_GetTriggerDescription(int index)
 // 0x0047E7E0
 void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, int player_index)
 {
-    HANG("TODO");
+    swrModel_TriggerDescription* description = swrObjTrig_GetTriggerDescription(trigger_index);
+    swrRace* player = player_index < 0 ? NULL : swrScores[player_index].obj_test_ptr;
+    if (description == NULL || player == NULL)
+        return;
+
+    swrObjTrig* trigger = swrObjTrig_FindOrCreate(description);
+    if (trigger != NULL)
+        swrRace_TriggerHandler((int)trigger, (int)player, 1);
 }
 
 // 0x0047E830
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
 {
-    HANG("TODO");
+    if (trigger_description == NULL)
+        return;
+
+    int index = swrObjTrig_FindTriggerDescriptionIndex(trigger_description);
+    if (index == -1)
+        return;
+
+    // only the first five args are pushed (add esp,0x14); the rest are stack garbage the receiver ignores
+    swrMultiplayer_SendEvent(-1, 0, 'trig', index, player->score_ptr->time_unk, 0.0f, 0.0, NULL, NULL, 0);
 }
 
 // 0x00449260
@@ -5928,6 +6215,12 @@ void swrObjHang_PlayWattoVoiceLines_Maybe(int hang)
     swrSound_PlayRandomSfx(2, 0, 0x29, 0x2e, 0x2f, 0x30, 0xc, NULL);
 }
 
+// 0x00437f70
+void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
 // 0x00440800
 void swrObjHang_SwapSelectedPart(swrObjHang* hang)
 {
@@ -5965,6 +6258,40 @@ static void aimAtPodPart(int entry, rdVector3* out)
 
     swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[entry].node, &xf);
     rdVector_Copy3(out, (rdVector3*)&xf.vD);
+}
+
+// 0x0043f770
+void swrObjHang_CycleInspectCamera(swrObjHang* hang)
+{
+    int cameraState = hang->cameraState;
+    if (swrObjHang_inspectIdleDelay == -1.0f)
+        swrObjHang_inspectIdleDelay = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
+
+    swrObjHang_UpdateHoloCameraTarget(hang, cameraState);
+
+    if (swrObjHang_cameraMoveMode != 1) {
+        swrObjHang_inspectIdleTimer += swrRace_fdeltaTimeSecs;
+        if (swrObjHang_inspectIdleTimer >= swrObjHang_inspectIdleDelay) {
+            swrObjHang_inspectIdleTimer = 0.0f;
+            swrObjHang_inspectIdleDelay = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
+            do {
+                // InspectCockpit..InspectCharacter
+                cameraState = HangCameraState_InspectCockpit - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -10.0f);
+                if (cameraState >= HangCameraState_InspectEngine1 && cameraState <= HangCameraState_InspectEngine4 && swrRacer_PodData[hang->vehiclePlayer].pod_modelID == MODELID_neva_kee_pod)
+                    cameraState = hang->cameraState;
+                if (cameraState >= HangCameraState_InspectEngine3 && cameraState <= HangCameraState_InspectEngine4 && swrRacer_PodData[hang->vehiclePlayer].pod_modelID != MODELID_ben_quadinaros_pod)
+                    cameraState = hang->cameraState;
+                if (cameraState <= HangCameraState_InspectPT04 && cameraState - HangCameraState_InspectEngine4 > (unsigned char)swrRace_nbPitDroids)
+                    cameraState = hang->cameraState;
+            } while (cameraState == hang->cameraState);
+            swrObjHang_cameraMoveMode = 1;
+        }
+    }
+
+    if (cameraState != hang->cameraState) {
+        swrObjHang_AimHoloCamera(hang, cameraState, 0);
+        hang->cameraState = cameraState;
+    }
 }
 
 // 0x0043f8e0

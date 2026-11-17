@@ -35,6 +35,7 @@
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
 #define ComputeModelViewBounds_ADDR (0x0043e6f0)
 #define LoadUpgradeModelsIntoScene_Maybe_ADDR (0x0043e840)
+#define swrObjHang_CycleInspectCamera_ADDR (0x0043f770)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
@@ -525,6 +526,7 @@ void swrModel_clearSceneModelsAndChildren(void);
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset);
 // Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
 // snap) and feed it to swrObjHang_SetHoloCameraTarget.
+void swrObjHang_CycleInspectCamera(swrObjHang* hang);
 void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrentEye); // cameraState: a HangCameraState_Inspect* value
 // Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex);
@@ -827,7 +829,7 @@ void swrObjTrig_InitColorBands_Maybe(void);
 // Maps a node's position to a region color and applies it to the node (best guess).
 unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node);
 
-void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
+unsigned int swrObjTrig_FindAndInitializeTriggersInNode(swrModel_Node* node);
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
 swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3);
 

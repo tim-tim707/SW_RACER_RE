@@ -437,6 +437,17 @@ typedef enum swrModel_TriggerType
     swrModel_TriggerType_TeleportToSpline = 900,      // teleport player to spline
 } swrModel_TriggerType;
 
+// swrModel_TriggerDescription.flags
+typedef enum swrModel_TriggerDescription_FLAG
+{
+    swrModel_TriggerDescription_FLAG_ENABLED = 0x1,
+    swrModel_TriggerDescription_FLAG_NEEDS_SPEED = 0x2, // player must be above 150 speed
+    swrModel_TriggerDescription_FLAG_SKIP_LAP1 = 0x4,
+    swrModel_TriggerDescription_FLAG_SKIP_LAP2 = 0x8,
+    swrModel_TriggerDescription_FLAG_SKIP_LAP3 = 0x10,
+    swrModel_TriggerDescription_FLAG_IGNORE_AI = 0x20,
+} swrModel_TriggerDescription_FLAG;
+
 // swrObjTrig.flag: runtime state of a live trigger object
 typedef enum swrObjTrig_FLAG
 {
@@ -515,6 +526,11 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
     swrObjHang_STATE_MP_OTHER_SCREEN = 19,     // broadcast-only: MP host is on a screen other than main/planet/track
 } swrObjHang_STATE;
+
+typedef enum swrRender_FRAME_CLEAR_FLAG
+{
+    swrRender_FRAME_CLEAR_COLOR = 0x2, // clear the frame to the SetClearColor colour (read at 0x00483db4)
+} swrRender_FRAME_CLEAR_FLAG;
 
 typedef enum HangCameraState
 {
