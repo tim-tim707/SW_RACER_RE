@@ -642,7 +642,11 @@ extern "C"
         struct swrScore* score_ptr;
         char unk1e74[64];
         int remoteId; // 0x1eb4. network id of the owning remote player (-1 = unassigned; set by the 'RmHi' event, REMO pods only)
-        char remoteState[64]; // 0x1eb8. remote-pod staging: controls @+0/+4/+8 ('RmCn'), steer target @+0x10 ('RmTh', consumed by CalcTargetTurnRate -> turnRateTarget), pos+rot 6 floats @+0x14 ('RmLc'/'RmHi')
+        int remoteControls[3]; // 0x1eb8. remote-pod controls from the 'RmCn' event (two payload words + subEvent[4])
+        int unk1ec4; // 0x1ec4
+        float remoteSteerTarget; // 0x1ec8. 'RmTh' steer target, consumed by CalcTargetTurnRate -> turnRateTarget
+        swrTranslationRotation remotePose; // 0x1ecc. 'RmLc' pose; seeded from spawn_pos_rot by 'RmHi'
+        char unk1ee4[20]; // 0x1ee4
         float unk1ef8; // 0x1ef8. never referenced (label was 4 bytes off pre-2026-07: unk1ebc)
         float unk1efc; // 0x1efc. init 0.25 (Init/ResetToSpline); no reader in the retail binary
         float unk1f00; // 0x1f00. init 80.0; no reader in the retail binary

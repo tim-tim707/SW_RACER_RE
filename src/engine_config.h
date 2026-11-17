@@ -254,6 +254,10 @@
 #define SWR_UI_FRAME_NATIVE_SCREEN_WIDTH (640) // panel/frame edges are widened by two edge sprites at any other width
 #define SWR_HUD_WORLD_SPRITE_MAX_DIST (1500.0f)
 
+// swrObjTest_F4 'Hitt' event (0x00474d80)
+#define SWR_OBJTEST_HIT_LOG_SIZE (8) // swrObjTest_hitKindLog / swrObjTest_hitAmountLog ring entries
+#define SWR_POD_HIT_SOUND_MAX_LOD (500) // impact sound / rumble only while swrRace.lodDistance is below this
+
 // swrControl force feedback (0x00409d70 LoadForceEffects .. 0x0040b5e0 UpdateImpactForceEffect)
 #define SWR_FF_EFFECT_SLOTS (6) // cifr_EffectSet.slots
 #define SWR_FF_DEVICE_NONE (9) // swrControl_forceEffectsDeviceType: no bundle loaded; valid device types are 0..8
