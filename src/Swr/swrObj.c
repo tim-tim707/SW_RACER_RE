@@ -64,6 +64,16 @@ void DrawTracks(swrObjHang* hang, char param_2)
     HANG("TODO");
 }
 
+// 0x00440990
+int swrUI_DebugColorsEqual_Maybe(char* a, char* b)
+{
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_NAME_CHECKS) == 0)
+        return 0;
+    if (a[0] == b[0] && a[1] == b[1] && a[2] == b[2])
+        return 1;
+    return 0;
+}
+
 // 0x004409d0
 int compare3Chars(char* a, char* b)
 {
@@ -242,10 +252,93 @@ void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue)
         swrRace_energyBinderTime = (float)(swrRace_energyBinderTime + swrRace_deltaTimeSecs);
 }
 
+// 0x00451160
+void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod)
+{
+    HANG("TODO");
+}
+
+// 0x00451800
+void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* meshBehavior)
+{
+    HANG("TODO");
+}
+
 // 0x00451a80
 void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
 {
-    HANG("TODO");
+    swrRace* pod = cman->unkf4_objTest;
+    swrModel_Behavior* behavior;
+
+    cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_NO_WEATHER;
+    if (pod == NULL)
+        return;
+
+    if (pod->terrainModel != NULL) {
+        behavior = swrModel_MeshGetBehavior((swrModel_Mesh*)pod->terrainModel);
+    } else {
+        if ((pod->flags1 & swrObjTest_FLAG1_RESPAWN_RELIGHT) == 0)
+            goto updateLightFlags;
+        behavior = cman->surfaceBehavior;
+    }
+
+    if (behavior != NULL && (behavior->vehicle_reaction & swrVehicleReaction_NSnw) != 0)
+        cman->fog_flag |= swrObjcMan_VIEWFLAGS_NO_WEATHER;
+    if (behavior == cman->surfaceBehavior && (pod->flags1 & swrObjTest_FLAG1_RESPAWN_RELIGHT) == 0)
+        goto updateLightFlags;
+
+    pod->flags1 &= ~swrObjTest_FLAG1_RESPAWN_RELIGHT;
+    cman->surfaceBehavior = behavior;
+    swrObjcMan_LoadLightingFromBehavior(cman, pod, behavior);
+    if (NumLocalPlayers() <= 1)
+        swrSound_SetUpdateFlag_Maybe(behavior != NULL && (behavior->unk18 & 1) != 0 ? 0x7f : 0);
+    if (behavior == NULL)
+        goto updateLightFlags;
+
+    if ((behavior->unk1 & 2) != 0)
+        cman->fog_flag |= 4;
+    if ((behavior->unk1 & 4) != 0)
+        cman->fog_flag &= ~4;
+
+    if ((behavior->fog_flags & swrModel_Behavior_FOGFLAG_DISTANCE) != 0) {
+        cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_DISTANCE;
+        cman->fogDistTarget = (float)(short)behavior->fog_end;
+        if (NumLocalPlayers() > 1) {
+            if ((behavior->fog_flags & swrModel_Behavior_FOGFLAG_COLOR) == 0)
+                goto updateVisualFlags;
+            if (cman->fogDistTarget > 1200.0f)
+                cman->fogDistTarget = 1200.0f;
+            if ((pod->flags0 & 0xf) != 2)
+                cman->fogDist = cman->fogDistTarget;
+        }
+    }
+    if ((behavior->fog_flags & swrModel_Behavior_FOGFLAG_COLOR) != 0) {
+        if ((short)behavior->fog_start > 0)
+            cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_START;
+        else
+            cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_FOG_START;
+        cman->unk2e0 = (float)(short)behavior->fog_start;
+        if (cman->unk2e0 > 999.0f)
+            cman->unk2e0 = 999.0f;
+        cman->fog_r_target = behavior->fog_color[0];
+        cman->fog_g_target = behavior->fog_color[1];
+        cman->fog_b_target = behavior->fog_color[2];
+    }
+updateVisualFlags:
+    // faithful: the low byte of the result is cleared
+    cman->visual_flag &= ~behavior->unk20;
+    cman->visual_flag = (behavior->unk21 | cman->visual_flag) & 0xffffff00;
+
+updateLightFlags:
+    if ((pod->flags0 & (swrObjTest_FLAG0_SCRAPE_SPARK_R | swrObjTest_FLAG0_SCRAPE_SPARK_L)) != 0)
+        cman->unk2e4_flag |= 0x10;
+    else
+        cman->unk2e4_flag &= ~0x10;
+    if ((pod->flags1 & swrObjTest_FLAG1_RESPAWN_RELIGHT) != 0)
+        cman->unk2e4_flag |= 0x40;
+    if (cman->unk2e4_flag != 0)
+        swrObjcMan_UpdateLighting(cman, pod);
+    pod->flags1 &= ~swrObjTest_FLAG1_RESPAWN_RELIGHT;
 }
 
 // 0x00451cd0
@@ -948,16 +1041,189 @@ void swrObjHang_UpdateEnterName(swrObjHang* hang)
     swrObjHang_SetMenuState(hang, hang->menuScreenPrev);
 }
 
+// 0x004565e0
+void swrObjHang_OrderHoloRacerIcons(int planetIdx)
+{
+    int ids[5] = { -1, -1, -1, -1, -1 };
+    float keys[5] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+    swrPlanetInfo* planet = &swrPlanetTable[planetIdx];
+    int count = planet->sunMoonSpriteEnd - planet->sunMoonSpriteStart + 1;
+    int slotCount = count + 2;
+    int front = 0;
+    int back = count + 1;
+    int cursor = 0;
+    float sinAngle;
+    float cosAngle;
+
+    // moons facing the camera go first, the rest fill from the back
+    for (int k = planet->sunMoonSpriteStart; k <= planet->sunMoonSpriteEnd; k++) {
+        stdMath_SinCos(swrObjHang_holoMoons[k].angle, &sinAngle, &cosAngle);
+        if (cosAngle * swrObjHang_holoMoons[k].orbit.y > 0.0f) {
+            keys[front] = swrObjHang_holoMoons[k].scale;
+            ids[front] = k - planet->sunMoonSpriteStart + INGAME_MODELID_pln_moon_part0;
+            front++;
+        } else {
+            keys[back] = swrObjHang_holoMoons[k].scale;
+            ids[back] = k - planet->sunMoonSpriteStart + INGAME_MODELID_pln_moon_part0;
+            back--;
+        }
+    }
+    ids[front++] = planetIdx + INGAME_MODELID_pln_tatooine_part;
+    ids[front++] = INGAME_MODELID_pln_coruscant_cld_part;
+
+    // faithful: both sorts swap ids only, never keys, and the front sort stops two short of the planet
+    for (int a = 0; a < front - 3; a++) {
+        for (int j = a + 1; j < front - 2; j++) {
+            if (keys[a] < keys[j]) {
+                int tmp = ids[a];
+                ids[a] = ids[j];
+                ids[j] = tmp;
+            }
+        }
+    }
+    for (int a = back; a < count + 1; a++) {
+        for (int j = a + 1; j < slotCount; j++) {
+            if (keys[a] > keys[j]) {
+                int tmp = ids[a];
+                ids[a] = ids[j];
+                ids[j] = tmp;
+            }
+        }
+    }
+
+    // rewrite the scene's child list so these models render in the sorted order
+    for (int n = 0; n < SWR_SCENE_MODEL_SLOT_COUNT; n++) {
+        for (int i = 0; i < slotCount; i++) {
+            if (swr_sceneModels[ids[i]]->entries[0].node == swrScene_ChildNodes[n]) {
+                swrScene_ChildNodes[n] = swr_sceneModels[ids[cursor]]->entries[0].node;
+                cursor++;
+                break;
+            }
+        }
+    }
+}
+
 // 0x00456800
 void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
 {
-    HANG("TODO");
+    float planetScale = scale * 0.1f;
+    swrModel_NodeTransformed* node;
+    rdMatrix44 xf;
+    rdVector3 pos;
+    float sinAngle;
+    float cosAngle;
+    float s;
+
+    for (int i = 0; i < 8; i++) {
+        swrPlanetInfo* planet = &swrPlanetTable[i];
+        float angle = planet->spinSpeed * swrRace_fdeltaTimeSecs + planet->spinAngle;
+        planet->spinAngle = angle;
+        if (angle > 360.0f)
+            planet->spinAngle = angle - 360.0f;
+        if (planet->spinAngle < 0.0f)
+            planet->spinAngle = planet->spinAngle - -360.0f;
+        angle = planet->unk18 * swrRace_fdeltaTimeSecs + planet->unk14;
+        planet->unk14 = angle;
+        if (angle > 360.0f)
+            planet->unk14 = angle - 360.0f;
+        if (planet->unk14 < 0.0f)
+            planet->unk14 = planet->unk14 - -360.0f;
+        // hide every planet; the selected one is shown again below
+        if (swrPlanetHoloModelNodes[i] != NULL && ((swrModel_Header*)swrPlanetHoloModelNodes[i])->entries[0].node != NULL)
+            swrModel_NodeModifyFlags(((swrModel_Header*)swrPlanetHoloModelNodes[i])->entries[0].node, 2, -4, 0x10, 3);
+    }
+
+    for (int i = 0; i < 19; i++) {
+        // faithful: every moon advances twice per frame
+        for (int pass = 0; pass < 2; pass++) {
+            float angle = swrRace_fdeltaTimeSecs * swrObjHang_holoMoons[i].speed + swrObjHang_holoMoons[i].angle;
+            swrObjHang_holoMoons[i].angle = angle;
+            if (angle > 360.0f)
+                swrObjHang_holoMoons[i].angle = angle - 360.0f;
+            if (swrObjHang_holoMoons[i].angle < 0.0f)
+                swrObjHang_holoMoons[i].angle = swrObjHang_holoMoons[i].angle - -360.0f;
+        }
+    }
+
+    swrObjHang_OrderHoloRacerIcons(planetIdx);
+    swrObjHang_UpdateHoloBillboardMatrix();
+
+    node = (swrModel_NodeTransformed*)((swrModel_Header*)swrPlanetHoloModelNodes[planetIdx])->entries[0].node;
+    if (node != NULL) {
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_Copy44(&xf, &swrObjHang_holoCameraMatrix);
+        rdVector_Copy3(&pos, &maybeUICameraPlacements[36].position2);
+        rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, swrPlanetTable[planetIdx].spinAngle, swrObjHang_cameraMatrix.vC.x, swrObjHang_cameraMatrix.vC.y, swrObjHang_cameraMatrix.vC.z);
+        rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, swrPlanetTable[planetIdx].orientationAngle, swrObjHang_cameraMatrix.vB.x, swrObjHang_cameraMatrix.vB.y, swrObjHang_cameraMatrix.vB.z);
+        if (planetIdx == 6)
+            s = (float)(planetScale * 1.5);
+        else
+            s = swrObjHang_holoPlanetScale * planetScale;
+        rdMatrix_ScaleBasis44(&xf, s, s, s, &xf);
+        rdVector_Copy3((rdVector3*)&xf.vD, &pos);
+        swrModel_NodeSetTransform(node, &xf);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
+
+    for (int k = swrPlanetTable[planetIdx].sunMoonSpriteStart; k <= swrPlanetTable[planetIdx].sunMoonSpriteEnd; k++) {
+        swrHoloMoon* moon = &swrObjHang_holoMoons[k];
+        node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_pln_moon_part0 + k - swrPlanetTable[planetIdx].sunMoonSpriteStart]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_Copy44(&xf, &swrObjHang_holoCameraMatrix);
+        rdVector_Copy3(&pos, &maybeUICameraPlacements[36].position2);
+        stdMath_SinCos(moon->angle, &sinAngle, &cosAngle);
+        rdVector_Scale3Add3(&pos, &pos, moon->orbit.x * sinAngle * scale, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+        rdVector_Scale3Add3(&pos, &pos, cosAngle * scale * moon->orbit.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+        rdVector_Scale3Add3(&pos, &pos, moon->orbit.z * cosAngle * scale, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+        rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, moon->angle, swrObjHang_cameraMatrix.vC.x, swrObjHang_cameraMatrix.vC.y, swrObjHang_cameraMatrix.vC.z);
+        rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, swrPlanetTable[planetIdx].orientationAngle, swrObjHang_cameraMatrix.vB.x, swrObjHang_cameraMatrix.vB.y, swrObjHang_cameraMatrix.vB.z);
+        s = moon->scale * scale;
+        rdMatrix_ScaleBasis44(&xf, s, s, s, &xf);
+        rdVector_Copy3((rdVector3*)&xf.vD, &pos);
+        swrModel_NodeSetTransform(node, &xf);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
 }
 
 // 0x00456c70
 void DrawTrackPreview(void* unused, int TrackID, float param_3)
 {
     HANG("TODO");
+}
+
+// Step cameraState by dir to the next placement in the same group (placement.unk1), wrapping
+// over the 40 placements; wrap = 0 refuses to leave the group or the table instead.
+// 0x0045bde0
+void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int wrap)
+{
+    HangCameraState current = hang->cameraState;
+    int next = current + dir;
+    int moved = 0;
+
+    if (wrap == 0) {
+        if (next < 0 || next > HangCameraState_CantinaEntryCutscene)
+            return;
+        if ((short)maybeUICameraPlacements[next].unk1 != (short)maybeUICameraPlacements[current].unk1)
+            return;
+    }
+    next -= dir;
+    do {
+        next += dir;
+        if (next < 0)
+            next = HangCameraState_CantinaEntryCutscene;
+        else if (next > HangCameraState_CantinaEntryCutscene)
+            next = 0;
+    } while ((short)maybeUICameraPlacements[next].unk1 != (short)maybeUICameraPlacements[current].unk1);
+
+    if (maybeUICameraPlacements[next].unk2 != 0 && (!rdVector_AreSame3(&maybeUICameraPlacements[next].position1, &maybeUICameraPlacements[current].position1) || !rdVector_AreSame3(&maybeUICameraPlacements[next].position2, &maybeUICameraPlacements[hang->cameraState].position2))) {
+        moved = 1;
+        swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[next].position1, &maybeUICameraPlacements[next].position2, 1, 0, 0);
+    }
+    hang->cameraState = next;
+    if (moved)
+        swrObjHang_PositionPlayerPuppets(hang);
 }
 
 // 0x0045bee0
@@ -1154,28 +1420,443 @@ void swrObjHang_UpdateMainMenu(swrObjHang* hang)
     swrRace_MainMenu(hang);
 }
 
+static void computeSelectedPartStats(swrObjHang* hang);
+
 // 0x0043abc0
 void swrObjHang_UpdateJunkyard(swrObjHang* hang)
 {
-    HANG("TODO");
+    char text[256];
+    char* partName;
+    char* format;
+    int width;
+    int selectionChanged = 0;
+    char dir = 0;
+
+    if (swrObjHang_UpdateScreenTransition(hang, swrObjHang_menuJustEntered, 0x14) != 0)
+        return;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_junkyardOpenDetail = 0;
+        swrObjHang_junkyardReturnCamera = 0;
+        swrObjHang_screenSlideOffset = -300.0f;
+        swrObjHang_partDetailActive = 0;
+        swrObjHang_partDetailClosing = 0;
+        swrObjHang_cameraMoveParity = 0;
+        swrObjHang_LayoutVehicleSelectIcons(hang);
+        swrRace_MenuSelectedItem = swrObjHang_junkyardStock[hang->cameraState - SWR_JUNKYARD_PLACEMENT_FIRST].partType;
+        computeSelectedPartStats(hang);
+        swrRace_ComputeUpgradePrices();
+        if (swrObjHang_IsCameraMoving(hang) != 0)
+            swrObjHang_FocusMenuItem(hang, hang->cameraState, ~swrObjHang_STATE_LEGAL, 0);
+        else
+            swrObjHang_cameraMoveMode = 5;
+    }
+
+    if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_FADED_IN) != 0 && swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING) != 0) {
+        swrSound_ClearSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING);
+        if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_JUNKYARD_INTRO_PLAYED) == 0) {
+            swrSound_SetSfxFlag(0, swrSound_HANGSFXFLAG_JUNKYARD_INTRO_PLAYED);
+            swrSound_PlaySfxThrottled(2, 0, 0x35, NULL);
+        } else {
+            swrSound_PlayRandomSfx(2, 0, 0x1f, 0x25, 0x2f, 0x33, 0x37, NULL);
+        }
+    }
+
+    swrRace_DrawPartShopScreen(hang);
+    if (hang->cameraState != HangCameraState__unk_3)
+        swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+    if ((swrObjHang_cameraMoveParity == 0 || swrObjHang_cameraMoveActive != 0) && hang->cameraState != HangCameraState__unk_3) {
+        partName = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].name);
+        format = swrText_Translate(g_pTxtPartNameFormat);
+        sprintf(text, format, partName);
+        swrText_CreateTextEntry1(0xa0, 0x19, 0x32, -1, -1, -1, text);
+        swrRace_MenuCanScrollRight = 1;
+        swrRace_MenuCanScrollLeft = 1;
+        swrText_GetStringWidthByFont(text, 0);
+        width = swrText_GetStringWidthByFont(text, 0);
+        // the original also pushes width as a third argument, which the callee never reads
+        swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - (double)width * 0.5), 0x1a);
+    }
+    swrRace_UpdatePartMenuLayout(hang);
+    swrRace_UpdateStatPartModels(); // the original pushes hang; the callee takes no argument
+
+    // the camera arrived at the slot: open the detail view
+    if (swrObjHang_cameraMoveParity != 0 && swrObjHang_cameraMoveActive == 0 && swrObjHang_partDetailActive == 0 && swrObjHang_junkyardReturnCamera == 0)
+        swrObjHang_junkyardOpenDetail = 1;
+    if (swrObjHang_junkyardOpenDetail != 0) {
+        swrObjHang_partLayoutDirty = 1;
+        swrObjHang_partDetailActive = 1;
+        swrRace_upgradeUnaffordable = 0;
+        swrObjHang_junkyardOpenDetail = 0;
+    }
+    if (swrObjHang_cameraMoveParity != 0 && swrObjHang_partLerpActive == 0 && swrObjHang_junkyardReturnCamera != 0) {
+        swrObjHang_junkyardReturnCamera = 0;
+        swrObjHang_BeginCameraMove(hang, 0);
+    }
+
+    // faithful: dir and selectionChanged carry over between players
+    for (int player = 0; player < hang->num_local_players; player++) {
+        if (swrObjHang_cameraMoveActive != 0 || swrObjHang_screenTransitionDir != 0)
+            return;
+        if (swrControl_menuAcceptPressedEdge != 0) {
+            playUISound(0x54);
+            if (swrObjHang_cameraMoveParity == 0) {
+                swrObjHang_BeginCameraMove(hang, 1);
+                if (hang->cameraState == HangCameraState__unk_3) {
+                    swrObjHang_fadeState = -1;
+                    swrObjHang_state2 = swrObjHang_STATE_WATTO;
+                    return;
+                }
+            } else {
+                if (swrRace_upgradeUnaffordable == 0)
+                    swrObjHang_SwapSelectedPart(hang);
+                swrObjHang_partLayoutDirty = 1;
+                swrRace_upgradeUnaffordable = 0;
+                swrObjHang_partDetailActive = 0;
+                swrObjHang_partDetailClosing = 1;
+                swrObjHang_screenTransitionDir = -1;
+                swrObjHang_junkyardReturnCamera = 1;
+            }
+        }
+        if (swrMultiplayer_menuOverlayActive == 0 && swrControl_cancelPressedEdge != 0) {
+            playUISound(0x4d);
+            if (swrObjHang_partDetailActive != 0) {
+                swrObjHang_partLayoutDirty = 1;
+                swrObjHang_partDetailActive = 0;
+                swrObjHang_partDetailClosing = 1;
+                swrRace_upgradeUnaffordable = 0;
+                swrObjHang_screenTransitionDir = -1;
+                swrObjHang_junkyardReturnCamera = 1;
+            } else {
+                swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+            }
+        }
+        swrRace_MenuNavRightActive = 0;
+        swrRace_MenuNavLeftActive = 0;
+        if (swrObjHang_cameraMoveParity == 0 && swrObjHang_partDetailActive == 0) {
+            int input = swrUI_localPlayersInputDownBitset[player];
+            if ((input & swrUI_INPUT_MENU_LEFT) != 0) {
+                if (swrObjHang_cameraMoveMode == 5 || swrObjHang_cameraMoveMode == 0)
+                    dir = -1;
+                swrRace_MenuNavLeftActive = 1;
+            }
+            if ((input & swrUI_INPUT_MENU_RIGHT) != 0) {
+                if (swrObjHang_cameraMoveMode == 5 || swrObjHang_cameraMoveMode == 0)
+                    dir = 1;
+                swrRace_MenuNavRightActive = 1;
+            }
+        }
+        if (dir != 0) {
+            swrObjHang_NavigateMenu(hang, dir, 1);
+            if (hang->cameraState != HangCameraState__unk_3)
+                selectionChanged = 1;
+            playUISound(0x58);
+        }
+        if (selectionChanged) {
+            swrRace_MenuSelectedItem = swrObjHang_junkyardStock[hang->cameraState - SWR_JUNKYARD_PLACEMENT_FIRST].partType;
+            computeSelectedPartStats(hang);
+            swrRace_ComputeUpgradePrices();
+        }
+    }
 }
 
 // 0x0043c6f0
 void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
 {
-    HANG("TODO");
+    rdVector3 lookAt;
+    swrObjElmo* elmo;
+    float elmoHeight;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrSound_RewindChannels();
+        swrObjHang_vehicleIntroStep = 0;
+        swrObjHang_vehicleIntroTimer = 3.0f;
+        swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[38].position2, &maybeUICameraPlacements[39].position2, 1, 0, 0);
+        swrObjHang_vehicleIntroPlanet = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 8.0f);
+    }
+    swrUI_Front_DispatchPageCallbacks_Maybe(0, 0);
+    elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', hang->elmoEntityIndex);
+    elmoHeight = elmo->unkbc * 0.8f;
+    if (swrObjHang_vehicleIntroStep > 1)
+        swrObjHang_StepTransition(-3.3f);
+    if (swrObjHang_vehicleIntroStep == 3 && swrObjHang_vehicleIntroTimer > 0.0f) {
+        hang->elmoFocusPosition.z = elmoHeight - 60.0f;
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &hang->elmoFocusPosition);
+        swrObjHang_vehicleIntroTimer -= swrRace_fdeltaTimeSecs;
+    }
+    for (int i = 0; i < hang->num_local_players; i++) {
+        if (swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) {
+            // faithful: elmoEntityIndex is -1 after the first skip, so later players index slot -1
+            swrRace_SetEngineNodeTranslation((void**)swr_sceneModels[hang->elmoEntityIndex], &swrObjHang_droidHomePos);
+            swrObjElmo_SetAnimState(elmo, 0);
+            hang->elmoEntityIndex = -1;
+            swrRace_Transition = 0.0f;
+            swrObjHang_state2 = swrObjHang_STATE_SELECT_VEHICLE;
+        }
+    }
+    if (swrRace_Transition > 0.0f)
+        DrawHoloPlanet(hang, swrObjHang_vehicleIntroPlanet, swrRace_Transition * 0.4f);
+
+    if (swrObjHang_state2 != swrObjHang_STATE_SELECT_VEHICLE) {
+        if (swrObjHang_vehicleIntroStep == 0 && swrObjHang_vehicleIntroTimer > 0.0f) {
+            swrObjHang_vehicleIntroTimer -= swrRace_fdeltaTimeSecs;
+            if (swrObjHang_vehicleIntroTimer <= 0.0f) {
+                swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[38].position2, &maybeUICameraPlacements[36].position2, 1, 0, 0);
+                swrObjHang_vehicleIntroStep = 1;
+            }
+        }
+        if (swrObjHang_cameraMoveMode == 0) {
+            if (swrObjHang_vehicleIntroStep == 1) {
+                swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[hang->elmoEntityIndex], &lookAt);
+                lookAt.z = elmoHeight - 60.0f;
+                swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &lookAt, 1, 0, 0);
+                rdVector_Copy3(&elmo->moveTarget, &swrObjHang_droidWalkTarget);
+                elmo->moveTarget.y = -320.0f;
+                swrObjElmo_SetAnimState(elmo, elmo->kind == swrObjElmo_KIND_PIT_DROID ? 6 : 0x14);
+                swrObjHang_vehicleIntroStep = 2;
+            }
+            if (swrObjHang_cameraMoveMode == 0 && swrObjHang_vehicleIntroStep == 2) {
+                swrObjHang_vehicleIntroTimer = 5.0f;
+                swrObjHang_vehicleIntroStep = 3;
+            }
+        }
+        if (swrObjHang_vehicleIntroTimer <= 0.0f && swrObjHang_vehicleIntroStep == 3) {
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &maybeUICameraPlacements[36].position2, 1, 0, 0);
+            swrObjHang_vehicleIntroStep = 4;
+        }
+        if (swrObjHang_cameraMoveMode != 0)
+            return;
+        if (swrObjHang_vehicleIntroStep == 4) {
+            swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[36].position1, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, 1, 0, 0);
+            swrObjHang_vehicleIntroStep = 5;
+        }
+        if (swrObjHang_cameraMoveMode != 0 || swrObjHang_vehicleIntroStep != 5)
+            return;
+    }
+    swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_VEHICLE);
 }
 
 // 0x0043ca30
 void swrObjHang_UpdateTauntScene(swrObjHang* hang)
 {
-    HANG("TODO");
+    rdMatrix44 podTransform;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_tauntTimer = 5.0f;
+        swrObjHang_tauntFavoriteSpoken = 0;
+        swrObjHang_tauntReplySpoken = 0;
+        // faithful: the shots computed from the puppets here are overwritten by the fixed poses below
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS], &swrObjHang_tauntShot2LookAt);
+        rdVector_Copy3(&swrObjHang_tauntShot1Eye, &swrObjHang_tauntShot2LookAt);
+        swrObjHang_tauntShot2LookAt.z = (float)((double)swrRacer_PodData[(int)hang->vehiclePlayer].float20 * 0.6667 - 157.0);
+        swrObjHang_tauntShot1Eye.z = (float)((double)swrRacer_PodData[2].float20 * 0.6667 - 157.0);
+        swrObjHang_tauntShot1Eye.x -= -60.0f;
+        swrObjHang_tauntShot1Eye.y -= -70.0f;
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS + 1], &swrObjHang_tauntShot1LookAt);
+        rdVector_Copy3(&swrObjHang_tauntShot2Eye, &swrObjHang_tauntShot1LookAt);
+        swrObjHang_tauntShot1LookAt.z = (float)((double)swrRacer_PodData[2].float20 * 0.6667 - 157.0);
+        swrObjHang_tauntShot2Eye.z = (float)((double)swrRacer_PodData[(int)hang->vehiclePlayer].float20 * 0.6667 - 157.0);
+        swrObjHang_tauntShot2Eye.x -= -60.0f;
+        swrObjHang_tauntShot2Eye.y -= 70.0f;
+        rdVector_Set3(&swrObjHang_tauntShot1Eye, 296.0f, -206.0f, -68.0f);
+        rdVector_Set3(&swrObjHang_tauntShot2LookAt, -315.0f, 365.0f, -82.0f);
+        rdVector_Set3(&swrObjHang_tauntShot2Eye, 315.0f, -566.0f, -70.0f);
+        rdVector_Set3(&swrObjHang_tauntShot1LookAt, 0.0f, -680.0f, -68.0f);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &swrObjHang_tauntShot1Eye);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &swrObjHang_tauntShot1LookAt);
+    }
+    playASound(0x1b, 7, 0.05f, 0.8f, 1);
+    if (swrObjHang_tauntTimer >= 0.0f) {
+        swrObjHang_tauntTimer -= swrRace_fdeltaTimeSecs * 0.5f;
+        if (swrObjHang_tauntTimer <= 0.0f)
+            swrObjHang_fadeState = -1;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        // the two display-pod positions are 0x28 bytes apart
+        rdVector3* pos = (rdVector3*)((char*)&swrObjHang_displayPodPos + i * 0x28);
+        if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + i] == NULL)
+            continue;
+        pos->x = 0.0f;
+        pos->y = (float)(i * -2500.0);
+        pos->z = 50.0f;
+        // faithful: both overrides hit the first pod whatever i is
+        if (hang->vehiclePlayer == 7)
+            swrObjHang_displayPodPos.y = 200.0f;
+        if (hang->vehiclePlayer == 0x11)
+            swrObjHang_displayPodPos.y = 400.0f;
+        rdMatrix_SetRotation44(&podTransform, 0.0f, 0.0f, 0.0f);
+        rdVector_Set3((rdVector3*)&podTransform.vD, pos->x, pos->y, pos->z);
+        swrRace_AnimateDisplayPod((swrModel_Node**)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + i], &podTransform, 0, 70.0f, 70.0f, 70.0f, -157.0f, 1, 1.0f, 1.0f);
+    }
+
+    if (swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) {
+        swrObjHang_tauntTimer = 0.0f;
+        swrObjHang_fadeState = -1;
+    }
+    if (swrObjHang_tauntTimer < 4.5f && swrObjHang_tauntTimer > 2.75f) {
+        if (swrObjHang_tauntFavoriteSpoken == 0) {
+            swrObjHang_tauntFavoriteSpoken = 1;
+            swrObjElmo_SetAnimStateById(SWR_SCENE_SLOT_PILOT_PUPPETS + 1, 0x18);
+            playASound((char)g_aTrackInfos[hang->track_index].FavoritePilot + 0xb7, 7, 0.25f, 1.0f, 0);
+        }
+        swrText_CreateTextEntry1(0xa0, 200, 0x78, -0x56, -0x56, -1, swrObjHang_pilotTauntText[(char)g_aTrackInfos[hang->track_index].FavoritePilot]);
+    }
+    if (swrObjHang_tauntTimer < 2.5f && swrObjHang_tauntTimer > 0.25f) {
+        if (swrObjHang_tauntReplySpoken == 0) {
+            swrObjHang_tauntReplySpoken = 1;
+            swrObjElmo_SetAnimStateById(SWR_SCENE_SLOT_PILOT_PUPPETS, 0x18);
+            rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &swrObjHang_tauntShot2Eye);
+            rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &swrObjHang_tauntShot2LookAt);
+            playASound(swrRace_UnlockDataBase[0] + 0xb7, 7, 0.25f, 1.0f, 0);
+        }
+        swrText_CreateTextEntry1(0xa0, 200, -0x56, -0x56, 0, -1, swrObjHang_pilotTauntText[(int)swrRace_UnlockDataBase[0]]);
+    }
 }
 
 // 0x0043ceb0
 void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
 {
-    HANG("TODO");
+    swrModel_NodeTransformed* node;
+    swrTranslationRotation pose;
+    rdMatrix44 xf;
+    float volume;
+    float bobSin;
+    float bobCos;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_planetIntroTimer = 33.0f;
+        swrObjHang_planetIntroStep = 0;
+        for (int i = 0; i < 3; i++) {
+            // reads vehiclePlayer, vehicleOpponent[0], vehicleOpponent[1]
+            swrObjHang_planetIntroOrbitSpeed[i] = swrRacer_PodData[(int)(&hang->vehiclePlayer)[i]].float20;
+            swrObjHang_planetIntroOrbitAngle[i] = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
+        }
+        rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, 0.0f, 0.0f, -100.0f);
+        rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrix.vD, 300.0f, 0.0f, -100.0f);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        swrSound_ClearSfxFlag(0, swrSound_HANGSFXFLAG_PODIUM_LINE_PLAYED);
+        swrSound_PlaySfxThenDelayed(3, 0, swrObjHang_circuitIntroSfx[(int)hang->circuitIdx], 5, 0, swrObjJdge_tauntSoundIdsDelayed[(int)hang->podiumCharacters[0]]);
+    }
+
+    if (swrSound_IsSfxOnCooldown(3, 0) == 0 && swrSound_IsSfxOnCooldown(5, 0) == 0) {
+        volume = 1.0f;
+        if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_PODIUM_LINE_PLAYED) == 0) {
+            swrSound_PlaySfxThrottled(1, hang->podiumCharacters[0], 0xf, NULL);
+            swrSound_SetSfxFlag(0, swrSound_HANGSFXFLAG_PODIUM_LINE_PLAYED);
+        }
+    } else {
+        volume = 0.75f;
+    }
+    playASound(5, 6, 0.25f, volume, 1);
+
+    rdVector_Set3(&pose.translation, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&pose.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+
+    switch (swrObjHang_planetIntroStep) {
+    case 0:
+        if (swrObjHang_planetIntroTimer < 32.0f) {
+            swrObjHang_holoCameraMatrixTarget.vD.z -= -125.0f;
+            swrObjHang_planetIntroStep++;
+            swrObjHang_cameraMatrixTarget.vD.z -= -150.0f;
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    case 1:
+        if (swrObjHang_planetIntroTimer < 30.0f) {
+            swrObjHang_planetIntroStep++;
+            rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, 0.0f, 25.0f);
+            rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, -500.0f, 250.0f, 150.0f);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    case 2:
+        if (swrObjHang_planetIntroTimer < 23.0f) {
+            swrObjHang_planetIntroStep++;
+            rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, -500.0f, -200.0f, 50.0f);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    case 3:
+        if (swrObjHang_planetIntroTimer < 20.0f) {
+            swrObjHang_planetIntroStep++;
+            rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, -150.0f, -25.0f);
+            rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, 800.0f, -400.0f, 0.0f);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    case 4:
+        if (swrObjHang_planetIntroTimer < 14.0f) {
+            swrObjHang_planetIntroStep++;
+            rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, 150.0f, -50.0f);
+            rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, 100.0f, 300.0f, -25.0f);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    case 5:
+        if (swrObjHang_planetIntroTimer < 9.0f) {
+            swrObjHang_planetIntroStep++;
+            rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, 0.0f, 25.0f);
+            rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, -5000.0f, -2000.0f, 1000.0f);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 1, 0, 1);
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (swrObjHang_planetIntroTimer >= 0.0f) {
+        swrObjHang_planetIntroTimer -= swrRace_fdeltaTimeSecs;
+        if (swrObjHang_planetIntroTimer <= 0.0f) {
+            swrObjHang_fadeState = -1;
+            if (swrRace_creditsMode == 0)
+                swrObjHang_state2 = swrObjHang_STATE_SELECT_PLANET;
+        }
+    }
+
+    node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_loc_awards_part]->entries[0].node;
+    if (node != NULL) {
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_SetTransform44(&xf, &pose);
+        rdMatrix_ScaleBasis44(&xf, 0.4f, 0.4f, 0.4f, &xf);
+        swrModel_NodeSetTransform(node, &xf);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
+
+    rdVector_Set3(&pose.yaw_roll_pitch, -75.0f, 0.0f, 0.0f);
+    for (int place = 0; place < 3; place++) {
+        swrObjElmo* pilot;
+        float angle = swrObjHang_planetIntroOrbitAngle[place] - swrObjHang_planetIntroOrbitSpeed[place] * swrRace_fdeltaTimeSecs * -0.5f;
+        swrObjHang_planetIntroOrbitAngle[place] = angle;
+        if (angle > 360.0f)
+            swrObjHang_planetIntroOrbitAngle[place] = angle - 360.0f;
+        stdMath_SinCos(swrObjHang_planetIntroOrbitAngle[place], &bobSin, &bobCos);
+        pilot = (swrObjElmo*)swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PILOT_PUPPETS + place);
+        pilot->position.z = (float)place * -50.0f - bobSin * -15.0f;
+        swrRace_SetEngineNodeTranslation((void**)pilot->unk30_nodes, &pilot->position);
+
+        // the award platform under the pilot, then the place number
+        for (int part = 0; part < 2; part++) {
+            int slot = (part == 0 ? SWR_SCENE_SLOT_AWARD_PLATFORMS : INGAME_MODELID_award_first_part) + place;
+            node = (swrModel_NodeTransformed*)swr_sceneModels[slot]->entries[0].node;
+            if (node == NULL)
+                continue;
+            swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+            rdMatrix_SetTransform44(&xf, &pose);
+            rdMatrix_ScaleBasis44(&xf, 0.1f, 0.1f, 0.1f, &xf);
+            rdVector_Copy3((rdVector3*)&xf.vD, &pilot->position);
+            swrModel_NodeSetTransform(node, &xf);
+            swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+        }
+    }
+
+    if ((swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) && swrRace_DebugLevel > 0 && swrUI_DebugColorsEqual_Maybe(swrRace_aProfiles[0].name, swrObjHang_planetIntroSkipInitials) != 0)
+        swrObjHang_planetIntroTimer = 0.0f;
 }
 
 // 0x0043d4e0

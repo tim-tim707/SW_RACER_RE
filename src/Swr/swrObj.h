@@ -342,7 +342,7 @@ void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
 int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
-void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int param_3);
+void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int wrap);
 // Focuses a specific menu item (sets the camera index and queues the next state).
 void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int resetCamera);
 

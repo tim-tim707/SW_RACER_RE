@@ -167,9 +167,12 @@ typedef enum swrSound_HANGSFXFLAG
 {
     swrSound_HANGSFXFLAG_IN_WATTO_SHOP = 0x1, // set entering Watto's shop, cleared entering the junkyard
     swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED = 0x2, // Watto's first parts-counter line played (swrObjHang_PlayWattoVoiceLines_Maybe)
+    swrSound_HANGSFXFLAG_JUNKYARD_INTRO_PLAYED = 0x4, // the junkyard's first greeting played (swrObjHang_UpdateJunkyard)
     swrSound_HANGSFXFLAG_PIT_DROID_INTRO_PLAYED = 0x8, // Watto's first pit-droid-counter line played
+    swrSound_HANGSFXFLAG_FADED_IN = 0x10, // the screen fade-in finished; cleared when the fade-out starts
     swrSound_HANGSFXFLAG_GREETING_PENDING = 0x20, // shop greeting armed; consumed by the Watto/junkyard greeting,
                                                   // blocks swrObjElmo_PlayRandomVoiceSfx_Maybe while set
+    swrSound_HANGSFXFLAG_PODIUM_LINE_PLAYED = 0x1000000, // planet-select intro: the winner's line followed the announcer
     swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER = 0x80000000, // menu screens without pit-droid idle chatter
                                                             // (swrObjElmo_SetAnimState skips it)
 } swrSound_HANGSFXFLAG;
@@ -230,6 +233,7 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_SPLINE_MARKERS = 0x10, // "Spline Markers" toggle row
     swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
     swrRace_DEBUGFLAG_UNLOCK_ALL = 0x40, // swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
+    swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugColorsEqual_Maybe (profile-initials checks)
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;
 
@@ -460,8 +464,17 @@ typedef enum swrViewport_FLAGS
 // swrObjcMan_UpdateFogAndViewport. Only confirmed bits named.
 typedef enum swrObjcMan_VIEWFLAGS
 {
+    swrObjcMan_VIEWFLAGS_FOG_DISTANCE = 0x1, // the surface sets the fog end distance (swrModel_Behavior_FOGFLAG_DISTANCE)
+    swrObjcMan_VIEWFLAGS_FOG_START = 0x2, // the surface's fog start is > 0
     swrObjcMan_VIEWFLAGS_NO_WEATHER = 0x8, // swrWeather_Disable instead of Enable
 } swrObjcMan_VIEWFLAGS;
+
+// swrModel_Behavior.fog_flags
+typedef enum swrModel_Behavior_FOGFLAG
+{
+    swrModel_Behavior_FOGFLAG_COLOR = 0x1, // fog_color and fog_start are valid
+    swrModel_Behavior_FOGFLAG_DISTANCE = 0x2, // fog_end is valid
+} swrModel_Behavior_FOGFLAG;
 
 // swrModel_TriggerDescription.flags
 typedef enum swrModel_TriggerDescription_FLAG

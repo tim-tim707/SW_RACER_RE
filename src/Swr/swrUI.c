@@ -1350,6 +1350,14 @@ bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
     return g_aBeatTrackPlace[0] == 0x3fff && g_aBeatTrackPlace[1] == 0x3fff && g_aBeatTrackPlace[2] == 0x3fff && g_aBeatTrackPlace[3] == 0xff;
 }
 
+// 0x00440d50
+void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4)
+{
+    swrUI_unk* page = swrUI_GetCurrentPage();
+    swrUI_RunCallbacks2(swrUI_GetById(page, 2), arg2);
+    swrUI_RunCallbacks2(swrUI_GetById(page, 4), arg4);
+}
+
 // 0x00457C20
 void swrUI_Front_LoadPlanetModels()
 {
