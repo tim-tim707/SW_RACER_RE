@@ -20,3 +20,14 @@ void swrWeather_SetStretchFactor(float factor)
 {
     HANG("TODO");
 }
+
+// 0x0042d470
+void swrWeather_ResetParticles(void)
+{
+    int i;
+
+    for (i = 0; i < 80; i++)
+        swrWeather_particleStates[i] = 0;
+    for (i = 0; i < 80; i++)
+        swrWeather_particleSpriteIds[i] = -1;
+}

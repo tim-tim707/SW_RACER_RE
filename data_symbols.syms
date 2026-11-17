@@ -180,6 +180,7 @@ swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
 unkCameraArray 0x004B91C4 swrCamera_unk*
+swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitTrack sees 2+ local players; read by swrRace_UpdateInRaceMenu
 InRaceSpritesEnabled 0x004B94C0 int
 
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
@@ -306,6 +307,7 @@ g_pTxtTrackID_22 0x004c1430 char[1] # "/SCREENTEXT_519/~~Malastare 100"
 g_pTxtTrackID_23 0x004c1414 char[1] # "/SCREENTEXT_520/~~Dug Derby"
 g_pTxtTrackID_24 0x004c13f0 char[1] # "/SCREENTEXT_521/~~Sebulba's Legacy"
 
+swrScene_textureScrollState 0x004c1cb4 int* # -> scroll-anim record (0x4c1c90); [1] cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
 upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
@@ -740,6 +742,7 @@ swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
+swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
 
@@ -816,6 +819,7 @@ swrObjHang_idleCameraSeeded 0x0050c9cc char # sentinel 5 once the sway has been 
 someUI 0x0050c968 swrUI_unk*
 
 swrObjJdge_prevRacePositions 0x0050c9d0 short[20] # per-score place last frame (swrObjJdge_UpdateOvertakeSounds); reset by swrObjJdge_InitTrack
+swrObjJdge_teardownFlags 0x0050c9f8 int # bit 2 = TeardownRace restarts the track in place on 'Fini'; no writer in the retail binary
 swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
 swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
@@ -873,9 +877,11 @@ cman_unk_mat44 0x0050cb88 rdMatrix44
 poddConnectionMesh_sinLookupTable 0x0050CBC8 float[64]
 poddConnectionMesh_sinLookupTableInitialized 0x0050CCC8 BOOL
 
+swrObjJdge_splitscreenActive 0x0050ccf0 int # 1 when InitTrack sees 2+ local players; read by HUD/fog/viewport/engine-anim code
 swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
+swrModel_Node4 0x0050cd04 swrModel_Node* # shown/hidden alongside swrModel_Node1..3 in swrViewport_Render
 
 swrSprite_dirtyRectCount 0x0050cd10 short
 

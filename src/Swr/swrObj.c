@@ -15,6 +15,7 @@
 #include "swrRace.h"
 #include "swrSpline.h"
 #include "swrWeather.h"
+#include "swrPlayerHUD.h"
 #include "Primitives/rdVector.h"
 #include "Primitives/rdMatrix.h"
 #include "General/stdMath.h"
@@ -1545,7 +1546,69 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 // 0x0045dd80
 void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
 {
-    HANG("TODO");
+    int ev[16];
+    int i;
+
+    swrUI_ResetProgressBar();
+    swrPlayerHUD_lightStreakParam = 1500.0f;
+    swrSound_ResetMusic();
+    for (i = 0; i < 20; i++)
+        swrSound_ClearSfxFlag(i, 0xff0000);
+    swrUI_UpdateProgressBar(10);
+    swrObjJdge_singleLocalViewport = 1;
+    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+    for (i = 0; i < jdge->num_players; i++) {
+        if (swrScoresPtr[i].obj_test_ptr != NULL)
+            swrScoresPtr[i].lastRaceDamage = swrScoresPtr[i].obj_test_ptr->totalDamage;
+        swrScoresPtr[i].obj_test_ptr = NULL;
+    }
+    swrUI_UpdateProgressBar(20);
+    swrEvent_ClearObjs('Test');
+    swrEvent_ClearObjs('Toss');
+    swrEvent_ClearObjs('Smok');
+    swrEvent_ClearObjs('Trig');
+    swrEvent_ClearObjs('Chsr');
+    swrUI_UpdateProgressBar(30);
+    swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 1
+    swrObjJdge_UpdateViewportLayout(jdge, 1);
+    swrUI_UpdateProgressBar(40);
+    swrSound_SetUpdateFlag_Maybe(0);
+    swrModel_Node1 = NULL;
+    swrModel_Node3 = NULL;
+    swrModel_Node2 = NULL;
+    swrModel_Node4 = NULL;
+    swrObjJdge_splitscreenActive = 0;
+    swrUI_UpdateProgressBar(50);
+    swrPlayerHUD_Enable();
+    ResetLightStreakSprites();
+    swrWeather_ResetParticles();
+    swrUI_UpdateProgressBar(60);
+    ResetSunAndLensFlareSprites();
+    ResetPlayerSpriteValues();
+    swrUI_UpdateProgressBar(70);
+    swrSprite_ResetAllSprites();
+    swrScene_ClearTextureAnim_Maybe();
+    GameSettingFlags &= ~GAME_SETTING_MIRROR;
+    swrViewport_SetRootNodeForAllViewports(NULL);
+    swrUI_UpdateProgressBar(80);
+    swrCam_CamState_InitMainMat4(1, 0, NULL, 0);
+    swrCam_CamState_InitMainMat4(5, 0, NULL, 0);
+    if ((swrObjJdge_teardownFlags & 2) != 0 && event == 'Fini') {
+        // restart the track in place; nothing in the retail binary sets this bit
+        swrObjJdge_InitTrack(jdge, swrScoresPtr);
+        swrScene_SetObjectsLoaded();
+        jdge->flag = (jdge->flag & ~swrObjJdge_STATE_MASK) | 3; // EXE: & ~0xc | 3
+        return;
+    }
+    swrUI_UpdateProgressBar(90);
+    *((unsigned char*)&jdge->obj.flags + 1) |= 0x10;
+    ev[0] = 'RSet';
+    swrEvent_CallF4('cMan', ev);
+    swrUI_UpdateProgressBar(98);
+    if (lowMemoryRacerCount != 0)
+        event = 'Abrt';
+    ev[0] = event;
+    swrEvent_CallF4('All!', ev);
 }
 
 // 0x0045dfe0
@@ -4530,6 +4593,12 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, 
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
 {
     HANG("TODO");
+}
+
+// 0x00449260
+void swrScene_ClearTextureAnim_Maybe(void)
+{
+    swrScene_textureScrollState[1] = 0;
 }
 
 // 0x004804a0
