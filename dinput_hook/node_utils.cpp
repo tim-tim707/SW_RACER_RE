@@ -183,8 +183,8 @@ swrRace *find_entity_for_node(const swrModel_Node *node) {
 }
 
 bool is_foreign_hidden_pod_root(const swrModel_Node *node) {
-    // Demo playback (attract demo, end credits) hides every pod through the viewport mask on purpose.
-    if (swrRace_demoMode != 0)
+    // The end credits hide every pod through the viewport mask on purpose.
+    if (swrRace_creditsMode != 0)
         return false;
     swrRace *owner = find_entity_for_node(node);
     if (owner == nullptr)

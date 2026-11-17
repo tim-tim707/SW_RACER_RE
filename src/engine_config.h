@@ -99,8 +99,8 @@
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
 
-// swrObjHang_SelectDemoTracks_Maybe (0x00440c10): length of the attract-demo playlist
-#define SWR_DEMO_TRACK_COUNT (5)
+// swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
+#define SWR_CREDITS_TRACK_COUNT (5)
 
 // swrRace_DrawScrollbar (0x0043fe90): arrow glow fade rate (alpha/sec) and its ceiling
 #define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)

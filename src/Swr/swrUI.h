@@ -226,7 +226,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define playUISound_ADDR (0x00440550)
 #define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
 #define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
-#define swrObjHang_SelectDemoTracks_Maybe_ADDR (0x00440c10)
+#define swrObjHang_SelectCreditsTracks_ADDR (0x00440c10)
 #define swrUI_Front_DispatchPageCallbacks_Maybe_ADDR (0x00440d50)
 #define swrUI_Front_LoadPlanetModels_ADDR (0x00457C20)
 #define swrUI_Front_LoadMapPartModels_ADDR (0x00457CF0)
@@ -470,8 +470,8 @@ char* swrUI_Front_GetTrackNameFromId(int trackId);
 
 bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
 
-// Sets demo mode and randomly picks up to five unlocked tracks for attract-mode playback (best guess).
-void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang);
+// Enters credits mode and picks five random unlocked tracks for the AI races behind the end credits.
+void swrObjHang_SelectCreditsTracks(swrObjHang* hang);
 
 // Runs the current page's id-2 and id-4 widget callbacks with the matching arguments (best guess).
 void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4);

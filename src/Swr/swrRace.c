@@ -502,7 +502,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
                     swrRace_UpdatePartsHealth();
                 }
                 if ((int)swrObjHang_trackInCircuitIdx == g_aTracksInCircuits[(int)hang->circuitIdx] - 1 && hang->circuitIdx == 2)
-                    swrObjHang_SelectDemoTracks_Maybe(hang);
+                    swrObjHang_SelectCreditsTracks(hang);
                 // best finishing place per track, 2 bits each (stored as 4 - place)
                 if (storedPlaceBits < 4 - swrRace_resultsPlaceP1) {
                     swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] &= (uint16_t)~(3 << (swrObjHang_trackInCircuitIdx * 2));
@@ -2771,14 +2771,14 @@ void swrRace_AI(int player)
     }
 }
 
-// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In demo
+// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In credits
 // mode it fires a 'Snap' sub-event each frame; with the AI debug flag set (0x100 + debug
 // level), keyboard inputs fire manual 'Snap's. While racing it runs the steering autopilot,
 // cuts the throttle when dead, and tilts into Side-tagged surfaces.
 // 0x0046bb70
 void swrRace_UpdateAutopilotControl(swrRace* player)
 {
-    if (swrRace_demoMode != 0) {
+    if (swrRace_creditsMode != 0) {
         int subEvents[2];
         subEvents[0] = 0x536e6170; // 'Snap'
         subEvents[1] = 2;

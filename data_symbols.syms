@@ -258,7 +258,7 @@ g_pTxtBuyParts 0x004c09d0 char[1] # "/SCREENTEXT_102/~f4~sBuy Parts"
 g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
-swrObjHang_demoCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials that let the attract demo use the held track (swrObjHang_SelectDemoTracks_Maybe)
+swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
 g_pTxtOptions 0x004c094c char[1] # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char[1] # "~f4~sCutscene:"
 
@@ -784,9 +784,9 @@ lowMemoryRacerCount 0x0050ca2c int
 
 swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
-swrRace_demoMode 0x0050ca3c int
-swrObjJdge_demoHudCycleIndex 0x0050ca40 int
-swrObjJdge_demoHudCycled 0x0050ca44 int
+swrRace_creditsMode 0x0050ca3c int
+swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
+swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 int
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
@@ -1174,7 +1174,7 @@ swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
 swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
 swrRace_upgradeUnaffordable 0x00e99400 uint16_t # 1 when truguts + trade-in < price
-swrObjHang_demoTracks 0x00e29890 char[5] # attract-demo playlist of track ids (swrObjHang_SelectDemoTracks_Maybe)
+swrObjHang_creditsTracks 0x00e29890 char[5] # end-credits playlist of track ids, raced by AI behind the scrolling credits (swrObjHang_SelectCreditsTracks)
 swrObjHang_sceneCameraEye 0x00e298a0 rdVector3 # eye position swrObjHang_ComputeCameraEye resolves for the scene
 swrObjHang_cameraMatrix 0x00e298c0 rdMatrix44 # front-end camera; .vD is the current eye position
 

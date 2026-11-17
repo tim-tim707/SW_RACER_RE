@@ -1053,8 +1053,8 @@ void swrObjJdge_StartPostRaceSequence(swrObjJdge* jdge)
 // 0x0045E120
 int KeyDownForPlayer1Or2(int inputMask)
 {
-    // during a demo, swallow input until the HUD-cycle demo key has been pressed
-    if (swrRace_demoMode != 0 && swrObjJdge_demoHudCycled == 0)
+    // during the credits, swallow input until the HUD-cycle key has been pressed
+    if (swrRace_creditsMode != 0 && swrObjJdge_creditsHudCycled == 0)
         return 0;
     if (numLocalPlayers < 2) {
         inputMask = inputMask & inRaceLocalPlayerInputBitset1[0];
@@ -1095,7 +1095,7 @@ void swrObjJdge_CycleHudMode(swrObjJdge* jdge)
 // 0x0045e200
 void swrObjJdge_F0(swrObjJdge* jdge)
 {
-    if (swrRace_demoMode == 0)
+    if (swrRace_creditsMode == 0)
         swrObjJdge_CycleHudMode(jdge);
 
     switch (jdge->flag & 0xf) {
@@ -1153,7 +1153,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             // intro/demo countdown: bail out on timeout or local input
             jdge->countdownTimer_ms -= (float)swrRace_deltaTimeSecs;
             jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
-            if ((swrRace_demoMode == 0 || swrObjJdge_demoHudCycled != 0) && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0)) {
+            if ((swrRace_creditsMode == 0 || swrObjJdge_creditsHudCycled != 0) && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0)) {
                 swrObjJdge_Clear(jdge, 'Abrt');
                 return;
             }
@@ -2008,7 +2008,7 @@ void swrObjJdge_F3(swrObjJdge* jdge)
 {
     rdVector3 mapPos = { 0.0f, 0.0f, 0.0f };
 
-    if (swrRace_demoMode == 0) {
+    if (swrRace_creditsMode == 0) {
         if ((jdge->flag & 0xf) != 6) {
             uint32_t state = jdge->flag & 0xf;
             if (state == 1 || state == 2) {
@@ -2043,13 +2043,13 @@ void swrObjJdge_F3(swrObjJdge* jdge)
         }
     } else {
         swrObjJdge_ScrollCredits(jdge, 0);
-        if (swrObjJdge_demoHudCycleIndex == 2)
+        if (swrObjJdge_creditsHudCycleIndex == 2)
             playASound(0x90, 7, 0.25f, 1.0f, 1);
-        else if (swrObjJdge_demoHudCycleIndex == 3)
+        else if (swrObjJdge_creditsHudCycleIndex == 3)
             playASound(0x8e, 7, 0.25f, 1.0f, 1);
-        else if (swrObjJdge_demoHudCycleIndex == 4)
+        else if (swrObjJdge_creditsHudCycleIndex == 4)
             playASound(0x91, 7, 0.25f, 1.0f, 1);
-        else if (swrObjJdge_demoHudCycleIndex == 5)
+        else if (swrObjJdge_creditsHudCycleIndex == 5)
             playASound(0x8f, 7, 0.25f, 1.0f, 1);
         else
             playASound(0x8f, 7, 0.25f, 1.0f, 1);
@@ -2182,11 +2182,11 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         swrObjJdge_UpdateViewportLayout(jdge, 2);
         if (jdge->planetId == 3 && jdge->planet_track_number == 1)
             swrPlayerHUD_lightStreakParam = 10000.0f;
-        if (swrRace_demoMode != 0) {
-            swrObjJdge_demoHudCycleIndex++;
-            if (swrObjJdge_demoHudCycleIndex == 6) {
-                swrObjJdge_demoHudCycleIndex = 1;
-                swrObjJdge_demoHudCycled = 1;
+        if (swrRace_creditsMode != 0) {
+            swrObjJdge_creditsHudCycleIndex++;
+            if (swrObjJdge_creditsHudCycleIndex == 6) {
+                swrObjJdge_creditsHudCycleIndex = 1;
+                swrObjJdge_creditsHudCycled = 1;
             }
             jdge->hud_mode = swrObjJdge_HUDMODE_OFF;
             swrObjJdge_creditsScrollState = 0;
