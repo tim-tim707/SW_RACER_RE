@@ -144,7 +144,32 @@ float GetPauseMenuScrollInOut(void)
 // 0x004456B0
 int requestPause()
 {
-    HANG("TODO");
+    int ev[4];
+
+    if (pauseDisabled != 0)
+        return pauseDisabled;
+    if (multiplayer_enabled != 0) {
+        swrRace_netPauseNoticeFade = 1.0f; // net play can't pause: show the notice instead
+        return multiplayer_enabled;
+    }
+    swrSound_RewindChannels();
+    playASound(0x4e, 6, 0.25f, 1.0f, 0);
+    pauseState = 2;
+    ev[0] = 'Paws';
+    ev[1] = 1;
+    swrEvent_CallF4('All!', ev);
+    swrRace_OpenInRaceMenu();
+    swrControl_StopAllForceEffects(1);
+    return 0; // EXE returns whatever StopAllForceEffects left in EAX; callers ignore it
+}
+
+// 0x00445780
+void requestUnpause(void)
+{
+    if (pauseDisabled == 0) {
+        playASound(0x4d, 6, 0.25f, 1.0f, 0);
+        pauseState = 3;
+    }
 }
 
 // 0x004457b0
@@ -236,8 +261,40 @@ void swrObjScene_F0(swrObjScen* scene)
 // 0x00454a30
 int swrObjScene_F4(swrObjScen* scene, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Load':
+        scene->unk8 = 0;
+        scene->unkc = 0;
+        scene->unk50 = 0;
+        rdMatrix_SetIdentity44(&scene->unk84_mat);
+        rdMatrix_SetIdentity44(&scene->unkb28_mat);
+        scene->unkc4 = 0;
+        // fall through
+    case 'RSet': {
+        int ev[16];
+        ev[0] = 'Slep';
+        swrEvent_CallF4('Scen', ev);
+        return 1;
+    }
+
+    case 'Begn':
+        swr_noop2(); // EXE passes (scene, subEvents[1])
+        swrScene_SetObjectsLoaded();
+        return 1;
+
+    case 'Slep':
+        *((unsigned char*)&scene->obj.flags + 1) |= 0x10;
+        return 1;
+
+    case 'Wake':
+        *((unsigned char*)&scene->obj.flags + 1) &= ~0x10;
+        swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 7
+        swr_noop2();
+        return 1;
+
+    default:
+        return 0;
+    }
 }
 
 // 0x00454D10
@@ -4145,7 +4202,7 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 // 0x004804a0
 void swrScene_SetObjectsLoaded(void)
 {
-    HANG("TODO");
+    swrScene_objectsLoaded = 1;
 }
 
 // 0x00428A60

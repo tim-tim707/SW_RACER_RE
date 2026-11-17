@@ -366,6 +366,7 @@ swrObjHang_partDetailCameraOffset 0x004c4564 rdVector3 # (-8, 40, 4) in front-en
 swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
 drawDistance 0x004c4a5c float
+swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; requestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
 nearClipDistance 0x004c4a60 float # per-track near clip, set by swrObjJdge_SetupTrackEnvironment
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
@@ -603,10 +604,17 @@ currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
 unkCameraArrayIndex 0x0050C038 int
 swrViewport_cameraApplied 0x0050c03c int # 0 when the active camera was just (re)selected, set to 1 by swrViewport_UpdateCameras once its transform is applied
 swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
+swrRace_escMenuConfirmPending 0x0050c064 int # 1 while the esc menu shows its quit/restart "Are you sure?" prompt
+swrRace_escMenuConfirmAction 0x0050c068 int # esc menu row (2 = Quit Race, 3 = Quit Game) awaiting confirmation
+swrRace_inRaceMenuSavedCursor 0x0050c070 int[3] # per-page cursor, indexed by DebugMenuState
+swrRace_debugVehicleStatsEdited 0x0050c080 int # set by swrRace_DebugSetVehicleStat; no reader in the retail binary
 
 swrRace_DebugLevel 0x0050c040 int
 swrRace_DebugMenu 0x0050c044 int # set to >= 1
 swrRace_DebugFlag 0x0050c048 int # bitfield read as a 32-bit dword (e.g. swrRace_UpdatePlayerControl tests 0x100 / 0x2000000); low byte set to 63 for text
+swrRace_inRaceMenuCursor 0x0050c04c int # selected row of the in-race menu page
+swrRace_debugStatRacerId 0x0050c050 int # 'Test' object id whose stats the debug "Edit Vehicle Stats" page shows/edits
+swrRace_inRaceMenuResult 0x0050c054 int # swrRace_INRACEMENU_RESULT, read by swrRace_GetInRaceMenuResult
 
 DebugMenuState 0x0050c07c int
 
@@ -842,6 +850,7 @@ swrGui_Stopped 0x0050cb64 int
 
 swr_FastMode 0x0050cb68 int
 swr_fixedDeltaTimeSecs 0x0050cb70 double
+swrScene_objectsLoaded 0x0050cb78 int # set once swrScene_LoadObjects / the Scen 'Begn' event finish
 
 swrUtils_randState 0x0050cb7c int
 swrUtils_randInitialized 0x0050cb80 uint8_t
@@ -1663,6 +1672,8 @@ swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
 swrWeather_particleStates 0x00e9a960 char[80]
 swrViewport_force320x240Quadrant 0x00e9a9b0 int # quadrant index (0-3) cycled by swrRace_UpdateInRaceMenu while force320x240 is active; bit0 hides the right half, bit1 hides the bottom half in swrViewport_ComputeScreenRect
+swrRace_inRaceMenuStackDepth 0x00e9a9b4 int
+swrRace_inRaceMenuStateStack 0x00e9a9c0 int[3] # DebugMenuState history for swrRace_PopDebugMenuState; deepest path is ESC -> DEBUG_VALUES -> VEHICLE_STATS (size maybe wrong)
 
 # Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by DrawHoloPlanet.
 # Sun/moon sprite pool (@0x00e293c4) + sun/moon and preview-model node arrays are identified but

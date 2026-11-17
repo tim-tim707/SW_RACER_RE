@@ -11,6 +11,7 @@
 #include "swrMultiplayer.h"
 #include "swr.h"
 #include <Main/swrControl.h>
+#include <Main/swrMain.h>
 #include "macros.h"
 #include "engine_config.h"
 #include "globals.h"
@@ -25,6 +26,7 @@
 #include <Unknown/rdMatrixStack.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // 0x00401340
@@ -202,17 +204,338 @@ bool swrRace_IsGameDataUninitialized(void)
     return swrRace_saveData.pilotsUnlockedGlobal == 0;
 }
 
+// 0x00429cd0
+void swrRace_PushDebugMenuState(int state)
+{
+    swrRace_inRaceMenuSavedCursor[DebugMenuState] = swrRace_inRaceMenuCursor;
+    swrRace_inRaceMenuStackDepth++;
+    DebugMenuState = state;
+    swrRace_inRaceMenuCursor = swrRace_inRaceMenuSavedCursor[state];
+    swrRace_inRaceMenuStateStack[swrRace_inRaceMenuStackDepth] = state;
+}
+
+// 0x00429d10
+void swrRace_PopDebugMenuState(void)
+{
+    swrRace_inRaceMenuSavedCursor[DebugMenuState] = swrRace_inRaceMenuCursor;
+    if (swrRace_inRaceMenuStackDepth > 0)
+        swrRace_inRaceMenuStackDepth--;
+    DebugMenuState = swrRace_inRaceMenuStateStack[swrRace_inRaceMenuStackDepth];
+    swrRace_inRaceMenuCursor = swrRace_inRaceMenuSavedCursor[DebugMenuState];
+}
+
+// 0x00429dc0
+int swrRace_GetDebugVehicleStatEntry(int index, char* nameOut, char* unk, int* c, float* d)
+{
+    swrRace* player;
+    swrRacerData* racer;
+
+    *unk = '\0';
+    player = (swrRace*)swrEvent_FindObjectById('Test', swrRace_debugStatRacerId);
+    if (player == NULL)
+        return 0;
+    *c = -10000;
+    switch (index) {
+    case 0:
+        racer = (swrRacerData*)player->score_ptr->pilotId;
+        sprintf(nameOut, "Name: %s %s", swrText_Translate(racer->name), swrText_Translate(racer->lastname));
+        *d = -99999.0f;
+        return 1;
+    case 1:
+        sprintf(nameOut, "Anti Skid");
+        *d = player->podStats.antiSkid;
+        return 1;
+    case 2:
+        sprintf(nameOut, "Turn Response");
+        *d = player->podStats.turnResponse;
+        return 1;
+    case 3:
+        sprintf(nameOut, "Max Turn Rate");
+        *d = player->podStats.maxTurnRate;
+        return 1;
+    case 4:
+        sprintf(nameOut, "Acceleration");
+        *d = player->podStats.acceleration;
+        return 1;
+    case 5:
+        sprintf(nameOut, "Max Speed");
+        *d = player->podStats.maxSpeed;
+        return 1;
+    case 6:
+        sprintf(nameOut, "AirBrake Inv");
+        *d = player->podStats.airBrakeInv;
+        return 1;
+    case 7:
+        sprintf(nameOut, "Decel Inv");
+        *d = player->podStats.deceleration_interval;
+        return 1;
+    case 8:
+        sprintf(nameOut, "Boost Thrust");
+        *d = player->podStats.boost_thrust;
+        return 1;
+    case 9:
+        sprintf(nameOut, "Heat Rate");
+        *d = player->podStats.heatRate;
+        return 1;
+    case 10:
+        sprintf(nameOut, "Cool Rate");
+        *d = player->podStats.coolRate;
+        return 1;
+    case 11:
+        sprintf(nameOut, "Hover Height");
+        *d = player->podStats.hoverHeight;
+        return 1;
+    case 12:
+        sprintf(nameOut, "Repair Rate");
+        *d = player->podStats.repairRate;
+        return 1;
+    case 13:
+        sprintf(nameOut, "Bump Mass");
+        *d = player->podStats.bumpMass;
+        return 1;
+    case 14:
+        sprintf(nameOut, "Dmg Immunity");
+        *d = player->podStats.damageImmunity;
+        return 1;
+    case 15:
+        sprintf(nameOut, "ISect Radius");
+        *d = player->collisionWidth;
+        return 1;
+    case 16:
+        sprintf(nameOut, "AI Look Ahead");
+        *d = stdMath_Sqrt(player->aiLookAheadDistSq);
+        return 1;
+    default:
+        sprintf(nameOut, "Unimplemented");
+        *d = 0.0f;
+        return 0;
+    }
+}
+
+// Case 0 cycles the edited pod; the rest nudge one stat on the pod and mirror it into its score.
 // 0x0042a110
 void swrRace_DebugSetVehicleStat(unsigned int id, float value)
 {
-    HANG("TODO");
+    swrRace* player;
+    swrRace* next;
+    float lookAhead;
+
+    swrRace_debugVehicleStatsEdited = 1;
+    player = (swrRace*)swrEvent_FindObjectById('Test', swrRace_debugStatRacerId);
+    if (player == NULL)
+        return;
+    switch (id) {
+    case 0:
+        value = (value <= 0.0f) ? -1.0f : 1.0f;
+        swrRace_debugStatRacerId = (int)((float)swrRace_debugStatRacerId + value);
+        next = (swrRace*)swrEvent_FindObjectById('Test', swrRace_debugStatRacerId);
+        if (next != NULL && (next->obj.flags & swrObj_FLAG_FREED) == 0)
+            return;
+        if (value >= 0.0f) {
+            swrRace_debugStatRacerId = 0;
+            return;
+        }
+        // stepped below the first pod: walk forward to the last live one
+        do {
+            swrRace_debugStatRacerId++;
+            next = (swrRace*)swrEvent_FindObjectById('Test', swrRace_debugStatRacerId);
+            if (next == NULL || (next->obj.flags & swrObj_FLAG_FREED) != 0) {
+                value = 0.0f;
+                swrRace_debugStatRacerId--;
+            }
+        } while (value < 0.0f);
+        return;
+    case 1:
+        stdMath_MultiplyAddClamped(&player->podStats.antiSkid, value, 0.01f, 0.05f, 1.0f);
+        player->score_ptr->podStats.antiSkid = player->podStats.antiSkid;
+        return;
+    case 2:
+        stdMath_MultiplyAddClamped(&player->podStats.turnResponse, value, 1.0f, 10.0f, 1000.0f);
+        player->score_ptr->podStats.turnResponse = player->podStats.turnResponse;
+        return;
+    case 3:
+        stdMath_MultiplyAddClamped(&player->podStats.maxTurnRate, value, 1.0f, 10.0f, 1000.0f);
+        player->score_ptr->podStats.maxTurnRate = player->podStats.maxTurnRate;
+        return;
+    case 4:
+        stdMath_MultiplyAddClamped(&player->podStats.acceleration, value, 0.01f, 0.02f, 10.0f);
+        player->score_ptr->podStats.acceleration = player->podStats.acceleration;
+        return;
+    case 5:
+        stdMath_MultiplyAddClamped(&player->podStats.maxSpeed, value, 1.0f, 100.0f, 2000.0f);
+        player->score_ptr->podStats.maxSpeed = player->podStats.maxSpeed;
+        return;
+    case 6:
+        stdMath_MultiplyAddClamped(&player->podStats.airBrakeInv, value, 0.5f, 2.0f, 1000.0f);
+        player->score_ptr->podStats.airBrakeInv = player->podStats.airBrakeInv;
+        return;
+    case 7:
+        stdMath_MultiplyAddClamped(&player->podStats.deceleration_interval, value, 0.5f, 2.0f, 1000.0f);
+        player->score_ptr->podStats.deceleration_interval = player->podStats.deceleration_interval;
+        return;
+    case 8:
+        stdMath_MultiplyAddClamped(&player->podStats.boost_thrust, value, 1.0f, 10.0f, 1000.0f);
+        player->score_ptr->podStats.boost_thrust = player->podStats.boost_thrust;
+        return;
+    case 9:
+        stdMath_MultiplyAddClamped(&player->podStats.heatRate, value, 0.1f, 0.1f, 30.0f);
+        player->score_ptr->podStats.heatRate = player->podStats.heatRate;
+        return;
+    case 10:
+        stdMath_MultiplyAddClamped(&player->podStats.coolRate, value, 0.1f, 0.1f, 20.0f);
+        player->score_ptr->podStats.coolRate = player->podStats.coolRate;
+        return;
+    case 11:
+        stdMath_MultiplyAddClamped(&player->podStats.hoverHeight, value, 0.05f, 3.0f, 30.0f);
+        player->score_ptr->podStats.hoverHeight = player->podStats.hoverHeight;
+        return;
+    case 12:
+        stdMath_MultiplyAddClamped(&player->podStats.repairRate, value, 0.01f, 0.0f, 1.0f);
+        player->score_ptr->podStats.repairRate = player->podStats.repairRate;
+        return;
+    case 13:
+        stdMath_MultiplyAddClamped(&player->podStats.bumpMass, value, 0.1f, 1.0f, 100.0f);
+        player->score_ptr->podStats.bumpMass = player->podStats.bumpMass;
+        return;
+    case 14:
+        stdMath_MultiplyAddClamped(&player->podStats.damageImmunity, value, 0.01f, 0.0f, 1.0f);
+        player->score_ptr->podStats.damageImmunity = player->podStats.damageImmunity;
+        return;
+    case 15:
+        stdMath_MultiplyAddClamped(&player->collisionWidth, value, 0.05f, 0.05f, 20.0f);
+        player->score_ptr->podStats.intersectRadius = player->collisionWidth;
+        return;
+    case 16:
+        lookAhead = stdMath_Sqrt(player->aiLookAheadDistSq);
+        stdMath_MultiplyAddClamped(&lookAhead, value, 1.0f, 10.0f, 500.0f);
+        player->aiLookAheadDistSq = lookAhead * lookAhead;
+        return;
+    }
 }
 
+// 0x0042a580
+int swrRace_GetDebugGameValueEntry(int index, char* nameOut, char* unk, int* c, float* d)
+{
+    swrRace* player;
+
+    *unk = '\0';
+    *c = -10000;
+    *d = -10000.0f;
+    switch (index) {
+    case 0:
+        sprintf(nameOut, "Debug Level");
+        *c = swrRace_DebugLevel;
+        return 1;
+    case 1:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_INVINCIBILITY) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, swrRace_IsInvincible != 0 ? "Invincibility On" : "Invincibility Off");
+        return 1;
+    case 2:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_AI_TUNING) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, "AI Level x10");
+        *d = swrRace_AILevel * 10.0f;
+        return 1;
+    case 3:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_AI_TUNING) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, "AI SPREAD");
+        *d = ai_spread;
+        return 1;
+    case 4:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_AI_TUNING) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, "Death SpeedMin");
+        *d = swrRace_DeathSpeedMin;
+        return 1;
+    case 5:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_AI_TUNING) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, "Death SpeedDrop");
+        *d = swrRace_DeathSpeedDrop;
+        return 1;
+    case 6:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_SPLINE_MARKERS) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, debug_showSplineMarkers != 0 ? "Spline Markers On" : "Spline Markers Off");
+        *d = -99999.0f;
+        return 1;
+    case 7:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_MIRROR_TOGGLE) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        sprintf(nameOut, (GameSettingFlags & GAME_SETTING_MIRROR) != 0 ? "Mirrored Mode On" : "Mirrored Mode Off");
+        *d = -99999.0f;
+        return 1;
+    case 8:
+        if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS) == 0) {
+            sprintf(nameOut, "------");
+            return 1;
+        }
+        player = (swrRace*)swrEvent_FindObjectById('Test', swrRace_debugStatRacerId);
+        if (player == NULL || (player->obj.flags & swrObj_FLAG_FREED) != 0)
+            return 0;
+        sprintf(nameOut, "Edit Vehicle Stats");
+        return 1;
+    default:
+        sprintf(nameOut, "Unimplemented");
+        return 0;
+    }
+}
+
+// While a quit/restart confirmation is pending, rows 0-3 become the
+// "Are you sure?" / Yes / No / blank prompt.
 // 0x0042a840
 int swrRace_InRace_EscMenu(int textIndex, char* textBuffer, char* unk, int* c, float* d)
 {
-    HANG("TODO");
-    return 0;
+    *unk = '\0';
+    *c = -10000;
+    *d = -10000.0f;
+    switch (textIndex) {
+    case 0:
+        sprintf(textBuffer, swrText_Translate("/SCREENTEXT_535/~cContinue"));
+        if (swrRace_escMenuConfirmPending != 0)
+            sprintf(textBuffer, "~c%s", swrText_Translate("/SCREENTEXT_366/~~Are you sure?"));
+        return 1;
+    case 1:
+        sprintf(textBuffer, swrText_Translate("/SCREENTEXT_536/~cRestart Race"));
+        if (swrRace_escMenuConfirmPending != 0)
+            sprintf(textBuffer, "~c%s", swrText_Translate("/SCREENTEXT_367/~~Yes"));
+        return 1;
+    case 2:
+        sprintf(textBuffer, swrText_Translate("/SCREENTEXT_657/~cQuit Race"));
+        if (swrRace_escMenuConfirmPending != 0)
+            sprintf(textBuffer, "~c%s", swrText_Translate("/SCREENTEXT_368/~~No"));
+        return 1;
+    case 3:
+        sprintf(textBuffer, swrText_Translate("/SCREENTEXT_658/~cQuit Game"));
+        if (swrRace_escMenuConfirmPending != 0)
+            textBuffer[0] = '\0'; // EXE sprintf's the empty string at 0x4d55cc
+        return 1;
+    case 4:
+        if (swrRace_DebugMenu >= 1) {
+            sprintf(textBuffer, "~cGame Cheats");
+            return 1;
+        }
+        // fall through
+    default:
+        sprintf(textBuffer, "Unimplemented");
+        return 0;
+    }
 }
 
 // 0x0042a9f0
@@ -276,6 +599,106 @@ void swrRace_DebugSetGameValue(int id, float value)
             GameSettingFlags = GameSettingFlags | 0x4000;
         }
     }
+}
+
+// 0x0042ab60
+void swrRace_ActivateDebugGameValueEntry(int index)
+{
+    if (index == 8 && (swrRace_DebugFlag & swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS) != 0)
+        swrRace_PushDebugMenuState(swrRace_INRACEMENU_VEHICLE_STATS);
+}
+
+// 0x0042ab80
+void swrRace_ActivateEscMenuEntry(int index)
+{
+    if (index == 0) {
+        swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_CONTINUE;
+        swrControl_uiInputActive = 1;
+        requestUnpause();
+    }
+    if (index == 2) {
+        if (swrRace_escMenuConfirmPending == 0) {
+            swrRace_escMenuConfirmPending = 1;
+            swrRace_escMenuConfirmAction = index;
+            swrRace_inRaceMenuCursor = 1;
+        } else {
+            swrRace_escMenuConfirmPending = 0;
+            swrRace_inRaceMenuCursor = swrRace_escMenuConfirmAction;
+        }
+    }
+    if (index == 1) {
+        if (swrRace_escMenuConfirmPending == 0) {
+            swrControl_uiInputActive = 1;
+            swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_RESTART;
+            requestUnpause();
+        } else if (swrRace_escMenuConfirmAction == 2) {
+            swrControl_uiInputActive = 1;
+            swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_QUIT_RACE;
+            requestUnpause();
+        } else if (swrRace_escMenuConfirmAction == 3) {
+            Main_Shutdown();
+            exit(0);
+        }
+    }
+    if (index == 3 && swrRace_escMenuConfirmPending == 0) {
+        swrRace_escMenuConfirmPending = 1;
+        swrRace_escMenuConfirmAction = index;
+        swrRace_inRaceMenuCursor = 1;
+    }
+    if (index == 4)
+        swrRace_PushDebugMenuState(swrRace_INRACEMENU_DEBUG_VALUES);
+}
+
+// 0x0042ac70
+int swrRace_GetInRaceMenuEntry(int index, char* nameOut, char* unk, int* c, float* d)
+{
+    if (DebugMenuState == swrRace_INRACEMENU_DEBUG_VALUES)
+        return swrRace_GetDebugGameValueEntry(index, nameOut, unk, c, d);
+    if (DebugMenuState == swrRace_INRACEMENU_VEHICLE_STATS)
+        return swrRace_GetDebugVehicleStatEntry(index, nameOut, unk, c, d);
+    if (DebugMenuState == swrRace_INRACEMENU_ESC)
+        return swrRace_InRace_EscMenu(index, nameOut, unk, c, d);
+    return (int)d; // EAX still holds d on this path in the EXE
+}
+
+// 0x0042ad30
+void swrRace_ActivateInRaceMenuEntry(int index)
+{
+    if (DebugMenuState == swrRace_INRACEMENU_DEBUG_VALUES) {
+        swrRace_ActivateDebugGameValueEntry(index);
+        return;
+    }
+    if (DebugMenuState == swrRace_INRACEMENU_ESC)
+        swrRace_ActivateEscMenuEntry(index);
+}
+
+// 0x0042ad60
+void swrRace_OpenInRaceMenu(void)
+{
+    swrObjJdge* jdge;
+
+    // EXE loops 3x storing -1 to DebugMenuState (meant to reset the saved cursors)
+    if (swrRace_inRaceMenuSavedCursor[0] == -2)
+        DebugMenuState = -1;
+    swrRace_inRaceMenuCursor = swrRace_inRaceMenuSavedCursor[0];
+    swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_CONTINUE;
+    swrRace_inRaceMenuStackDepth = 0;
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if ((jdge->obj.flags & swrObj_FLAG_SLEEPING) != 0) {
+        DebugMenuState = swrRace_INRACEMENU_DEBUG_VALUES;
+        swrRace_inRaceMenuStateStack[swrRace_inRaceMenuStackDepth] = swrRace_INRACEMENU_DEBUG_VALUES;
+        return;
+    }
+    swrRace_escMenuConfirmPending = 0;
+    swrRace_inRaceMenuCursor = 0;
+    DebugMenuState = swrRace_INRACEMENU_ESC;
+    swrRace_inRaceMenuStateStack[swrRace_inRaceMenuStackDepth] = swrRace_INRACEMENU_ESC;
+}
+
+// 0x0042adf0
+int swrRace_GetInRaceMenuResult(void)
+{
+    return swrRace_inRaceMenuResult;
 }
 
 // 0x00435700
@@ -5300,8 +5723,15 @@ int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime)
 // 0x004804c0
 void swrRace_InitFrameTimer(void)
 {
-    // See swe1r-decomp
-    HANG("TODO");
+    if (swr_fixedDeltaTimeSecs <= swrRace_minDeltaTimeSecs)
+        swr_fixedDeltaTimeSecs = (double)(1.0f / 15.0f);
+    swrRace_deltaTimeSecs = swr_fixedDeltaTimeSecs;
+    swrRace_fdeltaTimeSecs = (float)swr_fixedDeltaTimeSecs;
+    timetotal = 0.0;
+    frametotal = 0;
+    swrGui_Stopped = 0;
+    if (swr_FastMode == 0)
+        swr_systemTimeMs = timeGetTime();
 }
 
 // 0x00480540
