@@ -33,6 +33,10 @@ extern bool swrRace_tractionDtCorrect;
 extern float swrRace_tractionReferenceHz;
 void swrRace_ApplyTraction_delta(swrRace* player, float b, rdVector3* c, rdVector3* d);
 
+// True for the delta-owned dust-kick wrapper nodes (lets the renderer hide the stock dust when
+// Pod FX particle dust replaces it).
+bool swrRace_IsDustKickNode(const swrModel_Node* node);
+
 // Widens far-AI ground contact (clamps lodDistance for visible non-local pods) so distant AI run their
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
 void swrObjTest_F0_delta(swrRace* player);

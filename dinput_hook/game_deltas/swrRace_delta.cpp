@@ -21,6 +21,7 @@ extern FILE* hook_log;
 #include "../hook_helper.h"
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
+#include "pod_fx.h"        // pod_fx_on_ground_dust
 
 // The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
@@ -176,6 +177,8 @@ typedef void(__cdecl* swrRace_SpawnGroundDustKick_t)(swrRace*, float*, float, fl
 void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx,
                                                      float sy, float sz, float param_6,
                                                      int param_7) {
+    // Pod FX dust clouds key off the same ground contact (before any pool-reserve early-out).
+    pod_fx_on_ground_dust(player, transform);
     const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
 
     if (!is_local) {
@@ -211,6 +214,10 @@ static swrModel_Node g_dustWrappers[DUST_POOL_SIZE * 4];
 static swrModel_Node* g_dustChildNodes[DUST_POOL_SIZE];
 static swrModel_Node* g_dustChildArray2[DUST_POOL_SIZE];
 static swrModel_Node g_dustRootNode;
+
+bool swrRace_IsDustKickNode(const swrModel_Node* node) {
+    return node >= &g_dustWrappers[0] && node < &g_dustWrappers[DUST_POOL_SIZE * 4];
+}
 
 void swrObjToss_AddDustKickModelsToScene_delta() {
     swrEvent_AllocateAndLoadObjs(TOSS_EVENT, DUST_POOL_SIZE);

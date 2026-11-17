@@ -46,6 +46,7 @@ extern "C" {
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/pod_fx.h"
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/sithRender_delta.h"
@@ -390,8 +391,41 @@ bool g_pod_shadow_depth = false;
 // partNodes[0x3d..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
 static std::vector<const swrModel_Node *> g_pod_shadow_nodes;
 
+// Pod FX nozzle capture: partNodes[0x43/0x44] (exhaust R/L) and [0x45/0x46] (afterburner glow R/L)
+// of every live racer. While debug_render_node is inside one of these subtrees, every mesh drawn is
+// reported to pod_fx so it can locate each individual exhaust nozzle on the engine.
+struct NozzleNodeTag {
+    const swrModel_Node *node;
+    const swrRace *racer;
+    int side;// 0 = right, 1 = left
+    int kind;// 0 = exhaust, 1 = glow
+    bool operator<(const NozzleNodeTag &o) const { return node < o.node; }
+};
+static std::vector<NozzleNodeTag> g_pod_nozzle_nodes;
+static const NozzleNodeTag *g_active_nozzle_tag = nullptr;
+
+// Pod FX diagnostics: every partNodes[] entry of the local pod (side = part index), only while armed.
+static std::vector<NozzleNodeTag> g_debug_part_nodes;
+static const NozzleNodeTag *g_active_debug_part = nullptr;
+static const NozzleNodeTag *find_debug_part(const swrModel_Node *node) {
+    if (g_debug_part_nodes.empty())
+        return nullptr;
+    const NozzleNodeTag key{node, nullptr, 0, 0};
+    auto it = std::lower_bound(g_debug_part_nodes.begin(), g_debug_part_nodes.end(), key);
+    return (it != g_debug_part_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+
+static const NozzleNodeTag *find_nozzle_tag(const swrModel_Node *node) {
+    const NozzleNodeTag key{node, nullptr, 0, 0};
+    auto it = std::lower_bound(g_pod_nozzle_nodes.begin(), g_pod_nozzle_nodes.end(), key);
+    return (it != g_pod_nozzle_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+
 static void rebuild_pod_shadow_nodes() {
     g_pod_shadow_nodes.clear();
+    g_pod_nozzle_nodes.clear();
+    g_debug_part_nodes.clear();
+    const bool debug_parts = pod_fx_debug_armed();
     for (int i = 0; i < 20; i++) {
         const swrRace *entity = swrScores[i].obj_test_ptr;
         if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr)
@@ -400,8 +434,29 @@ static void rebuild_pod_shadow_nodes() {
             if (entity->partNodes[part] != nullptr)
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }
+        // kind 0/1: the generic per-engine exhaust / glow (on the engine centre line);
+        // kind 2: per-nozzle star-glow quads (left engine part 0x1c, right 0x2a);
+        // kind 3: per-nozzle exhaust discs (left 0x1d, right 0x2b). Side 0 = right, 1 = left.
+        for (int part = 0x43; part <= 0x46; part++) {
+            if (entity->partNodes[part] != nullptr)
+                g_pod_nozzle_nodes.push_back(
+                    {entity->partNodes[part], entity, (part - 0x43) % 2, part >= 0x45 ? 1 : 0});
+        }
+        const struct { int part, side, kind; } nozzle_parts[] = {
+            {0x2a, 0, 2}, {0x1c, 1, 2}, {0x2b, 0, 3}, {0x1d, 1, 3}};
+        for (const auto &np: nozzle_parts) {
+            if (entity->partNodes[np.part] != nullptr)
+                g_pod_nozzle_nodes.push_back({entity->partNodes[np.part], entity, np.side, np.kind});
+        }
+        if (debug_parts && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+            for (int part = 0; part <= 0x46; part++)
+                if (entity->partNodes[part] != nullptr)
+                    g_debug_part_nodes.push_back({entity->partNodes[part], entity, part, 0});
+        }
     }
+    std::sort(g_debug_part_nodes.begin(), g_debug_part_nodes.end());
     std::sort(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end());// is_pod_shadow_node bsearches
+    std::sort(g_pod_nozzle_nodes.begin(), g_pod_nozzle_nodes.end());
 }
 
 // The PC release queues translucent faces (rdCache_AddAlphaProcFace) and draws them after every
@@ -1308,6 +1363,9 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
             return;
     }
 
+    // Pod FX can replace the stock dust-kick models with its particle dust.
+    if (pod_fx_hide_stock_dust() && swrRace_IsDustKickNode(node))
+
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
         const uint32_t value = member.getter(*node);
@@ -1413,7 +1471,27 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         subtree_proj_mat = &shadow_proj_mat;
     }
 
+    const NozzleNodeTag *prev_nozzle_tag = g_active_nozzle_tag;
+    if (const NozzleNodeTag *tag = find_nozzle_tag(node))
+        g_active_nozzle_tag = tag;
+    const NozzleNodeTag *prev_debug_part = g_active_debug_part;
+    if (const NozzleNodeTag *dp = find_debug_part(node)) {
+        g_active_debug_part = dp;
+        pod_fx_debug_part(dp->racer, dp->side, node, model_mat);
+    }
+
     if (node->type == NODE_MESH_GROUP) {
+        if (g_active_debug_part != nullptr) {
+            for (int i = 0; i < node->num_children; i++)
+                pod_fx_debug_mesh(g_active_debug_part->racer, g_active_debug_part->side,
+                                  node->children.meshes[i], model_mat);
+        }
+        if (g_active_nozzle_tag != nullptr) {
+            for (int i = 0; i < node->num_children; i++)
+                pod_fx_report_nozzle_mesh(g_active_nozzle_tag->racer, g_active_nozzle_tag->side,
+                                          g_active_nozzle_tag->kind, node->children.meshes[i],
+                                          model_mat);
+        }
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
             const std::optional<MODELID> model_id = find_model_id_for_node(node->children.nodes[i]);
@@ -1468,6 +1546,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     g_active_cable_amplitude = prev_cable_amplitude;
     g_weather_terrain_depth = prev_terrain_depth;
     g_pod_shadow_depth = prev_shadow_depth;
+    g_active_nozzle_tag = prev_nozzle_tag;
+    g_active_debug_part = prev_debug_part;
 }
 
 static void flush_deferred_translucent() {
@@ -1927,6 +2007,9 @@ void swrViewport_Render_Hook(int x) {
     // GL state changes can't corrupt the scene render. TickAndDraw self-gates on whether the game
     // asked for weather this frame (it no-ops otherwise), so this is safe to call every viewport.
     swrWeather_TickAndDraw(&proj_mat, &view_mat_corrected);
+    // Pod FX (damage sparks/smoke/fire, ground dust, exhaust glow), drawn the same way (in-race only).
+    pod_fx_tick_and_draw(&proj_mat, &view_mat_corrected,
+                         (uint32_t) root_node == (uint32_t) &someRootNode);
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel -> 1-based index into this frame's pick list -> the exact mesh
