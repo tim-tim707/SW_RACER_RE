@@ -200,7 +200,10 @@ static AudioMixCategory engine_category(const swrRace *player) {
 
 // Per-pod smoothed velocity, updated once per pod per tick (from swrRace_UpdateEngineSound_delta).
 static std::unordered_map<const swrRace *, std::pair<rdVector3, rdVector3>> g_pod_track;// last pos, vel
+static const swrRace *g_local_pod = nullptr;// local player's pod (listener velocity for Doppler)
 static void track_pod_velocity(const swrRace *player) {
+    if (engine_category(player) == AUDIO_MIX_PLAYER_ENGINE)
+        g_local_pod = player;
     const rdVector3 pos = {player->transform.vD.x, player->transform.vD.y, player->transform.vD.z};
     auto &tr = g_pod_track[player];
     const float dt = (float) swrRace_deltaTimeSecs;
@@ -228,6 +231,19 @@ static float doppler_shift(const swrRace *player, const rdVector3 &cam, float st
     if (d < 1.0f)
         return 1.0f;
     const rdVector3 &vel = g_pod_track[player].second;
+    // Listener velocity: when the camera rides with your pod (chase / cockpit), use your pod's
+    // velocity -- measured per game tick exactly like the source pod's -- so pods flying at your
+    // speed get no shift. The render camera's own velocity (wall-clock, per frame) doesn't match
+    // the per-tick pod velocities and gave a constant false drop. Free/cutscene cameras keep it.
+    if (g_local_pod != nullptr && g_local_pod != player) {
+        auto it = g_pod_track.find(g_local_pod);
+        if (it != g_pod_track.end()) {
+            const float lx = cam.x - it->second.first.x, ly = cam.y - it->second.first.y,
+                        lz = cam.z - it->second.first.z;
+            if (lx * lx + ly * ly + lz * lz < 250.0f * 250.0f)
+                cam_vel = it->second.second;
+        }
+    }
     const float v_rel = ((vel.x - cam_vel.x) * dx + (vel.y - cam_vel.y) * dy + (vel.z - cam_vel.z) * dz) / d;
     const float c = 2200.0f / strength;
     const float shift = c / std::max(c - v_rel, c * 0.3f);
