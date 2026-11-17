@@ -48,5 +48,11 @@ float pod_fx_engine_damage(const swrRace* racer, int side);
 struct SceneLight;
 void pod_fx_gather_lights(std::vector<SceneLight>& out);
 
+// An energy-binder mesh drawn this frame (world-space centre, its material colour 0..1): a soft
+// omni-directional glow light is added there. Pods without binders (Neva Kee) report none; Ben
+// Quadinaros's two binders each get their own.
+
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& center, float r, float g, float b);
+
 // Loads [pod_fx] from SW_RACER_RE.ini and registers the "Mods/Pod FX" panel.
 void pod_fx_register_panel();

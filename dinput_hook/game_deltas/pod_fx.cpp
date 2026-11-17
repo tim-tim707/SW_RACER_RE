@@ -73,6 +73,7 @@ namespace {
         float smoke_opacity = 1.0f;// smoke + smoke trail density
         float flame_opacity = 1.0f;// flame transparency (exhaust + damage fire)
         float exhaust_light = 1.0f; // directional exhaust light (beam + ground pool)
+        float binder_light = 1.0f;  // soft omni glow from the energy binders
     };
     Settings s;
     const Settings kDefaults;
@@ -277,6 +278,48 @@ namespace {
             out.push_back({to_world(e, n.local), n.radius * scale});
     }
 
+    // The actual engine bodies on one side. Most pods have one per side, at the side's engine
+    // transform. Ben Quadinaros has two per side under one transform (which sits between them),
+    // so the side's nozzles are grouped into engines -- groups further apart than ~a quarter pod
+    // length -- and each engine's centre is its nozzle group moved forward by as much as the side
+    // transform sits ahead of the nozzles.
+    void engine_centres(const swrRace* r, int side, float L, std::vector<rdVector3>& out) {
+        out.clear();
+        const rdMatrix44& e = engine_of(r, side);
+        const rdVector3 e_pos = v3(e.vD);
+        static std::vector<std::pair<rdVector3, float>> noz;
+        nozzles_world(r, side, noz);
+        if (noz.size() < 2) {
+            out.push_back(e_pos);
+            return;
+        }
+        static std::vector<std::pair<rdVector3, int>> groups;// sum, count
+        groups.clear();
+        rdVector3 mean = {0, 0, 0};
+        for (const auto& n: noz) {
+            mean = add(mean, n.first);
+            bool placed = false;
+            for (auto& g: groups)
+                if (len(sub(mul(g.first, 1.0f / (float) g.second), n.first)) < L * 0.25f) {
+                    g.first = add(g.first, n.first);
+                    g.second++;
+                    placed = true;
+                    break;
+                }
+            if (!placed)
+                groups.push_back({n.first, 1});
+        }
+        if (groups.size() < 2) {
+            out.push_back(e_pos);
+            return;
+        }
+        mean = mul(mean, 1.0f / (float) noz.size());
+        const rdVector3 fwd = norm(v3(e.vB));
+        const rdVector3 ahead = mul(fwd, dot(sub(e_pos, mean), fwd));
+        for (const auto& g: groups)
+            out.push_back(add(mul(g.first, 1.0f / (float) g.second), ahead));
+    }
+
     // HUD colour of a local player's engine segment: 1 = orange or worse, 0 = green/yellow,
     // -1 = no HUD for this pod (AI) or the sprite isn't showing.
     int hud_segment_orange(const swrRace* r, int seg) {
@@ -377,34 +420,44 @@ namespace {
         p.shade = shade;
     }
 
-    void spawn_dust(rdVector3 pos, rdVector3 pod_vel, float L) {
+    // `back` = the engines' exhaust direction: the jets blow the dust out behind the pod even
+    // when it is sitting still.
+    void spawn_dust(rdVector3 pos, rdVector3 pod_vel, rdVector3 back, float L) {
         Particle& p = alloc();
         p.kind = kDust;
         p.pos = add(pos, {frand_sym() * L * 0.25f, frand_sym() * L * 0.25f, 0.0f});
         p.carrier = pod_vel;
         p.unit = L;
-        // Thrown up and outward, keeping only a little of the pod's speed so it billows behind.
+        // Blown backward by the engine jets, thrown up and outward, keeping only a little of the
+        // pod's speed so it billows behind.
         const rdVector3 out = {frand_sym(), frand_sym(), 0.4f + 0.6f * frand()};
-        p.vel = add(mul(pod_vel, 0.25f), mul(norm(out), L * (0.6f + 1.4f * frand())));
+        rdVector3 jet = {back.x, back.y, 0.0f};// along the ground
+        jet = len(jet) > 1e-3f ? norm(jet) : jet;
+        p.vel = add(add(mul(pod_vel, 0.25f), mul(norm(out), L * (0.4f + 0.9f * frand()))),
+                    mul(jet, L * (2.5f + 2.5f * frand())));
         p.life = 0.9f + 1.3f * frand();
         p.size = L * (0.06f + 0.05f * frand());
         p.shade = 0.85f + 0.3f * frand();// brightness variation
     }
 
-    // Exhaust air / vapour trail: a faint wisp left in the air behind a nozzle, stretching out
-    // behind the pod as it slows to the still air.
-    // Trailing physics: the puff keeps only a little of the pod's speed, so it is left hanging in
-    // the air where the nozzle passed and the pod pulls away from it -- a trail, not a cloud that
-    // rides along. It then drifts, swells and rises slowly. `overheat` (0..1) darkens it.
-    void spawn_trail(rdVector3 pos, rdVector3 pod_vel, rdVector3 dir, float L, float radius, float overheat) {
+    // Exhaust smoke trail: a jet blown backward out of the nozzle.
+    // Trailing physics: the puff leaves the nozzle with the pod's own velocity plus a fast push
+    // straight out the back (within a narrow cone, harder with throttle), so close to the engine
+    // it streams backward as a jet. Air drag then bleeds both off, so further back it is left
+    // hanging in the air the pod has passed through, swelling and rising slowly -- a cone that
+    // widens behind each nozzle. `overheat` (0..1) darkens it.
+    void spawn_trail(rdVector3 pos, rdVector3 pod_vel, rdVector3 dir, float L, float radius, float overheat,
+                     float throttle) {
         Particle& p = alloc();
         p.kind = kTrail;
         p.pos = pos;
         p.carrier = pod_vel;
         p.unit = L;
-        p.vel = add(mul(pod_vel, 0.15f), add(mul(dir, L * 1.0f), mul(rand_vec(), L * 0.2f)));
+        const rdVector3 jet_dir = norm(add(dir, mul(rand_vec(), 0.12f)));// ~7 deg cone
+        const float jet = L * (5.0f + 9.0f * clampf(throttle, 0.0f, 1.6f)) * (0.8f + 0.4f * frand());
+        p.vel = add(mul(pod_vel, 0.9f), mul(jet_dir, jet));
         p.life = 1.4f + 1.4f * frand();
-        p.size = std::max(radius * 2.0f, L * 0.06f) * (0.8f + 0.4f * frand());
+        p.size = std::max(radius * 1.3f, L * 0.04f) * (0.8f + 0.4f * frand());
         p.shade = overheat;
     }
 
@@ -497,6 +550,9 @@ namespace {
                 const rdMatrix44& e = left ? r->engineXfL : r->engineXfR;
                 const rdVector3 e_pos = v3(e.vD), e_right = norm(v3(e.vA)), e_fwd = norm(v3(e.vB)),
                                 e_up = norm(v3(e.vC));
+                // Each damage spot sits on one of this side's engines (two for Ben Quadinaros).
+                static std::vector<rdVector3> centres;
+                engine_centres(r, left ? 1 : 0, L, centres);
                 rdVector3 outward = e_right;
                 if (dot(sub(eng_mid, e_pos), outward) > 0.0f)
                     outward = mul(outward, -1.0f);
@@ -508,7 +564,8 @@ namespace {
                 fx.acc[i][1] += dt * s.flames * 55.0f * flame_t * (0.6f + 0.8f * frand());// uneven bursts
                 fx.acc[i][2] += dt * s.smoke * moving * (8.0f + 30.0f * shown);
                 auto spot = [&]() {
-                    return add(add(e_pos, mul(seg_dir, radius)),
+                    const rdVector3 c = centres[(size_t) (frand() * centres.size()) % centres.size()];
+                    return add(add(c, mul(seg_dir, radius)),
                                add(mul(e_fwd, L * (frand() * 0.4f - 0.25f)), mul(e_up, frand_sym() * radius * 0.35f)));
                 };
                 for (; fx.acc[i][0] >= 1.0f; fx.acc[i][0] -= 1.0f)
@@ -534,7 +591,7 @@ namespace {
         if (s.dust && ground_recent && !dead) {
             fx.dust_acc += dt * s.dust_amount * (8.0f + 50.0f * clampf(speed, 0.0f, 1.0f));
             for (; fx.dust_acc >= 1.0f; fx.dust_acc -= 1.0f)
-                spawn_dust(fx.ground_pos, fx.vel, L);
+                spawn_dust(fx.ground_pos, fx.vel, mul(norm(add(v3(r->engineXfR.vB), v3(r->engineXfL.vB))), -1.0f), L);
         } else {
             fx.dust_acc = 0.0f;
         }
@@ -591,7 +648,7 @@ namespace {
                     for (; fx.trail_acc[side] >= 1.0f; fx.trail_acc[side] -= 1.0f) {
                         const auto& n = points[(size_t) (frand() * points.size()) % points.size()];
                         const rdVector3 start = add(n.first, mul(back, L * 0.08f));
-                        spawn_trail(sub(start, mul(step, frand())), fx.vel, back, L, n.second, overheat);
+                        spawn_trail(sub(start, mul(step, frand())), fx.vel, back, L, n.second, overheat, fx.throttle);
                     }
                 }
             }
@@ -891,8 +948,10 @@ namespace {
                     half = clampf(half * (1.0f + 3.5f * f), 2.0f, 360.0f);// spreads as it rises
                     // Thick and opaque near the engine, thinning as it spreads; black smoke is
                     // denser than the grey.
+                    // Grey wisps 20% lighter than they were; the black burning smoke unchanged.
+                    const float grey_k = 0.8f + 0.2f * clampf((p.shade - 0.25f) / 0.75f, 0.0f, 1.0f);
                     const float a = (f < 0.06f ? f / 0.06f : 1.0f) * std::pow(1.0f - f, 1.1f) *
-                                    (0.75f + 0.2f * p.shade) * s.smoke_opacity;
+                                    (0.75f + 0.2f * p.shade) * grey_k * s.smoke_opacity;
                     const float g = 0.42f - 0.36f * p.shade;// dark grey -> black
                     g_alpha.sprite(hx, hy, half, argb(a, g, g * 0.97f, g * 0.95f), wz);
                     break;
@@ -1003,6 +1062,7 @@ namespace {
         f("smoke_opacity", s.smoke_opacity, 0.0f, 2.0f);
         f("flame_opacity", s.flame_opacity, 0.0f, 2.0f);
         f("exhaust_light", s.exhaust_light, 0.0f, 3.0f);
+        f("binder_light", s.binder_light, 0.0f, 3.0f);
     }
 
     void save_settings() {
@@ -1039,6 +1099,7 @@ namespace {
         f("smoke_opacity", s.smoke_opacity);
         f("flame_opacity", s.flame_opacity);
         f("exhaust_light", s.exhaust_light);
+        f("binder_light", s.binder_light);
         config::save();
     }
 
@@ -1101,6 +1162,8 @@ namespace {
         ImGui::BeginDisabled(!s.exhaust);
         slider("Glow", &s.exhaust_glow, 0.0f, 3.0f, "%.2fx", "Core and halo brightness.");
         slider("Exhaust light", &s.exhaust_light, 0.0f, 3.0f, "%.2fx", "Light thrown backward from each nozzle: a faint beam plus a glow on the ground.");
+        slider("Binder glow", &s.binder_light, 0.0f, 3.0f, "%.2fx",
+               "Soft light given off in every direction by the energy binder (needs Shadows > dynamic lights).");
         slider("Flame length", &s.exhaust_flame, 0.0f, 3.0f, "%.2fx", "Flame streak length; grows with speed and boost.");
         ImGui::TextUnformatted("Nozzle positions from:");
         {
@@ -1262,9 +1325,55 @@ void pod_fx_debug_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh
     }
 }
 
+namespace {
+    struct BinderGlow {
+        const swrRace* racer;
+        rdVector3 pos;
+        float r, g, b;
+        int n;// meshes merged into it
+    };
+    std::vector<BinderGlow> g_binders;// this frame's binders (cleared after the frame is drawn)
+}// namespace
+
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& center, float r, float g, float b) {
+    if (!s.enabled || s.binder_light <= 0.0f || racer == nullptr || g_binders.size() > 256)
+        return;
+    // A beam made of a few meshes is one glow; Ben Quadinaros's two binders stay two.
+    const float L = pod_length(racer);
+    for (BinderGlow& bg: g_binders)
+        if (bg.racer == racer && len(sub(bg.pos, center)) < L * 0.35f) {
+            const float k = 1.0f / (float) (bg.n + 1);
+            bg.pos = add(mul(bg.pos, 1.0f - k), mul(center, k));
+            bg.n++;
+            return;
+        }
+    // Material colour; a white/grey one (colour comes from the texture) gets a cool violet-blue.
+    const float mx = std::max(r, std::max(g, b)), mn = std::min(r, std::min(g, b));
+    if (mx < 0.05f || (mx - mn) < 0.15f * mx)
+        r = 0.6f, g = 0.55f, b = 1.0f;
+    else
+        r /= mx, g /= mx, b /= mx;
+    g_binders.push_back({racer, center, r, g, b, 1});
+}
+
 void pod_fx_gather_lights(std::vector<SceneLight>& out) {
     if (!s.enabled)
         return;
+    // Energy binders: a soft omni-directional glow with a slow shimmer.
+    for (const BinderGlow& bg: g_binders) {
+        if ((bg.racer->flags0 & swrObjTest_FLAG0_DEAD) != 0)
+            continue;
+        const float L = pod_length(bg.racer);
+        SceneLight l{};
+        l.pos = bg.pos;
+        l.dir = {0, 0, 0};
+        l.r = bg.r, l.g = bg.g, l.b = bg.b;
+        l.intensity = 0.45f * s.binder_light *
+                      (0.9f + 0.1f * std::sin(g_time * 13.0f + (float) ((uintptr_t) bg.racer % 97)));
+        l.radius = L * 0.8f;
+        l.cos_inner = l.cos_outer = 0.0f;
+        out.push_back(l);
+    }
     const int n = swrEvent_GetEventCount(kEventTest);
     std::vector<std::pair<rdVector3, float>> noz;
     for (int i = 0; i < n; i++) {
@@ -1298,10 +1407,13 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
                     l.pos = add(nz.first, mul(back, L * 0.05f));
                     l.dir = back;
                     l.r = 1.0f, l.g = boosting ? 0.6f : 0.45f, l.b = boosting ? 0.3f : 0.15f;
-                    l.intensity = 1.1f * ex * share * flick;
-                    l.radius = L * (1.0f + 0.5f * clampf(fx.throttle, 0.0f, 1.6f));
-                    l.cos_inner = 0.75f;// ~41 deg full
-                    l.cos_outer = 0.05f;// fades out by ~87 deg
+                    // A cone thrown out the back of the nozzle: full inside ~20 deg, gone by ~38 deg,
+                    // reaching further with throttle -- lights a streak behind the engine rather
+                    // than a flat patch around it.
+                    l.intensity = 1.4f * ex * share * flick;
+                    l.radius = L * (1.8f + 1.0f * clampf(fx.throttle, 0.0f, 1.6f));
+                    l.cos_inner = 0.94f;// ~20 deg full
+                    l.cos_outer = 0.79f;// fades out by ~38 deg
                     out.push_back(l);
                 }
             }
@@ -1316,15 +1428,22 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
                     burn = std::max(burn, clampf((fx.shown[k] - 0.35f) / 0.65f, 0.0f, 1.0f));
                 if (burn <= 0.01f || !engine_alive(r, side))
                     continue;
-                const rdMatrix44& e = engine_of(r, side);
-                SceneLight l{};
-                l.pos = v3(e.vD);
-                l.dir = {0, 0, 0};
-                l.r = 1.0f, l.g = 0.35f, l.b = 0.08f;
-                l.intensity = burn * s.flames * (0.7f + 0.3f * std::sin(g_time * 19.0f + side) * std::sin(g_time * 7.3f + side * 1.3f));
-                l.radius = L * 0.9f;
-                l.cos_inner = l.cos_outer = 0.0f;
-                out.push_back(l);
+                // One light per engine body (Ben Quadinaros: two per side, sharing the burn).
+                static std::vector<rdVector3> centres;
+                engine_centres(r, side, L, centres);
+                const float share = 1.0f / std::sqrt((float) centres.size());
+                for (size_t c = 0; c < centres.size(); c++) {
+                    SceneLight l{};
+                    l.pos = centres[c];
+                    l.dir = {0, 0, 0};
+                    l.r = 1.0f, l.g = 0.35f, l.b = 0.08f;
+                    l.intensity = burn * s.flames * share *
+                                  (0.7f + 0.3f * std::sin(g_time * 19.0f + side + (float) c * 2.3f) *
+                                              std::sin(g_time * 7.3f + side * 1.3f + (float) c));
+                    l.radius = L * 0.9f;
+                    l.cos_inner = l.cos_outer = 0.0f;
+                    out.push_back(l);
+                }
             }
         }
     }
@@ -1364,6 +1483,7 @@ void pod_fx_on_ground_dust(const swrRace* player, const float* transform) {
 }
 
 void pod_fx_tick_and_draw(const rdMatrix44* proj, const rdMatrix44* view, bool in_race) {
+    g_binders.clear();// reported during this frame's traversal, already used by the lighting pass
     // Diagnostics: the scene traversal just ran with the dump armed -- write what it saw.
     if (g_debug_armed && in_race) {
         if (!g_debug_lines.empty() && g_debug_racer != nullptr && hook_log != nullptr) {
