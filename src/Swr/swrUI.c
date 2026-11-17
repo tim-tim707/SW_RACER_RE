@@ -240,6 +240,12 @@ void swrUI_PopMenuPage(void)
         swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
 }
 
+// 0x00412630
+void swrUI_ResetAttractDemoTimer(void)
+{
+    swrObjHang_attractDemoTimer = 30.0f;
+}
+
 // 0x00412fb0
 int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2)
 {
@@ -392,6 +398,13 @@ void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t 
         list->a2 = a;
         swrUI_ApplyListColors(list);
     }
+}
+
+// 0x004138f0
+swrUI_unk* swrUI_AddListItem(swrUI_unk* list, char* text, int value, int id, int param5)
+{
+    HANG("TODO");
+    return NULL;
 }
 
 // 0x00413b10
@@ -744,7 +757,18 @@ void swrUI_ClearUI5(void)
 // 0x00415640
 int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
 {
-    HANG("TODO");
+    if (swrUI_IsElementVisible(swrUI_unk_ptr) == 0)
+        return 0;
+
+    swrUI_ResetAttractDemoTimer();
+    if (swrUI_focusedElement != NULL)
+        return swrUI_RunCallbacks(swrUI_focusedElement, pressed != 0 ? swrUI_MSG_KEY_DOWN : swrUI_MSG_KEY_UP, virtual_key_code, 0);
+    if (pressed != 0)
+        return pressed;
+
+    swrUI_FocusFirstOnNav(virtual_key_code);
+    // retail returns whatever swrUI_FocusFirstOnNav left in EAX; no caller reads it
+    return 0;
 }
 
 // 0x004151a0
@@ -1611,6 +1635,21 @@ swrUI_unk* swrUI_NextFocusable(swrUI_unk* element)
     return it;
 }
 
+// 0x0041b420
+void swrUI_FocusFirstOnNav(int vk)
+{
+    swrUI_unk* page;
+
+    page = swrUI_GetCurrentPage();
+    if (g_objHang2->menuScreen != swrObjHang_STATE_SPLASH)
+        return;
+    if (vk != VK_TAB && (vk < VK_LEFT || vk > VK_DOWN))
+        return;
+    if (swrUI_textEntryActive != 0 || page == NULL || page->next == NULL)
+        return;
+    swrUI_FocusElement(swrUI_NextFocusable(page->next), 1);
+}
+
 // 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
@@ -2217,7 +2256,43 @@ void swrUI_RefreshListLayout(swrUI_unk* list)
 // 0x00417fe0
 void swrUI_DrawWrappedText(swrUI_unk* ui, char* text, int flag)
 {
-    HANG("TODO");
+    unsigned int len;
+    unsigned int avgCharWidth;
+    unsigned int maxChars;
+    unsigned int n;
+    char* lineStart;
+    char* cursor;
+    char* lastSpace;
+
+    len = strlen(text);
+    if (len == 0)
+        return;
+
+    avgCharWidth = (unsigned int)swrText_GetStringWidth(text, swrText_fontsByIndex[ui->font_index]) / len;
+    swrText_GetStringHeight(text, swrText_fontsByIndex[ui->font_index]);
+    maxChars = (unsigned int)(ui->content_right - ui->content_left + 1) / (avgCharWidth + 1);
+
+    lineStart = text;
+    for (;;) {
+        lastSpace = NULL;
+        cursor = lineStart;
+        for (n = 0; *cursor != '\0' && n < maxChars; n++, cursor++) {
+            if (*cursor == ' ')
+                lastSpace = cursor;
+        }
+        if (*cursor != '\0' && lastSpace != NULL)
+            *lastSpace = '\0';
+        swrUI_AddListItem(ui, lineStart, flag != 0 ? swrUI_ITEM_WRAPPED_UNK : 0, 0, 0);
+        // faithful: a line with no space to break at drops the rest of the text
+        if (*cursor != '\0') {
+            if (lastSpace == NULL)
+                return;
+            *lastSpace = ' ';
+        }
+        if (lastSpace == NULL || *cursor == '\0')
+            return;
+        lineStart = lastSpace + 1;
+    }
 }
 
 // 0x00418680

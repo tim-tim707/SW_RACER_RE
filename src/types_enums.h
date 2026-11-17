@@ -1305,6 +1305,7 @@ typedef enum swrUI_FLAG
 
 typedef enum swrUI_ITEM_FLAG
 {
+    swrUI_ITEM_WRAPPED_UNK = 0x10000, // set on the lines swrUI_DrawWrappedText adds when its flag is nonzero
     swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
 } swrUI_ITEM_FLAG;
 
@@ -1354,6 +1355,8 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
+    swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;

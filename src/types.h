@@ -1387,7 +1387,11 @@ extern "C"
         int unk500;
         int first_visible; // 0x504 list first-visible index
         swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
-        char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
+        int content_left; // 0x50c list content rect (swrUI_DrawWrappedText wraps to its width)
+        int content_top; // 0x510
+        int content_right; // 0x514
+        int content_bottom; // 0x518
+        char unk51c[24]; // 0x51c sel text/idx @0x51c/0x520, row spacing @0x524
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         // 0x538 per-widget-class payload. Radio buttons (widget_class 10) use the first two
         // ints; number fields / sliders (widget_class 6) use the block from 0x544 on.
