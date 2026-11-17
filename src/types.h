@@ -3191,12 +3191,21 @@ extern "C"
         char* name;
     } keyMapping; // sizeof(0x8)
 
-    typedef struct keyMapping2
+    typedef struct keyMappingEx
     {
         int id;
-        char name[4];
+        char* name;
         int otherId;
-    } keyMapping2; // sizeof(0xc)
+    } keyMappingEx; // sizeof(0xc). renamed from keyMapping2: clashed with the keyMapping2 global
+
+    // One control binding (swrControl_SetDefaultMappings / stdConfFile_readAndApplyConf).
+    typedef struct swrControlBinding
+    {
+        unsigned char flags; // swrControlBinding_FLAG; SWR_CONTROL_BINDING_END terminates a table
+        char unk1[3];
+        int input; // 0x4. axis index, or button/key code
+        int action; // 0x8. index into the *AxisInput / *ButtonPressedInput arrays
+    } swrControlBinding; // sizeof(0xc)
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
 

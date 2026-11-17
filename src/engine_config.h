@@ -20,6 +20,17 @@
 // [STDCONTROL_JOYSTICK_KEY_BASE + N * STDCONTROL_KEYS_PER_JOYSTICK, +STDCONTROL_KEYS_PER_JOYSTICK).
 #define STDCONTROL_JOYSTICK_KEY_BASE (0x100)
 #define STDCONTROL_KEYS_PER_JOYSTICK (0x20)
+// Within a joystick's key band, hat directions follow the buttons, four per POV.
+#define STDCONTROL_JOYSTICK_POV_KEY_BASE (0x10)
+#define STDCONTROL_KEYS_PER_POV (4)
+// Mouse buttons occupy stdControl_aKeyInfos[STDCONTROL_MOUSE_KEY_BASE + N].
+#define STDCONTROL_MOUSE_KEY_BASE (0x200)
+
+// swrControl binding tables (swrControl_bindingsJoystick/Mouse/Keyboard): 64 bindings + terminator.
+#define SWR_CONTROL_BINDINGS_PER_DEVICE (65)
+#define SWR_CONTROL_BINDING_END (0xff)
+// Per-action arrays (*ButtonPressedInput, the button-state array at swrControl_viewButton, hold times).
+#define SWR_CONTROL_NUM_ACTIONS (15)
 
 // daAlloc arena allocator (stdMemory.c).
 #define DAALLOC_PAGE_SIZE (0x7c00)       // bytes per arena page, malloc'd on demand

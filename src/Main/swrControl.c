@@ -2,6 +2,7 @@
 
 #include "Win95/Window.h"
 #include "Platform/cifr.h"
+#include "Platform/stdControl.h"
 #include "globals.h"
 #include "engine_config.h"
 #include "Swr/swrModel.h"
@@ -60,7 +61,27 @@ int swrControl_Startup(void)
 // 0x00405cf0
 void swrControl_ClearDeviceState(int deviceClass)
 {
-    HANG("TODO");
+    if (deviceClass < 0) {
+        memset(inRaceLocalPlayerInputRecord, 0, sizeof(inRaceLocalPlayerInputRecord));
+        memset(swrControl_buttonHeldPrev, 0, sizeof(swrControl_buttonHeldPrev));
+        deviceClass = -deviceClass;
+    }
+    if (deviceClass == swrConfig_DEVICE_JOYSTICK) {
+        swrControl_joystickAxes[2] = 0.0f;
+        swrControl_joystickAxes[1] = 0.0f;
+        swrControl_joystickAxes[0] = 0.0f;
+    } else if (deviceClass == swrConfig_DEVICE_MOUSE) {
+        swrControl_mouseAxes[2] = 0.0f;
+        swrControl_mouseAxes[1] = 0.0f;
+        swrControl_mouseAxes[0] = 0.0f;
+        swrControl_mouseAxesAccum[2] = 0.0f;
+        swrControl_mouseAxesAccum[1] = 0.0f;
+        swrControl_mouseAxesAccum[0] = 0.0f;
+    } else if (deviceClass == swrConfig_DEVICE_KEYBOARD) {
+        swrControl_keyboardAxes[2] = 0.0f;
+        swrControl_keyboardAxes[1] = 0.0f;
+        swrControl_keyboardAxes[0] = 0.0f;
+    }
 }
 
 // 0x00409d70
@@ -572,4 +593,132 @@ void swrControl_UpdateImpactForceEffect(void)
         swrControl_PlayForceEffect(swrForceEffect_ROLL_LEFT, -1, player->tiltManualMult < 0.0f ? 90 : 270, -1);
     }
     swrControl_ffPrevTilt = currentPlayer_Test->tiltManualMult;
+}
+
+// 0x00405ea0
+void swrControl_SetDefaultMappings(int device)
+{
+    int buttonLimit;
+    int numPOVs;
+    unsigned int axisMask;
+    swrControlBinding* bindings;
+    swrControlBinding* defaults;
+
+    if (device == swrConfig_DEVICE_JOYSTICK) {
+        buttonLimit = swrConfig_joystickNbButtons;
+        axisMask = swrControl_joystickAxisMask;
+        numPOVs = swrConfig_joystickNbPOVs;
+        bindings = swrControl_bindingsJoystick;
+        memset(swrControl_bindingsJoystick, 0, sizeof(swrControl_bindingsJoystick));
+        Deadzone = swrControl_defaultDeadzone;
+        memcpy(swrControl_joystickFlipAxis, swrControl_defaultJoystickFlipAxis, sizeof(swrControl_joystickFlipAxis));
+        defaults = swrControl_defaultBindingsJoystick;
+        // with a hat present only the first four buttons get default bindings; faithful
+        if (numPOVs != 0 && buttonLimit > 4) {
+            buttonLimit = 4;
+        }
+    } else if (device == swrConfig_DEVICE_MOUSE) {
+        numPOVs = 0;
+        buttonLimit = swrConfig_mouseNbButtons;
+        axisMask = swrControl_mouseAxisMask;
+        bindings = swrControl_bindingsMouse;
+        memset(swrControl_bindingsMouse, 0, sizeof(swrControl_bindingsMouse));
+        flip_x_axis = swrControl_defaultMouseFlipAxis[0];
+        flip_y_axis = swrControl_defaultMouseFlipAxis[1];
+        flip_z_axis = swrControl_defaultMouseFlipAxis[2];
+        defaults = swrControl_defaultBindingsMouse;
+    } else if (device == swrConfig_DEVICE_KEYBOARD) {
+        numPOVs = 0;
+        axisMask = 0;
+        bindings = swrControl_bindingsKeyboard;
+        defaults = swrControl_defaultBindingsKeyboard;
+        buttonLimit = 0x100;
+        memset(swrControl_bindingsKeyboard, 0, sizeof(swrControl_bindingsKeyboard));
+    } else {
+        // the EXE walks `device` itself as the default table here and crashes; never reached
+        return;
+    }
+    swrControl_bindingCounts[device] = 0;
+    swrControl_axisSensitivity[device] = 1.0f;
+    for (; defaults->flags != SWR_CONTROL_BINDING_END; defaults++) {
+        if (((defaults->flags & swrControlBinding_FLAG_BUTTON) != 0 && defaults->input < buttonLimit) || ((defaults->flags & swrControlBinding_FLAG_BUTTON) != 0 && defaults->input >= STDCONTROL_JOYSTICK_POV_KEY_BASE && defaults->input <= numPOVs * STDCONTROL_KEYS_PER_POV + (STDCONTROL_JOYSTICK_POV_KEY_BASE - 1)) || ((defaults->flags & swrControlBinding_FLAG_AXIS) != 0 && (axisMask & (1 << defaults->input)) != 0)) {
+            bindings[swrControl_bindingCounts[device]] = *defaults;
+            swrControl_bindingCounts[device]++;
+        }
+    }
+    bindings[swrControl_bindingCounts[device]].flags = SWR_CONTROL_BINDING_END;
+}
+
+// 0x00407800
+void swrControl_ClearBindings(int deviceFilter)
+{
+    swrRace_ThrottleInput = 0.0f;
+    swrRace_UnkInput = 0.0f;
+    swrRace_SteeringInput = 0.0f;
+    memset(&swrControl_viewButton, 0, SWR_CONTROL_NUM_ACTIONS * sizeof(float));
+    swrRace_PitchInput = 0.0f;
+    memset(&swrControl_viewHoldTime, 0, SWR_CONTROL_NUM_ACTIONS * sizeof(float));
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_JOYSTICK) {
+        memset(swrControl_bindingsJoystick, 0, sizeof(swrControl_bindingsJoystick));
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_MOUSE) {
+        memset(swrControl_bindingsMouse, 0, sizeof(swrControl_bindingsMouse));
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_KEYBOARD) {
+        memset(swrControl_bindingsKeyboard, 0, sizeof(swrControl_bindingsKeyboard));
+    }
+    if (deviceFilter < 0) {
+        swrControl_bindingCounts[swrConfig_DEVICE_JOYSTICK] = 0;
+        swrControl_bindingCounts[swrConfig_DEVICE_MOUSE] = 0;
+        swrControl_bindingCounts[swrConfig_DEVICE_KEYBOARD] = 0;
+        return;
+    }
+    swrControl_bindingCounts[deviceFilter] = 0;
+}
+
+// 0x00407d90
+char* swrControl_FindKeyName(int id, char otherId)
+{
+    int i;
+
+    for (i = 0; keyMapping2_0[i].id != -1; i++) {
+        if (keyMapping2_0[i].id == id && (char)keyMapping2_0[i].otherId == otherId) {
+            return keyMapping2_0[i].name;
+        }
+    }
+    return NULL;
+}
+
+// 0x00407f80
+int swrControl_PollCancel(int excludeDevice)
+{
+    int joystick;
+    int mouse;
+    int keyboard;
+    float wheelButton;
+
+    if (excludeDevice == swrConfig_DEVICE_JOYSTICK) {
+        joystick = 0;
+    } else {
+        joystick = stdControl_ReadKey(STDCONTROL_JOYSTICK_KEY_BASE + stdControl_joystickDeviceIndex * STDCONTROL_KEYS_PER_JOYSTICK + 1, NULL);
+    }
+    if (excludeDevice == swrConfig_DEVICE_MOUSE) {
+        mouse = 0;
+    } else {
+        mouse = stdControl_ReadKey(STDCONTROL_MOUSE_KEY_BASE + 1, NULL);
+    }
+    if (excludeDevice == swrConfig_DEVICE_KEYBOARD) {
+        keyboard = 0;
+    } else {
+        keyboard = stdControl_ReadKey(DIK_ESCAPE, NULL);
+    }
+    // a wheel's brake button also cancels unless the joystick is excluded
+    wheelButton = 0.0f;
+    if (cifr_deviceIsWheel != 0 && excludeDevice != swrConfig_DEVICE_JOYSTICK) {
+        wheelButton = JoystickButtonPressedInput[2];
+    }
+    if (joystick == 0 && mouse == 0 && keyboard == 0 && (int)wheelButton == 0) {
+        return 0;
+    }
+    return 1;
 }

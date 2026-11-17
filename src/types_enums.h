@@ -1371,6 +1371,17 @@ typedef enum swrConfig_DEVICE
     swrConfig_DEVICE_KEYBOARD = 2,
 } swrConfig_DEVICE;
 
+// swrControlBinding.flags, as swrControl_ProcessInputs reads them
+typedef enum swrControlBinding_FLAG
+{
+    swrControlBinding_FLAG_ANALOG = 0x1, // feeds the action's *AxisInput value
+    swrControlBinding_FLAG_DIGITAL = 0x2, // feeds the action's *ButtonPressedInput state
+    swrControlBinding_FLAG_AXIS = 0x4, // input is an axis index
+    swrControlBinding_FLAG_BUTTON = 0x8, // input is a button/key code
+    swrControlBinding_FLAG_POSITIVE = 0x10, // key adds to the axis value / axis past its + deadzone
+    swrControlBinding_FLAG_NEGATIVE = 0x20, // key subtracts from the axis value / axis past its - deadzone
+} swrControlBinding_FLAG;
+
 typedef enum swr3DTextureFormatFLAGS
 {
     swr3DTextureFormatFLAGS_UNINITIALIZED = 0,
