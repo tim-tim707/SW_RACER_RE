@@ -4664,43 +4664,43 @@ static void aimAtPodPart(int entry, rdVector3* out)
 }
 
 // 0x0043f8e0
-void swrObjHang_AimHoloCamera(swrObjHang* hang, int target, int fromCurrentEye)
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrentEye)
 {
-    rdVector3 lookAt = { 0.0f, 0.0f, 0.0f }; // the original leaves this as stack garbage for ids outside 0x14..0x1e
+    rdVector3 lookAt = { 0.0f, 0.0f, 0.0f }; // the original leaves this as stack garbage for camera states outside Inspect*
     rdVector3 eye;
     float spreadY;
     float spreadX;
 
-    switch (target) {
-    case swrObjHang_HOLOAIM_ORIGIN:
+    switch (cameraState) {
+    case HangCameraState_InspectDefault:
         rdVector_Set3(&lookAt, 0.0f, 0.0f, 0.0f);
         break;
-    case swrObjHang_HOLOAIM_POD_PART_5:
+    case HangCameraState_InspectCockpit:
         aimAtPodPart(5, &lookAt);
         break;
-    case swrObjHang_HOLOAIM_POD_PART_1:
+    case HangCameraState_InspectEngine1:
         aimAtPodPart(1, &lookAt);
         break;
-    case swrObjHang_HOLOAIM_POD_PART_2:
+    case HangCameraState_InspectEngine2:
         aimAtPodPart(2, &lookAt);
         break;
-    case swrObjHang_HOLOAIM_POD_PART_3:
+    case HangCameraState_InspectEngine3:
         aimAtPodPart(3, &lookAt);
         break;
-    case swrObjHang_HOLOAIM_POD_PART_4:
+    case HangCameraState_InspectEngine4:
         aimAtPodPart(4, &lookAt);
         break;
-    case swrObjHang_HOLOAIM_PIT_DROID_0:
-    case swrObjHang_HOLOAIM_PIT_DROID_0 + 1:
-    case swrObjHang_HOLOAIM_PIT_DROID_0 + 2:
-    case swrObjHang_HOLOAIM_PIT_DROID_3:
-        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + target - swrObjHang_HOLOAIM_PIT_DROID_0], &lookAt);
+    case HangCameraState_InspectPT01:
+    case HangCameraState_InspectPT02:
+    case HangCameraState_InspectPT03:
+    case HangCameraState_InspectPT04:
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + cameraState - HangCameraState_InspectPT01], &lookAt);
         if (lookAt.z == -157.0f)
             lookAt.z = lookAt.z - -60.0f;
         else
             lookAt.z = lookAt.z - -30.0f;
         break;
-    case swrObjHang_HOLOAIM_PILOT:
+    case HangCameraState_InspectCharacter:
         swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS], &lookAt);
         lookAt.z = (float)((double)swrRacer_PodData[(int)hang->vehiclePlayer].float20 * 0.6667 - 157.0);
         break;
@@ -4711,10 +4711,10 @@ void swrObjHang_AimHoloCamera(swrObjHang* hang, int target, int fromCurrentEye)
         return;
     }
 
-    // jittered one-shot framing above the target
+    // jittered one-shot framing above the cameraState
     spreadY = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.y;
     rdVector_Set3(&eye, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.x, spreadY, lookAt.z - -400.0f);
-    if (target >= swrObjHang_HOLOAIM_PIT_DROID_0 && target <= swrObjHang_HOLOAIM_PILOT) {
+    if (cameraState >= HangCameraState_InspectPT01 && cameraState <= HangCameraState_InspectCharacter) {
         float scaleY = swrUtils_RandFloat();
         spreadY = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleY + lookAt.y;
         float scaleX = swrUtils_RandFloat();

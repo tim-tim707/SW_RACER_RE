@@ -516,7 +516,7 @@ void swrModel_clearSceneModelsAndChildren(void);
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset);
 // Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
 // snap) and feed it to swrObjHang_SetHoloCameraTarget.
-void swrObjHang_AimHoloCamera(swrObjHang* hang, int target, int fromCurrentEye);
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrentEye); // cameraState: a HangCameraState_Inspect* value
 // Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex);
 // Position + scale a holo-projector scene node on its camera-facing billboard.
