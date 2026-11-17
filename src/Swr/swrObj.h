@@ -348,7 +348,7 @@ void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE 
 
 // hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
 // Reloads the current hangar screen scene; plays the planet cinematic on first visit.
-void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3);
+void swrObjHang_LoadScreen(swrObjHang* hang, int rosterArg, int noBroadcast);
 // State 14: (re)loads the screen via swrObjHang_LoadScreen.
 void swrObjHang_UpdateLoadScreen(swrObjHang* hang);
 // State 15: opponent taunt scene (pilot voice lines).
@@ -538,7 +538,7 @@ void swrObjHang_AnimateTransitionNode(void);
 // Builds the roster (SP/MP) then fires the 'Begn' scene/judge events. The 'Begn' payload carries
 // the track's saved records (swrRace_saveData recordLapTimes / record3LapTimes / record3LapPilots
 // at [track*2 + mirror]), which swrObjJdge_F4 latches for the session.
-void swrObjHang_StartRace(swrObjHang* hang, int* param_2, int param_3);
+void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast);
 void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
 void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
 int swrObjHang_FindPlayerRacerSlot(swrObjHang* hang);

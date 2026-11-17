@@ -127,6 +127,7 @@ unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
 
 Main_display_intro_scene 0x004b7a00 int = 1
+swrObjHang_cinematicFiles 0x004b7a08 char*[10] # PlanetTAT/A/B/C/D/E/F/J.znm, Goldie.znm, TextCrawl.znm; indexed by planet
 
 swrMainDisplay_currentDevice 0x004b7a34 int
 swrMain_GuiAdvanceFunction 0x004b7a38 void*
@@ -379,6 +380,7 @@ swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
 swrObjHang_menuJustEntered 0x004c4000 int # set by swrObjHang_SetMenuState; each menu update consumes it for first-frame init
 swrObjHang_cameraLerpNeedsInit 0x004c4004 int # swrObjHang_LerpHoloCamera: recompute the move deltas and restart the clock
+swrObjHang_fadeDone 0x004c4008 int # set when a fade in/out completes, cleared when a fade-out starts; read by swrUI_UpdatePlayerMenuInput
 swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; swrObjHang_UpdateIdleCamera consumes it
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
@@ -849,7 +851,12 @@ swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateH
 
 swrObjHang_lookAtMenuFade 0x0050c958 float # look-at-vehicle menu fade, ramps 0 <-> 0.4 s with activeMenu (swrObjHang_UpdateLookAtVehicle); x2.5 = panel alpha
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
+swrObjHang_fadeOutAlpha 0x0050c570 float # fade sprite alpha while fading out, 0 -> 255 (swrObjHang_FadeOutAndAdvance)
 swrObjHang_inspectIdleTimer 0x0050c574 float # seconds on the current idle look-at-vehicle camera (swrObjHang_CycleInspectCamera)
+swrObjHang_fadeOutHoldFrames 0x004c02a8 short = 3 # frames held at full black before swrObjHang_FadeOutAndAdvance switches screen
+swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading in (swrObjHang_FadeScreenFlash_Maybe)
+swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
+swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at

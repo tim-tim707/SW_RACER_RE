@@ -56,6 +56,12 @@ void swrControl_StopAllForceEffects(int reInit)
     HANG("TODO");
 }
 
+// 0x00405cf0
+void swrControl_ClearDeviceState(int deviceClass)
+{
+    HANG("TODO");
+}
+
 // 0x00409ee0
 int swrControl_PlayForceEffect(int effectId, int magnitude, int direction, int duration)
 {

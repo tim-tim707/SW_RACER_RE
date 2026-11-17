@@ -67,7 +67,7 @@ void Window_DisplaySettingsCommand(HWND hDlg, int controlId, WPARAM wParam, int 
 void Window_DisplaySettingsPopulateModes(HWND hDlg, swrMainDisplaySettings* displaySettings);
 
 int Window_SmushPlayCallback(const SmushImage* image_info);
-int Window_PlayCinematic(char** znmFile);
+int Window_PlayCinematic(char* znmFile);
 int Window_CDCheck(void);
 
 int Window_DisplaySettingsMoveWindow(HWND dialogBoxHwnd);

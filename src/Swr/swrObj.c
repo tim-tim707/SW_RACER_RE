@@ -24,6 +24,7 @@
 
 #include <macros.h>
 #include <General/utils.h>
+#include <Win95/Window.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -720,19 +721,121 @@ void swrObjHang_UpdateResultsIntro(void)
 // 0x0043e330
 int swrObjHang_FadeOutAndAdvance(swrObjHang* hang)
 {
-    HANG("TODO");
+    int done = 0;
+    swrObjHang_fadeDone = 0;
+    if (swrObjHang_fadeOutAlpha < 255.0f) {
+        swrObjHang_fadeOutAlpha += swrRace_fdeltaTimeSecs * 849.99994f;
+    } else {
+        swrObjHang_fadeOutHoldFrames--;
+        done = swrObjHang_fadeOutHoldFrames <= 0;
+        swrObjHang_fadeOutAlpha = 255.0f;
+    }
+    if (swrObjHang_fadeOutAlpha > 255.0f) {
+        swrObjHang_fadeOutHoldFrames = 3;
+        swrObjHang_fadeOutAlpha = 255.0f;
+    }
+    swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)swrObjHang_fadeOutAlpha);
+    if (!done)
+        return 0;
+
+    swrObjHang_fadeOutAlpha = 0.0f;
+    if (swrObjHang_state2 != ~swrObjHang_STATE_LEGAL) {
+        if (swrObjHang_state2 == swrObjHang_STATE_SPLASH && hang->menuScreen == swrObjHang_STATE_VEHICLE_SELECT_INTRO) {
+            swrObjElmo* elmo = swrEvent_GetItem('Elmo', hang->elmoEntityIndex);
+            if (elmo != NULL)
+                swrObjElmo_SetAnimState(elmo, 0);
+        }
+        swrObjHang_fadeState = 1;
+        swrObjHang_cameraMoveActive = 0;
+        swr_noop2();
+        swrSound_ResetRequestedVoices();
+        swrRace_SaveCurrentProfile();
+        swrObjHang_SetMenuState(hang, swrObjHang_state2);
+        return 0;
+    }
+
+    swrSprite_SetVisible(-0x67, 0);
+    swrObjHang_fadeDone = 1;
+    swrObjHang_fadeState = 0;
+    swr_noop2();
+    swrSound_ResetRequestedVoices();
+    swrRace_SaveCurrentProfile();
+    return 1;
 }
 
 // 0x0043e490
 int swrObjHang_FadeScreenFlash_Maybe(void)
 {
-    HANG("TODO");
+    int done = 0;
+    if (swrObjHang_fadeInAlpha == 255.0f || swrObjHang_fadeInDelayFrames > 0) {
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+        swrObjHang_fadeInDelayFrames--;
+        if (swrObjHang_fadeInDelayFrames > 0)
+            return 0;
+    }
+
+    if (swrObjHang_fadeInAlpha > 0.0f) {
+        swrObjHang_fadeInAlpha -= swrRace_fdeltaTimeSecs * 849.99994f;
+    } else {
+        swrObjHang_fadeInHoldFrames--;
+        done = swrObjHang_fadeInHoldFrames <= 0;
+        swrObjHang_fadeInAlpha = 0.0f;
+    }
+    if (swrObjHang_fadeInAlpha < 0.0f) {
+        swrObjHang_fadeInHoldFrames = 3;
+        swrObjHang_fadeInAlpha = 0.0f;
+    }
+    swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)swrObjHang_fadeInAlpha);
+    if (!done)
+        return 0;
+
+    swrSprite_SetVisible(-0x67, 0);
+    swrObjHang_fadeInAlpha = 255.0f;
+    swrObjHang_fadeInDelayFrames = 3;
+    swrObjHang_fadeDone = 1;
+    swrObjHang_fadeState = 0;
+    return 1;
 }
 
 // 0x00457410
-void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3)
+void swrObjHang_LoadScreen(swrObjHang* hang, int rosterArg, int noBroadcast)
 {
-    HANG("TODO");
+    swrControl_uiInputActive = 1;
+    swrControl_ClearDeviceState(1);
+    swrControl_StopForceEffect(0x11);
+    swrUI_ResetProgressBar();
+    swrEvent_FreeObjs('Elmo');
+    swrUI_UpdateProgressBar(10);
+    swrEvent_ClearObjs('Elmo');
+    swrUI_UpdateProgressBar(20);
+    resetOverlayDrawQueues();
+    swrUI_UpdateProgressBar(30);
+    swrSprite_SetVisible(-0x67, 0);
+    hang->room = HangRoom_None;
+    swrSprite_ResetAllSprites();
+    swrUI_UpdateProgressBar(40);
+    swrModel_ClearLoadedModels();
+    swrUI_UpdateProgressBar(50);
+    swrViewport_SetRootNodeForAllViewports(NULL);
+    // rosterArg is a plain int the original forwards untouched into the roster builders' pointer slot
+    swrObjHang_StartRace(hang, (int*)rosterArg, noBroadcast);
+    swrUI_UpdateProgressBar(98);
+
+    int message = 'Stop';
+    swrEvent_CallF4('Hang', &message);
+    message = 'Wake';
+    if (hang->unk68_type >= 0) {
+        swrEvent_CallF4('Scen', &message);
+        return;
+    }
+
+    char planet = g_aTrackInfos[hang->track_index].PlanetIdx;
+    if ((swrRace_saveData.profiles[0].planetIntrosSeen & (1 << planet)) == 0 && multiplayer_enabled == 0 && swrRace_creditsMode == 0 && hang->demo_mode == 0) {
+        // tests save slot 0's mask but records into the live profile
+        Window_PlayCinematic(swrObjHang_cinematicFiles[planet]);
+        swrRace_aProfiles[0].planetIntrosSeen |= 1 << g_aTrackInfos[hang->track_index].PlanetIdx;
+    }
+    swrEvent_CallF4('Jdge', &message);
 }
 
 // 0x004575a0
@@ -1127,6 +1230,12 @@ int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targ
         }
     }
     return 0;
+}
+
+// 0x0045b290
+void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
+{
+    HANG("TODO");
 }
 
 // 0x0045bab0

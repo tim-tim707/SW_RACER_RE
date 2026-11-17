@@ -94,7 +94,7 @@ bool swrRace_LoadProfile(char* playerName)
     if (failed == 0) {
         swrRace_saveData.profiles[0] = profile;
         swrRace_profileLoaded = 0;
-        swrRace_saveData.profiles[0].unk3c = 0;
+        swrRace_saveData.profiles[0].planetIntrosSeen = 0;
         sprintf(swrRace_playerName, "%s", profile.name);
         swrRace_CopyProfileFromSave(0, 0);
     }
@@ -164,7 +164,7 @@ bool swrRace_LoadGameData(void)
     if (failed == 0) {
         sprintf(swrRace_playerName, "%s", swrRace_saveData.profiles[0].name);
         swrRace_profileLoaded = (swrRace_playerName[0] != '\0') ? 0 : -1;
-        swrRace_saveData.profiles[0].unk3c = 0;
+        swrRace_saveData.profiles[0].planetIntrosSeen = 0;
         if (swrRace_IsGameDataUninitialized()) {
             swrRace_CopyProfileToSave(0, 0);
             swrRace_ResetGameData(0);
@@ -1678,7 +1678,7 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
     profile->nbPitDroids = 1;
     profile->unk23 = 0;
     profile->pilotsUnlocked = ELFSAVE_DEFAULT_PILOTS;
-    profile->unk3c = 0;
+    profile->planetIntrosSeen = 0;
     profile->linkedToSave = 1;
     profile->pilotId = 0;
     profile->saveSlot = (uint8_t)slot;

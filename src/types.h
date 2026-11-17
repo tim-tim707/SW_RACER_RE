@@ -798,7 +798,7 @@ extern "C"
         char unk32[2]; // 0x32
         uint32_t pilotsUnlocked; // 0x34. pilot unlock bitfield (default 0x22e01)
         int truguts; // 0x38. currency (default 400)
-        uint32_t unk3c; // 0x3c. cleared by swrRace_LoadGameData and the profile defaults
+        uint32_t planetIntrosSeen; // 0x3c. bit = planet whose intro cinematic played (swrObjHang_LoadScreen); cleared by swrRace_LoadGameData and the profile defaults
         char nbPitDroids; // 0x40. default 1
         char upgradeLevels[7]; // 0x41. traction/turning/accel/topspeed/airbrake/cooling/repair
         char upgradeHealths[7]; // 0x48. 0xff = full health

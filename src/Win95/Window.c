@@ -172,7 +172,7 @@ int Window_CDCheck(void)
 }
 
 // 0x004252a0
-int Window_PlayCinematic(char** znmFile)
+int Window_PlayCinematic(char* znmFile)
 {
     HANG("TODO");
 }
