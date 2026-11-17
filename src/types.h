@@ -1201,8 +1201,7 @@ extern "C"
 
     typedef struct swrCamera_unk // viewport/camera state; unkCameraArray[32] @ 0x004b91c4, stride 0x7c
     {
-        unsigned char flags; // 0x0. bit 0x2 = active/render this frame
-        char unk01[3]; // 0x1
+        unsigned int flags; // 0x0. bit 0x2 = active/render this frame; every writer ORs/ANDs the full dword
         short behaviorType; // 0x4. 0 = inactive; 2/3/4 = extract transform + apply offset
         short sourceType; // 0x6. 0 = copy rdMatrix44, 1 = rdMatrix_SetTransform44, else FUN_00428c40
         void* matrixSource; // 0x8. source matrix / swrTranslationRotation
@@ -3327,6 +3326,25 @@ extern "C"
         uint32_t num_segments;
         swrSplineControlPoint* control_points;
     } swrSpline;
+
+    // Per force-feedback effect tuning (swrControl_forceEffectSettings, indexed by swrForceEffect).
+    // An effect plays only while all three are >= 0; swrConfig_AssignForceValues zeroes the table
+    // and writes each gain from the Force options (-1 = off).
+    typedef struct swrForceEffectSetting
+    {
+        float magnitudeScale; // 0x0. swrControl_ConfigureForceEffect scale, 0 = default
+        float gain; // 0x4. times swrControl_forceStrength in swrControl_PlayForceEffect
+        float unk8; // 0x8
+    } swrForceEffectSetting; // sizeof(0xc)
+
+    // swrUI_timers slot (swrUI_AddTimer / swrUI_RemoveTimer / swrUI_UpdateTimers); free while target == NULL
+    typedef struct swrUITimer
+    {
+        unsigned int intervalMs; // 0x0
+        unsigned int remainingMs; // 0x4. counts down; reloaded from intervalMs when it fires
+        struct swrUI_unk* target; // 0x8. receives swrUI_MSG_TIMER
+        int id; // 0xc. message param; swrUI_RemoveTimer matches on it
+    } swrUITimer; // sizeof(0x10)
 
     typedef struct swrUpgradeInfo
     {

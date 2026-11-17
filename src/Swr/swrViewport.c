@@ -16,14 +16,14 @@ void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
     if (mesh != NULL) {
         if (swrModel_MeshGetBehavior((swrModel_Mesh*)mesh) != (swrModel_Behavior*)0xffffffff) {
             int behavior = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)mesh);
-            *(unsigned int*)&unkCameraArray[behavior].flags &= ~1u;
+            unkCameraArray[behavior].flags &= ~1u;
         }
         if (a1 == -1) {
             unkCameraArrayIndex = -1;
             return;
         }
         swrViewport_SetRootNode_Maybe(mesh, a1);
-        *(unsigned int*)&unkCameraArray[unkCameraArrayIndex].flags |= 1u;
+        unkCameraArray[unkCameraArrayIndex].flags |= 1u;
         swrViewport_cameraApplied = 0;
     }
 }

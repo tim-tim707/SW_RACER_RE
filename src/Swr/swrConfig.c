@@ -254,10 +254,60 @@ int swrConfig_ReadVideoConfig(char* config_type)
     return 1;
 }
 
+// Force option level -> effect gain (0 = off)
+static float forceLevelGain(int level)
+{
+    if (level == 0) {
+        return -1.0f;
+    }
+    if (level == 1) {
+        return 0.6f;
+    }
+    if (level == 2) {
+        return 0.8f;
+    }
+    return 1.0f;
+}
+
 // 0x0040a680
 void swrConfig_AssignForceValues(void)
 {
-    HANG("TODO");
+    memset(swrControl_forceEffectSettings, 0, sizeof(swrControl_forceEffectSettings));
+    swrControl_forceStrength = forceLevelGain(swrConfig_FORCE_STRENGTH);
+    swrControl_forceEffectSettings[swrForceEffect_AUTO_CENTER].gain = forceLevelGain(swrConfig_FORCE_AUTOCENTER);
+    swrControl_forceEffectSettings[swrForceEffect_GFORCE].gain = swrConfig_FORCE_GFORCES != 0 ? 1.0f : -1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_ENGINE_RUMBLE].gain = swrConfig_FORCE_ENGINERUMBLE != 0 ? 1.0f : -1.0f;
+
+    swrControl_forceEffectSettings[swrForceEffect_HARD_LANDING].gain = forceLevelGain(swrConfig_FORCE_COLLISIONS);
+    swrControl_forceEffectSettings[swrForceEffect_OBJ_COLLISION].gain = forceLevelGain(swrConfig_FORCE_COLLISIONS);
+
+    swrControl_forceEffectSettings[swrForceEffect_ACCELERATION3].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_ACCELERATION3_B].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_START_BOOST].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_END_BOOST].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_ROLL_LEFT].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_REPAIR].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_HEAVY_SLIDE_SLIP].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+    swrControl_forceEffectSettings[swrForceEffect_TURBO_START].gain = forceLevelGain(swrConfig_FORCE_PODACTIONS);
+
+    swrControl_forceEffectSettings[swrForceEffect_SWAMP_MUCK].gain = forceLevelGain(swrConfig_FORCE_TERRAIN);
+
+    swrControl_forceEffectSettings[swrForceEffect_CRASHING].gain = forceLevelGain(swrConfig_FORCE_DAMAGE);
+    swrControl_forceEffectSettings[swrForceEffect_EXPLODING].gain = forceLevelGain(swrConfig_FORCE_DAMAGE);
+    swrControl_forceEffectSettings[swrForceEffect_ENGINE_PULL_LEFT].gain = forceLevelGain(swrConfig_FORCE_DAMAGE);
+    swrControl_forceEffectSettings[swrForceEffect_ENGINE_BLOWOUT_LEFT].gain = forceLevelGain(swrConfig_FORCE_DAMAGE);
+    swrControl_forceEffectSettings[swrForceEffect_ENGINE_FIRE_LEFT].gain = forceLevelGain(swrConfig_FORCE_DAMAGE);
+
+    // not tied to any option
+    swrControl_forceEffectSettings[swrForceEffect_AIR_SLIDE].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_ICE_SLIDE].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_PIT_BOB].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_ENEMY_FIRE2].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_POD_WAKE].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_SHOCKWAVE].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_SECONDARY_WEAPON].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_ACTIVATE_TOW].gain = 1.0f;
+    swrControl_forceEffectSettings[swrForceEffect_RELEASE_TOW].gain = 1.0f;
 }
 
 // 0x0040ab60

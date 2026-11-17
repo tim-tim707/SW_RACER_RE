@@ -434,6 +434,7 @@ std3D_frameCount 0x004c98b4 int = 1 // Have an enum for this would be better
 stdMath_SinTable 0x004c98e8 float[4096]
 stdMath_TanTable 0x004cd8e8 float[4096]
 
+swrControl_forceStrength 0x004b493c float # Force strength option as a gain (-1 off, 0.6, 0.8, 1.0); .data default 100.0
 wuRegistry_lpClass 0x004d55cc char[]
 
 multiplayer_enabled 0x004d5e00 int
@@ -730,6 +731,11 @@ swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlo
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
+swrRace_audioVideoMenuX 0x0050c224 float # A/V settings page column x, set to 165 each frame
+swrRace_audioVideoMenuY 0x0050c43c float # A/V settings page top row y, set to 70 each frame
+swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music .. 5 exit)
+swrRace_audioVideoMenuLastRow 0x004c0208 int # .data 5: last A/V settings row, the cursor wraps past it
+swrRace_menuSpriteCount 0x0050c928 int # next free garage menu sprite (id 0x82 + n); swrObjHang_F0 resets it, the stats panel and A/V settings page take from it
 swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
@@ -836,6 +842,7 @@ swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 swrObjHang_legalFadingOut 0x0050c484 char # set once the legal sequence's last page starts fading out
 swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateHoloCamera / StepCameraToward
 
+swrObjHang_lookAtMenuFade 0x0050c958 float # look-at-vehicle menu fade, ramps 0 <-> 0.4 s with activeMenu (swrObjHang_UpdateLookAtVehicle); x2.5 = panel alpha
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
@@ -1362,6 +1369,7 @@ oneOver255f 0x004acca0 float
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
+swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
@@ -1585,6 +1593,7 @@ swrConfig_FORCE_TERRAIN 0x00ec83f0 int
 swrConfig_FORCE_PODACTIONS 0x00ec83f4 int
 swrConfig_FORCE_GFORCES 0x00ec83f8 int
 swrConfig_FORCE_ENGINERUMBLE 0x00ec83fc int
+swrControl_forceEffectSettings 0x00ec8400 swrForceEffectSetting[28] # per swrForceEffect; rebuilt by swrConfig_AssignForceValues
 
 fogColor 0x00EC8564 rdVector4
 oneOverFogRange 0x00ec8574 float

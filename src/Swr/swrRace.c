@@ -714,10 +714,117 @@ void swrRace_MainMenu(swrObjHang* hang)
     HANG("TODO");
 }
 
+// Held left/right slides a 0..255 volume at 255 per second
+static uint8_t stepMenuVolume(uint8_t volume, int held)
+{
+    double level;
+
+    if ((held & swrUI_INPUT_MENU_RIGHT) != 0 && volume < 0xff) {
+        level = volume + swrRace_fdeltaTimeSecs * 255.0;
+        volume = level > 255.0 ? 0xff : (uint8_t)(int)level;
+    }
+    if ((held & swrUI_INPUT_MENU_LEFT) != 0 && volume > 0) {
+        level = volume - swrRace_fdeltaTimeSecs * 255.0;
+        volume = level < 0.0 ? 0 : (uint8_t)(int)level;
+    }
+    return volume;
+}
+
 // 0x00436fa0
 void swrRace_AudioVideoSettings(swrObjHang* hang)
 {
-    HANG("TODO");
+    uint8_t* musicVolume = (uint8_t*)&sound_music_volume; // the page only ever touches the low byte
+    int done;
+    int player;
+    short id;
+
+    done = 0;
+    id = swrRace_menuSpriteCount + 0x82;
+    swrRace_menuSpriteCount++;
+    swrRace_audioVideoMenuX = 165.0f;
+    swrRace_audioVideoMenuY = 70.0f;
+    if (*musicVolume == 0) {
+        swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 0, swrText_Translate("/SCREENTEXT_91/~sOFF"));
+    } else {
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)swrRace_audioVideoMenuX, (short)(int)swrRace_audioVideoMenuY);
+        swrSprite_SetDim(id, 0.125f - (float)*musicVolume * -0.039215688f, 1.0f);
+        swrSprite_SetColor(id, 0x32, 0xff, 0xff, 0xff);
+        swrSprite_AddDirtyRect((short)(int)(swrRace_audioVideoMenuX - 2.0f), (short)(int)(swrRace_audioVideoMenuY - 2.0f), (short)(int)(swrRace_audioVideoMenuX - -84.0f), (short)(int)(swrRace_audioVideoMenuY - -12.0f));
+    }
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 0, swrText_Translate("/SCREENTEXT_81/~r~sMusic:"));
+
+    id = swrRace_menuSpriteCount + 0x82;
+    swrRace_menuSpriteCount++;
+    if (sound_sfx_volume == 0) {
+        swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 1, swrText_Translate("/SCREENTEXT_91/~sOFF"));
+    } else {
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)swrRace_audioVideoMenuX, (short)(int)(swrRace_audioVideoMenuY - -15.0f));
+        swrSprite_SetDim(id, 0.125f - (float)sound_sfx_volume * -0.039215688f, 1.0f);
+        swrSprite_SetColor(id, 0x32, 0xff, 0xff, 0xff);
+        swrSprite_AddDirtyRect((short)(int)(swrRace_audioVideoMenuX - 2.0f), (short)(int)(swrRace_audioVideoMenuY - -15.0f - 2.0f), (short)(int)(swrRace_audioVideoMenuX - -84.0f), (short)(int)(swrRace_audioVideoMenuY - -27.0f));
+    }
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 1, swrText_Translate("/SCREENTEXT_82/~r~sSound:"));
+
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 2, swrText_Translate("/SCREENTEXT_83/~r~sAudio:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 2, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_STEREO) != 0 ? "/SCREENTEXT_84/~sSTEREO" : "/SCREENTEXT_85/~sMONO"));
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 3, swrText_Translate("/SCREENTEXT_89/~r~sLens flares:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 3, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_LENS_FLARES) != 0 ? "/SCREENTEXT_90/~sON" : "/SCREENTEXT_91/~sOFF"));
+    swrUI_Front_TextMenu(hang, 0x9b, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 4, swrText_Translate("/SCREENTEXT_467/~r~sResolution:"));
+    swrUI_Front_TextMenu(hang, 0xa5, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 4, swrText_Translate((swrRace_saveData.unlockFlags & swrSaveData_OPTION_HIRES) != 0 ? "/SCREENTEXT_468/~sHi-res" : "/SCREENTEXT_469/~sLo-res"));
+    swrUI_Front_TextMenu(hang, 0xa0, (int)swrRace_audioVideoMenuY, 0xf, swrRace_audioVideoMenuRow, 5, swrText_Translate("/SCREENTEXT_92/~c~sExit"));
+
+    for (player = 0; player < hang->num_local_players; player++) {
+        if (swrControl_menuAcceptPressedEdge != 0) {
+            playUISound(0x4d);
+            done = 1;
+        }
+        if (swrControl_cancelPressedEdge != 0) {
+            playUISound(0x4d);
+            done = 1;
+        }
+        if (done) {
+            swrRace_SaveCurrentProfile();
+            hang->activeMenu = 0;
+            return;
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_DOWN) != 0) {
+            swrRace_audioVideoMenuRow++;
+            if (swrRace_audioVideoMenuRow > swrRace_audioVideoMenuLastRow) {
+                swrRace_audioVideoMenuRow = 0;
+            }
+            playUISound(0x58);
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_UP) != 0) {
+            swrRace_audioVideoMenuRow--;
+            if (swrRace_audioVideoMenuRow < 0) {
+                swrRace_audioVideoMenuRow = swrRace_audioVideoMenuLastRow;
+            }
+            playUISound(0x58);
+        }
+        if ((swrUI_localPlayersInputPressedBitset[player] & (swrUI_INPUT_MENU_LEFT | swrUI_INPUT_MENU_RIGHT)) != 0) {
+            if (swrRace_audioVideoMenuRow == 2) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_STEREO;
+            }
+            if (swrRace_audioVideoMenuRow == 3) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_LENS_FLARES;
+            }
+            if (swrRace_audioVideoMenuRow == 4) {
+                swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_HIRES;
+            }
+            if (swrRace_audioVideoMenuRow >= 2 && swrRace_audioVideoMenuRow != 5) {
+                playUISound(0x58);
+            }
+        }
+        if (swrRace_audioVideoMenuRow == 0) {
+            *musicVolume = stepMenuVolume(*musicVolume, swrUI_localPlayersInputDownBitset[player]);
+            playASound(0x9b, 6, 0.25f, 1.0f, 1);
+        } else if (swrRace_audioVideoMenuRow == 1) {
+            sound_sfx_volume = stepMenuVolume(sound_sfx_volume, swrUI_localPlayersInputDownBitset[player]);
+            playASound(0x4f, 6, 0.125f, 1.0f, 1);
+        }
+    }
 }
 
 // 0x004396d0
@@ -1744,7 +1851,116 @@ void swrRace_ComputeUpgradePrices(void)
 // 0x0043ec10
 void swrRace_DrawPartShopScreen(swrObjHang* hang)
 {
-    HANG("TODO");
+    char text[32];
+    char line[32];
+    char* name;
+    char* format;
+    int topY;
+    int bottomY;
+    int i;
+    int type;
+    int player;
+
+    if ((swrObjHang_partDetailActive == 0 && swrObjHang_partDetailClosing == 0) || swrObjHang_cameraMoveParity == 0) {
+        return;
+    }
+
+    topY = (int)(swrObjHang_screenSlideOffset - 3.0f);
+    swrSprite_SetColor(0x7b, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0x7b, 1);
+    swrSprite_SetPos(0x7b, 0x1e, topY);
+    swrSprite_SetColor(0x78, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x78, 1);
+    swrSprite_SetPos(0x78, 0x22, topY + 4);
+    name = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].name);
+    format = swrText_Translate("~f4~c~s%s");
+    sprintf(text, format, name);
+    swrText_CreateTextEntry1(0x56, topY + 6, 0x32, -1, -1, -2, text);
+    swrSprite_SetColor(0x80, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x80, 1);
+    swrSprite_SetPos(0x80, 0x21, topY + 0x13);
+    swrRace_DrawStatBar(hang, 0x88, (short)topY + 0x11, (float)uiUpgradeInfos2[swrRace_MenuSelectedItem].health * 0.0039215684f, -2.0f, 10.0f, 41.0f);
+    swrSprite_SetColor(0x79, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x79, 1);
+    swrSprite_SetPos(0x79, 0x2a, topY + 0x10);
+    swrText_CreateTextEntry1(0x2c, topY + 0x12, 0x32, -1, -1, -2, swrText_Translate("/SCREENTEXT_246/~sPrice"));
+    sprintf(text, swrText_Translate("~r~s%d"), swrRace_upgradePrice);
+    swrText_CreateTextEntry1(0x87, topY + 0x12, 0x32, -1, -1, -2, text);
+    swrSprite_SetColor(0x7a, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7a, 1);
+    swrSprite_SetPos(0x7a, 0x29, topY + 0x1b);
+
+    bottomY = (int)(swrObjHang_screenSlideOffset - 5.0f);
+    swrSprite_SetColor(0x7f, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0x7f, 1);
+    swrSprite_SetPos(0x7f, 0xae, bottomY);
+    swrSprite_SetColor(0x7d, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7d, 1);
+    swrSprite_SetPos(0x7d, 0xb3, bottomY + 5);
+    swrText_CreateTextEntry1(0xb6, bottomY + 6, 0x32, -1, -1, -2, swrText_Translate("/SCREENTEXT_248/~sReplace"));
+    swrSprite_SetColor(0x81, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x81, 1);
+    swrSprite_SetPos(0x81, 0xb2, bottomY + 0x14);
+    swrSprite_SetColor(0x7c, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7c, 1);
+    swrSprite_SetPos(0x7c, 0xbe, bottomY + 0x17);
+
+    // the installed part of the offered part's type
+    type = (char)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].type;
+    name = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos[type].index].name);
+    format = swrText_Translate("~f4~c~s%s");
+    sprintf(text, format, name);
+    swrText_CreateTextEntry1(0xee, bottomY + 0x1a, 0x32, -1, -1, -2, text);
+    swrSprite_SetColor(0x7e, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7e, 1);
+    swrSprite_SetPos(0x7e, 0xd6, bottomY + 0x28);
+    swrRace_DrawStatBar(hang, 0xff, (short)bottomY + 0x30, (float)(uint8_t)(&swrRace_traction_upgrade_health)[type] * 0.0039215684f, -2.0f, 7.0f, 26.0f);
+
+    for (i = 0; i < 2; i++) {
+        swrSprite_SetColor(0x76 + i, 0x32, 0xff, 0xff, 0xfe);
+        swrSprite_SetVisible(0x76 + i, 1);
+        swrSprite_SetPos(0x76 + i, 0xc2, bottomY + i * 0xb + 0x5d);
+        swrSprite_SetColor(0x74 + i, 0x32, 0xff, 0xff, 0xfe);
+        swrSprite_SetVisible(0x74 + i, 1);
+        swrSprite_SetPos(0x74 + i, 0xdb, bottomY + i * 0xd + 0x7c);
+    }
+
+    sprintf(text, "~f4%s", swrText_Translate("/SCREENTEXT_250/~sTrade"));
+    swrText_CreateTextEntry1(0xc4, bottomY + 0x60, 0x32, -1, -1, -2, text);
+    sprintf(text, "~f4%s", swrText_Translate("/SCREENTEXT_251/~sCost"));
+    swrText_CreateTextEntry1(0xc4, bottomY + 0x6b, 0x32, -1, -1, -2, text);
+    sprintf(text, swrText_Translate("~r~s%d"), swrRace_upgradeTradeInValue);
+    sprintf(line, "~f4%s", text);
+    swrText_CreateTextEntry1(0x114, bottomY + 0x60, 0x32, -1, -1, -2, line);
+    sprintf(text, swrText_Translate("~r~s%d"), swrRace_upgradePrice - swrRace_upgradeTradeInValue);
+    sprintf(line, "~f4%s", text);
+    swrText_CreateTextEntry1(0x114, bottomY + 0x6b, 0x32, -1, -1, -2, line);
+
+    // swrRace_upgradeUnaffordable doubles as the BUY(0)/CANCEL(1) cursor; short of truguts pins it to CANCEL
+    if (swrRace_truguts < swrRace_upgradePrice - swrRace_upgradeTradeInValue) {
+        swrRace_upgradeUnaffordable = 1;
+    }
+    swrUI_Front_TextMenu(hang, 0xfc, (short)bottomY + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 0, swrText_Translate("/SCREENTEXT_254/~c~sBUY"));
+    swrUI_Front_TextMenu(hang, 0xfc, (short)bottomY + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 1, swrText_Translate("/SCREENTEXT_257/~c~sCANCEL"));
+    swrText_CreateTextEntry1(0xfe, bottomY + 0xa5, -0x5d, -0x42, 0x11, -2, swrText_Translate("/SCREENTEXT_599/~c~sTruguts"));
+    // faithful: the binary also subtracts a 0.0 double here
+    swrObjHang_PositionHoloNode(0, 5.0f, (float)((double)(swrObjHang_screenSlideOffset - 6.0f) - 0.0), 1.0f);
+    sprintf(text, swrText_Translate("~r~sX %d"), swrRace_truguts);
+    swrText_CreateTextEntry1(0x122, bottomY + 0xb4, 0x32, -1, -1, -2, text);
+    if (swrRace_truguts < swrRace_upgradePrice - swrRace_upgradeTradeInValue) {
+        swrText_CreateTextEntry1(0x122, bottomY + 0xb4, -1, 0, 0, -2, text);
+    }
+
+    for (player = 0; player < 4; player++) {
+        if (swrObjHang_partDetailActive != 0 && (swrUI_localPlayersInputPressedBitset[player] & (swrUI_INPUT_MENU_UP | swrUI_INPUT_MENU_DOWN)) != 0) {
+            if (swrRace_truguts < swrRace_upgradePrice - swrRace_upgradeTradeInValue) {
+                playUISound(0x4b);
+            } else {
+                swrRace_upgradeUnaffordable = (uint16_t)(swrRace_upgradeUnaffordable == 0);
+                playUISound(0x58);
+            }
+        }
+    }
 }
 
 // spin a part about the camera's forward axis, tilt it 45 degrees about the up axis, spin back
@@ -2769,9 +2985,109 @@ void swrRace_GetProfileRecordVec3_Maybe(int base, int index, float* out3)
 }
 
 // 0x004550d0
-void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_3)
+void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
 {
-    HANG("TODO");
+    static char* const labels[] = {
+        "/SCREENTEXT_403/~f4~sTraction", "/SCREENTEXT_404/~f4~sTurning", "/SCREENTEXT_405/~f4~sAccel.", "/SCREENTEXT_406/~f4~sTop Speed", "/SCREENTEXT_407/~f4~sAir Brake", "/SCREENTEXT_408/~f4~sCooling", "/SCREENTEXT_409/~f4~sRepair",
+    };
+    static const float labelOffsets[] = { -7.0f, -16.5f, -26.0f, -35.5f, -45.0f, -54.5f, -64.0f };
+    float fade;
+    float alphaF;
+    float firstRowY;
+    float barX;
+    uint8_t alpha;
+    short textX;
+    short barXs;
+    short rowY;
+    short id;
+    int changed;
+    int i;
+
+    changed = -1;
+    fade = 1.0f;
+    if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+        fade = swrObjHang_lookAtMenuFade * 2.5f;
+    }
+    alphaF = fade * 255.0f;
+    if (alphaF > 254.0f) {
+        alphaF = 254.0f;
+    }
+    // last stat the candidate upgrade moves
+    for (i = 0; i < 7; i++) {
+        if (swrRace_statBarChanged[i] != 0) {
+            changed = i;
+        }
+    }
+
+    swrSprite_SetVisible(0x57, 1);
+    swrSprite_SetPos(0x57, (short)(int)x, (short)(int)y);
+    alpha = (uint8_t)(int)alphaF;
+    swrSprite_SetColor(0x57, 0xa3, 0xbe, 0x11, alpha);
+    textX = (short)(int)(x - -5.0f);
+    swrText_CreateTextEntry1(textX, (int)(y - 4.0f), 0x32, -1, -1, alpha, swrText_Translate("/SCREENTEXT_475/~f4~sVehicle Statistics"));
+    for (i = 0x58; i < 0x5f; i++) {
+        swrSprite_SetVisible(i, 1);
+        swrSprite_SetPos(i, textX, (short)(int)(y - (float)(i - 0x58) * -9.5f - -5.0f));
+        swrSprite_SetColor(i, 0x32, 0xff, 0xff, alpha);
+    }
+
+    firstRowY = y - -7.0f;
+    for (i = 0; i < 7; i++) {
+        swrText_CreateTextEntry1(textX, (int)(y - labelOffsets[i]), 0x32, -1, -1, alpha, swrText_Translate(labels[i]));
+    }
+
+    swrSprite_SetVisible(0x5f, 1);
+    swrSprite_SetPos(0x5f, (short)(int)(x - -65.0f), (short)(int)(y - -69.0f));
+    swrSprite_SetColor(0x5f, 0x32, 0xff, 0xff, alpha);
+    swrSprite_SetVisible(0x60, 1);
+    swrSprite_SetPos(0x60, (short)(int)(x - -167.0f), (short)(int)(y - -5.0f));
+    swrSprite_SetColor(0x60, 0x32, 0xff, 0xff, alpha);
+    if (changed > -1) {
+        swrSprite_SetVisible(0x61, 1);
+        swrSprite_SetPos(0x61, (short)(int)(x - 6.0f), (short)(int)(y - (float)changed * -9.5f));
+        swrSprite_SetColor(0x61, 0x32, 0xff, 0xff, alpha);
+    }
+
+    barX = x - -67.0f;
+    barXs = (short)(int)barX;
+    for (i = 0; i < 7; i++) {
+        float current = swrRace_statBarsCurrent[i];
+        float preview = swrRace_statBarsPreview[i];
+
+        id = swrRace_menuSpriteCount + 0x82;
+        swrRace_menuSpriteCount++;
+        swrSprite_SetVisible(id, 1);
+        rowY = (short)(int)(firstRowY - (float)i * -9.5f);
+        swrSprite_SetPos(id, barXs, rowY);
+        if (current == preview) {
+            swrSprite_SetDim(id, current * 12.0f, 0.625f);
+            swrSprite_SetColor(id, 0x32, 0xff, 0xff, alpha);
+        } else if (current < preview) {
+            // gain: white bar to the current value, flickering yellow segment up to the preview
+            swrSprite_SetDim(id, current * 12.0f, 0.625f);
+            swrSprite_SetColor(id, 0x32, 0xff, 0xff, alpha);
+            id = swrRace_menuSpriteCount + 0x82;
+            swrRace_menuSpriteCount++;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, (short)(int)(barX - current * -96.0f), rowY);
+            swrSprite_SetDim(id, (preview - current) * 12.0f, 0.625f);
+            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, (uint8_t)(int)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
+        } else {
+            // loss: white bar to the preview value, flickering red segment up to the current one
+            swrSprite_SetDim(id, preview * 12.0f, 0.625f);
+            swrSprite_SetColor(id, 0x32, 0xff, 0xff, alpha);
+            id = swrRace_menuSpriteCount + 0x82;
+            swrRace_menuSpriteCount++;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, (short)(int)(barX - preview * -96.0f), rowY);
+            swrSprite_SetDim(id, (current - preview) * 12.0f, 0.625f);
+            swrSprite_SetColor(id, 0xff, 0x64, 0x64, (uint8_t)(int)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
+            // faithful: in the look-at-vehicle screen the loss segment is repainted solid yellow
+            if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+                swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, alpha);
+            }
+        }
+    }
 }
 
 // In-race HUD for one local racer: frame sprites, speed readout, the ~4s post-lap time popup
@@ -4992,6 +5308,167 @@ void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos
     rdMatrix_Copy44(&swrRace_fireballTransform, &m);
     swrModel_NodeSetTransform((swrModel_NodeTransformed*) fireballNodePtr, &m);
     swrModel_NodeModifyFlags(fireballNodePtr, 2, 3, 0x10, 2);
+}
+
+// One exhaust plume: flicker scale, spin with race time, fade out when small. Pilots 4, 6 and 16
+// get a fixed-size plume with random alpha; 8 and 10 don't spin.
+static void updateExhaustPlume(swrRace* player, swrModel_NodeTransformed* node, int saveSlot, int pilot, float size)
+{
+    rdMatrix44 m;
+    float scale;
+    float angle;
+    float alphaScale;
+
+    scale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.20000005f - -1.0f;
+    swrUtils_Rand();
+    alphaScale = 1.0f;
+    angle = (float)(timetotal * 30.0f);
+    if (size < 0.25f) {
+        scale = size * scale;
+        if (player == NULL) {
+            alphaScale = size;
+        }
+    }
+    switch (pilot) {
+    case 4:
+    case 6:
+    case 0x10:
+        scale = 1.0f;
+        angle = 0.0f;
+        alphaScale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000024f - -0.9f;
+        break;
+    case 8:
+    case 10:
+        angle = 0.0f;
+        break;
+    }
+    rdMatrix_SetRotation44(&m, 0.0f, 0.0f, angle);
+    rdVector_Scale3((rdVector3*)&m.vA, scale, (rdVector3*)&m.vA);
+    rdVector_Scale3((rdVector3*)&m.vC, scale, (rdVector3*)&m.vC);
+    if (player != NULL) {
+        rdMatrix_Copy44(&(&player->unk350_mat)[saveSlot], &m);
+    }
+    swrModel_NodeSetTransform(node, &m);
+    swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    swrModel_NodeSetColorsOnAllMaterials(&node->node, 0, 0, 0xff, 0xff, 0xff, (int)(alphaScale * 255.0f));
+}
+
+// One exhaust glow: stretched along the pod's forward axis by size, or a random burst while boosting.
+static void updateExhaustGlow(swrRace* player, swrModel_NodeTransformed* node, int saveSlot, int boosting, float size)
+{
+    rdMatrix44 m;
+    swrModel_MeshMaterial* material;
+    float flicker;
+    float scale;
+
+    material = swrModel_NodeFindFirstMeshMaterial(&node->node);
+    swrUtils_Rand();
+    flicker = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -1.0f;
+    swrUtils_Rand();
+    scale = size * flicker;
+    if (boosting) {
+        scale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.6999998f - -3.5f;
+    }
+    swrUtils_Rand();
+    rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
+    rdVector_Scale3((rdVector3*)&m.vB, scale, (rdVector3*)&m.vB);
+    if (player != NULL) {
+        rdMatrix_Copy44(&(&player->unk350_mat)[saveSlot], &m);
+    }
+    swrModel_NodeSetTransform(node, &m);
+    swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    if (material != NULL) {
+        swrModel_MeshMaterialSetColors(material, 0, 0, 0xff, 0xff, 0xff, 0xff);
+        swrModel_MeshMaterialSetTextureUVOffset(material, 0.11f, 0.0f);
+    }
+}
+
+// player == NULL drives a display pod (hangar/shop) from partNodes, whose slot 0x3c holds the pilot id.
+// 0x0046f2c0
+void swrRace_UpdateEngineExhaust(swrRace* player, swrModel_Node** partNodes, float sizeLeft, float sizeRight)
+{
+    int pilot;
+    int boosting;
+    int damagedLeft;
+    int damagedRight;
+    float throttleLeft;
+    float throttleRight;
+    float left;
+    float right;
+    int i;
+
+    damagedLeft = 0;
+    damagedRight = 0;
+    boosting = 0;
+    if (player == NULL) {
+        pilot = *(int*)&partNodes[0x3c];
+    } else {
+        partNodes = player->partNodes;
+        if (partNodes == NULL) {
+            return;
+        }
+        pilot = *player->score_ptr->pilotId;
+        if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0 || (player->flags1 & swrObjTest_FLAG1_BOOST_START) != 0) {
+            boosting = 1;
+        }
+        for (i = 0; i < 6; i++) {
+            if ((player->engineStatus[i] & 4) != 0) {
+                if (i < 3) {
+                    damagedLeft = 1;
+                } else {
+                    damagedRight = 1;
+                }
+            }
+        }
+    }
+
+    left = 0.0f;
+    right = 0.0f;
+    if (sizeLeft >= 0.0f) {
+        left = sizeLeft;
+    }
+    if (sizeRight >= 0.0f) {
+        right = sizeRight;
+    }
+    if ((swrRace_DebugFlag & 0x100) != 0 && swrRace_DebugLevel != 0 && (inRaceLocalPlayerInputBitset3[1] & 0x1000) != 0) {
+        left = 1.0f;
+        right = 1.0f;
+        boosting = 0;
+    }
+
+    if (player != NULL) {
+        throttleLeft = player->throttle;
+        throttleRight = player->throttle;
+        if ((player->flags1 & swrObjTest_FLAG1_SLIDING) != 0) {
+            throttleLeft = throttleLeft * 0.5f;
+            throttleRight = throttleRight * 0.5f;
+        }
+        if (damagedLeft) {
+            throttleLeft = throttleLeft * 0.2f;
+        }
+        if (damagedRight) {
+            throttleRight = throttleRight * 0.2f;
+        }
+        left = (throttleLeft + player->exhaustSizeLeft) * 0.5f;
+        right = (throttleRight + player->exhaustSizeRight) * 0.5f;
+        player->exhaustSizeLeft = left;
+        player->exhaustSizeRight = right;
+    }
+
+    // saveSlot indexes the per-part transforms at unk350_mat, aligned with partNodes
+    if (partNodes[0x1c] != NULL) {
+        updateExhaustPlume(player, (swrModel_NodeTransformed*)partNodes[0x1c], 0x1c, pilot, left);
+    }
+    // faithful: the right plume is saved into the left plume's slot (0x1c), not 0x2a
+    if (partNodes[0x2a] != NULL) {
+        updateExhaustPlume(player, (swrModel_NodeTransformed*)partNodes[0x2a], 0x1c, pilot, right);
+    }
+    if (partNodes[0x1d] != NULL) {
+        updateExhaustGlow(player, (swrModel_NodeTransformed*)partNodes[0x1d], 0x1d, boosting, left);
+    }
+    if (partNodes[0x2b] != NULL) {
+        updateExhaustGlow(player, (swrModel_NodeTransformed*)partNodes[0x2b], 0x2b, boosting, right);
+    }
 }
 
 // 0x00477ad0

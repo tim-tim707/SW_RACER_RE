@@ -7,6 +7,7 @@
 #include "swrSprite.h"
 #include "swrText.h"
 #include "swr.h"
+#include "engine_config.h"
 
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -141,6 +142,37 @@ void swrUI_SetCaretRect(int x, int y, int w, int h)
     swrUI_caretY = y;
     swrUI_caretW = w;
     swrUI_caretH = h;
+}
+
+// 0x00411770
+void swrUI_AddTimer(swrUI_unk* target, int interval, int param)
+{
+    int i;
+
+    for (i = 0; i < SWR_UI_MAX_TIMERS; i++) {
+        if (swrUI_timers[i].target == NULL) {
+            swrUI_timers[i].target = target;
+            swrUI_timers[i].intervalMs = interval;
+            swrUI_timers[i].remainingMs = interval;
+            swrUI_timers[i].id = param;
+            return;
+        }
+    }
+}
+
+// 0x004117b0
+void swrUI_RemoveTimer(int param)
+{
+    int i;
+
+    for (i = 0; i < SWR_UI_MAX_TIMERS; i++) {
+        if (swrUI_timers[i].id == param) {
+            swrUI_timers[i].target = NULL;
+            swrUI_timers[i].intervalMs = 0;
+            swrUI_timers[i].remainingMs = 0;
+            swrUI_timers[i].id = 0;
+        }
+    }
 }
 
 // 0x004117e0
@@ -1558,4 +1590,27 @@ int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end)
         text++;
     }
     return total;
+}
+
+// 0x004180c0
+void swrUI_UpdateTimers(void)
+{
+    unsigned int elapsedMs;
+    unsigned int step;
+    int i;
+
+    elapsedMs = (unsigned int)(int)(swrRace_deltaTimeSecs * 1000.0);
+    for (i = 0; i < SWR_UI_MAX_TIMERS; i++) {
+        if (swrUI_timers[i].target != NULL) {
+            step = elapsedMs;
+            if (swrUI_timers[i].remainingMs <= elapsedMs) {
+                step = swrUI_timers[i].remainingMs;
+            }
+            swrUI_timers[i].remainingMs -= step;
+            if (swrUI_timers[i].remainingMs == 0) {
+                swrUI_timers[i].remainingMs = swrUI_timers[i].intervalMs;
+                swrUI_RunCallbacks(swrUI_timers[i].target, swrUI_MSG_TIMER, swrUI_timers[i].id, 0);
+            }
+        }
+    }
 }

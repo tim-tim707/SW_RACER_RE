@@ -94,6 +94,38 @@ typedef enum swrUI_INPUTBIT
     swrUI_INPUT_MENU_RIGHT = 0x20000, // increase the focused option
 } swrUI_INPUTBIT;
 
+typedef enum swrForceEffect
+{
+    swrForceEffect_GFORCE = 0, // names from the .fcr effect-name table at 0x004b4940
+    swrForceEffect_ENGINE_PULL_LEFT = 1,
+    swrForceEffect_HEAVY_SLIDE_SLIP = 2,
+    swrForceEffect_PIT_BOB = 3,
+    swrForceEffect_ACCELERATION3 = 4, // ids 4 and 5 share the "Acceleration3" .fcr effect
+    swrForceEffect_ACCELERATION3_B = 5,
+    swrForceEffect_TURBO_START = 6,
+    swrForceEffect_START_BOOST = 7,
+    swrForceEffect_END_BOOST = 8,
+    swrForceEffect_SWAMP_MUCK = 9,
+    swrForceEffect_ROLL_LEFT = 10,
+    swrForceEffect_REPAIR = 11,
+    swrForceEffect_ICE_SLIDE = 12,
+    swrForceEffect_AIR_SLIDE = 13,
+    swrForceEffect_SECONDARY_WEAPON = 14,
+    swrForceEffect_ACTIVATE_TOW = 15,
+    swrForceEffect_RELEASE_TOW = 16,
+    swrForceEffect_AUTO_CENTER = 17,
+    swrForceEffect_ENEMY_FIRE2 = 18,
+    swrForceEffect_HARD_LANDING = 19,
+    swrForceEffect_OBJ_COLLISION = 20,
+    swrForceEffect_ENGINE_BLOWOUT_LEFT = 21,
+    swrForceEffect_CRASHING = 22,
+    swrForceEffect_ENGINE_RUMBLE = 23,
+    swrForceEffect_POD_WAKE = 24,
+    swrForceEffect_SHOCKWAVE = 25,
+    swrForceEffect_ENGINE_FIRE_LEFT = 26,
+    swrForceEffect_EXPLODING = 27,
+} swrForceEffect;
+
 // swrRace_resultsStateFlags: one-shot latches while the results screen is up,
 // cleared when leaving it (swrRace_ResultsMenu).
 typedef enum swrRace_RESULTSFLAG
@@ -113,10 +145,13 @@ typedef enum swrModel_BEHAVIOR_FLAG
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {
-    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
+    swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // fresh save image: OPTION_STEREO | OPTION_LENS_FLARES
     swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
                                                      // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
     swrSaveData_UNLOCK_RACE_STARTED = 0x40, // set by swrObjHang_StartRace and swrObjHang_SelectCreditsTracks; no reader found
+    swrSaveData_OPTION_STEREO = 0x1, // A/V page "Audio: STEREO/MONO" (swrRace_AudioVideoSettings)
+    swrSaveData_OPTION_LENS_FLARES = 0x2, // A/V page "Lens flares: ON/OFF"
+    swrSaveData_OPTION_HIRES = 0x10, // A/V page "Resolution: Hi-res/Lo-res"
 } swrSaveData_UNLOCKFLAGS;
 
 // Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on
@@ -1226,6 +1261,7 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;
 

@@ -5172,6 +5172,54 @@ void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat
     unkCameraArray[entry].matrixSource = mat;
 }
 
+// 0x00428a40
+void swrCam_CamState_SetFlags(int index, unsigned int flags)
+{
+    unkCameraArray[index].flags |= flags;
+}
+
+// 0x00428aa0
+void swrCam_CamState_SetOffset(short index, float posX, float posY, float posZ, float yaw, float pitch, float roll)
+{
+    int entry = index;
+    unkCameraArray[entry].posOffset.x = posX;
+    unkCameraArray[entry].posOffset.y = posY;
+    unkCameraArray[entry].posOffset.z = posZ;
+    unkCameraArray[entry].rotationYPR.x = yaw;
+    unkCameraArray[entry].rotationYPR.y = pitch;
+    unkCameraArray[entry].rotationYPR.z = roll;
+}
+
+// 0x00428b10
+void swrCam_CamState_SetOffsetSource(short index, void* source, short mode)
+{
+    unkCameraArray[index].offsetMode = mode;
+    unkCameraArray[index].offsetSource = source;
+}
+
+// 0x00428c40
+void swrCam_CamState_GetOffsetTransform(int mode, swrModel_NodeTransformed* node, rdMatrix44* out)
+{
+    if (mode == 3) {
+        swrModel_NodeGetTransform(node, out);
+        return;
+    }
+    if (mode == 2) {
+        swrModel_NodeGetTransform(node, out);
+        return;
+    }
+    if (swrModel_NodeGetFlags(&node->node) == NODE_TRANSFORMED_WITH_PIVOT) {
+        swrModel_NodeGetTransform(node, out);
+        return;
+    }
+    // faithful: the binary repeats the same type test
+    if (swrModel_NodeGetFlags(&node->node) == NODE_TRANSFORMED_WITH_PIVOT) {
+        swrModel_NodeGetTransform(node, out);
+        return;
+    }
+    rdMatrix_SetIdentity44(out);
+}
+
 // Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
 // 0x0045a420
 float swrObjHang_EaseSine_Maybe(float t, float period) {
