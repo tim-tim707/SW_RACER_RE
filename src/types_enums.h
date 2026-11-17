@@ -229,6 +229,7 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows
     swrRace_DEBUGFLAG_SPLINE_MARKERS = 0x10, // "Spline Markers" toggle row
     swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
+    swrRace_DEBUGFLAG_UNLOCK_ALL = 0x40, // swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;
 
@@ -526,6 +527,13 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
     swrObjHang_STATE_MP_OTHER_SCREEN = 19,     // broadcast-only: MP host is on a screen other than main/planet/track
 } swrObjHang_STATE;
+
+// swrRace_Explode side argument: which engine the explosion bursts from
+typedef enum swrRace_EXPLODE_SIDE
+{
+    swrRace_EXPLODE_SIDE_LEFT = 0x1, // engineXfL, swrObjTest_FLAG1_EXPLODING_RIGHT
+    swrRace_EXPLODE_SIDE_RIGHT = 0x2, // engineXfR, swrObjTest_FLAG1_EXPLODING_LEFT
+} swrRace_EXPLODE_SIDE;
 
 typedef enum swrRender_FRAME_CLEAR_FLAG
 {
@@ -1298,6 +1306,7 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
 typedef enum swrObjHang_FLAG // swrObjHang.flag
 {
     swrObjHang_FLAG_ACTIVE = 0x1, // F0/F2/SetMenuState only run while set; F4 sets it on 'Fini'/'Strt', clears on 'Stop'
+    swrObjHang_FLAG_UNK_2 = 0x2, // swrObjHang_F0 clears it each frame; no setter found in the binary
     swrObjHang_FLAG_SCREEN_SET_UP = 0x4, // screen assets + scene built (SetMenuState, F4 init)
     swrObjHang_FLAG_CREDITS_PLAYLIST = 0x8, // StartRace takes the track from the end-credits playlist
 } swrObjHang_FLAG;

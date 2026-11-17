@@ -662,10 +662,285 @@ void swrObjHang_PositionHoloNode(int nodeIndex, float x, float y, float scale)
     swrModel_NodeModifyFlags((swrModel_Node*)node, 2, 3, 0x10, 2);
 }
 
+// 0x00434ea0
+void swrObjHang_UpdateLoadScreen(swrObjHang* hang)
+{
+    swrObjHang_LoadScreen(hang, hang->unk68_type != 0, 1);
+}
+
+// 0x00435240
+void swrObjHang_UpdateSplashScreen(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x00436860
+void swrObjHang_UpdateMainMenu(swrObjHang* hang)
+{
+    if (swrObjHang_menuJustEntered != 0)
+        hang->activeMenu = 0;
+
+    if (hang->activeMenu != 0 && swrObjHang_state2 == ~swrObjHang_STATE_LEGAL) {
+        swrRace_AudioVideoSettings(hang);
+        return;
+    }
+    swrRace_MainMenu(hang);
+}
+
+// 0x0043abc0
+void swrObjHang_UpdateJunkyard(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043c6f0
+void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043ca30
+void swrObjHang_UpdateTauntScene(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043ceb0
+void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043d4e0
+void swrObjHang_UpdateResultsIntro(void)
+{
+    HANG("TODO");
+}
+
+// 0x0043e330
+int swrObjHang_FadeOutAndAdvance(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x0043e490
+int swrObjHang_FadeScreenFlash_Maybe(void)
+{
+    HANG("TODO");
+}
+
+// 0x00457410
+void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3)
+{
+    HANG("TODO");
+}
+
+// 0x004575a0
+void swrObjHang_ShowAllSceneNodes(void)
+{
+    for (int i = 0; i < SWR_SCENE_MODEL_SLOT_COUNT; i++) {
+        if (swr_sceneModels[i] != NULL && swr_sceneModels[i]->entries[0].node != NULL)
+            swrModel_NodeModifyFlags(swr_sceneModels[i]->entries[0].node, 2, -4, 0x10, 3);
+    }
+}
+
+// 0x004575d0
+void swrObjHang_ShowPartNodes(swrObjHang* hang)
+{
+    if (hang->loc_cantina_part_model != NULL)
+        swrModel_NodeModifyFlags(hang->loc_cantina_part_model, 2, 3, 0x10, 2);
+    if (hang->holo_proj02_part_model != NULL)
+        swrModel_NodeModifyFlags(hang->holo_proj02_part_model, 2, 3, 0x10, 2);
+    if (swrObjHang_cameraMoveMode == 5)
+        swrObjHang_cameraMoveMode = 0;
+}
+
 // 0x00457620
 void swrObjHang_F0(swrObjHang* hang)
 {
-    HANG("TODO");
+    int loadNext = 0;
+    if (hang->flag & swrObjHang_FLAG_ACTIVE) {
+        swr_noop4();
+        if (hang->flag & swrObjHang_FLAG_UNK_2)
+            hang->flag &= ~swrObjHang_FLAG_UNK_2;
+        hang->unk60 = 0;
+        swrObjHang_TickHolotableSpin_Maybe();
+        swrControl_uiInputActive = 0;
+        swrControl_PlayForceEffect(0x11, -1, -1, -1);
+        for (int player = 0; player < 4; player++)
+            swrUI_UpdatePlayerMenuInput(player);
+
+        if (multiplayer_enabled != 0)
+            swrObjHang_skipTournamentIntro = 1;
+        if (swrUI_pendingInputDown != 0) {
+            swrUI_localPlayersInputDownBitset[0] = swrUI_pendingInputDown;
+            swrUI_pendingInputDown = 0;
+        }
+        if (swrUI_pendingInputPressed != 0) {
+            swrUI_localPlayersInputPressedBitset[0] = swrUI_pendingInputPressed;
+            swrUI_pendingInputPressed = 0;
+        }
+        swrRace_menuSpriteCount = 0;
+        swrRace_statBarSpriteCount = 0;
+
+        swr_noop4();
+        swrObjHang_ShowAllSceneNodes();
+        for (int sprite = 0; sprite < SWROBJHANG_MENU_SPRITE_COUNT; sprite++)
+            swrSprite_SetVisible(sprite, 0);
+
+        if (swrObjHang_unlockAllCheat != 0 || (swrRace_DebugFlag & swrRace_DEBUGFLAG_UNLOCK_ALL))
+            swrRace_CheatUnlockAll();
+
+        swrObjHang_partSpinAngle += swrRace_fdeltaTimeSecs * 40.0f;
+        if (swrObjHang_partSpinAngle > 360.0f)
+            swrObjHang_partSpinAngle -= 360.0f;
+
+        swr_noop4();
+        swrObjHang_menuTextPulsePhase += swrRace_fdeltaTimeSecs;
+        while (swrObjHang_menuTextPulsePhase > 1.0f)
+            swrObjHang_menuTextPulsePhase -= 1.0f;
+
+        switch (hang->menuScreen) {
+        case swrObjHang_STATE_LEGAL:
+            swrObjHang_UpdateLegalScreen(hang);
+            break;
+        case swrObjHang_STATE_SPLASH:
+            swrObjHang_UpdateSplashScreen(hang);
+            break;
+        case swrObjHang_STATE_ENTER_NAME:
+            swrObjHang_ShowPartNodes(hang);
+            swrObjHang_UpdateEnterName(hang);
+            break;
+        case swrObjHang_STATE_MAIN_MENU:
+            switch (hang->room) {
+            case Shop:
+                if (hang->loc_wattoo_part_model != NULL)
+                    swrModel_NodeModifyFlags(hang->loc_wattoo_part_model, 2, 3, 0x10, 2);
+                swrRace_UpdatePartMenuLayout(hang);
+                swrRace_UpdateStatPartModels();
+                swrObjHang_UpdateMainMenu(hang);
+                break;
+            case Junkyard:
+                if (hang->loc_junkyard_part_model != NULL)
+                    swrModel_NodeModifyFlags(hang->loc_junkyard_part_model, 2, 3, 0x10, 2);
+                swrRace_UpdateStatPartModels();
+                swrObjHang_UpdateMainMenu(hang);
+                break;
+            case Hangar:
+                if (hang->hangar18_part_model != NULL)
+                    swrModel_NodeModifyFlags(hang->hangar18_part_model, 2, 3, 0x10, 2);
+                swrObjHang_UpdateLookAtVehicle(hang);
+                swrObjHang_UpdateMainMenu(hang);
+                break;
+            case Cantina:
+                swrObjHang_ShowPartNodes(hang);
+                swrObjHang_UpdateMainMenu(hang);
+                break;
+            default:
+                swrObjHang_UpdateMainMenu(hang);
+                break;
+            }
+            break;
+        case swrObjHang_STATE_JUNKYARD:
+            if (hang->loc_junkyard_part_model != NULL)
+                swrModel_NodeModifyFlags(hang->loc_junkyard_part_model, 2, 3, 0x10, 2);
+            swrObjHang_UpdateJunkyard(hang);
+            break;
+        case swrObjHang_STATE_POST_RACE_INFO:
+            swrObjHang_ShowPartNodes(hang);
+            swrRace_ResultsMenu(hang);
+            break;
+        case swrObjHang_STATE_WATTO:
+            if (hang->loc_wattoo_part_model != NULL)
+                swrModel_NodeModifyFlags(hang->loc_wattoo_part_model, 2, 3, 0x10, 2);
+            swrObjHang_UpdateWattoShop(hang);
+            break;
+        case swrObjHang_STATE_LOOK_AT_VEHICLE:
+            if (hang->hangar18_part_model != NULL)
+                swrModel_NodeModifyFlags(hang->hangar18_part_model, 2, 3, 0x10, 2);
+            swrObjHang_UpdateLookAtVehicle(hang);
+            break;
+        case swrObjHang_STATE_SELECT_VEHICLE:
+            swrObjHang_ShowPartNodes(hang);
+            swrRace_SelectVehicle(hang);
+            break;
+        case swrObjHang_STATE_SELECT_PLANET:
+            swrObjHang_ShowPartNodes(hang);
+            swrRace_CourseSelectionMenu();
+            break;
+        case swrObjHang_STATE_SELECT_TRACK:
+            swrObjHang_ShowPartNodes(hang);
+            swrRace_CourseInfoMenu(hang);
+            break;
+        case swrObjHang_STATE_LOAD_SCREEN:
+            swrObjHang_UpdateLoadScreen(hang);
+            return;
+        case swrObjHang_STATE_TAUNT_SCENE:
+            if (hang->hangar18_part_model != NULL)
+                swrModel_NodeModifyFlags(hang->hangar18_part_model, 2, 3, 0x10, 2);
+            swrObjHang_UpdateTauntScene(hang);
+            break;
+        case swrObjHang_STATE_PLANET_SELECT_INTRO:
+            swrObjHang_UpdatePlanetSelectIntro(hang);
+            break;
+        case swrObjHang_STATE_RESULTS_INTRO:
+            if (hang->hangar18_part_model != NULL)
+                swrModel_NodeModifyFlags(hang->hangar18_part_model, 2, 3, 0x10, 2);
+            swrObjHang_UpdateResultsIntro();
+            break;
+        case swrObjHang_STATE_VEHICLE_SELECT_INTRO:
+            swrObjHang_ShowPartNodes(hang);
+            swrObjHang_UpdateVehicleSelectIntro(hang);
+            break;
+        default:
+            break;
+        }
+
+        swr_noop4();
+        // scene slot 2, header entry 2 stays hidden in the hangar
+        if (hang->room == Hangar && swr_sceneModels[2]->entries[2].node != NULL)
+            swrModel_NodeModifyFlags(swr_sceneModels[2]->entries[2].node, 2, -4, 0x10, 3);
+
+        swr_noop4();
+        if (swrObjHang_fadeState == 1 && swrObjHang_FadeScreenFlash_Maybe() != 0)
+            swrSound_SetSfxFlag(0, 0x10);
+
+        swr_noop4();
+        if (swrObjHang_fadeState == -1) {
+            swrSound_ClearSfxFlag(0, 0x10);
+            loadNext = swrObjHang_FadeOutAndAdvance(hang);
+        }
+
+        swr_noop4();
+        if (swrObjHang_screenTransitionDir == 0) {
+            switch (swrObjHang_cameraMoveMode) {
+            case 1:
+            case 2:
+                swrObjHang_UpdateHoloCamera(hang);
+                break;
+            case 3:
+                swrObjHang_LerpHoloCamera(hang);
+                break;
+            case 5:
+                swrObjHang_UpdateIdleCamera(hang);
+                break;
+            default:
+                break;
+            }
+        }
+
+        swr_noop4();
+        swrObjHang_TickMenuRepeatDelay_Maybe();
+        if (hang->room == Cantina) {
+            swrObjHang_UpdateCantinaHolotable(hang->menuScreen);
+            if (swrRace_Transition > 0.0f && hang->menuScreen != swrObjHang_STATE_SPLASH)
+                playUISound(0x4f);
+        }
+    }
+
+    if (loadNext != 0)
+        swrObjHang_LoadScreen(hang, 1, 0);
+    swr_noop4();
 }
 
 // 0x00457b00
@@ -1166,6 +1441,12 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0045a460
+void swrUI_UpdatePlayerMenuInput(int player)
+{
+    HANG("TODO");
 }
 
 // 0x0045a840
@@ -3992,6 +4273,21 @@ void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
     elmo->unka0 = rdVector_Dist3(&elmo->moveTarget, &elmo->position) <= 10.0f ? 1 : 0;
 }
 
+// 0x00469010
+void swrObjHang_TickHolotableSpin_Maybe(void)
+{
+    swrObjHang_ambientAnimPhase += swrRace_fdeltaTimeSecs;
+    if (swrObjHang_ambientAnimPhase > 6.26666f)
+        swrObjHang_ambientAnimPhase -= 6.26666f;
+    swrObjHang_ambientAnimSpeed = swrObjHang_EaseSine_Maybe(swrObjHang_ambientAnimPhase, 3.13333f) * 0.15957463f + 0.5;
+}
+
+// 0x00469380
+void swrObjHang_UpdateCantinaHolotable(int menuScreen)
+{
+    HANG("TODO");
+}
+
 // 0x00469b90
 float swrObjHang_StepTransition(float rate)
 {
@@ -4001,6 +4297,16 @@ float swrObjHang_StepTransition(float rate)
     if (swrRace_Transition < 0.0f)
         swrRace_Transition = 0.0f;
     return swrRace_Transition;
+}
+
+// 0x00469bf0
+void swrObjHang_TickMenuRepeatDelay_Maybe(void)
+{
+    if (swrObjHang_menuRepeatTimer > 0.0f) {
+        swrObjHang_menuRepeatTimer -= swrRace_fdeltaTimeSecs;
+        if (swrObjHang_menuRepeatTimer < 0.0f)
+            swrObjHang_menuRepeatTimer = 0.0f;
+    }
 }
 
 // 0x00469c30
@@ -4470,9 +4776,50 @@ void swrRace_ResetToSpline(swrRace* racer, float t)
 }
 
 // 0x004741D0
-void swrRace_Explode(swrRace*, char)
+void swrRace_Explode(swrRace* player, char side)
 {
-    HANG("TODO");
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0)
+        return;
+    if (player->flags1 & swrObjTest_FLAG1_EXPLODING)
+        return;
+    if (player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD))
+        return;
+
+    player->flags0 &= ~(swrObjTest_FLAG0_CAN_CHARGE_BOOST | swrObjTest_FLAG0_BOOSTING);
+    player->flags1 |= swrObjTest_FLAG1_EXPLODING;
+    player->deathExplodeTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM + 2.0f;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL)
+        swrControl_StopAllForceEffects(0);
+
+    int burst = 0;
+    rdVector3 pos;
+    rdVector3 fireballOffset = { 0.0f, 0.0f, 0.0f };
+    if (side & swrRace_EXPLODE_SIDE_RIGHT) {
+        pos = *(rdVector3*)&player->engineXfR.vD;
+        player->flags1 |= swrObjTest_FLAG1_EXPLODING_LEFT;
+        burst = 1;
+        swrRace_SpawnEngineFireball(player, 1, &fireballOffset, 0.3f);
+    } else if (side & swrRace_EXPLODE_SIDE_LEFT) {
+        pos = *(rdVector3*)&player->engineXfL.vD;
+        player->flags1 |= swrObjTest_FLAG1_EXPLODING_RIGHT;
+        burst = 1;
+        swrRace_SpawnEngineFireball(player, 2, &fireballOffset, 0.3f);
+    }
+
+    if (!burst) {
+        swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xd, 0xe, 0xd, 0xe, 0xd, (rdVector3*)&player->transform.vD);
+        return;
+    }
+
+    swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.0f, &pos, 1.0f);
+    swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.2f, &pos, 3.0f);
+    for (int i = 0; i < 2; i++) {
+        float pick = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM;
+        int sfx = pick < 0.33f ? 0x34 : (pick < 0.66f ? 0x35 : 0x36);
+        float pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
+        swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, &pos, 0, 0, 10.0f, 500.0f);
+    }
+    swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 9, 9, 9, 9, 9, (rdVector3*)&player->transform.vD);
 }
 
 // 0x00474d80

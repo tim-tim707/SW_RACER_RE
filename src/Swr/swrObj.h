@@ -348,7 +348,7 @@ void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE 
 
 // hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
 // Reloads the current hangar screen scene; plays the planet cinematic on first visit.
-void swrObjHang_LoadScreen(swrObjHang* hang, int param_2, int param_3);
+void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3);
 // State 14: (re)loads the screen via swrObjHang_LoadScreen.
 void swrObjHang_UpdateLoadScreen(swrObjHang* hang);
 // State 15: opponent taunt scene (pilot voice lines).
@@ -719,7 +719,7 @@ int swrObjElmo_TryTransition(swrObjElmo* elmo);
 void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
 
 // Animates the vehicle and track select holotable: lerps lighting, scales the projector and beam, and drives the holo light (best guess).
-void swrObjHang_UpdateCantinaHolotable(int param_1);
+void swrObjHang_UpdateCantinaHolotable(int menuScreen);
 
 // Copies the translation of an entity's indexed child node into the output (best guess).
 void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex);
@@ -777,7 +777,7 @@ void swrRace_GetSplineLookahead(rdVector3* out, swrRace* racer);
 // and zero its momentum/physics state (respawn / reset primitive).
 void swrRace_ResetToSpline(swrRace* racer, float t);
 
-void swrRace_Explode(swrRace*, char);
+void swrRace_Explode(swrRace* player, char side);
 
 // Per-frame: advance the racer's spline cursor along the track (by speed, or
 // re-sync from position when mode != 0), validating the track surface.

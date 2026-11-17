@@ -209,6 +209,10 @@ swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
 swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
+swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by swrObjHang_F0; idle elmo anim speed
+swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
+swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
+swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
 g_aTrackInfos 0x004bfee8 TrackInfo[25]
@@ -699,7 +703,7 @@ gamma_unk 0x0050c2ec float
 DAT_0050c308 0x0050c308 char[12]
 
 g_objHang2 0x0050c454 swrObjHang*
-DAT_0050c458 0x0050c458 int
+swrObjHang_skipTournamentIntro 0x0050c458 int # swrObjHang_F0 sets it in multiplayer; suppresses the tournament planet-intro cutscene (state 15)
 swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzero while a screen slide animates; sign is the slide direction
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
@@ -737,6 +741,7 @@ swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music
 swrRace_audioVideoMenuLastRow 0x004c0208 int # .data 5: last A/V settings row, the cursor wraps past it
 swrRace_menuSpriteCount 0x0050c928 int # next free garage menu sprite (id 0x82 + n); swrObjHang_F0 resets it, the stats panel and A/V settings page take from it
 swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
+swrObjHang_ambientAnimPhase 0x0050cad8 float # seconds, wraps at 6.26666 (swrObjHang_TickHolotableSpin_Maybe)
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
 swrObjHang_partLerpActive 0x0050c46c int # part icons are gliding vector2 -> vector3 (swrRace_UpdatePartMenuLayout)
