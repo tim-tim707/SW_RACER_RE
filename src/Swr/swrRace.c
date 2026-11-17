@@ -2949,7 +2949,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
             pitchForward = SWR_CTL_STEER_SCALE;
         }
     } else if (controlType >= 1 && controlType <= 7) {
-        steerInput = DAT_00e98ea0[playerIndex];
+        steerInput = swrControl_aPlayerAxisX[playerIndex];
         if (mirror) {
             steerInput = -steerInput;
             bankRight = bitset3 & 0x10;
@@ -2988,28 +2988,29 @@ void swrRace_UpdatePlayerControl(swrRace* player)
 
     int boostCharge = swrRace_BoostCharge((int) player);
 
-    // ---- debug demo-replay input override (blends two local players' recorded inputs) ----
-    if ((swrRace_DebugFlag & 0x2000000) != 0) {
-        int demoIndex = (char) player->score_ptr->sfxChannel != '\0';
-        float steerA = DAT_00e98ea0[demoIndex];
-        float pitchA = swrControl_aPlayerAxisY[demoIndex];
-        float steerB = DAT_00e98ea0[2 + demoIndex];
-        float pitchB = swrControl_aPlayerAxisY[2 + demoIndex];
+    // ---- dual-control mode (N64 leftover): one pod driven by two controllers, one stick per engine.
+    // Throttle = either stick forward, steer = difference between the sticks, brake = both back. ----
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DUAL_CONTROL) != 0) {
+        int dualIndex = (char) player->score_ptr->sfxChannel != '\0';
+        float steerA = swrControl_aPlayerAxisX[dualIndex];
+        float pitchA = swrControl_aPlayerAxisY[dualIndex];
+        float steerB = swrControl_aPlayerAxisX[2 + dualIndex];
+        float pitchB = swrControl_aPlayerAxisY[2 + dualIndex];
         thrustDigital = pitchA > SWR_CTL_THROTTLE_SETTLE_MIN || pitchB > SWR_CTL_THROTTLE_SETTLE_MIN;
         if (mirror == 0) {
             steerInput = (pitchA - pitchB) * SWR_CTL_HALF;
-            bankLeft = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            bankLeft = steerA < SWR_CTL_NEG_HALF && steerB < SWR_CTL_NEG_HALF;
             bankRight = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
         } else {
-            steerInput = (pitchA - pitchB) * SWR_CTL_DEMO_STEER_SCALE;
-            bankRight = steerA < SWR_CTL_DEMO_STEER_SCALE && steerB < SWR_CTL_DEMO_STEER_SCALE;
+            steerInput = (pitchA - pitchB) * SWR_CTL_NEG_HALF;
+            bankRight = steerA < SWR_CTL_NEG_HALF && steerB < SWR_CTL_NEG_HALF;
             bankLeft = steerA > SWR_CTL_HALF && steerB > SWR_CTL_HALF;
         }
         pitchForward = (pitchB + pitchA) * SWR_CTL_HALF;
         brakeDigital = pitchA < SWR_CTL_DMG_STEER_PULL && pitchB < SWR_CTL_DMG_STEER_PULL;
-        viewButtonInput = inRaceLocalPlayerInputBitset1[demoIndex] & 0x4;
-        lookBackInput = inRaceLocalPlayerInputBitset3[demoIndex] & 0x8;
-        if ((inRaceLocalPlayerInputBitset1[demoIndex] & 0x80) != 0) {
+        viewButtonInput = inRaceLocalPlayerInputBitset1[dualIndex] & 0x4;
+        lookBackInput = inRaceLocalPlayerInputBitset3[dualIndex] & 0x8;
+        if ((inRaceLocalPlayerInputBitset1[dualIndex] & 0x80) != 0) {
             if ((float) timetotal - player->tauntTapTime > (float) SWR_CTL_BOOST_TAP_TIMEOUT) {
                 *((char*) &player->tauntTapState + 1) = 0;
             }
@@ -3020,15 +3021,15 @@ void swrRace_UpdatePlayerControl(swrRace* player)
                 flameTaunt = 1;
             }
         }
-        if ((*(char*) &inRaceLocalPlayerInputBitset2[demoIndex] & 0x80) != 0) {
+        if ((*(char*) &inRaceLocalPlayerInputBitset2[dualIndex] & 0x80) != 0) {
             player->tauntTapTime = (float) timetotal;
         }
-        if ((*(char*) &inRaceLocalPlayerInputBitset3[demoIndex] & 0x80) != 0 &&
+        if ((*(char*) &inRaceLocalPlayerInputBitset3[dualIndex] & 0x80) != 0 &&
             (float) timetotal - player->tauntTapTime > (float) SWR_CTL_HALF_HOLD) {
             repairHold = true;
         }
-        slideInput = steerA > SWR_CTL_HALF && steerB < SWR_CTL_DEMO_STEER_SCALE;
-        playerIndex = demoIndex;
+        slideInput = steerA > SWR_CTL_HALF && steerB < SWR_CTL_NEG_HALF;
+        playerIndex = dualIndex;
     }
 
     // ---- scripted spline-fork override: force branch 1 during the script 5/6 lap windows ----

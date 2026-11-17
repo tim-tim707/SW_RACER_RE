@@ -164,6 +164,12 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
 } swrRace_INRACE_INPUT;
 
+// swrRace_DebugFlag bits (only the ones named so far).
+typedef enum swrRace_DEBUGFLAG
+{
+    swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
+} swrRace_DEBUGFLAG;
+
 // swrObjJdge.flag low nibble: the swrObjJdge_F0 state machine (only the verified states are named).
 typedef enum swrObjJdge_STATE
 {
