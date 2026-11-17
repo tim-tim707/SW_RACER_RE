@@ -683,7 +683,7 @@ void swrObjElmo_F3(swrObjElmo* elmo);
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
 
 // Initializes a fresh Elmo object, setting node pointers, zeroing vectors, and seeding random phase (best guess).
-void swrObjElmo_Init_Maybe(swrObjElmo* elmo, void* node, void* param_3, int type);
+void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind);
 
 // swrObjElmo behavior/animation (pit-droid / hangar character AI):
 // Sets the current animation state (maps a state command to an anim id, plays sounds).

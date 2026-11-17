@@ -916,7 +916,7 @@ extern "C"
     typedef struct swrObjElmo
     {
         swrObj obj;
-        int unk8;
+        swrObjElmo_KIND kind; // 0x08 set by swrModel_LoadPuppet
         int unkc_index;
         int unk10;
         void* unk14;
@@ -954,7 +954,8 @@ extern "C"
         float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
-    // Per-kind anim frame ranges read by swrObjElmo_GetAnimTiming, indexed by swrObjElmo.unk88
+    // Per-kind clip frame ranges read by swrObjElmo_GetAnimTiming, indexed by swrObjElmo.unk88.
+    // Each kind's clips sit back to back on one animation timeline.
     typedef struct swrObjElmo_AnimFrames
     {
         short start; // 0x0

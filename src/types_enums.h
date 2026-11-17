@@ -140,6 +140,24 @@ typedef enum swrSound_HANGSFXFLAG
 } swrSound_HANGSFXFLAG;
 
 // swrObj flags @ +0x6 (the header every event-pool entity starts with).
+// swrObjElmo.kind: which puppet an elmo drives, passed to swrModel_LoadPuppet. Selects the
+// anim frame table in swrObjElmo_GetAnimTiming; every pilot shares PILOT's table.
+typedef enum swrObjElmo_KIND
+{
+    swrObjElmo_KIND_PIT_DROID = 1,
+    swrObjElmo_KIND_PILOT = 2,
+    swrObjElmo_KIND_WATTO = 3,
+    swrObjElmo_KIND_DEWBACK = 4,
+    swrObjElmo_KIND_RONTO = 5,
+    swrObjElmo_KIND_UNUSED_6 = 6, // never loaded in retail; SetAnimState and UpdateMovement skip it
+    swrObjElmo_KIND_BARTENDER = 7,
+    swrObjElmo_KIND_C3PO = 8,
+    swrObjElmo_KIND_JARJAR = 9,
+    swrObjElmo_KIND_JAWA = 10,
+    swrObjElmo_KIND_QUIGON = 11,
+    swrObjElmo_KIND_R2D2 = 12,
+} swrObjElmo_KIND;
+
 typedef enum swrObj_FLAG
 {
     swrObj_FLAG_FREED = 0x100, // set by swrObj_Free; the slot stays in the event pool (count is

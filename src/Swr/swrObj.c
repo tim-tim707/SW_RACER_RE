@@ -897,7 +897,7 @@ void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks)
 
 static void loadPilotPuppet(int pilot, int slot)
 {
-    swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, slot, 2, swrRacer_PodData[pilot].float20);
+    swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, slot, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
 }
 
 static void loadPodModel(int pilot, int slot)
@@ -992,17 +992,17 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         do {
             pilot = 1 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -22.0f);
         } while (((1 << pilot) & swrRace_unlockedPilotsMask) == 0);
-        swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, 2, swrRacer_PodData[pilot].float20);
+        swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         if ((swrRace_unlockedPilotsMask & SWR_CANTINA_PILOT_POOL) == 0) {
             do {
                 pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 23.0f);
             } while ((swrRace_unlockedPilotsMask & (1 << pilot)) != 0);
-            swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, 2, swrRacer_PodData[pilot].float20);
+            swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         } else {
-            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_CANTINA_GUEST, 1, -1.0f);
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_CANTINA_GUEST, swrObjElmo_KIND_PIT_DROID, -1.0f);
         }
-        swrModel_LoadPuppet(MODELID_char_npc_bartender_puppet, 0x16, 7, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_bartender_puppet, 0x16, swrObjElmo_KIND_BARTENDER, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, swrObjElmo_KIND_JAWA, -1.0f);
 
         hang->sprite_whitesquare_rgb = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
         for (int i = 0; i < 4; i++)
@@ -1030,22 +1030,22 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrUI_Front_LoadPartsUIElements();
         swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
         LoadUpgradeModelsIntoScene_Maybe(hang);
-        swrModel_LoadPuppet(MODELID_char_watto_puppet, 0x15, 3, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_watto_puppet, 0x15, swrObjElmo_KIND_WATTO, -1.0f);
         for (int k = 0; k < hang->num_local_players; k++)
             loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
         for (int i = 0; i < SWR_MAX_PIT_DROIDS - (int)(uint8_t)swrRace_nbPitDroids; i++)
-            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, swrObjElmo_KIND_PIT_DROID, -1.0f);
         for (int i = 0; i < 4; i++)
             swrModel_LoadModelIntoScene(MODELID_shadow_square_part, -1, SWR_SCENE_SLOT_SHADOW_SQUARES + i, false);
-        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_npc_jarjar_puppet, 0x1b, 9, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_npc_quigon_puppet, 0x19, 0xb, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_npc_r2d2_puppet, 0x18, 0xc, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_npc_c3po_puppet, 0x1a, 8, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, swrObjElmo_KIND_JAWA, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jarjar_puppet, 0x1b, swrObjElmo_KIND_JARJAR, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_quigon_puppet, 0x19, swrObjElmo_KIND_QUIGON, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_r2d2_puppet, 0x18, swrObjElmo_KIND_R2D2, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_c3po_puppet, 0x1a, swrObjElmo_KIND_C3PO, -1.0f);
         if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_dewbackCheatInitials) != 0) {
-            swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
+            swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, swrObjElmo_KIND_DEWBACK, -1.0f);
         } else if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_rontoCheatInitials) != 0) {
-            swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+            swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, swrObjElmo_KIND_RONTO, -1.0f);
         }
         break;
     case swrObjHang_STATE_LOOK_AT_VEHICLE:
@@ -1068,11 +1068,11 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         for (int k = 0; k < hang->num_local_players; k++)
             loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
         for (int i = 0; i < (int)(uint8_t)swrRace_nbPitDroids; i++)
-            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, swrObjElmo_KIND_PIT_DROID, -1.0f);
         LoadUpgradeModelsIntoScene_Maybe(hang);
         swrModel_LoadModelIntoScene(MODELID_char_pitdroid_puppet, -1, INGAME_MODELID_char_pitdroid_puppet, false);
-        swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
-        swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, swrObjElmo_KIND_DEWBACK, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, swrObjElmo_KIND_RONTO, -1.0f);
         break;
     case swrObjHang_STATE_TAUNT_SCENE:
         tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
@@ -1098,7 +1098,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         for (int k = 0; k < 2; k++)
             swrSprite_NewSprite((short)(k + 0x82), tex);
         loadPodModel((char)g_aTrackInfos[hang->track_index].FavoritePilot, 0);
-        swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS, 1, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS, swrObjElmo_KIND_PIT_DROID, -1.0f);
         break;
     default:
         break;
@@ -3314,7 +3314,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     prevState = (int)elmo->unk14;
     elmo->unk14 = (void*)animCmd;
     elmo->unk18_ms = 0.0f;
-    if (elmo->unk8 == 6)
+    if (elmo->kind == swrObjElmo_KIND_UNUSED_6)
         return;
 
     if (speed < 0.0f)
@@ -3663,7 +3663,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     }
 
-    if (elmo->unk8 == 3) {
+    if (elmo->kind == swrObjElmo_KIND_WATTO) {
         loopTransition = 0.0f;
         transition = 0.1f;
     }
@@ -3708,7 +3708,7 @@ void swrObjElmo_F3(swrObjElmo* elmo)
     swrModel_Node* node;
     int yawStep;
 
-    if (elmo->unk8 == 6)
+    if (elmo->kind == swrObjElmo_KIND_UNUSED_6)
         return;
     if (swrObjHang_screenTransitionActive != 0 && swrRace_Transition == 0.0f && elmo->unk14 == (void*)0x1b)
         return;
@@ -3719,13 +3719,13 @@ void swrObjElmo_F3(swrObjElmo* elmo)
     if (elmo->unk14 == NULL)
         return;
     yawStep = elmo->unkb4;
-    if (yawStep == 0 || elmo->unk8 == 1) {
+    if (yawStep == 0 || elmo->kind == swrObjElmo_KIND_PIT_DROID) {
         if (yawStep != 0) {
             elmo->unkb4 = 0;
             elmo->yaw = (float)yawStep + elmo->yaw;
             elmo->unk70 = elmo->yaw;
         }
-        if (elmo->unk8 == 1) {
+        if (elmo->kind == swrObjElmo_KIND_PIT_DROID) {
             if (elmo->unk30_nodes[3] != NULL)
                 swrModel_NodeModifyFlags(elmo->unk30_nodes[3], 2, -4, 0x10, 3);
             if (elmo->unk14 != (void*)7 && elmo->unk14 != (void*)8 && elmo->unk14 != (void*)9 && elmo->unk30_nodes[4] != NULL)
@@ -3750,6 +3750,49 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
     default:
         return 0;
     }
+}
+
+// 0x004686b0
+void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind)
+{
+    if (elmo == NULL)
+        return;
+
+    elmo->obj.flags &= ~swrObj_FLAG_FREED;
+    elmo->unk30_nodes = (struct swrModel_Node**)nodes;
+    elmo->unk34 = anims;
+    rdVector_Set3(&elmo->position, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&elmo->moveTarget, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&elmo->moveStart, 0.0f, 0.0f, 0.0f);
+    elmo->unk88 = -1;
+    elmo->kind = kind;
+    elmo->unk10 = 0;
+    elmo->unk14 = NULL;
+    elmo->unk18_ms = 0.0f;
+    elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f + 3.0f;
+    rdVector_Set3(&elmo->unk20, 0.0f, 0.0f, 0.0f);
+    elmo->unk2c = 0;
+    rdVector_Set3(&elmo->unk38, 0.0f, 0.0f, 0.0f);
+    elmo->yaw = 90.0f;
+    elmo->yawTarget = 90.0f;
+    elmo->unk70 = 90.0f;
+    elmo->unk74 = 0;
+    elmo->animSpeed = 1.0f;
+    elmo->unk7c = 0.0f;
+    elmo->unk80 = -1.0f;
+    elmo->unk84 = -1.0f;
+    elmo->unk8c = 0;
+    elmo->unk90 = 0;
+    elmo->scale = 1.0f;
+    elmo->unk98 = 0;
+    elmo->unk9c = 0;
+    elmo->unka0 = 0;
+    elmo->unka4 = -1;
+    elmo->unka8_ms = 0.0f;
+    elmo->unkb0 = 0;
+    elmo->unkb4 = 0;
+    elmo->unkb8 = -1;
+    elmo->unkac_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
 }
 
 // 0x00468800
@@ -3777,8 +3820,8 @@ void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* posi
     }
 
     // per-kind model scale; pit droids also get a random animation speed
-    switch (elmo->unk8) {
-    case 1:
+    switch (elmo->kind) {
+    case swrObjElmo_KIND_PIT_DROID:
         if (elmoId < SWR_ELMO_ID_PIT_DROID_BASE + SWR_MAX_PIT_DROIDS) {
             elmo->scale = 0.3f;
             elmo->animSpeed = (float)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (double)0.4f - -0.8);
@@ -3786,35 +3829,35 @@ void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* posi
         }
         elmo->scale = 0.3f;
         break;
-    case 2:
+    case swrObjElmo_KIND_PILOT:
         elmo->scale = (animCmd == 0x1b || animCmd == 0x1c) ? 0.1f : 0.3f;
         break;
-    case 3:
+    case swrObjElmo_KIND_WATTO:
         elmo->scale = 0.24f;
         break;
-    case 4:
+    case swrObjElmo_KIND_DEWBACK:
         elmo->scale = 2.5f;
         break;
-    case 5:
+    case swrObjElmo_KIND_RONTO:
         elmo->scale = 0.4f;
         break;
-    case 6:
+    case swrObjElmo_KIND_UNUSED_6:
         elmo->scale = 0.2f;
         break;
-    case 7:
+    case swrObjElmo_KIND_BARTENDER:
         elmo->scale = 0.23f;
         break;
-    case 8:
+    case swrObjElmo_KIND_C3PO:
         elmo->scale = 1.8f;
         break;
-    case 9:
-    case 0xc:
+    case swrObjElmo_KIND_JARJAR:
+    case swrObjElmo_KIND_R2D2:
         elmo->scale = 1.7f;
         break;
-    case 10:
+    case swrObjElmo_KIND_JAWA:
         elmo->scale = 1.5f;
         break;
-    case 0xb:
+    case swrObjElmo_KIND_QUIGON:
         elmo->scale = 2.0f;
         break;
     }
@@ -3839,46 +3882,46 @@ void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outL
     const swrObjElmo_AnimFrames* frames;
     float frameTime = 0.0333f;
 
-    if (elmo->unk88 == -1 && (elmo->unk8 == 1 || elmo->unk8 == 2 || elmo->unk8 == 6 || elmo->unk8 == 3))
+    if (elmo->unk88 == -1 && (elmo->kind == swrObjElmo_KIND_PIT_DROID || elmo->kind == swrObjElmo_KIND_PILOT || elmo->kind == swrObjElmo_KIND_UNUSED_6 || elmo->kind == swrObjElmo_KIND_WATTO))
         return;
 
-    switch (elmo->unk8) {
-    case 1:
-        frames = swrObjElmo_animFramesKind1;
+    switch (elmo->kind) {
+    case swrObjElmo_KIND_PIT_DROID:
+        frames = swrObjElmo_animFramesPitDroid;
         frameTime = 0.0666f;
         break;
-    case 2:
-        frames = swrObjElmo_animFramesKind2;
+    case swrObjElmo_KIND_PILOT:
+        frames = swrObjElmo_animFramesPilot;
         break;
-    case 3:
-        frames = swrObjElmo_animFramesKind3;
+    case swrObjElmo_KIND_WATTO:
+        frames = swrObjElmo_animFramesWatto;
         break;
-    case 4:
+    case swrObjElmo_KIND_DEWBACK:
         *outLoopStart = 0.03333f;
         *outLoopEnd = 14.3333f;
         return;
-    case 5:
+    case swrObjElmo_KIND_RONTO:
         *outLoopStart = 0.03333f;
         *outLoopEnd = 4.2f;
         return;
-    case 7:
+    case swrObjElmo_KIND_BARTENDER:
         *outLoopStart = 0.0666f;
         *outLoopEnd = 5.0616f;
         return;
-    case 8:
-        frames = swrObjElmo_animFramesKind8;
+    case swrObjElmo_KIND_C3PO:
+        frames = swrObjElmo_animFramesC3po;
         break;
-    case 9:
-        frames = swrObjElmo_animFramesKind9;
+    case swrObjElmo_KIND_JARJAR:
+        frames = swrObjElmo_animFramesJarJar;
         break;
-    case 10:
-        frames = swrObjElmo_animFramesKind10;
+    case swrObjElmo_KIND_JAWA:
+        frames = swrObjElmo_animFramesJawa;
         break;
-    case 11:
-        frames = swrObjElmo_animFramesKind11;
+    case swrObjElmo_KIND_QUIGON:
+        frames = swrObjElmo_animFramesQuiGon;
         break;
-    case 12:
-        frames = swrObjElmo_animFramesKind12;
+    case swrObjElmo_KIND_R2D2:
+        frames = swrObjElmo_animFramesR2d2;
         break;
     default:
         *outLoopStart = 0.0f;
@@ -3892,7 +3935,7 @@ void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outL
 // 0x00468d00
 void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
 {
-    if (elmo->unk8 == 2)
+    if (elmo->kind == swrObjElmo_KIND_PILOT)
         elmo->moveTarget.z = elmo->position.z;
     elmo->unka0 = rdVector_Dist3(&elmo->moveTarget, &elmo->position) <= 10.0f ? 1 : 0;
 }
@@ -5191,7 +5234,7 @@ void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang)
         swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', index);
         if (elmo == NULL || swr_sceneModels[index] == NULL)
             continue;
-        if (index == hang->elmoEntityIndex || elmo->unk8 == 1)
+        if (index == hang->elmoEntityIndex || elmo->kind == swrObjElmo_KIND_PIT_DROID)
             swrObjElmo_SetAnimStateById(index, 0);
         else
             swrObjElmo_SetAnimStateById(index, 0x11);

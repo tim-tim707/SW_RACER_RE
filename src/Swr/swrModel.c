@@ -2,6 +2,8 @@
 
 #include "swrAssetBuffer.h"
 #include "swrLoader.h"
+#include "swrEvent.h"
+#include "swrObj.h"
 
 #include <globals.h>
 #include <macros.h>
@@ -1893,10 +1895,20 @@ void swrModel_SwapSceneModels(int index, int index2)
     swr_sceneModels[index2] = ptr;
 }
 
-// 0x0045CE10
-void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4)
+// 0x0045ce10
+void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int kind, float a4)
 {
-    HANG("TODO");
+    swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', index);
+
+    if (elmo == NULL)
+        return;
+    swr_sceneElmos[index] = elmo;
+    swrModel_LoadModelIntoScene(model, -1, index, true);
+    swrObjElmo_Init_Maybe(elmo, (swrModel_Node**)swr_sceneModels[index], (void*)swr_sceneAnimations[index], kind);
+    elmo->unkc_index = index;
+    elmo->unkbc = a4;
+    if (kind == swrObjElmo_KIND_PIT_DROID)
+        elmo->unkbc = 90.0f;
 }
 
 // Is the plane-hit point inside triangle a,b,c? Tests that the three edge-cross products
