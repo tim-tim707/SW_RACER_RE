@@ -438,6 +438,31 @@ typedef enum swrModel_TriggerType
     swrModel_TriggerType_TeleportToSpline = 900,      // teleport player to spline
 } swrModel_TriggerType;
 
+// swrModel_TriggerDescription.flags: conditions under which swrRace_ActivateTriggersInRange
+// skips the trigger for a racer.
+typedef enum swrModel_TRIGGERFLAG
+{
+    swrModel_TRIGGERFLAG_DISABLED = 0x1,
+    swrModel_TRIGGERFLAG_MIN_SPEED = 0x2, // skipped below 150 speed
+    swrModel_TRIGGERFLAG_SKIP_LAP1 = 0x4,
+    swrModel_TRIGGERFLAG_SKIP_LAP2 = 0x8,
+    swrModel_TRIGGERFLAG_SKIP_LAP3 = 0x10,
+    swrModel_TRIGGERFLAG_LOCAL_ONLY = 0x20, // not triggered by AI racers
+} swrModel_TRIGGERFLAG;
+
+// swrViewport.flag
+typedef enum swrViewport_FLAGS
+{
+    swrViewport_FLAGS_CAMERA_VALID = 0x1, // unkCameraIndex is set
+} swrViewport_FLAGS;
+
+// cMan view flags at 0x2a8 (stagingTransformFocus.vD.y in types.h), read each frame by
+// swrObjcMan_UpdateCamera / swrObjcMan_UpdateFogAndViewport. Only confirmed bits named.
+typedef enum swrObjcMan_VIEWFLAGS
+{
+    swrObjcMan_VIEWFLAGS_NO_WEATHER = 0x8, // swrWeather_Disable instead of Enable
+} swrObjcMan_VIEWFLAGS;
+
 // swrModel_TriggerDescription.flags
 typedef enum swrModel_TriggerDescription_FLAG
 {

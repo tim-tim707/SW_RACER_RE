@@ -521,7 +521,9 @@ void swrSpline_ResetNodeProgress(int nodeIndex)
 // 0x0047eb50
 int swrSpline_ProjectPointStub(void* cursor, int* out)
 {
-    HANG("TODO");
+    // projection compiled out of retail
+    *out = 0;
+    return 0;
 }
 
 // Returns the .rdata sample-spacing constant at 0x004adf40 (0.0f in retail).

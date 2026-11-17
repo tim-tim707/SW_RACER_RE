@@ -1040,8 +1040,8 @@ extern "C"
         rdMatrix44 unk1e4_mat;
         rdMatrix44 stagingTransform;
         rdMatrix44 stagingTransformFocus;
-        int unk2a4;
-        int fog_flag;
+        float unk2a4; // 0x2b4, 0.5 restaged every frame by swrObjcMan_UpdateCamera
+        float fog_flag; // 0x2b8, 100.0 restaged every frame by swrObjcMan_UpdateCamera
         unsigned int visual_flag;
         float zoom;
         float render_depth;
@@ -1691,12 +1691,7 @@ extern "C"
         float size_z;
         swrModel_Node* affected_node;
         uint16_t type; // what the trigger does; values are swrModel_TriggerType
-        uint16_t flags; // 0x1: enabled
-                        // 0x2: player must have > 150 speed
-                        // 0x4: skip trigger on lap 1
-                        // 0x8: skip trigger on lap 2
-                        // 0x10: skip trigger on lap 3
-                        // 0x20: not triggered by AI
+        uint16_t flags; // swrModel_TRIGGERFLAG
         struct swrModel_TriggerDescription* next;
     } swrModel_TriggerDescription;
 

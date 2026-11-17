@@ -25,6 +25,7 @@
 #include <macros.h>
 #include <General/utils.h>
 #include <Win95/Window.h>
+#include <string.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -282,16 +283,228 @@ void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
     cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
 }
 
+// 0x00451ec0
+void swrObjcMan_RestoreMode(swrObjcMan* cman)
+{
+    int mode = cman->mode_respawn;
+    if (mode != 2 && mode != 1) {
+        cman->mode_type = mode;
+        return;
+    }
+    swrObjcMan_CommitStagedCamera(cman, mode);
+}
+
+// 0x00451ef0
+void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+static void swrObjcMan_SetTranslationMatrix(rdMatrix44* m, const rdVector3* t)
+{
+    m->vA.x = 1.0f, m->vA.y = 0.0f, m->vA.z = 0.0f, m->vA.w = 0.0f;
+    m->vB.x = 0.0f, m->vB.y = 1.0f, m->vB.z = 0.0f, m->vB.w = 0.0f;
+    m->vC.x = 0.0f, m->vC.y = 0.0f, m->vC.z = 1.0f, m->vC.w = 0.0f;
+    m->vD.x = t->x, m->vD.y = t->y, m->vD.z = t->z, m->vD.w = 1.0f;
+}
+
+// 0x00452600
+void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman)
+{
+    // types.h is 0x10 off here: 0x1b4 holds a swrSplineCursor and 0x1e4 its evaluated frame
+    swrSplineCursor* cursor = (swrSplineCursor*)&cman->unk1b4_mat;
+    rdMatrix44* frame = (rdMatrix44*)&cman->unk1b4_mat.vD;
+    rdVector3* deathPos = (rdVector3*)&cman->unk15c[0];
+    rdVector3* deathLookAt = (rdVector3*)&cman->unk15c[3];
+    swrRace* pod = cman->unkf4_objTest;
+    // faithful: any other stage leaves these uninitialized in the original
+    rdVector3 eye = { 0 };
+    rdVector3 focus = { 0 };
+    rdVector3 dir;
+    double timer;
+    float blend;
+
+    if (pod == NULL) {
+        swrObjcMan_RestoreMode(cman);
+        return;
+    }
+
+    timer = cman->animTimer_ms - swrRace_deltaTimeSecs;
+    cman->animTimer_ms = timer;
+    if (cman->animStage == 0) {
+        if (timer < 0.0f) {
+            cman->animTimer_ms = 1.5f;
+            cman->animStage = 2;
+            *cursor = pod->splineCursor;
+            cursor->segmentT -= 0.8500000007450581;
+            cursor->velocity = 0.0f;
+            swrSpline_EvaluateToMatrix(cursor, frame);
+            cursor->velocity = 0.53333336f;
+            blend = 1.0f;
+        } else {
+            blend = 1.0 - timer;
+        }
+        rdVector_Sub3(&dir, deathLookAt, deathPos);
+        rdVector_Normalize3Acc(&dir);
+        rdVector_Scale3Add3(&eye, deathPos, blend * 30.0f, &dir);
+        memcpy(cman->unk0_0, &eye, sizeof(eye));
+        rdVector_Copy3(&focus, deathPos);
+    } else if (cman->animStage == 2) {
+        if (timer < 0.0f) {
+            cman->animTimer_ms = 0.0f;
+            cman->animStage = 3;
+        }
+        swrSpline_EvaluateToMatrix(cursor, frame);
+        rdVector_Copy3(&focus, (rdVector3*)&pod->transform.vD);
+        eye.x = frame->vD.x;
+        eye.y = frame->vD.y;
+        eye.z = frame->vD.z;
+    } else if (cman->animStage == 3) {
+        pod->respawnInvincibilityTimer = 3.0f;
+        pod->flags0 = (pod->flags0 & ~swrObjTest_FLAG0_DEAD) | swrObjTest_FLAG0_RESPAWN_INVINC;
+        swrObjcMan_RestoreMode(cman);
+        eye.x = cman->unk20_mat.vD.x;
+        eye.y = cman->unk20_mat.vD.y;
+        eye.z = cman->unk20_mat.vD.z;
+        focus.x = cman->focusTransform_mat.vD.x;
+        focus.y = cman->focusTransform_mat.vD.y;
+        focus.z = cman->focusTransform_mat.vD.z;
+    }
+
+    swrObjcMan_SetTranslationMatrix(&cman->unk20_mat, &eye);
+    swrObjcMan_SetTranslationMatrix(&cman->focusTransform_mat, &focus);
+}
+
+// 0x004528b0
+void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x00452aa0
+void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x004533a0
+void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x004535c0
+void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x004538d0
+void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
 // 0x00453e00
 void swrObjcMan_UpdateCamera(swrObjcMan* cman)
 {
-    HANG("TODO");
+    swrRace* pod;
+    swrTranslationRotation current;
+    swrTranslationRotation lookAt;
+    rdMatrix44 view;
+    int value;
+
+    if (cman->mode_type == 0 || cman->metaCamIndex_count < 0)
+        return;
+
+    pod = cman->unkf4_objTest;
+    if (pod != NULL) {
+        if (swrRace_creditsMode != 0) {
+            cman->mode_type = 4;
+            pod->flags0 &= ~swrObjTest_FLAG0_LOOK_BACK;
+        } else if (!(pod->flags0 & swrObjTest_FLAG0_LOCAL)) {
+            // auto-cycling spectator cam: hold each mode 3..10 s
+            swrObjcMan_spectatorCamTimer -= swrRace_deltaTimeSecs;
+            if (swrObjcMan_spectatorCamTimer <= 0.0f) {
+                swrObjcMan_spectatorCamTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 3.0f;
+                // summed unrounded on the x87 stack before __ftol
+                swrObjcMan_spectatorCamIndex = (int)((double)swrObjcMan_spectatorCamIndex + (double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f) % 7;
+                cman->mode_type = swrObjcMan_SpectatorCamModes[swrObjcMan_spectatorCamIndex];
+                pod->flags0 &= ~swrObjTest_FLAG0_LOOK_BACK;
+                if (swrObjcMan_spectatorCamIndex == 6)
+                    pod->flags0 |= swrObjTest_FLAG0_LOOK_BACK;
+            }
+        }
+    }
+
+    cman->fog_flag = 100.0f;
+    cman->unk2a4 = 0.5f;
+    switch (cman->mode_type) {
+    case 1:
+    case 2:
+        swrObjcMan_UpdateChaseCamera(cman);
+        break;
+    case 4:
+    case 5:
+        swrObjcMan_UpdateFirstPersonCamera(cman);
+        break;
+    case 6:
+        swrObjcMan_UpdateSplineCamera(cman);
+        break;
+    case 7:
+        swrObjcMan_UpdatePreRaceSweep(cman);
+        break;
+    case 8:
+    case 9:
+        swrObjcMan_UpdateDeathCamera(cman);
+        break;
+    }
+
+    rdMatrix_ExtractTransform(&cman->unk20_mat, &current);
+    BuildLookAtTransform(&current.translation, (rdVector3*)&cman->focusTransform_mat.vD, &view, &lookAt, current.yaw_roll_pitch.z);
+    rdMatrix_Copy44(&cman->unk20_mat, &view);
+
+    // camStateIndex holds the camera's mesh behavior, not an index
+    if (!swrCam_IsBehaviorActiveViewportCamera_Maybe((swrModel_Behavior*)cman->camStateIndex))
+        return;
+
+    // stagingTransformFocus.vD.y/.z hold bit flags, not floats
+    value = swrRace_creditsMode != 0 ? (int)0xffffff00 : *(int*)&cman->stagingTransformFocus.vD.z;
+    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 4, value);
+    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 3, *(int*)&cman->stagingTransformFocus.vD.z);
+    swrObjcMan_UpdateFogAndViewport(cman);
+    if (*(unsigned int*)&cman->stagingTransformFocus.vD.y & swrObjcMan_VIEWFLAGS_NO_WEATHER)
+        swrWeather_Disable();
+    else
+        swrWeather_Enable();
+    swrObjcMan_UpdateSplineGuideMarker(cman);
 }
 
 // 0x00454060
 void DrawTerrainTypeDebugText(void* meshBehavior)
 {
-    HANG("TODO");
+    static const struct
+    {
+        unsigned int flag;
+        const char* name;
+    } reactions[] = {
+        { swrVehicleReaction_ZOn, "ZOn  " }, { swrVehicleReaction_ZOff, "ZOff " }, { swrVehicleReaction_Fast, "Fast " }, { swrVehicleReaction_Slow, "Slow " }, { swrVehicleReaction_Swst, "Swst " }, { swrVehicleReaction_Slip, "Slip " }, { swrVehicleReaction_Dust, "Dust " }, { swrVehicleReaction_Snow, "Snow " }, { swrVehicleReaction_Wet, "Wet  " }, { swrVehicleReaction_Ruff, "Ruff " }, { swrVehicleReaction_Swmp, "Swmp " }, { swrVehicleReaction_NSnw, "NSnw " }, { swrVehicleReaction_Mirr, "Mirr " }, { swrVehicleReaction_Lava, "Lava " }, { swrVehicleReaction_Fall, "Fall " }, { swrVehicleReaction_Soft, "Soft " }, { swrVehicleReaction_NRSp, "NRSp " }, { swrVehicleReaction_Flat, "Flat " }, { swrVehicleReaction_Side, "Side " },
+    };
+    swrModel_Behavior* behavior = (swrModel_Behavior*)meshBehavior;
+    char text[64];
+    int len = 0;
+
+    if (behavior == NULL)
+        return;
+
+    // the original appends with sprintf(text, "%sZOn  ", text) per set flag
+    text[0] = '\0';
+    for (int i = 0; i < (int)(sizeof(reactions) / sizeof(reactions[0])); i++) {
+        if (behavior->vehicle_reaction & reactions[i].flag)
+            len += sprintf(text + len, "%s", reactions[i].name);
+    }
+    if (text[0] != '\0')
+        swrText_CreateColorlessEntry1(20, 200, text);
 }
 
 // 0x004542e0
@@ -6735,6 +6948,18 @@ void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat
     unkCameraArray[entry].sourceType = val2;
     unkCameraArray[entry].behaviorType = val1;
     unkCameraArray[entry].matrixSource = mat;
+}
+
+// 0x004294e0
+int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior)
+{
+    int count = swrViewport_GetNumViewports();
+    for (int i = 0; i < count; i++) {
+        swrViewport* viewport = swrViewport_Get(i);
+        if (viewport != NULL && (swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID) && swrModel_MeshGetBehavior((swrModel_Mesh*)viewport) == behavior)
+            return 1;
+    }
+    return 0;
 }
 
 // 0x00428a40

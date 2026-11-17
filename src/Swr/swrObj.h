@@ -438,7 +438,7 @@ void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
 
 // Draws the HUD spline guide arrow for the camera's pod: gated on FLAG0_GUIDE_ARROW,
 // orients guideArrowNode toward guideArrowTarget and tints it.
-void swrObjcMan_UpdateSplineGuideMarker(int cman);
+void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman);
 // Applies FOV/near/far to the viewport and updates fog color/distance and the
 // clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
