@@ -921,6 +921,7 @@ swrObjJdge_musicFadedForPause 0x0050ca88 int
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
 
+swrRender_cameraCount 0x0050ccec int # live entries in swrRender_cameraPositions
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
 
@@ -1174,6 +1175,7 @@ rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
 
+swrRender_cameraPositions 0x00e22820 rdVector3[4] # eye position of each active viewport camera, refreshed every frame
 swrSprite_dirtyRects 0x00E22720 short[124]
 
 backBufferClearColor 0x00E229A8 int16_t[3]

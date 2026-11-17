@@ -3071,3 +3071,18 @@ void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
 {
     sunSpriteColors[index * 4 + 3] = alpha;
 }
+
+// 0x00482e60
+float DistanceToNearestViewportCamera(rdVector3* point)
+{
+    if (swrRender_cameraCount < 1)
+        return -1.0f;
+
+    float nearest = rdVector_DistSquared3(point, &swrRender_cameraPositions[0]);
+    for (int i = 1; i < swrRender_cameraCount; i++) {
+        float distSq = rdVector_DistSquared3(point, &swrRender_cameraPositions[i]);
+        if (distSq < nearest)
+            nearest = distSq;
+    }
+    return stdMath_Sqrt(nearest);
+}

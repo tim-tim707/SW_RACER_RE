@@ -75,3 +75,9 @@ int swrControl_StopForceEffect(int effectId)
     HANG("TODO");
     return 0;
 }
+
+// 0x0040b110
+void swrControl_SetForceFeedbackPlayer(swrRace* player)
+{
+    HANG("TODO");
+}

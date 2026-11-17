@@ -4844,10 +4844,122 @@ void swrObjSmok_SetOwnerHandle(swrObjSmok* smok, void* ownerHandle)
         smok->ownerHandle = ownerHandle;
 }
 
+// 0x0046d040
+void swrRace_HandleDeathSnap(swrRace* player)
+{
+    player->accelThrust = 0.0f;
+    player->flags0 &= ~swrObjTest_FLAG0_THROTTLE_SETTLED;
+    player->deathExplodeTimer -= swrRace_deltaTimeSecs;
+    if (player->deathExplodeTimer > 0.0f)
+        return;
+
+    int subEvents[2] = { 'Snap', 0 };
+    swrEvent_DispatchSubEvents(player, subEvents);
+    for (int i = 0; i < 6; i++) {
+        player->engineStatus[i] &= ~8;
+        if (player->engineHealth[i] <= 0.1f)
+            player->engineHealth[i] = 0.1f;
+    }
+    player->flags0 &= ~swrObjTest_FLAG0_RESET;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        swrControl_ClearDeviceState(1);
+        swrControl_StopAllForceEffects(0);
+        swrControl_SetForceFeedbackPlayer(player);
+    }
+}
+
+// 0x0046d100
+void swrRace_HandleRespawnFlag(swrRace* player)
+{
+    if ((player->flags0 & swrObjTest_FLAG0_RESPAWN) == 0)
+        return;
+
+    player->flags0 &= ~swrObjTest_FLAG0_RESPAWN;
+    player->flags1 &= ~(swrObjTest_FLAG1_EXPLODING | swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT);
+    if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) != swrObjTest_FLAG0_RACING)
+        return;
+
+    if ((player->flags0 & swrObjTest_FLAG0_DEAD) == 0)
+        swrRace_HandleDeathExplosion(player);
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL)
+        swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xe, 0xe, 0xe, 0xe, 0xe, (rdVector3*)&player->transform.vD);
+}
+
 // 0x0046d170
 void swrObjTest_F0(swrRace* player)
 {
-    HANG("TODO");
+    rdMatrix44 splinePoint;
+    if (player->flags0 & swrObjTest_FLAG0_AI) {
+        if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING && (player->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0) {
+            // an AI stuck for 5 s (2 s on the simple path) asks for a respawn
+            if (player->idleTick > 5.0f || ((player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) && player->idleTick > 2.0f))
+                player->flags0 |= swrObjTest_FLAG0_RESPAWN;
+        } else {
+            player->idleTick = 0.0f;
+        }
+    }
+
+    if (player->flags0 & swrObjTest_FLAG0_TP_TO_SPLINE) {
+        swrRace_ResetToSpline(player, 0.5f);
+        player->flags0 &= ~swrObjTest_FLAG0_TP_TO_SPLINE;
+    }
+
+    // AI Sebulba from lap 3 on: flame attack at anyone close in front
+    if ((player->flags0 & swrObjTest_FLAG0_AI) && *player->score_ptr->pilotId == 2 && player->speedValue > 200.0f && player->score_ptr->results_P1_Lap + 1 >= 3) {
+        rdVector3 pos = *(rdVector3*)&player->transform.vD;
+        float distances[8];
+        rdVector3 deltas[8];
+        swrRace* nearby[8];
+        int count = swrEvent_FindNearestObjects('Test', &pos, 10000.0f, NULL, 2, distances, deltas, (void**)nearby);
+        for (int i = 0; i < count; i++) {
+            if (nearby[i] == player)
+                continue;
+            rdVector3 toOther;
+            rdVector_Sub3(&toOther, (rdVector3*)&nearby[i]->transform.vD, (rdVector3*)&player->transform.vD);
+            if (player->transform.vA.x * toOther.x + player->transform.vA.y * toOther.y + player->transform.vA.z * toOther.z > 0.0f)
+                swrRace_SpawnFlameAttack(player);
+        }
+    }
+
+    if (player->score_ptr->results_P1_total_time < 10.0f)
+        player->unk12_2 = 5.0f;
+    if (player->flameSmokeHandle != NULL) {
+        if (player->unk12_2 < 5.0f)
+            player->unk12_2 = 5.0f;
+    } else {
+        player->unk12_2 -= swrRace_deltaTimeSecs;
+    }
+
+    player->lodDistance = (int)DistanceToNearestViewportCamera((rdVector3*)&player->transform.vD);
+    if (((player->lodDistance - 400.0f) * 0.0016666667f < 1.0 || (player->flags0 & swrObjTest_FLAG0_LOCAL) || (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND)) && (player->flags1 & swrObjTest_FLAG1_SPLINE_SNAP)) {
+        player->flags1 &= ~swrObjTest_FLAG1_SPLINE_SNAP;
+        swrSpline_EvaluateAtOffset(&player->splineCursor, &splinePoint, 0.0f);
+        player->transform.vD.x = splinePoint.vD.x;
+        player->transform.vD.y = splinePoint.vD.y;
+        player->transform.vD.z = splinePoint.vD.z;
+        player->flags1 |= swrObjTest_FLAG1_IMMUNITY;
+    }
+
+    player->flags0 &= ~swrObjTest_FLAG0_POD_HIDDEN;
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && player->wallHitCooldown <= 0.0f)
+        player->flags0 |= swrObjTest_FLAG0_THROTTLE_SETTLED;
+
+    player->flags0 &= ~swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+    if (player->podStats.maxSpeed * 0.75 < player->speedValue && (player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0 && (player->flags1 & swrObjTest_FLAG1_EXPLODING) == 0)
+        player->flags0 |= swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+
+    if (player->podStats.maxSpeed < player->speedValue && (player->flags0 & swrObjTest_FLAG0_BOOSTING))
+        player->flags0 |= swrObjTest_FLAG0_WAS_BOOSTING;
+    else
+        player->flags0 &= ~swrObjTest_FLAG0_WAS_BOOSTING;
+
+    swrRace_CalcTargetTurnRate(player);
+    if (player->wallHitCooldown > 0.0f)
+        player->wallHitCooldown -= swrRace_deltaTimeSecs;
+    swr_noop2();
+    if (player->flags0 & swrObjTest_FLAG0_RESET)
+        swrRace_HandleDeathSnap(player);
+    swrRace_HandleRespawnFlag(player);
 }
 
 // 0x00470610
@@ -5024,6 +5136,12 @@ void swrRace_Explode(swrRace* player, char side)
         swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, &pos, 0, 0, 10.0f, 500.0f);
     }
     swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 9, 9, 9, 9, 9, (rdVector3*)&player->transform.vD);
+}
+
+// 0x00474970
+void swrRace_HandleDeathExplosion(swrRace* player)
+{
+    HANG("TODO");
 }
 
 // 0x00474d80
