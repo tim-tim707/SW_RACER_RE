@@ -28,6 +28,7 @@ extern FILE* hook_log;
 
 #include "../config.h"
 #include "../debug_ui.h"
+#include "../shadows.h"// SceneLight
 
 // Drawing follows swrWeather_delta.cpp: particles live in world space (z up), are projected
 // through the scene view/projection handed in by the renderer, and are emitted as screen-space
@@ -1258,6 +1259,74 @@ void pod_fx_debug_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh
         snprintf(buf, sizeof(buf), "        cluster center=%s r=%.1f pts=%zu",
                  pod_local_str(racer, to_world(model, cl.c)).c_str(), cl.r, cl.pts.size());
         g_debug_lines.push_back(buf);
+    }
+}
+
+void pod_fx_gather_lights(std::vector<SceneLight>& out) {
+    if (!s.enabled)
+        return;
+    const int n = swrEvent_GetEventCount(kEventTest);
+    std::vector<std::pair<rdVector3, float>> noz;
+    for (int i = 0; i < n; i++) {
+        const swrRace* r = (const swrRace*) swrEvent_GetItem(kEventTest, i);
+        if (r == nullptr || r->partNodes == nullptr)
+            continue;
+        auto it = g_pods.find(r);
+        if (it == g_pods.end())
+            continue;
+        const PodFx& fx = it->second;
+        if ((r->flags0 & swrObjTest_FLAG0_DEAD) != 0)
+            continue;
+        const float L = pod_length(r);
+
+        // Exhaust: a warm spotlight aimed backward from every nozzle while moving.
+        const float ex = fx.throttle * fx.accel * s.exhaust_light;
+        if (s.exhaust && ex > 0.01f) {
+            const bool boosting = (r->flags0 & swrObjTest_FLAG0_BOOSTING) != 0;
+            for (int side = 0; side < 2; side++) {
+                if (!engine_alive(r, side))
+                    continue;
+                const rdMatrix44& e = engine_of(r, side);
+                const rdVector3 back = mul(norm(v3(e.vB)), -1.0f);
+                nozzles_world(r, side, noz);
+                if (noz.empty())
+                    noz.push_back({sub(v3(e.vD), mul(norm(v3(e.vB)), L * 0.15f)), L * 0.05f});
+                const float share = 1.0f / std::sqrt((float) noz.size());
+                const float flick = 0.9f + 0.1f * std::sin(g_time * 31.0f + side * 2.0f);
+                for (const auto& nz: noz) {
+                    SceneLight l{};
+                    l.pos = add(nz.first, mul(back, L * 0.05f));
+                    l.dir = back;
+                    l.r = 1.0f, l.g = boosting ? 0.6f : 0.45f, l.b = boosting ? 0.3f : 0.15f;
+                    l.intensity = 1.1f * ex * share * flick;
+                    l.radius = L * (1.0f + 0.5f * clampf(fx.throttle, 0.0f, 1.6f));
+                    l.cos_inner = 0.75f;// ~41 deg full
+                    l.cos_outer = 0.05f;// fades out by ~87 deg
+                    out.push_back(l);
+                }
+            }
+        }
+
+        // Damage fire: a flickering point light on each burning engine.
+        if (s.damage) {
+            for (int side = 0; side < 2; side++) {
+                const int base = ((side == 1) != s.swap_sides) ? 0 : 3;// shown[0..2] = left
+                float burn = 0.0f;
+                for (int k = base; k < base + 3; k++)
+                    burn = std::max(burn, clampf((fx.shown[k] - 0.35f) / 0.65f, 0.0f, 1.0f));
+                if (burn <= 0.01f || !engine_alive(r, side))
+                    continue;
+                const rdMatrix44& e = engine_of(r, side);
+                SceneLight l{};
+                l.pos = v3(e.vD);
+                l.dir = {0, 0, 0};
+                l.r = 1.0f, l.g = 0.35f, l.b = 0.08f;
+                l.intensity = burn * s.flames * (0.7f + 0.3f * std::sin(g_time * 19.0f + side) * std::sin(g_time * 7.3f + side * 1.3f));
+                l.radius = L * 0.9f;
+                l.cos_inner = l.cos_outer = 0.0f;
+                out.push_back(l);
+            }
+        }
     }
 }
 

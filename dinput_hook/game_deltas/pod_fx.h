@@ -42,5 +42,11 @@ bool pod_fx_hide_stock_dust();
 // shows orange or worse; side 0 = right, 1 = left. Used by pod motion for the damaged-engine wobble.
 float pod_fx_engine_damage(const swrRace* racer, int side);
 
+// Lights for the screen-space lighting pass (shadows.cpp), from each pod's CURRENT engine
+// positions: a backward spotlight per exhaust nozzle while moving (stronger on boost) and a
+// flickering point light per burning damage segment.
+struct SceneLight;
+void pod_fx_gather_lights(std::vector<SceneLight>& out);
+
 // Loads [pod_fx] from SW_RACER_RE.ini and registers the "Mods/Pod FX" panel.
 void pod_fx_register_panel();

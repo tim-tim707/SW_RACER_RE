@@ -47,6 +47,7 @@ extern "C" {
 #include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/pod_fx.h"
+#include "shadows.h"
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/sithRender_delta.h"
@@ -443,7 +444,10 @@ static void rebuild_pod_shadow_nodes() {
                     {entity->partNodes[part], entity, (part - 0x43) % 2, part >= 0x45 ? 1 : 0});
         }
         const struct { int part, side, kind; } nozzle_parts[] = {
-            {0x2a, 0, 2}, {0x1c, 1, 2}, {0x2b, 0, 3}, {0x1d, 1, 3}};
+            {0x2a, 0, 2}, {0x1c, 1, 2}, {0x2b, 0, 3}, {0x1d, 1, 3},
+            // kind 4: the energy-binder beam parts between the engines (partNodes 6..9). Only
+            // tagged so the shadow pass can recognise their pixels; nozzle capture ignores them.
+            {6, 0, 4}, {7, 0, 4}, {8, 0, 4}, {9, 0, 4}};
         for (const auto &np: nozzle_parts) {
             if (entity->partNodes[np.part] != nullptr)
                 g_pod_nozzle_nodes.push_back({entity->partNodes[np.part], entity, np.side, np.kind});
@@ -1188,6 +1192,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     static std::vector<Vertex> triangles;
     int mesh_vertex_count;
     GLint mesh_first_vertex = 0;
+    bool parsed_this_draw = false;// triangles hold this mesh's fresh world-space geometry
 
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
@@ -1203,6 +1208,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             mesh_vertex_count = cached.vertex_count;
         } else {
             parse_mesh_for_draw(model_matrix, mesh, triangles);
+            parsed_this_draw = true;
             // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
             // will rebuild again next frame -- stream it through the ring instead of re-uploading
             // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
@@ -1246,6 +1252,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     } else {
         parse_mesh_for_draw(model_matrix, mesh, triangles);
+        parsed_this_draw = true;
         const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
         if (stream_base >= 0) {
             bind_mesh_vao(g_stream_ring.vao);
@@ -1260,6 +1267,28 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
     glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
     perf_count_n64_draw();
+
+    // Real-time shadows: an opaque pod mesh (not its blob shadow) casts; its exhaust/glow parts
+    // (role 1) and energy-binder parts (role 2) instead go into the screen mask the shadow pass
+    // uses to give the exhaust a fixed look and leave the binders untouched.
+    if (g_shadow_caster_depth > 0 && !g_pod_shadow_depth && shadows_capture_active()) {
+        const int role = g_active_nozzle_tag == nullptr ? 0 : (g_active_nozzle_tag->kind == 4 ? 2 : 1);
+        static std::vector<rdVector3> fresh;
+        if (parsed_this_draw) {
+            fresh.resize(triangles.size());
+            for (size_t i = 0; i < triangles.size(); i++)
+                fresh[i] = triangles[i].pos;
+        }
+        shadows_add_caster(mesh, model_matrix, parsed_this_draw ? &fresh : nullptr,
+                           [](const rdMatrix44 &m, const swrModel_Mesh *me, std::vector<rdVector3> &out) {
+                               static std::vector<Vertex> tmp;
+                               parse_display_list_commands(m, me, tmp);
+                               out.resize(tmp.size());
+                               for (size_t i = 0; i < tmp.size(); i++)
+                                   out[i] = tmp[i].pos;
+                           },
+                           role);
+    }
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
         envInfos.skybox.depthTexture != 0) {
@@ -1365,6 +1394,10 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
 
     // Pod FX can replace the stock dust-kick models with its particle dust.
     if (pod_fx_hide_stock_dust() && swrRace_IsDustKickNode(node))
+        return;
+    // Real shadows replace the stock flat blob-shadow quads under each pod.
+    if (shadows_hide_blob() && is_pod_shadow_node(node))
+        return;
 
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
@@ -1471,6 +1504,10 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         subtree_proj_mat = &shadow_proj_mat;
     }
 
+    // Entering a racer's pod: everything drawn below casts a real-time shadow.
+    const bool shadow_caster_root = root_owner != nullptr;
+    if (shadow_caster_root)
+        g_shadow_caster_depth++;
     const NozzleNodeTag *prev_nozzle_tag = g_active_nozzle_tag;
     if (const NozzleNodeTag *tag = find_nozzle_tag(node))
         g_active_nozzle_tag = tag;
@@ -1548,6 +1585,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     g_pod_shadow_depth = prev_shadow_depth;
     g_active_nozzle_tag = prev_nozzle_tag;
     g_active_debug_part = prev_debug_part;
+    if (shadow_caster_root)
+        g_shadow_caster_depth--;
 }
 
 static void flush_deferred_translucent() {
@@ -1702,6 +1741,7 @@ static int g_scene_height = 0;
 
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
+    shadows_begin_viewport();
 
     // Reset the per-frame mesh-pick list before this frame's meshes are drawn.
     g_pick_meshes.clear();
@@ -1978,6 +2018,13 @@ void swrViewport_Render_Hook(int x) {
     if ((imgui_state.show_collision || imgui_state.show_triggers || imgui_state.show_hitbox) &&
         root_node == &someRootNode)
         render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
+
+    // Real-time pod shadows: darken the scene where the sun is blocked, in the scene framebuffer
+    // before it is resolved to the window (in-race only).
+    if ((uint32_t) root_node == (uint32_t) &someRootNode)
+        camera_record(view_mat_corrected);// listener position for positional custom sounds
+    if (default_framebuffer != 0 && (uint32_t) root_node == (uint32_t) &someRootNode)
+        shadows_render(proj_mat, view_mat_corrected, default_framebuffer, scene_width, scene_height);
 
     if (default_framebuffer != 0 && g_scale_resolve_fbo != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);

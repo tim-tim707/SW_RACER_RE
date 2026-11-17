@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdio>
 #include "swrObjJdge_delta.h"
+#include "../shadows.h"
 #include "swrRace_delta.h"
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
@@ -97,6 +98,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     track_registry_ApplyForCurrentTrack();
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
+    shadows_clear_cache();// shadow caster geometry is keyed by mesh pointer
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
     // Asset buffer left with the track resident: what to compare when the grid is cut short.
     crash_logger_stagef("race: running track model %d spline %d on planet %d, %d bytes of asset "
