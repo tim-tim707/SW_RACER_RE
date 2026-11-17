@@ -1105,6 +1105,139 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
         profile->unk4f = 0;
 }
 
+// swrObjHang_cameraMatrix.vD + swrObjHang_partDetailCameraOffset along the camera's axes
+static void partDetailPosition(rdVector3* out)
+{
+    swrObjHang_UpdateHoloBillboardMatrix();
+    rdVector_Copy3(out, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+}
+
+static void pullTowardEye(rdVector3* v)
+{
+    rdVector_Scale3Add3_both(v, 0.2f, v, 0.8f, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+}
+
+static float shopIconTilt(void)
+{
+    float s;
+    float c;
+
+    stdMath_SinCos((float)((1.5 - swrObjHang_shopSwingPhase) * 360.0), &s, &c);
+    return (float)(c * swrObjHang_shopSwingLean * 45.0);
+}
+
+// 0x0043dba0
+void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
+{
+    float duration = SWR_PART_LERP_TIME;
+    float s;
+    float c;
+    rdVector3 detailPos;
+
+    // let the shop ring's swing settle
+    if (swrObjHang_shopSwingLean < 0.0f) {
+        swrObjHang_shopSwingLean = swrObjHang_shopSwingLean + swrRace_fdeltaTimeSecs;
+        if (0.0f < swrObjHang_shopSwingLean)
+            swrObjHang_shopSwingLean = 0.0f;
+    }
+    if (0.0f < swrObjHang_shopSwingLean) {
+        swrObjHang_shopSwingLean = swrObjHang_shopSwingLean - swrRace_fdeltaTimeSecs;
+        if (swrObjHang_shopSwingLean < 0.0f)
+            swrObjHang_shopSwingLean = 0.0f;
+    }
+    if (0.0f < swrObjHang_shopSwingPhase) {
+        swrObjHang_shopSwingPhase = swrObjHang_shopSwingPhase - swrRace_fdeltaTimeSecs;
+        if (swrObjHang_shopSwingPhase < 0.0f)
+            swrObjHang_shopSwingPhase = 0.0f;
+    }
+    for (int i = 0; i < swrRace_MenuMaxSelection; i++) {
+        swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+        if (hang->room != Shop)
+            continue;
+        if (i != swrRace_MenuSelectedItem)
+            icon->yawDegrees = stdMath_ArcTan2(icon->vector1.x - 12.0f, -116.0f - icon->vector1.y) - 90.0f;
+        if (icon->vector1.z == 106.0f)
+            icon->tiltDegrees = shopIconTilt();
+    }
+
+    if (swrObjHang_partLayoutDirty != 0) {
+        if (hang->room == Shop) {
+            for (int i = 0; i < swrRace_MenuMaxSelection; i++) {
+                swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+                stdMath_SinCos((float)(((swrRace_MenuSelectedItem - i) + 9) * 10), &s, &c);
+                icon->vector3.x = 12.0f - c * -256.0f;
+                icon->vector3.y = -116.0f - s * -256.0f;
+                icon->vector3.z = 106.0f;
+                if (i != swrRace_MenuSelectedItem)
+                    icon->yawDegrees = stdMath_ArcTan2(icon->vector1.x - 12.0f, -116.0f - icon->vector1.y) - 90.0f;
+                icon->tiltDegrees = shopIconTilt();
+                if (i == swrRace_MenuSelectedItem) {
+                    if (swrObjHang_partDetailActive != 0) {
+                        partDetailPosition(&detailPos);
+                        rdVector_Copy3(&icon->vector3, &detailPos);
+                        pullTowardEye(&icon->vector1);
+                    } else {
+                        rdVector_Copy3(&icon->vector3, &swrObjHang_wattoCounterEyePos);
+                        icon->tiltDegrees = 0.0f;
+                        icon->yawDegrees = stdMath_ArcTan2(swrObjHang_wattoCounterEyePos.x - 12.0f, -116.0f - swrObjHang_wattoCounterEyePos.y) - 90.0f;
+                        if (swrObjHang_partDetailClosing != 0)
+                            pullTowardEye(&icon->vector3);
+                    }
+                }
+                rdVector_Copy3(&icon->vector2, &icon->vector1);
+            }
+        } else if (hang->room == Junkyard) {
+            int slot = hang->cameraState - SWR_JUNKYARD_PLACEMENT_FIRST;
+            swrRace_MenuSelectedItem = swrObjHang_junkyardStock[slot].partType;
+            if (swrRace_MenuSelectedItem < 0 || slot < 0) {
+                swrObjHang_partLayoutDirty = 0;
+                return;
+            }
+            swrUIUpgradeInfo* icon = &uiUpgradeInfos2[swrRace_MenuSelectedItem];
+            if (swrObjHang_partDetailActive != 0) {
+                partDetailPosition(&detailPos);
+                rdVector_Copy3(&icon->vector3, &detailPos);
+                pullTowardEye(&icon->vector1);
+            } else {
+                rdVector_Copy3(&icon->vector3, &maybeUICameraPlacements[hang->cameraState].position2);
+                if (swrObjHang_partDetailClosing != 0)
+                    pullTowardEye(&icon->vector3);
+            }
+            rdVector_Copy3(&icon->vector2, &icon->vector1);
+        }
+        swrObjHang_partLayoutDirty = 0;
+        swrObjHang_partLerpActive = 1;
+        swrObjHang_partLerpTime = 0.0f;
+    }
+
+    if (swrObjHang_cameraMoveActive != 0)
+        duration = SWR_PART_LERP_TIME_CAMERA_MOVE;
+    if (swrObjHang_partLerpActive == 0 || !(swrObjHang_partLerpTime < duration))
+        return;
+    swrObjHang_partLerpTime = swrObjHang_partLerpTime + swrRace_fdeltaTimeSecs;
+    if (!(swrObjHang_partLerpTime < duration)) {
+        swrObjHang_partLerpTime = duration;
+        swrObjHang_partLerpActive = 0;
+    }
+    for (int i = 0; i < swrRace_MenuMaxSelection; i++) {
+        swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+        if (hang->room != Junkyard || swrRace_MenuSelectedItem == i) {
+            float t = swrObjHang_partLerpTime / duration;
+            icon->vector1.x = (icon->vector3.x - icon->vector2.x) * t + icon->vector2.x;
+            icon->vector1.y = (icon->vector3.y - icon->vector2.y) * t + icon->vector2.y;
+            icon->vector1.z = (icon->vector3.z - icon->vector2.z) * t + icon->vector2.z;
+        }
+    }
+    if (swrObjHang_partLerpActive == 0 && swrObjHang_partDetailClosing != 0) {
+        swrObjHang_partDetailClosing = 0;
+        rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, hang->room == Shop ? &swrObjHang_wattoCounterEyePos : (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        uiUpgradeInfos2[swrRace_MenuSelectedItem].tiltDegrees = 0.0f;
+    }
+}
+
 // 0x0043eb50
 void swrRace_ComputeUpgradePrices(void)
 {

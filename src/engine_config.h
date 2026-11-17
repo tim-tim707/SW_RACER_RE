@@ -160,4 +160,8 @@
 #define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
 #define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
 
+// swrRace_UpdatePartMenuLayout (0x0043dba0): part-icon glide duration (seconds)
+#define SWR_PART_LERP_TIME (0.2f)
+#define SWR_PART_LERP_TIME_CAMERA_MOVE (0.5f) // while a front-end camera move is running
+
 #endif // ENGINE_CONFIG_H
