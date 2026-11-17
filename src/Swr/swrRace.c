@@ -4000,7 +4000,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         lookBackInput = (int) swrControl_inputStateButton;
         flameTaunt = (int) swrControl_tauntButton;
         repairHold = swrControl_repairButton != 0.0f && swrControl_repairHoldTime > (float) SWR_CTL_HALF_HOLD;
-        slideInput = (int) DAT_00ec8854;
+        slideInput = (int)swrControl_slideButton;
         throttleRaw = swrRace_ThrottleInput;
 
         if ((swrControl_brakeIsAnalog == 0 && brakeDigital != 0) || thrustDigital != 0) {

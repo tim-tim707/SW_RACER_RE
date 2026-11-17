@@ -80,7 +80,7 @@ int cifr_SetCustomForceData_Maybe(void* effect, unsigned int size, void* data, i
 int cifr_QueryEffectStatus_Maybe(void* effect, void* outStatus);
 
 // Queries an effect's status and issues a device-level force-feedback command, copying back a status byte (best guess).
-int cifr_GetForceFeedbackState_Maybe(void* effect);
+int cifr_GetForceFeedbackState_Maybe(void* effect, char* outState);
 
 // Initializes one effect slot to its default fields and frees its custom-force buffer (best guess).
 void cifr_InitEffectSlot_Maybe(void* effect);

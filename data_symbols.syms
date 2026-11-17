@@ -1726,7 +1726,7 @@ swrRace_PitchInput 0x00ec883c float
 
 swrRace_ThrustInput 0x00ec884c float
 swrRace_BoostInput 0x00ec8850 float
-DAT_00ec8854 0x00ec8854 float # button-state[5]: slide/lean (shared with tracks_delta)
+swrControl_slideButton 0x00ec8854 float # button-state[5]: slide
 
 # swrControl per-action input state consumed by swrRace_UpdatePlayerControl (elements of the
 # button-state array @0x00ec8840 and the hold-time array @0x00ec88a0 written by swrControl_ProcessInputs).
@@ -1743,6 +1743,29 @@ swrControl_boostHoldTime 0x00ec88b0 float # hold-time[4] seconds: boost tap-dete
 swrControl_repairHoldTime 0x00ec88c4 float # hold-time[9] seconds: repair; > 0.5 fires repair
 swrRace_pendingCameraEvent 0x00ec83d0 int # pending 'cMan' sub-event fourcc queued by debug camera keys F1-F4; consumed+cleared in swrRace_UpdatePlayerControl
 swrControl_damageForceEffectPreempted 0x004d78a0 int # a one-shot damage FF effect preempted the continuous speed effect; swrControl_UpdateSpeedForceEffect restarts it
+swrControl_forceEffectValue 0x004d6c78 int[28] # last value pushed by Configure/UpdateForceEffect per swrForceEffect (0 = not configured)
+swrControl_forceEffectPlaying 0x004d6ce8 int[28] # per swrForceEffect: started and not yet stopped
+swrControl_forceEffects 0x004d6d58 cifr_EffectSet # the 6 force-feedback effect slots (cifr_Init / cifr_LoadProjectFile)
+swrControl_forceEffectsLoaded 0x004d765c int # set once swrControl_LoadForceEffects loaded a .fcr bundle
+swrControl_forceEffectNames 0x004b4940 char*[28] # .fcr effect name per swrForceEffect
+swrControl_forceEffectSlotLastIds 0x004b49b0 int[6] # highest swrForceEffect each effect slot serves
+swrControl_forceEffectsDeviceType 0x004b4b08 int = 9 # device type the bundle was loaded for (low byte; 9 = none)
+cifr_deviceIsWheel 0x004d55d4 int # FF device is a wheel (type 6 or name contains "wheel"): bundle2.fcr, no 2nd-axis GForce scaling
+swrControl_ffScore 0x004d78a4 swrScore* # score of the force-feedback player
+swrControl_ffMaxSpeed 0x004d7898 float # force-feedback player maxSpeed (speed-ratio denominator)
+swrControl_ffRestSpeedRatio 0x004d7770 float # 0; a speed ratio equal to it settles the GForce effect
+swrControl_ffGForceScale 0x004d7660 float # 6500: speed ratio -> GForce spring coefficient
+swrControl_ffPrevSpeedRatio 0x004d7780 float # last frame speed ratio; -65535 = player just set
+swrControl_ffAppliedSpeedRatio 0x004d78b4 float # speed ratio the GForce effect was last configured for
+swrControl_ffSpeedEffectDirty 0x004b4dd0 int = 1 # GForce/rumble need reconfiguring this frame
+swrControl_ffSpeedSettled 0x004d78b8 int # one final reconfigure was done after the speed ratio settled
+swrControl_ffLastGForceCoeff 0x004d78c0 int # last GForce coefficient (changes < 500 are ignored)
+swrControl_ffLastRumbleMagnitude 0x004d78bc int # last ENGINE_RUMBLE magnitude (changes < 10 are ignored)
+swrControl_ffGForceStarted 0x004d78ac int # GForce effect is running; cleared when stopping HEAVY_SLIDE_SLIP stops their shared slot
+swrControl_ffTractionRumbleActive 0x004d78b0 int # low traction owns the ENGINE_RUMBLE period; speed stops driving its magnitude
+swrControl_ffLastTractionPeriod 0x004b4dcc int = 8000 # last ENGINE_RUMBLE period from traction (changes < 20000 are ignored)
+swrControl_ffBoostActive 0x004d78c8 int # START_BOOST played, END_BOOST pending
+swrControl_ffPrevTilt 0x004d78c4 float # last frame tiltManualMult (ROLL_LEFT fires on sign change)
 swrRace_debugTauntRequest 0x004d79e0 int # debug key F5/F6 force-taunt/flame-attack latch; consumed+cleared in swrRace_UpdatePlayerControl
 swrRace_engineDamageSteeringPenalty 0x0050cae4 float # last engine-damage steering-pull magnitude (telemetry stash)
 

@@ -298,7 +298,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
 
                 if (!swrMultiplayer_IsMultiplayerEnabled() || swrMultiplayer_IsHost() != 0) {
                     if (hang->isTournamentMode && swrRace_UnlockDataBase[0] != Info.FavoritePilot &&
-                        DAT_00ec8854 != 0.0f && swrObjHang_skipTournamentIntro == 0) {
+                        swrControl_slideButton != 0.0f && swrObjHang_skipTournamentIntro == 0) {
                         swrObjHang_state2 = 15;
                     }
 
