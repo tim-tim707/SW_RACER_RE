@@ -2,6 +2,7 @@
 #include <macros.h>
 #include "swrRace_delta.h"
 
+#include <cmath>
 #include <unordered_map>
 #include <utility>
 
@@ -309,6 +310,56 @@ void __cdecl swrRace_Tilt_delta(swrRace* player, float b) {
         return;
     }
     hook_call_original((swrRace_Tilt_t) swrRace_Tilt_ADDR, player, b);
+}
+
+// Time-correct traction. swrRace_ApplyTraction (0x00478a70) blends the pod's travel direction
+// toward its heading once per physics step:
+//     traction = (1 - grip^2) * 0.996666            grip = antiSkid * surfaceGripFactor * slide2
+//     v' = desired * (1 - traction) + v * traction  (then normalised and scaled by |b|)
+// with no dt, so the slide decays per STEP: at a higher sim rate it dies out faster in real time
+// (less sliding, weaker anti-grav drift). We let the original run untouched (it also eases slide2
+// afterwards), then re-do only its blend with the per-step retention raised to the power
+// dt * reference_hz, so the slide decays at the same rate per SECOND as at the reference rate:
+//     v_fixed = desired + (v' - desired) * (traction^k / traction),   k = dt * reference_hz
+// At exactly the reference rate k = 1 and nothing changes.
+bool swrRace_tractionDtCorrect = true;
+float swrRace_tractionReferenceHz = 60.0f;
+
+typedef void(__cdecl* swrRace_ApplyTraction_t)(swrRace* player, float b, rdVector3* c, rdVector3* d);
+
+void __cdecl swrRace_ApplyTraction_delta(swrRace* player, float b, rdVector3* c, rdVector3* d) {
+    if (!swrRace_tractionDtCorrect || player == nullptr || c == nullptr || d == nullptr) {
+        hook_call_original((swrRace_ApplyTraction_t) swrRace_ApplyTraction_ADDR, player, b, c, d);
+        return;
+    }
+    // The traction the original is about to use (its inputs are read before it eases slide2).
+    const float grip = player->podStats.antiSkid * player->surfaceGripFactor * player->slide2;
+    float traction = (1.0f - grip * grip) * 0.99666601f;
+    if (1.0f < player->paceMultiplier)
+        traction = player->paceMultiplier <= 2.0f ? (2.0f - player->paceMultiplier) * traction : 0.0f;
+    const rdVector3 desired = {c->x * b, c->y * b, c->z * b};
+
+    hook_call_original((swrRace_ApplyTraction_t) swrRace_ApplyTraction_ADDR, player, b, c, d);
+
+    const float dt = (float) swrRace_deltaTimeSecs;
+    if (!(traction > 1e-4f && traction < 1.0f) || !(dt > 0.0f))
+        return;
+    const float k = dt * (swrRace_tractionReferenceHz > 1.0f ? swrRace_tractionReferenceHz : 1.0f);
+    if (std::fabs(k - 1.0f) < 1e-4f)
+        return;// running at the reference rate: identical to vanilla
+    const float ratio = std::pow(traction, k) / traction;
+    rdVector3& v = player->velocityDir;
+    v.x = desired.x + (v.x - desired.x) * ratio;
+    v.y = desired.y + (v.y - desired.y) * ratio;
+    v.z = desired.z + (v.z - desired.z) * ratio;
+    // Re-derive the output the original wrote: normalised velocityDir scaled by |b|.
+    const float l = std::sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+    const float mag = b < 0.0f ? -b : b;
+    if (l > 1e-9f) {
+        d->x = v.x / l * mag;
+        d->y = v.y / l * mag;
+        d->z = v.z / l * mag;
+    }
 }
 
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {

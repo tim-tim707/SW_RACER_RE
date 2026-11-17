@@ -3116,6 +3116,9 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_UpdatePlayerControl_delta);
     // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
     hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
+    // Time-correct traction (slide decay per second, not per physics step).
+    hook_function("swrRace_ApplyTraction", (uint32_t) swrRace_ApplyTraction_ADDR,
+                  (uint8_t *) swrRace_ApplyTraction_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

@@ -26,6 +26,13 @@ void playASound_delta(int sound_id, short priority, float volume, float pitch, i
 // starves the player's trail. Replaces swrObjToss_AddDustKickModelsToScene (hooked by address).
 void swrObjToss_AddDustKickModelsToScene_delta();
 
+// Time-correct traction: re-scales swrRace_ApplyTraction's per-step slide blend so sliding decays
+// at the same rate per second at any sim rate (identical to vanilla at the reference rate).
+// Hooks swrRace_ApplyTraction by address.
+extern bool swrRace_tractionDtCorrect;
+extern float swrRace_tractionReferenceHz;
+void swrRace_ApplyTraction_delta(swrRace* player, float b, rdVector3* c, rdVector3* d);
+
 // Widens far-AI ground contact (clamps lodDistance for visible non-local pods) so distant AI run their
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
 void swrObjTest_F0_delta(swrRace* player);

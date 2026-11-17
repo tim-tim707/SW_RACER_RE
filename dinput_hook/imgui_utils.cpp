@@ -34,6 +34,7 @@
 #include "game_deltas/tracks_delta.h"
 #include "game_deltas/swrMain_delta.h"
 #include "game_deltas/swrMain_smoothing.h"
+#include "game_deltas/swrRace_delta.h"// swrRace_tractionDtCorrect
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
 #include "game_deltas/swrModel_delta.h"// mod_hd_font
@@ -259,10 +260,15 @@ void read_settings_ini() {
 
     imgui_state.mp_disable_collision = config::get_int("settings", "mp_disable_collision", 1);
 
-    swr_fixedTimestep = config::get_int("settings", "fixed_timestep", 0) != 0;
+    swr_fixedTimestep = config::get_int("settings", "fixed_timestep", 1) != 0;
     const float fixed_hz = config::get_float("settings", "fixed_timestep_hz", 60.0f);
     swr_fixedTimestepHz = (fixed_hz >= 20.0f && fixed_hz <= 120.0f) ? fixed_hz : 60.0f;
     swr_fixedTimestepSplitRng = config::get_int("settings", "fixed_timestep_split_rng", 1) != 0;
+    swrRace_tractionDtCorrect = config::get_int("settings", "traction_dt_correct", 1) != 0;
+    {
+        const float ref = config::get_float("settings", "traction_reference_hz", 60.0f);
+        swrRace_tractionReferenceHz = (ref >= 20.0f && ref <= 120.0f) ? ref : 60.0f;
+    }
     swr_fixedTimestepSmoothing = config::get_int("settings", "fixed_timestep_smoothing", 1) != 0;
     const float prediction = config::get_float("settings", "fixed_timestep_prediction", 0.0f);
     swr_fixedTimestepPrediction = (prediction >= 0.0f && prediction <= 1.0f) ? prediction : 0.0f;
@@ -416,6 +422,8 @@ void save_settings_ini() {
     config::set_bool("settings", "fixed_timestep", swr_fixedTimestep);
     config::set_float("settings", "fixed_timestep_hz", swr_fixedTimestepHz);
     config::set_bool("settings", "fixed_timestep_split_rng", swr_fixedTimestepSplitRng);
+    config::set_bool("settings", "traction_dt_correct", swrRace_tractionDtCorrect);
+    config::set_float("settings", "traction_reference_hz", swrRace_tractionReferenceHz);
     config::set_bool("settings", "fixed_timestep_smoothing", swr_fixedTimestepSmoothing);
     config::set_float("settings", "fixed_timestep_prediction", swr_fixedTimestepPrediction);
     config::set_bool("settings", "cache_meshes", imgui_state.cache_meshes);
@@ -1900,6 +1908,20 @@ static void panel_game() {
                             swr_fixedTimestep_ticks, (unsigned int) swr_fixedTimestep_physRandState,
                             swr_fixedTimestep_physDrawsLastFrame,
                             swr_fixedTimestep_cosDrawsLastFrame);
+        ImGui::Unindent();
+    }
+    if (ImGui::Checkbox("Time-correct traction", &swrRace_tractionDtCorrect))
+        save_settings_ini();
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The game's slide/traction blend runs once per physics step, so a faster\n"
+                          "sim rate kills slides sooner. This makes slides decay at the same rate\n"
+                          "per second as at the reference rate, whatever the sim rate.");
+    if (swrRace_tractionDtCorrect) {
+        ImGui::Indent();
+        ImGui::SliderFloat("traction reference (Hz)", &swrRace_tractionReferenceHz, 20.0f, 120.0f, "%.0f");
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            save_settings_ini();
+        ImGui::TextDisabled("Sliding feels like the game running at this rate. 60 = no change at 60 Hz.");
         ImGui::Unindent();
     }
 
