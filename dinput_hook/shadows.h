@@ -36,16 +36,30 @@ void shadows_begin_viewport();
 // this depth is > 0; meshes drawn then are casters.
 extern int g_shadow_caster_depth;
 
-// Record a caster mesh drawn this traversal. `fresh` = its world-space triangle positions were just
+// A caster vertex: world-space position + the mesh's raw texture coordinates (signed 16-bit N64
+// units, as stored in the renderer's vertices).
+struct ShadowCasterVertex {
+    rdVector3 pos;
+    float tu, tv;
+};
+
+// The texture a caster is drawn with, so cut-out texels (fan blades, grilles) don't cast and the
+// binder mask follows the visible glow: GL handle + the renderer's uv = tu / (scale * 4096) + offset.
+struct ShadowCasterTexture {
+    unsigned int handle;
+    float scale_u, scale_v, offset_u, offset_v;
+};
+
+// Record a caster mesh drawn this traversal. `fresh` = its world-space triangles were just
 // produced (pass them), or nullptr when the draw reused cached geometry (the module keeps its own
 // copy per mesh + matrix and re-parses through `reparse` only if it has none).
 // role: 0 = shadow caster; 1 = pod exhaust/glow (no shadow; drawn into the screen mask so the shadow
 // pass gives those pixels a fixed "exhaust tint" instead of real shadow); 2 = energy binder (no
-// shadow; masked so the shadow / lighting pass leaves it untouched).
+// shadow; masked -- weighted by its texture -- so the shadow / lighting pass leaves it untouched).
 void shadows_add_caster(const swrModel_Mesh* mesh, const rdMatrix44& model_matrix,
-                        const std::vector<rdVector3>* fresh,
-                        void (*reparse)(const rdMatrix44&, const swrModel_Mesh*, std::vector<rdVector3>&),
-                        int role = 0);
+                        const std::vector<ShadowCasterVertex>* fresh,
+                        void (*reparse)(const rdMatrix44&, const swrModel_Mesh*, std::vector<ShadowCasterVertex>&),
+                        const ShadowCasterTexture& texture, int role = 0);
 
 // After the scene is drawn into `scene_fbo` (multisampled colour + DEPTH_COMPONENT32 depth,
 // width x height): render the shadow map and darken the shadowed pixels in place.

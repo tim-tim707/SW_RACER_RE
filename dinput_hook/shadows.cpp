@@ -49,11 +49,15 @@ namespace {
     // mesh, matched by matrix -- keying by mesh alone made the second engine overwrite the first.
     struct CasterGeo {
         rdMatrix44 matrix{};
-        std::vector<rdVector3> pos;
+        std::vector<ShadowCasterVertex> pos;
+        ShadowCasterTexture tex{};
         unsigned last_used = 0;
     };
     std::unordered_map<const swrModel_Mesh*, std::list<CasterGeo>> g_cache;// list: stable addresses
     std::vector<const CasterGeo*> g_frame;
+    // Pod cables (role 3): cast onto the ground and other pods, but not onto pod bodies / engines
+    // -- the thin tubes only made stray dark streaks across the engines and exhaust.
+    std::vector<const CasterGeo*> g_frame_cables;
     std::vector<const CasterGeo*> g_mask_frame[2];// [0] exhaust/glow, [1] energy binders
     unsigned g_frame_no = 0;
 
@@ -135,7 +139,43 @@ namespace {
     // ---- GL objects ------------------------------------------------------------------------
     GLuint g_depth_prog = 0, g_apply_prog = 0, g_light_prog = 0;
     GLuint g_vao = 0, g_vbo = 0, g_empty_vao = 0;
+
+    // Caster geometry as uploaded: world position + final texture coordinate, in runs that share
+    // a texture.
+    struct GpuVert {
+        float x, y, z, u, v;
+    };
+    struct TexRun {
+        GLuint tex;
+        GLint first;
+        GLsizei count;
+    };
+    void build_batches(const std::vector<const CasterGeo*>& geos, std::vector<GpuVert>& out,
+                       std::vector<TexRun>& runs) {
+        out.clear();
+        runs.clear();
+        for (const CasterGeo* g: geos) {
+            const ShadowCasterTexture& t = g->tex;
+            const GLint first = (GLint) out.size();
+            for (const ShadowCasterVertex& v: g->pos)
+                out.push_back({v.pos.x, v.pos.y, v.pos.z, v.tu / (t.scale_u * 4096.0f) + t.offset_u,
+                               v.tv / (t.scale_v * 4096.0f) + t.offset_v});
+            const GLsizei n = (GLsizei) (out.size() - first);
+            if (!runs.empty() && runs.back().tex == t.handle && runs.back().first + runs.back().count == first)
+                runs.back().count += n;
+            else
+                runs.push_back({t.handle, first, n});
+        }
+    }
+    void draw_runs(const std::vector<TexRun>& runs) {
+        glActiveTexture(GL_TEXTURE0);
+        for (const TexRun& r: runs) {
+            glBindTexture(GL_TEXTURE_2D, r.tex);
+            glDrawArrays(GL_TRIANGLES, r.first, r.count);
+        }
+    }
     GLuint g_shadow_fbo = 0, g_shadow_tex = 0;
+    GLuint g_body_fbo = 0, g_body_tex = 0;// same map without the cables (used on pod surfaces)
     int g_shadow_size = 0;
     GLuint g_scene_depth_fbo = 0, g_scene_depth_tex = 0;
     GLuint g_mask_prog = 0, g_mask_fbo = 0, g_mask_tex = 0;// pod exhaust / binder screen mask
@@ -181,13 +221,19 @@ namespace {
         return p;
     }
 
+    // Casters are alpha-tested against their texture so cut-out texels (spinning fan blades,
+    // grilles) don't cast solid squares.
     const char* kDepthVS = R"(#version 330 core
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec2 texcoord;
 uniform mat4 lightVP;
-void main() { gl_Position = lightVP * vec4(position, 1.0); }
+out vec2 vUV;
+void main() { vUV = texcoord; gl_Position = lightVP * vec4(position, 1.0); }
 )";
     const char* kDepthFS = R"(#version 330 core
-void main() {}
+in vec2 vUV;
+uniform sampler2D tex;
+void main() { if (texture(tex, vUV).a < 0.5) discard; }
 )";
     // Full-screen triangle; the inverse of the scene's projection*view is computed once per vertex.
     const char* kApplyVS = R"(#version 330 core
@@ -209,6 +255,7 @@ in vec2 uv;
 flat in mat4 invVP;
 uniform sampler2D sceneDepth;
 uniform sampler2D shadowMap;
+uniform sampler2D shadowMapBody;// same, without the pod cables (for pod surfaces)
 uniform mat4 lightVP;
 uniform float darkness;
 uniform float softness;
@@ -232,13 +279,16 @@ void main() {
     if (dot(n, camPos - w.xyz) < 0.0) n = -n;
     float shade = 1.0 - sunShading * (1.0 - clamp(dot(n, toSun), 0.0, 1.0));
     float sh = 0.0;
+    vec4 m = texture(podMask, uv);
+    bool body = m.b > 0.5;
     vec4 l = lightVP * w;
     vec3 p = l.xyz / l.w * 0.5 + 0.5;
     if (hasCasters != 0 && p.x > 0.0 && p.x < 1.0 && p.y > 0.0 && p.y < 1.0 && p.z < 1.0) {
         float r = softness * texel * 0.5;
         for (int i = -2; i <= 2; i++)
             for (int j = -2; j <= 2; j++) {
-                float sd = texture(shadowMap, p.xy + vec2(float(i), float(j)) * r).r;
+                vec2 q = p.xy + vec2(float(i), float(j)) * r;
+                float sd = body ? texture(shadowMapBody, q).r : texture(shadowMap, q).r;
                 sh += (p.z - bias > sd) ? 1.0 : 0.0;
             }
         sh /= 25.0;
@@ -248,7 +298,6 @@ void main() {
     float f = (1.0 - darkness * sh) * shade;
     // Pod exhaust: a fixed dim (the "in shadow" look) instead of whatever real shadow / sun
     // shading falls there; energy binders: left untouched.
-    vec2 m = texture(podMask, uv).rg;
     f = mix(f, exhaustTint, m.r);
     f = mix(f, 1.0, m.g);
     if (f >= 0.999) discard;
@@ -304,16 +353,33 @@ void main() {
 
     // Screen mask of the pod exhaust / binder meshes recorded this frame (depth-tested against the
     // scene so hidden parts don't count).
+    // The binder is a soft additive glow on a larger quad: its mask is weighted by how visible the
+    // texel is, so the see-through part of the quad doesn't leave an unshadowed box around the beam.
     const char* kMaskVS = R"(#version 330 core
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec2 texcoord;
 uniform mat4 proj;
 uniform mat4 view;
-void main() { gl_Position = proj * view * vec4(position, 1.0); }
+out vec2 vUV;
+void main() { vUV = texcoord; gl_Position = proj * view * vec4(position, 1.0); }
 )";
     const char* kMaskFS = R"(#version 330 core
+in vec2 vUV;
+uniform sampler2D tex;
 uniform vec4 maskColor;
+uniform int weighted;
 out vec4 color;
-void main() { color = maskColor; }
+void main() {
+    float w = 1.0;
+    if (weighted == 2) {
+        if (texture(tex, vUV).a < 0.5) discard;
+    } else if (weighted != 0) {
+        vec4 t = texture(tex, vUV);
+        w = clamp(max(t.r, max(t.g, t.b)) * t.a * 3.0, 0.0, 1.0);
+        if (w < 0.004) discard;
+    }
+    color = maskColor * w;
+}
 )";
 
     bool ensure_gl() {
@@ -333,28 +399,36 @@ void main() { color = maskColor; }
             glBindVertexArray(g_vao);
             glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(rdVector3), nullptr);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GpuVert), nullptr);
+            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GpuVert), (void*) (3 * sizeof(float)));
             glGenVertexArrays(1, &g_empty_vao);
         }
         if (g_shadow_size != s.map_size) {
             if (g_shadow_fbo) {
                 glDeleteFramebuffers(1, &g_shadow_fbo);
                 glDeleteTextures(1, &g_shadow_tex);
+                glDeleteFramebuffers(1, &g_body_fbo);
+                glDeleteTextures(1, &g_body_tex);
             }
             g_shadow_size = s.map_size;
-            glGenTextures(1, &g_shadow_tex);
-            glBindTexture(GL_TEXTURE_2D, g_shadow_tex);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, g_shadow_size, g_shadow_size, 0, GL_DEPTH_COMPONENT,
-                         GL_FLOAT, nullptr);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-            glGenFramebuffers(1, &g_shadow_fbo);
-            glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_fbo);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, g_shadow_tex, 0);
-            glDrawBuffer(GL_NONE);
-            glReadBuffer(GL_NONE);
+            for (int k = 0; k < 2; k++) {
+                GLuint& tex = k == 0 ? g_shadow_tex : g_body_tex;
+                GLuint& fbo = k == 0 ? g_shadow_fbo : g_body_fbo;
+                glGenTextures(1, &tex);
+                glBindTexture(GL_TEXTURE_2D, tex);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, g_shadow_size, g_shadow_size, 0,
+                             GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+                glGenFramebuffers(1, &fbo);
+                glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+                glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, tex, 0);
+                glDrawBuffer(GL_NONE);
+                glReadBuffer(GL_NONE);
+            }
         }
         return true;
     }
@@ -389,7 +463,7 @@ void main() { color = maskColor; }
         }
         glGenTextures(1, &g_mask_tex);
         glBindTexture(GL_TEXTURE_2D, g_mask_tex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, w, h, 0, GL_RG, GL_UNSIGNED_BYTE, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -408,7 +482,7 @@ void main() { color = maskColor; }
     // Every piece of GL state this module touches, saved and restored, so the renderer's own
     // state caching never sees a change.
     struct SavedState {
-        GLint draw_fbo, read_fbo, viewport[4], program, vao, array_buffer, active_tex, tex0, tex1, tex2;
+        GLint draw_fbo, read_fbo, viewport[4], program, vao, array_buffer, active_tex, tex0, tex1, tex2, tex3;
         GLint blend_src_rgb, blend_dst_rgb, blend_src_a, blend_dst_a;
         GLboolean blend, depth_test, depth_mask, cull, poly_offset, scissor, color_mask[4];
         GLint depth_func;
@@ -427,6 +501,8 @@ void main() { color = maskColor; }
             glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex1);
             glActiveTexture(GL_TEXTURE2);
             glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex2);
+            glActiveTexture(GL_TEXTURE3);
+            glGetIntegerv(GL_TEXTURE_BINDING_2D, &tex3);
             glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb);
             glGetIntegerv(GL_BLEND_DST_RGB, &blend_dst_rgb);
             glGetIntegerv(GL_BLEND_SRC_ALPHA, &blend_src_a);
@@ -450,6 +526,8 @@ void main() { color = maskColor; }
             glUseProgram((GLuint) program);
             glBindVertexArray((GLuint) vao);
             glBindBuffer(GL_ARRAY_BUFFER, (GLuint) array_buffer);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, (GLuint) tex3);
             glActiveTexture(GL_TEXTURE2);
             glBindTexture(GL_TEXTURE_2D, (GLuint) tex2);
             glActiveTexture(GL_TEXTURE1);
@@ -582,6 +660,7 @@ bool shadows_hide_blob() {
 
 void shadows_begin_viewport() {
     g_frame.clear();
+    g_frame_cables.clear();
     g_mask_frame[0].clear();
     g_mask_frame[1].clear();
     g_shadow_caster_depth = 0;
@@ -595,9 +674,10 @@ void shadows_begin_viewport() {
 }
 
 void shadows_add_caster(const swrModel_Mesh* mesh, const rdMatrix44& model_matrix,
-                        const std::vector<rdVector3>* fresh,
-                        void (*reparse)(const rdMatrix44&, const swrModel_Mesh*, std::vector<rdVector3>&), int role) {
-    if (mesh == nullptr || (role == 0 ? !shadows_enabled() : !shadows_capture_active()))
+                        const std::vector<ShadowCasterVertex>* fresh,
+                        void (*reparse)(const rdMatrix44&, const swrModel_Mesh*, std::vector<ShadowCasterVertex>&),
+                        const ShadowCasterTexture& texture, int role) {
+    if (mesh == nullptr || ((role == 0 || role == 3) ? !shadows_enabled() : !shadows_capture_active()))
         return;
     std::list<CasterGeo>& instances = g_cache[mesh];
     // This exact instance (same matrix) already cached?
@@ -627,9 +707,10 @@ void shadows_add_caster(const swrModel_Mesh* mesh, const rdMatrix44& model_matri
     } else if (fresh != nullptr) {
         g->pos = *fresh;
     }
+    g->tex = texture;
     g->last_used = g_frame_no;
     if (!g->pos.empty())
-        (role == 0 ? g_frame : g_mask_frame[role == 2 ? 1 : 0]).push_back(g);
+        (role == 0 ? g_frame : role == 3 ? g_frame_cables : g_mask_frame[role == 2 ? 1 : 0]).push_back(g);
 }
 
 namespace {
@@ -685,6 +766,7 @@ bool camera_get(rdVector3* pos, rdVector3* right) {
 void shadows_clear_cache() {
     g_cache.clear();
     g_frame.clear();
+    g_frame_cables.clear();
     g_mask_frame[0].clear();
     g_mask_frame[1].clear();
 }
@@ -699,7 +781,7 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     lights.clear();
     if (shadows_on && s.lights)
         pod_fx_gather_lights(lights);
-    const bool has_casters = shadows_on && !g_frame.empty();
+    const bool has_casters = shadows_on && (!g_frame.empty() || !g_frame_cables.empty());
     const bool has_mask = !g_mask_frame[0].empty() || !g_mask_frame[1].empty();
     if (!has_casters && lights.empty() && sun_shading <= 0.0f && !has_mask)
         return;
@@ -739,13 +821,19 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     const M4 light_vp = mul(lproj, lview);
 
     // ---- 1) caster depth from the sun ----
-    static std::vector<rdVector3> verts;
-    verts.clear();
-    for (const CasterGeo* g: g_frame)
-        verts.insert(verts.end(), g->pos.begin(), g->pos.end());
-    g_last_casters = (int) g_frame.size();
+    static std::vector<GpuVert> verts;
+    static std::vector<TexRun> runs;
+    static std::vector<const CasterGeo*> all_casters;
+    all_casters = g_frame;
+    all_casters.insert(all_casters.end(), g_frame_cables.begin(), g_frame_cables.end());
+    build_batches(all_casters, verts, runs);
+    g_last_casters = (int) all_casters.size();
     g_last_tris = (int) (verts.size() / 3);
     g_last_lights = (int) lights.size();
+    // Body casters come first in `verts`; the body-only map draws just the runs covering them.
+    size_t body_verts = 0;
+    for (const CasterGeo* g: g_frame)
+        body_verts += g->pos.size();
 
     glBindFramebuffer(GL_FRAMEBUFFER, g_shadow_fbo);
     glViewport(0, 0, g_shadow_size, g_shadow_size);
@@ -761,10 +849,26 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glClear(GL_DEPTH_BUFFER_BIT);
     glUseProgram(g_depth_prog);
     glUniformMatrix4fv(glGetUniformLocation(g_depth_prog, "lightVP"), 1, GL_FALSE, light_vp.m);
+    glUniform1i(glGetUniformLocation(g_depth_prog, "tex"), 0);
     glBindVertexArray(g_vao);
     glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
-    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (verts.size() * sizeof(rdVector3)), verts.data(), GL_STREAM_DRAW);
-    glDrawArrays(GL_TRIANGLES, 0, (GLsizei) verts.size());
+    glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (verts.size() * sizeof(GpuVert)), verts.data(), GL_STREAM_DRAW);
+    draw_runs(runs);
+    // Body-only map (no cables), sampled on pod surfaces.
+    glBindFramebuffer(GL_FRAMEBUFFER, g_body_fbo);
+    glClear(GL_DEPTH_BUFFER_BIT);
+    {
+        static std::vector<TexRun> body_runs;
+        body_runs.clear();
+        for (const TexRun& r: runs) {
+            if ((size_t) r.first >= body_verts)
+                break;
+            TexRun b = r;
+            b.count = (GLsizei) std::min<size_t>((size_t) r.count, body_verts - (size_t) r.first);
+            body_runs.push_back(b);
+        }
+        draw_runs(body_runs);
+    }
     glDisable(GL_POLYGON_OFFSET_FILL);
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
@@ -781,7 +885,7 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
-    if (has_mask) {
+    if (has_mask || (has_casters && !g_frame_cables.empty())) {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
         glDepthMask(GL_FALSE);// test against the scene depth, never write it
@@ -790,18 +894,26 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
         glUseProgram(g_mask_prog);
         glUniformMatrix4fv(glGetUniformLocation(g_mask_prog, "proj"), 1, GL_FALSE, &proj.vA.x);
         glUniformMatrix4fv(glGetUniformLocation(g_mask_prog, "view"), 1, GL_FALSE, &view.vA.x);
+        glUniform1i(glGetUniformLocation(g_mask_prog, "tex"), 0);
         glBindVertexArray(g_vao);
         glBindBuffer(GL_ARRAY_BUFFER, g_vbo);
-        for (int k = 0; k < 2; k++) {
-            if (g_mask_frame[k].empty())
+        // Overlapping layers keep the strongest coverage per channel.
+        glEnable(GL_BLEND);
+        glBlendEquation(GL_MAX);
+        for (int k = 0; k < 3; k++) {
+            // k: 0 = exhaust (r), 1 = binders (g), 2 = pod body (b: shadowed without the cables)
+            const std::vector<const CasterGeo*>& list = k < 2 ? g_mask_frame[k] : g_frame;
+            if (list.empty() || (k == 2 && !(has_casters && !g_frame_cables.empty())))
                 continue;
-            verts.clear();
-            for (const CasterGeo* g: g_mask_frame[k])
-                verts.insert(verts.end(), g->pos.begin(), g->pos.end());
-            glUniform4f(glGetUniformLocation(g_mask_prog, "maskColor"), k == 0 ? 1.0f : 0.0f, k == 1 ? 1.0f : 0.0f, 0, 1);
-            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (verts.size() * sizeof(rdVector3)), verts.data(), GL_STREAM_DRAW);
-            glDrawArrays(GL_TRIANGLES, 0, (GLsizei) verts.size());
+            build_batches(list, verts, runs);
+            glUniform4f(glGetUniformLocation(g_mask_prog, "maskColor"), k == 0 ? 1.0f : 0.0f, k == 1 ? 1.0f : 0.0f,
+                        k == 2 ? 1.0f : 0.0f, 1);
+            glUniform1i(glGetUniformLocation(g_mask_prog, "weighted"), k == 1 ? 1 : (k == 2 ? 2 : 0));
+            glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (verts.size() * sizeof(GpuVert)), verts.data(), GL_STREAM_DRAW);
+            draw_runs(runs);
         }
+        glBlendEquation(GL_FUNC_ADD);
+        glDisable(GL_BLEND);
         glDisable(GL_POLYGON_OFFSET_FILL);
     }
 
@@ -822,12 +934,15 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glUniform1f(glGetUniformLocation(g_apply_prog, "bias"), s.bias);
     glUniform1i(glGetUniformLocation(g_apply_prog, "sceneDepth"), 0);
     glUniform1i(glGetUniformLocation(g_apply_prog, "shadowMap"), 1);
+    glUniform1i(glGetUniformLocation(g_apply_prog, "shadowMapBody"), 3);
     glUniform3f(glGetUniformLocation(g_apply_prog, "camPos"), cam.x, cam.y, cam.z);
     glUniform3f(glGetUniformLocation(g_apply_prog, "toSun"), to_sun.x, to_sun.y, to_sun.z);
     glUniform1f(glGetUniformLocation(g_apply_prog, "sunShading"), sun_shading);
     glUniform1i(glGetUniformLocation(g_apply_prog, "hasCasters"), has_casters ? 1 : 0);
     glUniform1i(glGetUniformLocation(g_apply_prog, "podMask"), 2);
     glUniform1f(glGetUniformLocation(g_apply_prog, "exhaustTint"), s.exhaust_tint);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, g_body_tex);
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, g_mask_tex);
     glActiveTexture(GL_TEXTURE0);

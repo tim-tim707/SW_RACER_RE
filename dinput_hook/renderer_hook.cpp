@@ -482,6 +482,10 @@ struct DeferredTranslucentMesh {
     int preparsed_count;
 };
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
+// Energy binders: glowing beams, drawn after the shadow / dynamic-light pass so neither touches
+// them (that pass works on the finished frame, where a blended glow can't be told apart from the
+// surface seen through it).
+static std::vector<DeferredTranslucentMesh> g_deferred_after_shadows;
 // Vertices parsed when a mesh was deferred, so the flush draws them instead of parsing again.
 static std::vector<Vertex> g_deferred_vertices;
 static std::vector<std::pair<float, int>> g_deferred_order;// (view distance, index), reused
@@ -875,8 +879,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const swrModel_Material *material = mesh->mesh_material->material;
         const uint32_t mode = material->render_mode_1 | material->render_mode_2;
         const RenderMode &rm = (const RenderMode &) mode;
-        if (!rm.z_update && rm.z_compare &&
-            render_mode_is_alpha_blend(mode)) {
+        const bool binder = g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 &&
+                            shadows_capture_active();
+        if (binder) {
+            const float bx = (mesh->aabb[0] + mesh->aabb[3]) * 0.5f;
+            const float by = (mesh->aabb[1] + mesh->aabb[4]) * 0.5f;
+            const float bz = (mesh->aabb[2] + mesh->aabb[5]) * 0.5f;
+            const rdMatrix44 &m = model_matrix;
+            const rdVector3 c = {bx * m.vA.x + by * m.vB.x + bz * m.vC.x + m.vD.x,
+                                 bx * m.vA.y + by * m.vB.y + bz * m.vC.y + m.vD.y,
+                                 bx * m.vA.z + by * m.vB.z + bz * m.vC.z + m.vD.z};
+            const auto &pc = material->primitive_color;
+            pod_fx_report_binder(g_active_nozzle_tag->racer, c, pc[0] / 255.0f, pc[1] / 255.0f, pc[2] / 255.0f);
+        }
+        if (binder || (!rm.z_update && rm.z_compare && render_mode_is_alpha_blend(mode))) {
             const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
             int preparsed_first = -1;
             int preparsed_count = 0;
@@ -891,7 +907,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             rdMatrix44 mv;
             rdMatrix_Multiply44(&mv, &model_matrix, &view_matrix);
             const float view_z = cx * mv.vA.z + cy * mv.vB.z + cz * mv.vC.z + mv.vD.z;
-            g_deferred_translucent.push_back(
+            (binder ? g_deferred_after_shadows : g_deferred_translucent).push_back(
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
                  model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
                  preparsed_count});
@@ -1275,22 +1291,28 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // (role 1) and energy-binder parts (role 2) instead go into the screen mask the shadow pass
     // uses to give the exhaust a fixed look and leave the binders untouched.
     if (g_shadow_caster_depth > 0 && !g_pod_shadow_depth && shadows_capture_active()) {
-        const int role = g_active_nozzle_tag == nullptr ? 0 : (g_active_nozzle_tag->kind == 4 ? 2 : 1);
-        static std::vector<rdVector3> fresh;
+        // role 3: a pod cable (casts on the ground, not on pod surfaces)
+        const int role = g_active_nozzle_tag == nullptr ? (g_active_cable_amplitude >= 0.0f ? 3 : 0)
+                                                        : (g_active_nozzle_tag->kind == 4 ? 2 : 1);
+        // Texture coordinates go along so cut-out texels don't cast (same mapping as n64_shader:
+        // uv = tu / (uvScale * 4096) + uvOffset, tu/tv read as signed shorts).
+        static std::vector<ShadowCasterVertex> fresh;
         if (parsed_this_draw) {
             fresh.resize(triangles.size());
             for (size_t i = 0; i < triangles.size(); i++)
-                fresh[i] = triangles[i].pos;
+                fresh[i] = {triangles[i].pos, (float) (int16_t) triangles[i].tu, (float) (int16_t) triangles[i].tv};
         }
+        const ShadowCasterTexture caster_tex = {current_texture_handle, uv_scale_x, uv_scale_y, uv_offset_x,
+                                                uv_offset_y};
         shadows_add_caster(mesh, model_matrix, parsed_this_draw ? &fresh : nullptr,
-                           [](const rdMatrix44 &m, const swrModel_Mesh *me, std::vector<rdVector3> &out) {
+                           [](const rdMatrix44 &m, const swrModel_Mesh *me, std::vector<ShadowCasterVertex> &out) {
                                static std::vector<Vertex> tmp;
                                parse_display_list_commands(m, me, tmp);
                                out.resize(tmp.size());
                                for (size_t i = 0; i < tmp.size(); i++)
-                                   out[i] = tmp[i].pos;
+                                   out[i] = {tmp[i].pos, (float) (int16_t) tmp[i].tu, (float) (int16_t) tmp[i].tv};
                            },
-                           role);
+                           caster_tex, role);
     }
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
@@ -1592,19 +1614,19 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         g_shadow_caster_depth--;
 }
 
-static void flush_deferred_translucent() {
+static void flush_deferred_translucent(std::vector<DeferredTranslucentMesh> &list, bool last) {
     // Back to front; ties keep tree order (what the previous stable_sort gave) without its per-frame
     // temp buffer.
     g_deferred_order.clear();
-    for (int i = 0; i < (int) g_deferred_translucent.size(); i++)
-        g_deferred_order.push_back({g_deferred_translucent[i].view_distance, i});
+    for (int i = 0; i < (int) list.size(); i++)
+        g_deferred_order.push_back({list[i].view_distance, i});
     std::sort(g_deferred_order.begin(), g_deferred_order.end(),
               [](const std::pair<float, int> &a, const std::pair<float, int> &b) {
                   return a.first != b.first ? a.first > b.first : a.second < b.second;
               });
     const bool prev_terrain_depth = g_weather_terrain_depth;
     for (const auto &[distance, index]: g_deferred_order) {
-        const DeferredTranslucentMesh &d = g_deferred_translucent[index];
+        const DeferredTranslucentMesh &d = list[index];
         g_weather_terrain_depth = d.weather_terrain_depth;
         if (d.preparsed_first >= 0) {
             g_preparsed_vertices = g_deferred_vertices.data() + d.preparsed_first;
@@ -1617,8 +1639,9 @@ static void flush_deferred_translucent() {
     }
     g_weather_terrain_depth = prev_terrain_depth;
     invalidate_mesh_gl_state_cache();
-    g_deferred_translucent.clear();
-    g_deferred_vertices.clear();
+    list.clear();
+    if (last)
+        g_deferred_vertices.clear();
 }
 
 #ifndef NDEBUG
@@ -1992,12 +2015,13 @@ void swrViewport_Render_Hook(int x) {
     invalidate_mesh_gl_state_cache();
 
     g_deferred_translucent.clear();
+    g_deferred_after_shadows.clear();
     g_deferred_vertices.clear();
     g_defer_translucent = true;
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     g_defer_translucent = false;
-    flush_deferred_translucent();
+    flush_deferred_translucent(g_deferred_translucent, g_deferred_after_shadows.empty());
     PopDebugGroup();
 
     debugEnvInfos(envInfos, proj_mat, view_mat);
@@ -2028,6 +2052,20 @@ void swrViewport_Render_Hook(int x) {
         camera_record(view_mat_corrected);// listener position for positional custom sounds
     if (default_framebuffer != 0 && (uint32_t) root_node == (uint32_t) &someRootNode)
         shadows_render(proj_mat, view_mat_corrected, default_framebuffer, scene_width, scene_height);
+
+    // Energy binders on top of the shadowed / lit scene (see g_deferred_after_shadows).
+    if (!g_deferred_after_shadows.empty()) {
+        flush_deferred_translucent(g_deferred_after_shadows, true);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+        g_cutout_alpha_to_coverage = false;
+        std3D_pD3DTex = 0;
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glUseProgram(0);
+        invalidate_mesh_gl_state_cache();
+        std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+    }
 
     if (default_framebuffer != 0 && g_scale_resolve_fbo != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
