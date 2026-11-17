@@ -270,17 +270,9 @@ void swrObjcMan_F2(swrObjcMan* cman)
 // 0x00451d60
 void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
 {
-    // the original copies unk20_mat + focusTransform_mat into the block starting at
-    // unk1e4_mat.vD, i.e. one row past the start of unk1e4_mat
     cman->mode_type = mode;
-    cman->unk1e4_mat.vD = cman->unk20_mat.vA;
-    cman->stagingTransform.vA = cman->unk20_mat.vB;
-    cman->stagingTransform.vB = cman->unk20_mat.vC;
-    cman->stagingTransform.vC = cman->unk20_mat.vD;
-    cman->stagingTransform.vD = cman->focusTransform_mat.vA;
-    cman->stagingTransformFocus.vA = cman->focusTransform_mat.vB;
-    cman->stagingTransformFocus.vB = cman->focusTransform_mat.vC;
-    cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
+    cman->stagingTransform = cman->unk20_mat;
+    cman->stagingTransformFocus = cman->focusTransform_mat;
 }
 
 // 0x00451ec0
@@ -311,9 +303,8 @@ static void swrObjcMan_SetTranslationMatrix(rdMatrix44* m, const rdVector3* t)
 // 0x00452600
 void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman)
 {
-    // types.h is 0x10 off here: 0x1b4 holds a swrSplineCursor and 0x1e4 its evaluated frame
-    swrSplineCursor* cursor = (swrSplineCursor*)&cman->unk1b4_mat;
-    rdMatrix44* frame = (rdMatrix44*)&cman->unk1b4_mat.vD;
+    swrSplineCursor* cursor = &cman->deathCamCursor;
+    rdMatrix44* frame = &cman->unk1e4_mat;
     rdVector3* deathPos = (rdVector3*)&cman->unk15c[0];
     rdVector3* deathLookAt = (rdVector3*)&cman->unk15c[3];
     swrRace* pod = cman->unkf4_objTest;
@@ -388,10 +379,9 @@ void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman)
         return;
 
     zeroG = (pod->flags0 & (swrObjTest_FLAG0_ZON | swrObjTest_FLAG0_ZOFF)) != 0;
-    // stagingTransformFocus.vD.w is the FOV (types.h is 0x10 off here)
-    cman->stagingTransformFocus.vD.w = 100.0f;
+    cman->fov = 100.0f;
     if (cman->mode_type == 5)
-        cman->stagingTransformFocus.vD.w = 120.0f;
+        cman->fov = 120.0f;
 
     rdMatrix_Copy44(&view, &pod->transform);
     view.vD.z = pod->unk11_1 + view.vD.z;
@@ -433,8 +423,7 @@ void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman)
 // 0x004533a0
 void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman)
 {
-    // 0x84 holds a swrSplineCursor (the pod's, re-copied each frame) and 0xb4 its evaluated frame
-    swrSplineCursor* cursor = (swrSplineCursor*)&cman->unk84_mat;
+    swrSplineCursor* cursor = &cman->splineCamCursor;
     swrRace* pod = cman->unkf4_objTest;
     rdMatrix44 podXf;
     rdMatrix44 behind;
@@ -477,8 +466,7 @@ void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman)
     rdMatrix_Copy44(&cman->unk20_mat, &eye);
     rdMatrix_Copy44(&eye, &cman->unkf4_objTest->transform);
     rdMatrix_Copy44(&cman->focusTransform_mat, &eye);
-    // stagingTransformFocus.vD.w is the FOV (types.h is 0x10 off here)
-    cman->stagingTransformFocus.vD.w = 60.0f;
+    cman->fov = 60.0f;
 }
 
 // 0x004535c0
@@ -581,8 +569,8 @@ void swrObjcMan_UpdateCamera(swrObjcMan* cman)
         }
     }
 
-    cman->fog_flag = 100.0f;
-    cman->unk2a4 = 0.5f;
+    cman->unk2b8 = 100.0f;
+    cman->nearClip = 0.5f;
     switch (cman->mode_type) {
     case 1:
     case 2:
@@ -612,12 +600,11 @@ void swrObjcMan_UpdateCamera(swrObjcMan* cman)
     if (!swrCam_IsBehaviorActiveViewportCamera_Maybe((swrModel_Behavior*)cman->camStateIndex))
         return;
 
-    // stagingTransformFocus.vD.y/.z hold bit flags, not floats
-    value = swrRace_creditsMode != 0 ? (int)0xffffff00 : *(int*)&cman->stagingTransformFocus.vD.z;
+    value = swrRace_creditsMode != 0 ? (int)0xffffff00 : (int)cman->visual_flag;
     swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 4, value);
-    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 3, *(int*)&cman->stagingTransformFocus.vD.z);
+    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 3, cman->visual_flag);
     swrObjcMan_UpdateFogAndViewport(cman);
-    if (*(unsigned int*)&cman->stagingTransformFocus.vD.y & swrObjcMan_VIEWFLAGS_NO_WEATHER)
+    if (cman->fog_flag & swrObjcMan_VIEWFLAGS_NO_WEATHER)
         swrWeather_Disable();
     else
         swrWeather_Enable();
@@ -668,9 +655,8 @@ void swrObjcMan_F3(swrObjcMan* cman)
         playASound(7, 7, 0.25f, 1.0f, 1);
     }
 
-    // stagingTransformFocus.vD.x holds the mesh behavior of the surface under the camera
     if (cman->mode_type != 0 && cman->metaCamIndex_count >= 0 && debug_showSurfaceFlags != 0)
-        DrawTerrainTypeDebugText(*(void**)&cman->stagingTransformFocus.vD.x);
+        DrawTerrainTypeDebugText(cman->surfaceBehavior);
 }
 
 // 0x004543f0

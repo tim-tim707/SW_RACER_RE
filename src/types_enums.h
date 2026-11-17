@@ -456,8 +456,8 @@ typedef enum swrViewport_FLAGS
     swrViewport_FLAGS_CAMERA_VALID = 0x1, // unkCameraIndex is set
 } swrViewport_FLAGS;
 
-// cMan view flags at 0x2a8 (stagingTransformFocus.vD.y in types.h), read each frame by
-// swrObjcMan_UpdateCamera / swrObjcMan_UpdateFogAndViewport. Only confirmed bits named.
+// swrObjcMan.fog_flag, read each frame by swrObjcMan_UpdateCamera /
+// swrObjcMan_UpdateFogAndViewport. Only confirmed bits named.
 typedef enum swrObjcMan_VIEWFLAGS
 {
     swrObjcMan_VIEWFLAGS_NO_WEATHER = 0x8, // swrWeather_Disable instead of Enable

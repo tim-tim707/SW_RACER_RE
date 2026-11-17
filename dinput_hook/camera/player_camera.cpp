@@ -542,21 +542,20 @@ extern "C" void __cdecl swrObjcMan_UpdateChaseCamera_delta(swrObjcMan *cman) {
     row.chaseCamHeight = height;
 }
 
-// stagingTransformFocus.vD.w is the camera FOV, re-staged every frame by the mode function (100, or
+// cman->fov is re-staged every frame by the mode function (100, or
 // 120 for the wide first person) and pushed to the viewport here.
 typedef void(__cdecl *swrObjcMan_UpdateFogAndViewportFn)(swrObjcMan *);
 extern "C" void __cdecl swrObjcMan_UpdateFogAndViewport_delta(swrObjcMan *cman) {
     // <= 0 means "keep the current FOV" (swrViewport_SetCameraParameters skips it); the binder
     // ignition orbit stages -1, still there on the frame it hands over to the chase camera.
     swrRace *racer = local_followed_racer(cman);
-    if (racer != nullptr && is_player_view(cman->mode_type) &&
-        cman->stagingTransformFocus.vD.w > 0.0f) {
-        float fov = cman->stagingTransformFocus.vD.w + g_cfg.fov_offset;
+    if (racer != nullptr && is_player_view(cman->mode_type) && cman->fov > 0.0f) {
+        float fov = cman->fov + g_cfg.fov_offset;
         if (g_cfg.dynamic_fov > 0.0f && racer->podStats.maxSpeed > 0.0f) {
             const float t = std::clamp(racer->speedValue / racer->podStats.maxSpeed, 0.0f, 1.0f);
             fov += g_cfg.dynamic_fov * t * t;
         }
-        cman->stagingTransformFocus.vD.w = std::clamp(fov, 20.0f, 170.0f);
+        cman->fov = std::clamp(fov, 20.0f, 170.0f);
     }
     hook_call_original((swrObjcMan_UpdateFogAndViewportFn) swrObjcMan_UpdateFogAndViewport_ADDR,
                        cman);
