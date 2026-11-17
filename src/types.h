@@ -621,7 +621,7 @@ extern "C"
         rdMatrix44 engineGlowXfL; // 0x14d0. left engine glow billboard (partNodes[0x46])
         char unk1510[192]; // 0x1510. partXf[71..73], never referenced
         rdMatrix44 farLodPodXf; // 0x15d0. transform of the single-node far-LOD pod (0.004-scaled pod transform; set on lodBodyNode in F3)
-        char unk1610[900]; // 0x1610. rdVector3 partOffset[75], index-aligned with partNodes: per-part positional offset / animation accumulators (exhaust size at [side].y, steering-part spin at +400)
+        rdVector3 partOffset[75]; // 0x1610. index-aligned with partNodes: per-part positional offset / animation accumulators (.y = smoothed value of swrRace_SmoothEngineExhaustSize; [33].y = steering-part spin angle)
         struct swrModel_Node* reflectionNode; // 0x1994. pod's planar ground-reflection node (drawn by swrRace_UpdateReflectionNode on ON_MIRR surfaces)
         int lodDistance;
         float wobblePhase[4]; // 0x199c. per-part wobble sine phases, random-seeded in Init, advanced by dt (AnimateEngineWobble)
@@ -1006,6 +1006,16 @@ extern "C"
         struct swrModel_Node* particleNodes[5]; // 0xf4. borrowed from fireballChildNodesPtr[id * 5]
     } swrObjSmok; // sizeof(0x108)
 
+    // Surface lighting copied from a swrModel_Behavior (swrObjcMan_LoadLightingFromBehavior)
+    typedef struct swrObjcMan_Light
+    {
+        unsigned int flags; // swrObjcMan_LIGHTFLAG
+        rdVector3 ambientColor; // swrModel_Behavior.ambient_color, 0..255
+        rdVector3 lightVector; // swrModel_Behavior.light_vector
+        rdVector3 lightColor; // swrModel_Behavior.light_color, 0..255
+        rdVector3 lightVector2; // swrModel_Behavior.light_vector2, always normalized
+    } swrObjcMan_Light; // sizeof(0x34)
+
     typedef struct swrObjcMan
     {
         swrObj obj;
@@ -1068,40 +1078,27 @@ extern "C"
         rdVector3 unk2f4;
         rdVector3 unk300;
         rdVector3 unk30c;
-        float unk310;
-        float unk314;
         float unk318;
         float unk31c;
         float unk320;
         float unk324;
-        float unk330;
-        float unk334;
-        float unk338;
-        float unk33c;
-        rdVector3 unk340;
-        float unk34c;
-        float unk350;
-        float unk354;
-        rdVector3 unk358;
-        float unk35c;
-        rdVector3 unk368;
-        rdVector3 unk374;
-        rdVector3 unk380;
+        float unk328;
+        float unk32c;
+        swrObjcMan_Light light; // 0x330 active lighting, loaded by swrObjcMan_LoadLightingFromBehavior
+        swrObjcMan_Light lightDefault; // 0x364 restored into light when the surface behavior sets no lighting
+        float unk398_ms;
         // Camera-shake ("earthquake") state, set by the 'Shak' sub-event (swrObjcMan_F4)
         // and animated each frame by swrObjcMan_F3: .x = current offset (a triangle wave F3
         // adds to the camera Z), .y = oscillation speed, .z = amplitude bound. .z is also the
         // active flag -- non-zero only while a quake trigger (swrObjTrig type 0x69/0x138) runs.
-        rdVector3 camShake; // 0x38c
-        float unk398_ms;
-        float unk39c;
-        float unk3a0;
-        float unk3a4;
+        rdVector3 camShake; // 0x39c
     } swrObjcMan; // sizeof(0x3a8)
     SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, splineCamCursor) == 0x84, "swrObjcMan.splineCamCursor moved");
     SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, deathCamCursor) == 0x1b4, "swrObjcMan.deathCamCursor moved");
     SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, stagingTransform) == 0x224, "swrObjcMan.stagingTransform moved");
     SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, fov) == 0x2b0, "swrObjcMan.fov moved");
-    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, camShake) == 0x38c, "swrObjcMan.camShake moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, light) == 0x330, "swrObjcMan.light moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, camShake) == 0x39c, "swrObjcMan.camShake moved");
     SWR_ASSERT_LAYOUT(sizeof(swrObjcMan) == 0x3a8, "swrObjcMan size changed");
 
     typedef struct swrEventManager
@@ -1691,14 +1688,12 @@ extern "C"
         uint8_t fog_color[3];
         uint16_t fog_start;
         uint16_t fog_end;
-        uint16_t light_flags;
+        uint16_t light_flags; // swrModel_Behavior_LIGHTFLAG
         uint8_t ambient_color[3];
         uint8_t light_color[3];
         uint16_t unk10;
         float light_vector[3];
-        swrModel_Node* unk14_node;
-        uint32_t unk15;
-        uint32_t unk16;
+        float light_vector2[3]; // 0x20 normalized into swrObjcMan_Light.lightVector2
         swrVehicleReaction vehicle_reaction;
         uint16_t unk18;
         uint16_t unk19;

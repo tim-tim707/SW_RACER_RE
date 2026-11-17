@@ -253,6 +253,7 @@
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
+#define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this
 #define SWR_UI_CARET_BLINK_MS (250)
 #define SWR_SCANCODE_MINUS (0x0c) // '-' key, also accepted by swrUI_HandleSliderKey
 #define SWR_SCANCODE_EQUALS (0x0d) // '=' / '+' key
@@ -267,5 +268,14 @@
 // swrControl force feedback (0x00409d70 LoadForceEffects .. 0x0040b5e0 UpdateImpactForceEffect)
 #define SWR_FF_EFFECT_SLOTS (6) // cifr_EffectSet.slots
 #define SWR_FF_DEVICE_NONE (9) // swrControl_forceEffectsDeviceType: no bundle loaded; valid device types are 0..8
+
+// swrSprite_AddDirtyRect (0x00484020)
+#define SWR_SPRITE_MAX_DIRTY_RECTS (31) // swrSprite_dirtyRects holds 31 x {x1,y1,x2,y2}
+#define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
+#define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)
+
+// swrMultiplayer_PublishPodState (0x0041d930)
+#define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
+#define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
 
 #endif // ENGINE_CONFIG_H

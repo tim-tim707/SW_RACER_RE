@@ -11,6 +11,7 @@
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <engine_config.h>
+#include <Primitives/rdMatrix.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -643,4 +644,36 @@ int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3
         }
     }
     return 1;
+}
+
+// 0x0041d8d0
+void swrMultiplayer_SendPodHello(swrRace* player)
+{
+    HANG("TODO");
+}
+
+// 0x0041d930
+void swrMultiplayer_PublishPodState(swrRace* player)
+{
+    int slot = *(int*)&player->score_ptr->time_unk;
+
+    // AI pod not yet joined: parked below the track. SendPodHello sets the ON_LAVA bit as its 'sent' marker
+    if ((player->flags0 & swrObjTest_FLAG0_AI) && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0) {
+        if ((player->flags1 & swrObjTest_FLAG1_ON_LAVA) == 0)
+            swrMultiplayer_SendPodHello(player);
+        player->transform.vD.x = swrMultiplayer_aLocalPodTransform[slot].vD.x;
+        player->transform.vD.y = swrMultiplayer_aLocalPodTransform[slot].vD.y;
+        swrMultiplayer_aLocalPodTransform[slot].vD.z = SWR_MP_PARKED_POD_Z;
+        player->transform.vD.z = SWR_MP_PARKED_POD_Z;
+        swrMultiplayer_aPodStatus[slot][0] = SWR_MP_POD_STATUS_PARKED;
+        swrMultiplayer_aPodStatus[slot][1] = 0;
+        swrMultiplayer_aPodStatus[slot][2] = 0;
+        swrMultiplayer_aPodStatus[slot][3] = 0;
+        return;
+    }
+    rdMatrix_Copy44(&swrMultiplayer_aLocalPodTransform[slot], &player->transform);
+    swrMultiplayer_aRemoteSpeed[slot] = player->speedValue;
+    swrMultiplayer_aRemoteLapComp[slot] = player->lapComp;
+    swrMultiplayer_aRemoteLapCompMax[slot] = player->lapCompMax;
+    swrMultiplayer_aRemoteLap[slot] = player->score_ptr->results_P1_Lap;
 }

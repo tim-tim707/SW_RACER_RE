@@ -7611,6 +7611,28 @@ void swrRace_UpdateSpinoutNodes(swrRace* player)
     }
 }
 
+// 0x00470510
+float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
+{
+    float* value = &player->partOffset[part].y;
+    float current = *value;
+    float result;
+
+    lowerRate *= swrRace_deltaTimeSecs;
+    upperRate *= swrRace_deltaTimeSecs;
+    if (player->flags0 & swrObjTest_FLAG0_BOOSTING)
+        target *= 0.5f;
+    if (player->flags0 & swrObjTest_FLAG0_BRAKING) {
+        upperRate += upperRate;
+        target = brakeTarget;
+    }
+    result = swrMath_StepTowardClamped(target, current, min, max, upperRate, lowerRate);
+    if (player->flags1 & swrObjTest_FLAG1_FINISHED)
+        result = (result + current) * 0.5f;
+    *value = result;
+    return result;
+}
+
 // 0x004705d0
 void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt)
 {
@@ -7648,4 +7670,93 @@ void swrRace_UpdateEngineSound(swrRace* player)
         }
     }
     swrRace_PlayEngineSounds(player, 0.7f);
+}
+
+// 0x0046ecd0
+void swrRace_ApplyEngineProximityPush(swrRace* player, float* otherPos, rdVector3* out)
+{
+    rdVector3 pos;
+    rdVector3 fromRight;
+    rdVector3 fromLeft;
+    float halfWidth;
+    float distRight;
+    float distLeft;
+    float push;
+
+    if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+        return;
+
+    pos.x = otherPos[0];
+    pos.y = otherPos[1];
+    pos.z = otherPos[2];
+    rdVector_Sub3(&fromRight, &pos, (rdVector3*)&player->engineXfR.vD);
+    rdVector_Sub3(&fromLeft, &pos, (rdVector3*)&player->engineXfL.vD);
+    // dot products are inlined in the original
+    distRight = player->engineXfR.vA.z * fromRight.z + player->engineXfR.vA.y * fromRight.y + fromRight.x * player->engineXfR.vA.x;
+    distLeft = player->engineXfL.vA.z * fromLeft.z + player->engineXfL.vA.y * fromLeft.y + fromLeft.x * player->engineXfL.vA.x;
+    halfWidth = *(float*)&player->unk1e64_flag * 0.5f;
+
+    if (distLeft * distLeft <= distRight * distRight) {
+        push = -(halfWidth + distLeft);
+        if (push <= 0.0f)
+            return;
+        rdVector_Scale3Add3(out, &pos, push, (rdVector3*)&player->engineXfL.vA);
+    } else {
+        push = -(distRight - halfWidth);
+        if (push >= 0.0f)
+            return;
+        rdVector_Scale3Add3(out, &pos, push, (rdVector3*)&player->engineXfR.vA);
+    }
+}
+
+// 0x0046ee20
+void swrRace_UpdateScrapeSparks(swrRace* player)
+{
+    swrModel_Node** nodes = player->partNodes;
+
+    if (nodes == NULL)
+        return;
+
+    if (player->flags0 & swrObjTest_FLAG0_SCRAPE_SPARK_R) {
+        if (nodes[1] != NULL) {
+            swrRace_ApplyEngineProximityPush(player, (float*)&player->scrapeSparkXf.vD, (rdVector3*)&player->scrapeSparkXf.vD);
+            rdMatrix_ScaleBasis44(&player->scrapeSparkXf, 3.0f, 3.0f, 3.0f, &player->scrapeSparkXf);
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x41], &player->scrapeSparkXf);
+        }
+        player->flags0 &= ~swrObjTest_FLAG0_SCRAPE_SPARK_R;
+        if (player->partNodes[0x41] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[0x41], 2, 3, 0x10, 2);
+        // -0.75 is the double at 0x004ada08: re-arm a timer that sits too far ahead
+        if (timetotal - -0.75 < swrRace_scrapeSparkSoundTime)
+            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+        if (swrRace_scrapeSparkSoundTime < timetotal) {
+            swrSound_PlaySpatialRange(0x3c, 5, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
+            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+        }
+    } else if (nodes[0x41] != NULL) {
+        swrModel_NodeModifyFlags(nodes[0x41], 2, -4, 0x10, 3);
+    }
+
+    if (player->flags0 & swrObjTest_FLAG0_SCRAPE_SPARK_L) {
+        if (player->partNodes[1] != NULL) {
+            swrRace_ApplyEngineProximityPush(player, (float*)&player->scrapeSparkXf2.vD, (rdVector3*)&player->scrapeSparkXf2.vD);
+            rdMatrix_ScaleBasis44(&player->scrapeSparkXf2, 2.0f, 2.0f, 2.0f, &player->scrapeSparkXf2);
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x42], &player->scrapeSparkXf2);
+        }
+        if (player->partNodes[0x42] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[0x42], 2, 3, 0x10, 2);
+        player->flags0 &= ~swrObjTest_FLAG0_SCRAPE_SPARK_L;
+        if (swrRace_scrapeSparkSoundTime < timetotal) {
+            swrSound_PlaySpatialRange(0x3c, 5, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
+            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+        }
+    } else if (player->partNodes[0x42] != NULL) {
+        swrModel_NodeModifyFlags(player->partNodes[0x42], 2, -4, 0x10, 3);
+    }
+}
+
+// 0x00470ae0
+void swrRace_PoddAnimateEngines(swrRace* player)
+{
+    HANG("TODO");
 }

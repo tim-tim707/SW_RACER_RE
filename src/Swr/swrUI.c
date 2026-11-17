@@ -399,6 +399,34 @@ swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, in
     return ui;
 }
 
+// 0x00413610
+void swrUI_SelectListItem(swrUI_unk* item, int bSelect)
+{
+    swrUI_unk* list;
+    swrUI_unk* sibling;
+
+    if (item == NULL)
+        return;
+    if (bSelect) {
+        list = item->prev;
+        for (sibling = list->next; sibling != NULL; sibling = sibling->next2) {
+            if (((uint8_t)sibling->widget_class & swrUI_CLASS_LIST_ITEM) != swrUI_CLASS_LIST_ITEM)
+                continue;
+            playUISound(0x46);
+            if ((list->item_flags & swrUI_LIST_NO_SELECTION_FRAME) == 0 && ((uint8_t)sibling->widget_class & 3) != 3) {
+                swrUI_AddSprite(sibling, 0, 0, NULL, 0, 0);
+                swrUI_AddSprite(sibling, 1, 0, NULL, 0, 0);
+                swrUI_AddSprite(sibling, 2, 0, NULL, 0, 0);
+            }
+            sibling->item_flags &= ~swrUI_ITEM_SELECTED;
+        }
+        item->item_flags |= swrUI_ITEM_SELECTED;
+    } else {
+        item->item_flags &= ~swrUI_ITEM_SELECTED;
+    }
+    swrUI_RefreshListLayout(item->prev);
+}
+
 // 0x004136f0
 swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
 {
@@ -690,6 +718,40 @@ int swrUI_GetSlotValue(swrUI_unk* ui, int index)
     return *(int*)(ui->unk01_10 + index * 4);
 }
 
+// 0x00414d00
+void swrUI_FreeElement(swrUI_unk* element)
+{
+    swrUI_unk* child;
+    swrUI_unk* next;
+
+    for (child = element->next; child != NULL; child = next) {
+        next = child->next2;
+        swrUI_FreeElement(child);
+    }
+    if (element == swrUI_unk_ptr)
+        return;
+    swrUI_RunCallbacks(element, swrUI_MSG_DESTROY, 0, 0);
+    swrUI_ClearAllSprites(element);
+    swrUI_UnlinkElement(element);
+    free(element);
+}
+
+// 0x00414d60
+swrUI_unk* swrUI_FindByClass(swrUI_unk* root, int classId)
+{
+    swrUI_unk* found;
+
+    if (root->widget_class == classId)
+        return root;
+    // only the first child's subtree is searched, never the siblings
+    if (root->next != NULL) {
+        found = swrUI_FindByClass(root->next, classId);
+        if (found != NULL && found->widget_class == classId)
+            return found;
+    }
+    return NULL;
+}
+
 // 0x00414d90
 swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
 {
@@ -898,15 +960,131 @@ int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int p
 // 0x00416130
 int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
 {
-    HANG("TODO");
-    return 0;
+    swrUI_unk* item;
+    swrSprite_BBox box;
+    int margins[4];
+
+    switch (msg) {
+    case swrUI_MSG_HOVER_CHANGED:
+        swrUI_BuildPanelFrame(ui, 0, param != NULL ? 1 : 0);
+        break;
+    case swrUI_MSG_KEY_DOWN:
+        if (swrUI_CountSelectableItems(ui) == 0)
+            break;
+        swrUI_SetUI5(ui);
+        if ((int)param == VK_UP) {
+            item = swrUI_GetSelectedItem(ui);
+            if (item == NULL)
+                break;
+            item = item->prev2;
+        } else if ((int)param == VK_DOWN) {
+            item = swrUI_GetSelectedItem(ui);
+            if (item == NULL)
+                break;
+            item = item->next2;
+        } else {
+            break;
+        }
+        if (item != NULL)
+            swrUI_SelectListItem(item, 1);
+        return 1;
+    case swrUI_MSG_KEY_UP:
+        if (swrUI_CountSelectableItems(ui) != 0)
+            swrUI_ClearUI5();
+        break;
+    case swrUI_MSG_SET_POS:
+        box.x = ui->x;
+        box.y = ui->y;
+        box.x2 = ui->width;
+        box.y2 = ui->height;
+        swrSprite_MoveBBoxTo(&box, (int)param, param2);
+        swrUI_SetSpriteSelectionBBox_Maybe(margins, 0);
+        ui->content_left = box.x + margins[0];
+        ui->content_top = box.y + margins[1];
+        ui->content_right = box.x2 - margins[2];
+        ui->content_bottom = box.y2 - margins[3];
+        break;
+    case 0x48:
+        if (param != NULL) {
+            for (item = ui->next; item != NULL; item = item->next2)
+                swrUI_RunCallbacks2(item, 0);
+            break;
+        }
+        swrUI_RefreshListLayout(ui);
+        break;
+    case swrUI_MSG_LIST_SELECT_ITEM:
+        swrUI_SelectListItem((swrUI_unk*)param2, 1);
+        swrUI_RefreshListLayout(ui);
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_LIST_SELECTION_CHANGED, (int)ui, param2);
+        break;
+    case swrUI_MSG_SLIDER_DECREASED:
+        if (ui->first_visible != 0)
+            ui->first_visible--;
+        swrUI_RefreshListLayout(ui);
+        break;
+    case swrUI_MSG_SLIDER_INCREASED:
+        if ((unsigned int)ui->first_visible < (unsigned int)swrUI_CountSelectableItems(ui))
+            ui->first_visible++;
+        swrUI_RefreshListLayout(ui);
+        break;
+    }
+    return swrUI_DefaultElementProc(ui, msg, param, param2);
 }
 
 // 0x00416370
 int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
 {
-    HANG("TODO");
-    return 0;
+    int rect[4];
+    int x;
+    int caretHeight;
+
+    switch (msg) {
+    case swrUI_MSG_KEY_DOWN:
+        if (ui->flags & swrUI_EDITING)
+            swrUI_HandleTextEntryKey(ui, (int)param);
+        break;
+    case swrUI_MSG_UPDATE:
+        rect[0] = ui->x;
+        rect[1] = ui->y;
+        rect[2] = ui->width;
+        rect[3] = ui->height;
+        swrUI_DrawTextAligned(ui->font_index, ui->str_allocated, (short*)rect, 0x120000, ui->r, ui->g, ui->b, ui->a, 0, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
+        break;
+    case swrUI_MSG_SET_TEXT:
+        swrUI_DefaultElementProc(ui, msg, param, param2);
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_CHANGED, ui->id, (int)ui->str_allocated);
+        return 0;
+    case swrUI_MSG_SET_POS:
+        // caret left edge: text up to the caret, plus five spaces of padding
+        x = swrUI_GetSubstringWidth(ui->str_allocated, ui->font_index, 0, ui->caret_pos);
+        x += swrText_GetStringWidth(" ", swrText_fontsByIndex[ui->font_index]) * 5;
+        caretHeight = swrText_GetStringHeight("l", swrText_fontsByIndex[ui->font_index]) * 2;
+        swrUI_SetCaretRect(x + (int)param, ((ui->height - ui->y + 1) >> 1) - (caretHeight >> 1) + param2, 1, caretHeight);
+        break;
+    case swrUI_MSG_SET_EDITING:
+        if (param != NULL) {
+            swrSprite_SetCursorVisibility2(0);
+            swrUI_textEntrySavedCursorCount = swrSprite_mouseVisible + 1;
+            swrSprite_SetCursorVisibility(0);
+            ui->caret_pos = 0;
+            x = swrUI_GetSubstringWidth(ui->str_allocated, ui->font_index, 0, 0) + ui->x;
+            x += swrText_GetStringWidth(" ", swrText_fontsByIndex[ui->font_index]) * 5;
+            caretHeight = swrText_GetStringHeight("l", swrText_fontsByIndex[ui->font_index]) * 2;
+            swrUI_SetCaretRect(x, ((ui->height - ui->y + 1) >> 1) - (caretHeight >> 1) + ui->y, 1, caretHeight);
+            swrUI_SetCaretActive(1);
+            swrUI_textEntryActive = 1;
+            memset(swrUI_textEntryOriginalText, 0, sizeof(swrUI_textEntryOriginalText));
+            if (ui->str_allocated != NULL)
+                memcpy(swrUI_textEntryOriginalText, ui->str_allocated, strlen(ui->str_allocated) + 1);
+        } else {
+            swrSprite_SetCursorVisibility2(1);
+            swrSprite_SetCursorVisibility(swrUI_textEntrySavedCursorCount);
+            swrUI_SetCaretActive(0);
+            swrUI_textEntryActive = 0;
+        }
+        break;
+    }
+    return swrUI_DefaultElementProc(ui, msg, param, param2);
 }
 
 // 0x00416840
@@ -934,6 +1112,24 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x00416890
+void swrUI_UnlinkElement(swrUI_unk* element)
+{
+    swrUI_ClearElementRefs(element);
+    if (element == element->prev->next) {
+        element->prev->next = element->next2;
+        if (element->next2 != NULL)
+            element->next2->prev2 = NULL;
+    } else {
+        if (element->prev2 != NULL)
+            element->prev2->next2 = element->next2;
+        if (element->next2 != NULL)
+            element->next2->prev2 = element->prev2;
+    }
+    element->prev2 = NULL;
+    element->next2 = NULL;
 }
 
 // 0x004168f0
@@ -2411,7 +2607,87 @@ int swrUI_IsElementFocused(swrUI_unk* ui)
 // 0x00417ca0
 void swrUI_RefreshListLayout(swrUI_unk* list)
 {
-    HANG("TODO");
+    swrUI_unk* item;
+    swrUI_unk* next;
+    swrUI_unk* scrollbar;
+    unsigned int index = 0;
+    int overflow = 0;
+    int skip;
+    int y;
+    int rowHeight;
+    int highlight[4];
+    int needScrollbar = 0;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
+            swrUI_RunCallbacks2(item, 0);
+            item->unk528 = index;
+            index++;
+            if (index > SWR_UI_LIST_MAX_ITEMS)
+                overflow++;
+        }
+    }
+    // drop the oldest children so at most SWR_UI_LIST_MAX_ITEMS remain
+    item = list->next;
+    while (overflow-- != 0) {
+        next = item->next2;
+        swrUI_FreeElement(item);
+        item = next;
+    }
+
+    skip = list->first_visible;
+    item = list->next;
+    if (skip != 0)
+        needScrollbar = 1;
+    if (item == NULL)
+        return;
+    for (; skip != 0 && item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM)
+            skip--;
+    }
+    if (item == NULL)
+        return;
+
+    y = list->content_top;
+    for (; y < list->height + 0x14 && item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) != swrUI_CLASS_LIST_ITEM)
+            continue;
+        rowHeight = item->height - item->y + 1;
+        if (rowHeight + y >= list->content_bottom)
+            needScrollbar = 1;
+        if (y < list->content_bottom) {
+            if ((item->item_flags & swrUI_ITEM_NO_AUTO_POS) == 0) {
+                if (item->item_flags & swrUI_ITEM_CENTERED)
+                    swrUI_SetPos(item, ((item->x - item->width + list->content_right - list->content_left) >> 1) + list->content_left, y);
+                else
+                    swrUI_SetPos(item, list->content_left, y);
+            }
+            if ((item->item_flags & swrUI_ITEM_SELECTED) && (list->item_flags & swrUI_LIST_NO_SELECTION_FRAME) == 0) {
+                highlight[0] = list->content_left - 10;
+                highlight[1] = item->y - 10;
+                highlight[2] = list->content_right + 10;
+                highlight[3] = item->height - 10;
+                swrUI_BuildEditSelectionSprites((int)list, item, highlight);
+            }
+            swrUI_RunCallbacks2(item, 1);
+        }
+        y += list->row_spacing + rowHeight;
+    }
+
+    if (needScrollbar && (list->item_flags & swrUI_LIST_NO_SCROLLBAR) == 0) {
+        scrollbar = swrUI_FindByClass(list, swrUI_CLASS_NUMBER_FIELD);
+        if (scrollbar == NULL) {
+            int top = list->content_top - 0xf;
+            swrUI_NewNumberField(list, 0, list->content_right - 0x20, top, list->content_bottom - top + 0x10, swrUI_VERTICAL, 0);
+        }
+        // faithful: a freshly created scrollbar is not the one shown here (scrollbar is still NULL)
+        swrUI_RunCallbacks2(scrollbar, 1);
+    }
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM)
+            swrUI_SetBBox(item, list->content_left, list->content_top - 2, list->content_right, list->content_bottom + 2);
+    }
 }
 
 // 0x00417fe0
@@ -2443,7 +2719,7 @@ void swrUI_DrawWrappedText(swrUI_unk* ui, char* text, int flag)
         }
         if (*cursor != '\0' && lastSpace != NULL)
             *lastSpace = '\0';
-        swrUI_AddListItem(ui, lineStart, flag != 0 ? swrUI_ITEM_WRAPPED_UNK : 0, 0, 0);
+        swrUI_AddListItem(ui, lineStart, flag != 0 ? swrUI_ITEM_CENTERED : 0, 0, 0);
         // faithful: a line with no space to break at drops the rest of the text
         if (*cursor != '\0') {
             if (lastSpace == NULL)
@@ -2509,4 +2785,72 @@ void swrUI_UpdateTimers(void)
             }
         }
     }
+}
+
+// 0x00418120
+void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
+{
+    HANG("TODO");
+}
+
+// 0x00413a90
+swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int param_5, int flag, int size_unk2)
+{
+    swrUI_unk* ui = swrUI_New(parent, id, -1, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_NumberFieldProc, NULL);
+
+    swrUI_SetPos(ui, x, y);
+    ui->slider_length = param_5;
+    ui->slider_step = 10;
+    ui->slider_style = flag;
+    ui->widget_class = swrUI_CLASS_NUMBER_FIELD;
+    swrUI_BuildSliderSprites(ui, 0);
+    swrUI_RunCallbacks2(ui, 1);
+    return ui;
+}
+
+// 0x00416690
+int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00417540
+void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int alignFlags, int color0, int color1, int color2, int color3, int unk9, int unk10, int unk11)
+{
+    HANG("TODO");
+}
+
+// 0x0041aa90
+void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect)
+{
+    int endWidth;
+    int endHeight;
+    int box[4];
+
+    if (a1 == 0 || ui == NULL)
+        return;
+    swrSprite_GetTextureDimFromId(swrSprite_edit_window_selected_end, &endWidth, &endHeight);
+
+    box[0] = rect[0];
+    box[1] = rect[1];
+    box[2] = endWidth + rect[0] - 1;
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 0, swrSprite_edit_window_selected_end, box, 1, 0);
+
+    box[0] = rect[0] + endWidth;
+    box[1] = rect[1];
+    box[2] = rect[2] - endWidth;
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 1, swrSprite_edit_window_selected_strch, box, 1, 0);
+
+    box[0] = rect[2] - endWidth + 1;
+    box[1] = rect[1];
+    box[2] = rect[2];
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 2, swrSprite_edit_window_selected_end, box, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    swrUI_SetSelected(ui, 1);
+    ui->rand_alpha_first = 0;
+    ui->rand_alpha_count = 3;
 }

@@ -262,7 +262,44 @@ void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod)
 // 0x00451800
 void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* meshBehavior)
 {
-    HANG("TODO");
+    swrModel_Behavior* behavior = (swrModel_Behavior*)meshBehavior;
+    swrObjcMan_Light* light;
+
+    if (behavior != NULL && behavior->light_flags != 0) {
+        light = (behavior->light_flags & swrModel_Behavior_LIGHTFLAG_SET_DEFAULT) ? &cman->lightDefault : &cman->light;
+        light->ambientColor.x = behavior->ambient_color[0];
+        light->ambientColor.y = behavior->ambient_color[1];
+        light->ambientColor.z = behavior->ambient_color[2];
+        light->lightColor.x = behavior->light_color[0];
+        light->lightColor.y = behavior->light_color[1];
+        light->lightColor.z = behavior->light_color[2];
+        light->lightVector.x = behavior->light_vector[0];
+        light->lightVector.y = behavior->light_vector[1];
+        light->lightVector.z = behavior->light_vector[2];
+        light->lightVector2.x = behavior->light_vector2[0];
+        light->lightVector2.y = behavior->light_vector2[1];
+        light->lightVector2.z = behavior->light_vector2[2];
+        rdVector_Normalize3Acc(&light->lightVector2);
+        if (behavior->light_flags & swrModel_Behavior_LIGHTFLAG_RAW_VECTOR) {
+            light->flags |= swrObjcMan_LIGHTFLAG_RAW_VECTOR;
+        } else {
+            light->flags &= ~swrObjcMan_LIGHTFLAG_RAW_VECTOR;
+            rdVector_Normalize3Acc(&light->lightVector);
+        }
+        if (behavior->light_flags & swrModel_Behavior_LIGHTFLAG_UNK8)
+            light->flags |= swrObjcMan_LIGHTFLAG_UNK4;
+        else
+            light->flags &= ~swrObjcMan_LIGHTFLAG_UNK4;
+        if (light == &cman->lightDefault)
+            cman->light = cman->lightDefault;
+    } else {
+        cman->light = cman->lightDefault;
+    }
+
+    cman->unk2e4_flag = (cman->unk2e4_flag & ~(swrObjcMan_LIGHTFLAG_UNK4 | swrObjcMan_LIGHTFLAG_RAW_VECTOR)) | cman->light.flags;
+    cman->unk2e4_flag |= 0x3;
+    // fsub of the -1.0 double at 0x004acdd8
+    cman->unk398_ms = swrRace_deltaTimeSecs + swrRace_deltaTimeSecs - -1.0;
 }
 
 // 0x00451a80
@@ -6418,7 +6455,96 @@ void swrObjTest_F0(swrRace* player)
 // 0x00470610
 void swrObjTest_F3(swrRace* player)
 {
-    HANG("TODO");
+    rdVector3 ambient;
+    rdVector3 color;
+    rdVector3 direction;
+    swrScore* score;
+    rdMatrix44* xf;
+    float phase;
+    float truncPhase;
+    float level;
+    int slot;
+    int i;
+
+    swrRace_ResetModelNodeFlags(player);
+    if ((player->flags0 & swrObjTest_FLAG0_RESET) == 0) {
+        if (swrMultiplayer_IsMultiplayerEnabled()) {
+            if (player->score_ptr->identifier == 'Locl' || player->score_ptr->identifier == 'AAII')
+                swrMultiplayer_PublishPodState(player);
+            if (player->score_ptr->identifier == 'REMO') {
+                unsigned int age = timeGetTime();
+                score = player->score_ptr;
+                slot = *(int*)&score->time_unk;
+                age -= swrMultiplayer_aRemoteStateTime[slot];
+                player->flags0 = swrMultiplayer_aRemoteFlags0[slot] | (player->flags0 & ~swrObjTest_FLAG0_REMOTE_SYNCED) | swrObjTest_FLAG0_REMOTE;
+                player->flags1 = swrMultiplayer_aRemoteFlags1[slot] | (player->flags1 & ~swrObjTest_FLAG1_REMOTE_SYNCED) | swrObjTest_FLAG1_IMMUNITY;
+                player->speedValue = swrMultiplayer_aRemoteSpeed[slot];
+                swrRace_ExtrapolateTransform(player, &player->transform, (rdMatrix44*)((char*)&swrMultiplayer_remotePodTransform + slot * sizeof(swrRace)), (float)age * 0.001f);
+            }
+        }
+        swrRace_PoddAnimateEngines(player);
+        if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE) {
+            rdMatrix_Copy44(&player->engineXfR, &player->cockpitXf);
+            rdMatrix_Copy44(&player->engineXfL, &player->cockpitXf);
+        }
+        if (player->partNodes != NULL) {
+            swrRace_PoddAnimateVariousThings(player);
+            swrRace_PoddAnimateSteeringParts(player);
+            swrRace_UpdateEngineExhaust(player, NULL, -1.0f, -1.0f);
+            swrRace_UpdateScrapeSparks(player);
+        }
+        swrRace_UpdateEngineDamageFX(player);
+        if (player->partNodes != NULL) {
+            swrRace_ApplyPartSinkOffset(player);
+            swrRace_UpdateEngineFireballNode((int)player);
+        }
+        swrRace_UpdateReflectionNode(player);
+        swrRace_UpdateEngineSound(player);
+        swrRace_UpdateSpinoutNodes(player);
+    }
+
+    if (player->partNodes == NULL) {
+        if (player->lodBodyNode != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->lodBodyNode, &player->farLodPodXf);
+        if (player->lodSelectorNode != NULL)
+            swrModel_NodeSetSelectedChildNode((swrModel_NodeSelector*)player->lodSelectorNode, player->lodDistance > 100 ? 1 : 0);
+    } else {
+        if (player->partNodes[5] != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[5], &player->cockpitXf);
+        if (player->partNodes[1] != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[1], &player->engineXfR);
+        if (player->partNodes[2] != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[2], &player->engineXfL);
+        if (player->partNodes[3] != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[3], &player->engineXfR2);
+        if (player->partNodes[4] != NULL)
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[4], &player->engineXfL2);
+        // shadow quads 1..3 only; partNodes[0x3d] / shadowXf0 is left alone
+        xf = &player->shadowXf1;
+        for (i = 0x3e; i <= 0x40; i++, xf++) {
+            if (player->partNodes[i] != NULL)
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[i], xf);
+        }
+    }
+
+    // respawn/death flicker: the pod's light pulses with the fractional part of timer * 4
+    if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) != 0 && player->current_light_index >= 0) {
+        phase = player->respawnInvincibilityTimer * 4.0f;
+        direction.x = 0.0f;
+        direction.y = 0.0f;
+        direction.z = -1.0f;
+        truncPhase = phase;
+        if (phase < 0.0f)
+            truncPhase = phase - 0.999999f;
+        level = (phase - (int)truncPhase) * 255.0f;
+        ambient.x = level;
+        ambient.y = level;
+        ambient.z = 255.0f;
+        color.x = level;
+        color.y = level;
+        color.z = 255.0f;
+        SetLightColorsAndDirection2(player->current_light_index, &ambient, &color, &direction);
+    }
 }
 
 // 0x00471760
@@ -6427,10 +6553,264 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0)
     HANG("TODO");
 }
 
+static void swrRace_SetPartTransform(swrRace* player, int part, const rdMatrix44* m)
+{
+    if (player->partNodes[part] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[part], m);
+}
+
 // 0x00472A50
 void swrRace_PoddAnimateSteeringParts(swrRace* a1)
 {
-    HANG("TODO");
+    rdMatrix44 unusedTransform;
+    rdMatrix44 m;
+    float steer;
+    float steerLeft;
+    float steerRight;
+    float steerDelta;
+    float flapPitch;
+    float vaneYaw;
+    float yawL;
+    float yawR;
+    float pitchL;
+    float pitchR;
+    float speed;
+    float spin;
+    int pilot;
+
+    if (a1->partNodes == NULL)
+        return;
+    pilot = *a1->score_ptr->pilotId;
+    if (a1->partNodes[0x3b] != NULL)
+        swrModel_NodeModifyFlags(a1->partNodes[0x3b], 2, 3, 0x10, 2);
+    rdMatrix_Copy44(&unusedTransform, &a1->transform);
+
+    // -0.05 is the double at 0x004adb58
+    steer = a1->turnRateTarget * -0.05;
+    if (steer < -1.0f)
+        steer = -1.0f;
+    else if (steer > 1.0f)
+        steer = 1.0f;
+    steerLeft = (steer - -1.0f) * -0.5f;
+    steerRight = (1.0f - steer) * -0.5f;
+    if (a1->lodDistance > 75 || a1->partNodes == NULL)
+        return;
+
+    steerDelta = steerRight - steerLeft;
+    flapPitch = swrRace_SmoothEngineExhaustSize(a1, 0x2e, steerDelta * 40.0f, 0.0f, 75.0f, 75.0f, -40.0f, 40.0f);
+    vaneYaw = swrRace_SmoothEngineExhaustSize(a1, 0x2f, 0.0f, 45.0f, 20.0f, 50.0f, 0.0f, 30.0f);
+    yawR = swrRace_SmoothEngineExhaustSize(a1, 0x20, steerDelta * 30.0f, 45.0f, 20.0f, 50.0f, 0.0f, 30.0f);
+    yawL = swrRace_SmoothEngineExhaustSize(a1, 0x12, (steerLeft - steerRight) * 30.0f, 45.0f, 20.0f, 50.0f, 0.0f, 30.0f);
+    pitchR = swrRace_SmoothEngineExhaustSize(a1, 0x23, steerDelta * 30.0f, 45.0f, 80.0f, 80.0f, 0.0f, 30.0f);
+    pitchL = swrRace_SmoothEngineExhaustSize(a1, 0x15, (steerLeft - steerRight) * 30.0f, 45.0f, 80.0f, 80.0f, 0.0f, 30.0f);
+
+    // spinning parts: degrees per second, clamped to [100, 700]
+    speed = a1->speedValue + a1->speedValue;
+    if (speed < 100.0)
+        speed = 100.0f;
+    if (speed > 700.0)
+        speed = 700.0f;
+    spin = swrRace_deltaTimeSecs * speed + a1->partOffset[33].y;
+    if (spin < -180.0)
+        spin -= -360.0;
+    if (spin > 180.0)
+        spin -= 360.0;
+    a1->partOffset[33].y = spin;
+
+    switch (pilot) {
+    case 0:
+        rdMatrix_SetRotation44(&m, 0.0f, yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        rdMatrix_SetRotation44(&m, -pitchR, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        rdMatrix_SetRotation44(&m, pitchR, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x16, &m);
+        swrRace_SetPartTransform(a1, 0x2f, &m);
+        rdMatrix_SetRotation44(&m, -pitchL, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        swrRace_SetPartTransform(a1, 0x2e, &m);
+        rdMatrix_SetRotation44(&m, pitchL, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x24, &m);
+        break;
+    case 1:
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, spin);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        rdMatrix_SetRotation44(&m, flapPitch, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x2e, &m);
+        swrRace_SetPartTransform(a1, 0x2f, &m);
+        break;
+    case 2:
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        break;
+    case 3:
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, spin);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x2e, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x2f, &m);
+        rdMatrix_SetRotation44(&m, flapPitch, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x30, &m);
+        swrRace_SetPartTransform(a1, 0x31, &m);
+        swrRace_SetPartTransform(a1, 0x32, &m);
+        swrRace_SetPartTransform(a1, 0x33, &m);
+        break;
+    case 4:
+        rdMatrix_SetRotation44(&m, -yawR, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        rdMatrix_SetRotation44(&m, -yawL, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, -flapPitch);
+        swrRace_SetPartTransform(a1, 0x2e, &m);
+        swrRace_SetPartTransform(a1, 0x33, &m);
+        break;
+    case 5:
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, spin);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        swrRace_SetPartTransform(a1, 0x24, &m);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        swrRace_SetPartTransform(a1, 0x16, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x16, &m);
+        swrRace_SetPartTransform(a1, 0x19, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x24, &m);
+        swrRace_SetPartTransform(a1, 0x27, &m);
+        break;
+    case 6:
+        rdMatrix_SetRotation44(&m, flapPitch, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x32, &m);
+        swrRace_SetPartTransform(a1, 0x34, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, -flapPitch);
+        swrRace_SetPartTransform(a1, 0x33, &m);
+        swrRace_SetPartTransform(a1, 0x35, &m);
+        break;
+    case 7:
+        rdMatrix_SetRotation44(&m, 0.0f, yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        break;
+    case 8:
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, spin);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawL * -2.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawR * -2.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        break;
+    case 10:
+        rdMatrix_SetRotation44(&m, -yawR, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        rdMatrix_SetRotation44(&m, yawR, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        rdMatrix_SetRotation44(&m, -yawL, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        rdMatrix_SetRotation44(&m, yawL, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        rdMatrix_SetRotation44(&m, vaneYaw, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x32, &m);
+        swrRace_SetPartTransform(a1, 0x33, &m);
+        break;
+    case 12:
+        rdMatrix_SetRotation44(&m, 0.0f, vaneYaw, 0.0f);
+        swrRace_SetPartTransform(a1, 0x34, &m);
+        swrRace_SetPartTransform(a1, 0x36, &m);
+        // 0.5 is the double at 0x004ad9d8
+        rdMatrix_SetRotation44(&m, 0.0f, flapPitch * 0.5, 0.0f);
+        swrRace_SetPartTransform(a1, 0x32, &m);
+        swrRace_SetPartTransform(a1, 0x35, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -flapPitch * 0.5, 0.0f);
+        swrRace_SetPartTransform(a1, 0x33, &m);
+        swrRace_SetPartTransform(a1, 0x37, &m);
+        break;
+    case 13:
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, spin);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        break;
+    case 14:
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x24, &m);
+        swrRace_SetPartTransform(a1, 0x25, &m);
+        swrRace_SetPartTransform(a1, 0x26, &m);
+        swrRace_SetPartTransform(a1, 0x27, &m);
+        swrRace_SetPartTransform(a1, 0x28, &m);
+        swrRace_SetPartTransform(a1, 0x29, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x16, &m);
+        swrRace_SetPartTransform(a1, 0x17, &m);
+        swrRace_SetPartTransform(a1, 0x18, &m);
+        swrRace_SetPartTransform(a1, 0x19, &m);
+        swrRace_SetPartTransform(a1, 0x1a, &m);
+        swrRace_SetPartTransform(a1, 0x1b, &m);
+        break;
+    case 15:
+        rdMatrix_SetRotation44(&m, 0.0f, -yawR, 0.0f);
+        swrRace_SetPartTransform(a1, 0x20, &m);
+        swrRace_SetPartTransform(a1, 0x21, &m);
+        swrRace_SetPartTransform(a1, 0x22, &m);
+        swrRace_SetPartTransform(a1, 0x23, &m);
+        rdMatrix_SetRotation44(&m, 0.0f, -yawL, 0.0f);
+        swrRace_SetPartTransform(a1, 0x12, &m);
+        swrRace_SetPartTransform(a1, 0x13, &m);
+        swrRace_SetPartTransform(a1, 0x14, &m);
+        swrRace_SetPartTransform(a1, 0x15, &m);
+        break;
+    case 22:
+        rdMatrix_SetRotation44(&m, flapPitch, 0.0f, 0.0f);
+        swrRace_SetPartTransform(a1, 0x30, &m);
+        swrRace_SetPartTransform(a1, 0x31, &m);
+        break;
+    default:
+        break;
+    }
 }
 
 // 0x00473e40
