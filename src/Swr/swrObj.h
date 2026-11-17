@@ -683,7 +683,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
 // Plays one of five random Elmo voice sounds when the sound flag gate allows it (best guess).
 void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5);
 // Look up the 'Elmo' entity by index, set its node transform + anim params, then SetAnimState.
-void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* param_3, rdVector3* param_4, float param_5, float param_6);
+void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* position, rdVector3* moveTarget, float yaw, float yawTarget);
 // Look up the 'Elmo' entity by index and forward to swrObjElmo_SetAnimState.
 void swrObjElmo_SetAnimStateById(int elmoId, int animCmd);
 

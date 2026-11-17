@@ -130,6 +130,8 @@ typedef enum swrSound_SFXFLAG
 typedef enum swrSound_HANGSFXFLAG
 {
     swrSound_HANGSFXFLAG_IN_WATTO_SHOP = 0x1, // set entering Watto's shop, cleared entering the junkyard
+    swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED = 0x2, // Watto's first parts-counter line played (swrObjHang_PlayWattoVoiceLines_Maybe)
+    swrSound_HANGSFXFLAG_PIT_DROID_INTRO_PLAYED = 0x8, // Watto's first pit-droid-counter line played
     swrSound_HANGSFXFLAG_GREETING_PENDING = 0x20, // shop greeting armed; consumed by the Watto/junkyard greeting,
                                                   // blocks swrObjElmo_PlayRandomVoiceSfx_Maybe while set
     swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER = 0x80000000, // menu screens without pit-droid idle chatter
