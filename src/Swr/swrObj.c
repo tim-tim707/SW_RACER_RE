@@ -669,10 +669,133 @@ void swrObjHang_UpdateLoadScreen(swrObjHang* hang)
     swrObjHang_LoadScreen(hang, hang->unk68_type != 0, 1);
 }
 
+// 0x00440de0
+int getInRaceInputBufferEntry_Maybe(int index)
+{
+    return swrObjHang_extraSplashPages[index];
+}
+
 // 0x00435240
 void swrObjHang_UpdateSplashScreen(swrObjHang* hang)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+    swrUI_unk* starWarsItem;
+    swrUI_unk* racerItem;
+    short backdrop;
+
+    swrObjHang_splashFrameCounter++;
+    if (swrObjHang_splashFrameCounter > 30)
+        swrObjHang_splashFrameCounter = 0;
+    swrUI_RunCallbacks2(swrUI_GetUI1(), 1);
+    if (swrUI_GetPageStackDepth() == 0)
+        swrUI_PushMenuPage(swrUI_WINDOW_SPLASH);
+    hang->isTournamentMode = swrObjHang_pendingTournamentMode;
+
+    if (swrObjHang_splashSkipToVehicleIntro != 0) {
+        swrObjHang_splashSkipToVehicleIntro = 0;
+        hang->num_local_players = 1;
+        swrObjHang_state2 = swrObjHang_STATE_VEHICLE_SELECT_INTRO;
+        swrObjHang_fadeState = -1;
+        return;
+    }
+
+    if (swrObjHang_splashSceneSetUp == 0) {
+        swrObjHang_splashSceneSetUp = 1;
+        swrObjHang_SetupScreenScene(hang);
+    }
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_fadeState = 1;
+        swr_noop2();
+        swrObjHang_attractDemoTimer = 30.0f;
+        for (int i = 0; i < 12; i++)
+            swrObjHang_splashPageSequence[i] = -1;
+        swrObjHang_titleDropTimer = 2.0f;
+        swrObjHang_episodeFadeTimer = 1.0f;
+        swrObjHang_racerSlideTimer = 1.0f;
+        swrObjHang_splashPageSequence[0] = 0;
+        swrObjHang_splashPageSequence[1] = 1;
+        swrObjHang_splashPageSequence[2] = 2;
+        swrObjHang_splashPageCount = 3;
+        if (getInRaceInputBufferEntry_Maybe(1) != 0)
+            swrObjHang_splashPageSequence[(int)swrObjHang_splashPageCount++] = 3;
+    }
+
+    // title intro: STAR/WARS drop in, then "Episode I" fades in, then RACER slides in
+    swrObjHang_titleDropTimer -= swrRace_fdeltaTimeSecs;
+    if (swrObjHang_titleDropTimer <= 0.0f)
+        swrObjHang_titleDropTimer = 0.0f;
+    if (swrObjHang_titleDropTimer <= 0.0f) {
+        swrObjHang_episodeFadeTimer -= swrRace_fdeltaTimeSecs;
+        if (swrObjHang_episodeFadeTimer <= 0.0f)
+            swrObjHang_episodeFadeTimer = 0.0f;
+    }
+    if (swrObjHang_episodeFadeTimer <= 0.5f) {
+        swrObjHang_racerSlideTimer -= swrRace_fdeltaTimeSecs * 5.0f;
+        if (swrObjHang_racerSlideTimer <= 0.0f)
+            swrObjHang_racerSlideTimer = 0.0f;
+    }
+
+    if (swrObjHang_fadeState == 0) {
+        if (swrObjHang_attractDemoTimer <= 0.0f) {
+            swrObjHang_attractDemoTimer = 30.0f;
+            hang->demo_mode = 2;
+            swrObjHang_fadeState = -1;
+        }
+        swrSound_SetMusicFade(1);
+    }
+
+    page = swrUI_GetCurrentPage();
+    // menu input bits 0x4 (held) / 0x80 (pressed) are unidentified
+    if (page->id == swrUI_WINDOW_SPLASH && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0 && (swrUI_localPlayersInputPressedBitset[0] & 0x80) != 0) {
+        hang->showDeveloperPhoto = hang->showDeveloperPhoto == 0;
+        g_objHang2 = hang;
+    }
+
+    backdrop = hang->showDeveloperPhoto ? 0x4d : swrUISprite_greyedsplash_tga; // 0x4d = developer photo
+    if (page->id != swrUI_WINDOW_SPLASH)
+        backdrop = (page->id & 1) + swrUISprite_podhangar_backdrop_tga;
+    if (page->id == swrUI_WINDOW_HANGAR_SELECT_VEHICLE)
+        backdrop = swrUISprite_podhangar_backdrop_tga;
+    swrSprite_SetPos(backdrop, 0, 0);
+    swrSprite_SetDim(backdrop, 0.5f, 1.0f);
+    if (hang->showDeveloperPhoto)
+        swrSprite_SetDim(backdrop, 1.0f, 1.0f);
+    swrSprite_SetVisible(backdrop, 1);
+    swrSprite_SetColor(backdrop, 0xff, 0xff, 0xff, 0xfe);
+    swrSprite_SetFlag(backdrop, 0x10000);
+    // faithful: overrides the 0.5 width set above
+    swrSprite_SetDim(backdrop, 1.0f, 1.0f);
+
+    starWarsItem = swrUI_GetById(page, 0x272a);
+    swrUI_RunCallbacks2(starWarsItem, 0);
+    racerItem = swrUI_GetById(page, 0x272b);
+    swrUI_RunCallbacks2(racerItem, 0);
+    if (hang->showDeveloperPhoto)
+        return;
+
+    swrSprite_SetPos(swrUISprite_STAR_tga, 12, (short)(int)(18.0f - swrObjHang_titleDropTimer * 100.0f));
+    swrSprite_SetVisible(swrUISprite_STAR_tga, 1);
+    swrSprite_SetColor(swrUISprite_STAR_tga, 0xff, 0xff, 0xff, 0xfe);
+    swrSprite_SetFlag(swrUISprite_STAR_tga, 0x10000);
+    swrSprite_SetPos(swrUISprite_WARS_tga, 155, (short)(int)(18.0f - swrObjHang_titleDropTimer * 100.0f));
+    swrSprite_SetVisible(swrUISprite_WARS_tga, 1);
+    swrSprite_SetColor(swrUISprite_WARS_tga, 0xff, 0xff, 0xff, 0xfe);
+    if (swrObjHang_titleDropTimer <= 0.0f)
+        swrUI_RunCallbacks2(starWarsItem, 1);
+    swrSprite_SetFlag(swrUISprite_WARS_tga, 0x10000);
+
+    swrSprite_SetPos(swrUISprite_episode1_tga, 14, 51);
+    swrSprite_SetVisible(swrUISprite_episode1_tga, 1);
+    swrSprite_SetColor(swrUISprite_episode1_tga, 0xff, 0xff, 0xff, (uint8_t)(int)((1.0f - swrObjHang_episodeFadeTimer) * 254.0f));
+    swrSprite_SetFlag(swrUISprite_episode1_tga, 0x10000);
+
+    swrSprite_SetPos(swrUISprite_RACER_tga, (short)(int)(12.0f - swrObjHang_racerSlideTimer * 320.0f), 70);
+    swrSprite_SetVisible(swrUISprite_RACER_tga, 1);
+    swrSprite_SetColor(swrUISprite_RACER_tga, 0xff, 0xff, 0xff, 0xfe);
+    if (swrObjHang_racerSlideTimer <= 0.0f)
+        swrUI_RunCallbacks2(racerItem, 1);
+    swrSprite_SetFlag(swrUISprite_RACER_tga, 0x10000);
 }
 
 // 0x00436860
@@ -1435,18 +1558,134 @@ void swrObjHang_InitCameraAssignments(swrObjHang* hang)
         swrObjHang_localCameraSlots[i] = i;
 }
 
+// Shared tail of both roster builders: mark the racer slot FindPlayerRacerSlot picks.
+static void swrObjHang_MarkPlayerRacerSlot(swrObjHang* hang)
+{
+    int playerSlot = swrObjHang_FindPlayerRacerSlot(hang);
+    for (int i = 0; i < hang->num_players; i++) {
+        if (i == playerSlot)
+            swrScores[i].flag |= 0x20;
+        else
+            swrScores[i].flag &= ~0x20;
+    }
+}
+
+// Common per-slot score header written by both roster builders.
+static void swrObjHang_InitRosterScore(swrScore* score, int slot, int identifier, swrSaveProfile* profile, int pilot)
+{
+    *(int*)&score->time_unk = slot;
+    score->identifier = identifier;
+    ((char*)&score->sfxChannel)[0] = 0;
+    ((char*)&score->sfxChannel)[1] = 0;
+    score->localPlayerProfile = profile;
+    score->unk14 = slot;
+    score->pilotId = (int*)&swrRacer_PodData[pilot];
+}
+
+// EXE also copies the slot indices into a dead local int[20]; `out` is only NULL-checked.
 // 0x0045b610
 void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out)
 {
-    HANG("TODO");
-    return NULL;
+    char* slotPilots = &hang->vehiclePlayer; // vehicleOpponent[] follows it directly
+
+    if (out == NULL)
+        return swrScores;
+
+    for (int i = 0; i < SWR_MAX_RACERS; i++)
+        swrScores[i].identifier = 0;
+
+    for (int i = 0; i < hang->num_players; i++) {
+        swrScore* score = &swrScores[i];
+        int identifier;
+        swrSaveProfile* profile;
+
+        slotPilots[i] = (char)swrMultiplayer_GetRacerId(i);
+        if (!swrMultiplayer_IsHost()) {
+            identifier = i == playerNumber ? 'Locl' : 'REMO';
+            profile = i == playerNumber ? &swrRace_aProfiles[i] : NULL;
+        } else if (i == playerNumber) {
+            identifier = 'Locl';
+            profile = &swrRace_aProfiles[i];
+            swrMultiplayer_SetRosterEntry(i, identifier);
+        } else {
+            identifier = swrMultiplayer_IsPlayerActive(i) ? 'REMO' : 'AAII';
+            profile = NULL;
+            swrMultiplayer_SetRosterEntry(i, identifier);
+        }
+        swrObjHang_InitRosterScore(score, i, identifier, profile, slotPilots[i]);
+        score->podStats = swrRacer_PodHandlingData[(int)slotPilots[i]];
+    }
+
+    swrObjHang_MarkPlayerRacerSlot(hang);
+    swrUI_RefreshRoot();
+    return swrScores;
 }
 
+// EXE also copies the slot indices into a dead local int[20]; `out` is only NULL-checked.
 // 0x0045b7d0
 void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out)
 {
-    HANG("TODO");
-    return NULL;
+    char* slotPilots = &hang->vehiclePlayer; // vehicleOpponent[] follows it directly
+    // faithful: the 28-bit base mask already allows every pilot
+    uint32_t allowedPilots = 0xfffffff;
+
+    if (out == NULL)
+        return swrScores;
+
+    for (int i = 0; i < hang->num_local_players; i++)
+        allowedPilots |= swrRace_aProfiles[i].pilotsUnlocked;
+    if (hang->demo_mode == 2)
+        hang->vehiclePlayer = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
+    hang->num_local_players = 1;
+
+    // draw distinct opponents; slot 1 gets the track's favorite pilot unless the player took it
+    for (int i = 1; i < hang->num_players;) {
+        int retry = 0;
+        slotPilots[i] = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
+        if (i == 1 && slotPilots[0] != g_aTrackInfos[hang->track_index].FavoritePilot) {
+            slotPilots[1] = g_aTrackInfos[hang->track_index].FavoritePilot;
+        } else {
+            for (int j = 0; j < i; j++) {
+                if (slotPilots[i] == slotPilots[j])
+                    retry = 1;
+                if (((1u << (slotPilots[i] & 0x1f)) & allowedPilots) == 0)
+                    retry = 1;
+            }
+        }
+        if (!retry)
+            i++;
+    }
+
+    for (int i = 0; i < hang->num_players; i++) {
+        swrScore* score = &swrScores[i];
+        int pilot = slotPilots[i];
+        int identifier = i < hang->num_local_players ? 'Locl' : 'AAII';
+        if (hang->demo_mode != 0)
+            identifier = 'AAII';
+        swrObjHang_InitRosterScore(score, i, identifier, identifier == 'Locl' ? &swrRace_aProfiles[i] : NULL, pilot);
+
+        if (identifier == 'AAII') {
+            score->podStats = swrRacer_AI_PodHandlingData;
+            score->podStats.hoverHeight = swrRacer_PodHandlingData[pilot].hoverHeight;
+            score->podStats.bumpMass = swrRacer_PodHandlingData[pilot].bumpMass;
+            score->podStats.intersectRadius = swrRacer_PodHandlingData[pilot].intersectRadius;
+        } else {
+            swrSaveProfile* profile = (swrSaveProfile*)score->localPlayerProfile;
+            char upgradeLevels[SWR_UPGRADE_CATEGORY_COUNT];
+            char upgradeHealths[SWR_UPGRADE_CATEGORY_COUNT];
+            for (int k = 0; k < SWR_UPGRADE_CATEGORY_COUNT; k++) {
+                upgradeLevels[k] = profile != NULL ? profile->upgradeLevels[k] : 0;
+                upgradeHealths[k] = profile != NULL ? profile->upgradeHealths[k] : -1;
+            }
+            swrRace_ApplyUpgradesToStats(&score->podStats, &swrRacer_PodHandlingData[pilot], upgradeLevels, upgradeHealths);
+            swrRace_ComputeStatBars((PodHandlingData*)swrRace_statBarsBase, &swrRacer_PodHandlingData[pilot]);
+            swrRace_ComputeStatBars((PodHandlingData*)swrRace_statBarsCurrent, &score->podStats);
+        }
+    }
+
+    swrObjHang_MarkPlayerRacerSlot(hang);
+    swrUI_RefreshRoot();
+    return swrScores;
 }
 
 // 0x0045bb60
@@ -1646,7 +1885,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         if ((swrRace_unlockedPilotsMask & SWR_CANTINA_PILOT_POOL) == 0) {
             do {
-                pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 23.0f);
+                pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
             } while ((swrRace_unlockedPilotsMask & (1 << pilot)) != 0);
             swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         } else {

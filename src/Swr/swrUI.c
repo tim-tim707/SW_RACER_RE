@@ -74,6 +74,12 @@ void swrUI_ResetProgressBar(void)
     swrUI_UpdateProgressBar(0);
 }
 
+// 0x00411370
+void swrUI_RefreshRoot(void)
+{
+    swrUI_RunCallbacks2(swrUI_GetUI1(), 0);
+}
+
 // 0x00411390
 void swrUI_AlignElementTo(swrUI_unk* a, swrUI_unk* b, unsigned int edgeFlags)
 {

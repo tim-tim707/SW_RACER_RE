@@ -190,6 +190,12 @@ void swrMultiplayer_BroadcastRoster(int hang, void* roster)
     HANG("TODO");
 }
 
+// 0x0041de50
+void swrMultiplayer_SetRosterEntry(int index, int value)
+{
+    swrMultiplayer_rosterIdentifiers[index] = value;
+}
+
 // 0x0041df10
 void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10)
 {

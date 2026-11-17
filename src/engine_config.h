@@ -112,6 +112,11 @@
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
 
+// swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
+#define SWR_MAX_RACERS (20)
+// selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
+#define SWR_PILOT_COUNT (23)
+
 // swrRace_DrawScrollbar (0x0043fe90): arrow glow fade rate (alpha/sec) and its ceiling
 #define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)
 #define SWR_SCROLLBAR_ARROW_ALPHA_MAX (254.0f)
