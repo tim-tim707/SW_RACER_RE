@@ -1322,7 +1322,33 @@ typedef enum swrUI_FLAG
     swrUI_SLIDER_SHOW_VALUE = 0x80000, // slider: draw the fill bar (or the centered markers)
     swrUI_SLIDER_CENTERED = 0x100000, // slider: centered marker + brackets instead of a fill bar
     swrUI_SLIDER_NO_CAPS = 0x200000, // slider: no +/- end-cap sprites
+    swrUI_SLIDER_SHOW_NUMBER = 0x1000000, // slider_style: swrUI_NumberFieldProc draws number_value as text
 } swrUI_FLAG;
+
+// swrUI_DrawTextAligned alignFlags
+typedef enum swrUI_TEXT_ALIGN
+{
+    swrUI_TEXT_ALIGN_CENTER_X = 0x10000,
+    swrUI_TEXT_ALIGN_CENTER_Y = 0x20000,
+    swrUI_TEXT_ALIGN_CENTER = 0x40000, // both axes
+    swrUI_TEXT_ALIGN_RIGHT = 0x80000,
+    swrUI_TEXT_ALIGN_INDENT_5 = 0x100000, // shift right by five space widths
+    swrUI_TEXT_ALIGN_INDENT_1 = 0x200000, // shift right by one space width
+} swrUI_TEXT_ALIGN;
+
+// swrUI_unk.entry_style (high bits of the swrUI_NewTextEntry flags)
+typedef enum swrUI_TEXT_ENTRY_STYLE
+{
+    swrUI_TEXT_ENTRY_CLEAR_ON_COMMIT = 0x10000, // Enter empties the field
+    swrUI_TEXT_ENTRY_CARET_TO_END = 0x20000, // Enter moves the caret to the end
+} swrUI_TEXT_ENTRY_STYLE;
+
+// swrUI_inputSuppressFlags (one-shot bits, consumed by swrUI_ProcessMouse)
+typedef enum swrUI_INPUT_SUPPRESS
+{
+    swrUI_INPUT_SUPPRESS_CANCEL = 0x1, // swallow the next cancel press
+    swrUI_INPUT_SUPPRESS_MOUSE_FRAME = 0x8, // skip one frame of mouse handling (set when a text entry closes)
+} swrUI_INPUT_SUPPRESS;
 
 typedef enum swrUI_ITEM_FLAG
 {
@@ -1379,6 +1405,8 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_MOUSE_DOWN = 2, // element pressed; param = x, param2 = y (swrUI_DefaultElementProc focuses it)
+    swrUI_MSG_MOUSE_UP = 3, // element released
     swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
     swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
     swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
@@ -1390,6 +1418,8 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent
     swrUI_MSG_SLIDER_DECREASED = 2000, // fired to the parent by swrUI_HandleSliderKey; param = slider id
     swrUI_MSG_SLIDER_INCREASED = 2001,
+    swrUI_MSG_TEXT_ENTRY_COMMITTED = 3001, // fired to the parent on Enter (swrUI_HandleTextEntryKey); param = id, param2 = text
+    swrUI_MSG_TEXT_ENTRY_CANCELLED = 3002, // fired to the parent on Escape after restoring the original text
     swrUI_MSG_TEXT_ENTRY_CHANGED = 3003, // fired to the parent by swrUI_TextEntryProc; param = id, param2 = text
     swrUI_MSG_LIST_SELECTION_CHANGED = 4002, // fired to the parent by swrUI_ListProc; param = list, param2 = item
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state

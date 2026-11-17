@@ -1470,6 +1470,7 @@ swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key eve
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
+swrUI_inputSuppressFlags 0x004d8bd0 int # swrUI_INPUT_SUPPRESS one-shot bits; low byte only is ever written
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
@@ -1921,6 +1922,10 @@ lightStreak_rotationScale 0x004ac5fc float
 swrUI_textEntryActive 0x004d87c8 int # 1 while a swrUI_TextEntryProc field has focus (Space then types instead of accepting)
 swrUI_textEntryOriginalText 0x004d87d0 char[1024] # text-entry string as it was when editing began (swrUI_TextEntryProc), read by swrUI_HandleTextEntryKey
 swrUI_textEntrySavedCursorCount 0x004d820c int # swrSprite_mouseVisible before editing began; restored when it ends
+swrUI_textPulse 0x004b5d88 float # advanced by swrUI_DrawText, bounces 40..255; nothing reads it
+swrUI_textPulseStep 0x004b5d8c float
+swrUI_sliderClickX 0x004d7c5c int # last press position handed to swrUI_HandleSliderClick (swrUI_NumberFieldProc)
+swrUI_sliderClickY 0x004d7c60 int
 stdControlJoystickCapsButtons 0x00eca0f8 DWORD # record's DIDEVCAPS.dwButtons; stride STDCONTROL_JOYSTICK_RECORD_SIZE
 stdControlJoystickCapsPOVs 0x00eca0fc DWORD # record's DIDEVCAPS.dwPOVs; stride STDCONTROL_JOYSTICK_RECORD_SIZE
 stdControlMouseCapsButtons 0x00ecb498 DWORD # mouse DIDEVCAPS.dwButtons (caps struct at 0x00ecb488)

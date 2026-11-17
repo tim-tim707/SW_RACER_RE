@@ -499,6 +499,21 @@ void DrawTextEntries2()
     swr_noop2();
 }
 
+// 0x00450310
+void swrText_SetEntryClipRect(int* rect)
+{
+    int count = swrTextEntries1Count;
+
+    // design-space rect (640x480) -> screen; stored at the current count, i.e. for the next entry
+    if (count >= SWR_TEXT_MAX_ENTRIES || count == 0 || rect == NULL)
+        return;
+    swrTextEntries1ClipEnabled[count] = 1;
+    swrTextEntries1ClipRect[count][0] = rect[0] * swrDisplay_screenWidth / SWR_UI_DESIGN_WIDTH;
+    swrTextEntries1ClipRect[count][1] = rect[1] * swrDisplay_screenHeight / SWR_UI_DESIGN_HEIGHT;
+    swrTextEntries1ClipRect[count][2] = rect[2] * swrDisplay_screenWidth / SWR_UI_DESIGN_WIDTH;
+    swrTextEntries1ClipRect[count][3] = rect[3] * swrDisplay_screenHeight / SWR_UI_DESIGN_HEIGHT;
+}
+
 // 0x004503e0
 void swrText_CreateEntry(short x, short y, char r, char g, char b, char a, char* screenText, int formatInt, int isEntry2)
 {
