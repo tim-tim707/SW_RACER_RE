@@ -2796,8 +2796,23 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
 // 0x00413a90
 swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int param_5, int flag, int size_unk2)
 {
+    swrUI_unk* ui = swrUI_New(parent, id, -1, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_NumberFieldProc, NULL);
+
+    swrUI_SetPos(ui, x, y);
+    ui->slider_length = param_5;
+    ui->slider_step = 10;
+    ui->slider_style = flag;
+    ui->widget_class = swrUI_CLASS_NUMBER_FIELD;
+    swrUI_BuildSliderSprites(ui, 0);
+    swrUI_RunCallbacks2(ui, 1);
+    return ui;
+}
+
+// 0x00416690
+int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
     HANG("TODO");
-    return NULL;
+    return 0;
 }
 
 // 0x00417540
@@ -2809,5 +2824,33 @@ void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int align
 // 0x0041aa90
 void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect)
 {
-    HANG("TODO");
+    int endWidth;
+    int endHeight;
+    int box[4];
+
+    if (a1 == 0 || ui == NULL)
+        return;
+    swrSprite_GetTextureDimFromId(swrSprite_edit_window_selected_end, &endWidth, &endHeight);
+
+    box[0] = rect[0];
+    box[1] = rect[1];
+    box[2] = endWidth + rect[0] - 1;
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 0, swrSprite_edit_window_selected_end, box, 1, 0);
+
+    box[0] = rect[0] + endWidth;
+    box[1] = rect[1];
+    box[2] = rect[2] - endWidth;
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 1, swrSprite_edit_window_selected_strch, box, 1, 0);
+
+    box[0] = rect[2] - endWidth + 1;
+    box[1] = rect[1];
+    box[2] = rect[2];
+    box[3] = endHeight + rect[1] - 1;
+    swrUI_AddSprite(ui, 2, swrSprite_edit_window_selected_end, box, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    swrUI_SetSelected(ui, 1);
+    ui->rand_alpha_first = 0;
+    ui->rand_alpha_count = 3;
 }
