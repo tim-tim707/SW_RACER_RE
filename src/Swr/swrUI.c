@@ -1064,7 +1064,39 @@ void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len
 // 0x0043b0b0
 void swrUI_Front_HandleCircuits(swrObjHang* hang)
 {
-    HANG("TODO");
+    int count = 0;
+
+    // the Invitational circuit (index 3) only shows once unlocked
+    g_CircuitIdxMax = SWR_CIRCUIT_COUNT - 1;
+    swrRace_MenuMaxSelection = 0;
+    if (hang->isTournamentMode != 0) {
+        if (swrRace_UnlockDataBase[4] == 0)
+            g_CircuitIdxMax = SWR_CIRCUIT_COUNT - 2;
+        for (int track = 0; track < g_aTracksInCircuits[(int)hang->circuitIdx]; track++) {
+            if ((swrRace_UnlockDataBase[hang->circuitIdx + 1] & (uint8_t)(1 << track)) != 0)
+                swrRace_MenuMaxSelection = ++count;
+        }
+    } else {
+        if (g_aBeatTracksGlobal[3] == 0)
+            g_CircuitIdxMax = SWR_CIRCUIT_COUNT - 2;
+        for (int track = 0; track < g_aTracksInCircuits[(int)hang->circuitIdx]; track++) {
+            if ((g_aBeatTracksGlobal[(int)hang->circuitIdx] & (uint8_t)(1 << track)) != 0)
+                swrRace_MenuMaxSelection = ++count;
+        }
+    }
+    // multiplayer offers every track of the three main circuits
+    if (multiplayer_enabled != 0 && hang->circuitIdx < SWR_CIRCUIT_COUNT - 1) {
+        count = g_aTracksInCircuits[(int)hang->circuitIdx];
+        swrRace_MenuMaxSelection = count;
+    }
+    if (swrRace_MenuSelectedItem > count - 1)
+        swrRace_MenuSelectedItem = count - 1;
+    g_bCircuitIdxInRange = 0;
+    swrUI_menuScrolled = 0;
+    if (hang->circuitIdx > 0)
+        swrUI_menuScrolled = 1;
+    if (hang->circuitIdx < g_CircuitIdxMax)
+        g_bCircuitIdxInRange = 1;
 }
 
 // 0x0043fce0
@@ -1150,7 +1182,14 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
 // 0x0043b1d0
 void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang)
 {
-    HANG("TODO");
+    // the selection index counts only playable tracks before the current one
+    swrRace_MenuSelectedItem = 0;
+    for (int track = 0; track < g_aTracksInCircuits[(int)hang->circuitIdx]; track++) {
+        if (g_aTrackIDs[hang->circuitIdx * SWR_TRACKS_PER_CIRCUIT + track] == hang->track_index)
+            return;
+        if (isTrackPlayable(hang, hang->circuitIdx, (char)track))
+            swrRace_MenuSelectedItem++;
+    }
 }
 
 // 0x00440550
@@ -1348,6 +1387,14 @@ bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
 
     // 2 bits of best place per track: 7 tracks x 1st in each of the 3 circuits, 4 in Invitational
     return g_aBeatTrackPlace[0] == 0x3fff && g_aBeatTrackPlace[1] == 0x3fff && g_aBeatTrackPlace[2] == 0x3fff && g_aBeatTrackPlace[3] == 0xff;
+}
+
+// 0x00440d50
+void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4)
+{
+    swrUI_unk* page = swrUI_GetCurrentPage();
+    swrUI_RunCallbacks2(swrUI_GetById(page, 2), arg2);
+    swrUI_RunCallbacks2(swrUI_GetById(page, 4), arg4);
 }
 
 // 0x00457C20

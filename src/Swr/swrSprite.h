@@ -175,7 +175,7 @@ void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, u
 swrSpriteTexture* swrSprite_LoadTexture(int index);
 swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index);
 
-void swrSprite_SetViewport(int, int, int, int);
+void swrSprite_SetViewport(int minX, int maxX, int minY, int maxY);
 void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, float);
 void swrSprite_Draw(int* arg0, swrSpriteTexture*, RdMaterial**, float, float, float, float, int, int, int, int, int, int, int, short, float, float, int);
 void swrSprite_ResetCurrentMaterial();

@@ -831,6 +831,7 @@ swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
 swrText_timedMessageBuffer 0x0050c770 char[256]
 
 swrText_timedMessageCentered 0x0050c870 int
+swrText_timedMessageBlink 0x0050c874 float # 1 -> 0 at 2/s, wraps; alpha of the blinking "-" under a centered timed message
 
 swrEvent_lastIndex 0x0050c878 int
 swrEvent_f0SkipMask 0x0050c87c int
@@ -881,6 +882,27 @@ swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading
 swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
 swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
+swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
+swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
+swrObjHang_vehicleIntroPlanet 0x0050c428 char # random holo planet (0..7) drawn behind the vehicle-select intro
+swrObjHang_droidWalkTarget 0x004c451c rdVector3 # (-516, -467, -60); entry 1 of the 16-entry swrObjElmo_GetWaypointIndex table at 0x004c4510
+swrObjHang_droidHomePos 0x004c457c rdVector3 # (-210, -44, -60); entry 9 of the same table: where the hangar pit droid stands
+swrObjHang_tauntTimer 0x0050c110 float # cantina taunt scene clock, 5 s -> 0 at half speed
+swrObjHang_tauntFavoriteSpoken 0x0050c20c int # the track's favorite pilot already said their taunt
+swrObjHang_tauntReplySpoken 0x0050c120 int # the player's pilot already answered
+swrObjHang_tauntShot1Eye 0x0050c440 rdVector3
+swrObjHang_tauntShot1LookAt 0x0050c128 rdVector3
+swrObjHang_tauntShot2Eye 0x0050c318 rdVector3
+swrObjHang_tauntShot2LookAt 0x0050c2f8 rdVector3
+swrObjHang_pilotTauntText 0x004c0238 char*[24] # per pilot taunt line, NULL terminated
+swrObjHang_circuitIntroSfx 0x004c0298 int[4] # per circuit announcer sound played by swrObjHang_UpdatePlanetSelectIntro
+swrObjHang_displayPodPos 0x00e99360 rdVector3 # first of two display-pod positions 0x28 apart (second at 0x00e99388); 0x00e99384 is swrRace_PodRotationAnimation
+swrObjHang_planetIntroStep 0x0050c178 char # swrObjHang_UpdatePlanetSelectIntro camera shot, 0..6
+swrObjHang_planetIntroOrbitAngle 0x0050c1e8 float[3] # podium pilots' bob phase (degrees)
+swrObjHang_planetIntroOrbitSpeed 0x0050c200 float[3] # podium pilots' bob rate, from swrRacer_PodData[].float20
+swrObjHang_planetIntroSkipInitials 0x004c11f4 char[4] # "DBG": with swrRace_DEBUGFLAG_NAME_CHECKS, accept skips the planet-select intro
+swrObjHang_junkyardOpenDetail 0x0050c544 int # swrObjHang_UpdateJunkyard: the camera reached the slot, open the part detail view this frame
+swrObjHang_junkyardReturnCamera 0x0050c548 int # swrObjHang_UpdateJunkyard: the detail view closed, move the camera back once the icons stop gliding
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
 swrObjHang_cameraLookAtTargetCached 0x0050c998 rdVector3 # last look-at target, to detect a retarget
@@ -1791,10 +1813,10 @@ swrRace_inRaceMenuStackDepth 0x00e9a9b4 int
 swrRace_inRaceMenuStateStack 0x00e9a9c0 int[3] # DebugMenuState history for swrRace_PopDebugMenuState; deepest path is ESC -> DEBUG_VALUES -> VEHICLE_STATS (size maybe wrong)
 
 # Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by DrawHoloPlanet.
-# Sun/moon sprite pool (@0x00e293c4) + sun/moon and preview-model node arrays are identified but
-# left for a follow-up (their exact element struct / count want more verification).
 swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
 swrPlanetHoloModelNodes 0x00e299f4 void*[8]
+swrObjHang_holoMoons 0x00e293c0 swrHoloMoon[19] # sun/moon pool; DrawHoloPlanet advances all 19, swr_sceneModels[INGAME_MODELID_pln_moon_part0 + i - start] draws them
+swrObjHang_holoPlanetScale 0x004c45d0 float # 18.47: planet model scale on the galaxy map (planet 6, the Oovo IV asteroid, uses 1.5 instead)
 
 # AI difficulty / pacing globals (see swrRace_AI, InitAISettingsForTrack).
 # ai_track_script: per-signature-track scripted-AI selector (1..6, -1 = none); read by swrRace_AutopilotSteer / swrRace_UpdatePlayerControl.

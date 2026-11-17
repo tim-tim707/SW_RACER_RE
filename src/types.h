@@ -3290,6 +3290,17 @@ extern "C"
         char name[0x40]; // 0x1c display name (swrText_Translate'd, e.g. "Tatooine")
     } swrPlanetInfo; // sizeof(0x5c)
 
+    // One galaxy-map sun/moon (swrObjHang_holoMoons); swrPlanetInfo.sunMoonSpriteStart..End index it.
+    // DrawHoloPlanet places it at the planet + orbit.x * sin(angle) along the camera right axis,
+    // orbit.y * cos(angle) along camera up and orbit.z * cos(angle) along camera forward.
+    typedef struct swrHoloMoon
+    {
+        rdVector3 orbit; // 0x00
+        float angle; // 0x0c degrees; DrawHoloPlanet advances it twice per frame
+        float speed; // 0x10
+        float scale; // 0x14 model scale; also the draw-order key in swrObjHang_OrderHoloRacerIcons
+    } swrHoloMoon; // sizeof(0x18)
+
     typedef struct SmushImageInfo
     {
         uint8_t* data; // format rgb565

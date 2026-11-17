@@ -2,8 +2,12 @@
 
 #include "types.h"
 #include "globals.h"
+#include "engine_config.h"
+#include "swrSprite.h"
+#include "swr.h"
 
 #include <macros.h>
+#include <General/utils.h>
 #include <Engine/rdMaterial.h>
 
 #include <stdio.h>
@@ -404,16 +408,95 @@ int swrText_GetStringHeight(char* text, swrFont* font)
     return 0;
 }
 
+// 0x0044fd50
+void swrText_UpdateTimedMessage(void)
+{
+    double slide;
+    float drop;
+    int16_t x;
+    int16_t y;
+
+    if (swrText_timedMessageTimer <= 0.0f)
+        return;
+    if (swrText_timedMessageBuffer[0] != 0) {
+        // drops away during its last quarter second
+        slide = swrText_timedMessageTimer * 4.0;
+        if (slide > 1.0)
+            slide = 1.0f;
+        drop = (float)(1.0 - slide);
+        if (swrText_timedMessageAlpha > 0.0f) {
+            uint8_t fade = (uint8_t)(int)(swrText_timedMessageAlpha * 255.0f);
+            swrSprite_setCurrentSpriteColor(fade, 0xff, fade, 0xff);
+        } else {
+            swrSprite_setCurrentSpriteColor(0, (uint8_t)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 55.0f - -200.0f), 0, 0xff);
+        }
+        swrSprite_setCurrentTextPos(0x1a, (int16_t)(int)(drop * 20.0f - -215.0f));
+        swrText_RenderString(swrText_timedMessageBuffer);
+        if (swrText_timedMessageCentered != 0) {
+            swrSprite_setCurrentSpriteColor(0, (uint8_t)(int)(swrText_timedMessageBlink * 255.0), 0, 0xff);
+            swrSprite_getCurrentTextPos(&x, &y);
+            swrSprite_setCurrentTextPos(x, y + 5);
+            swrText_RenderString("-");
+        }
+        swrText_timedMessageBlink = (float)(swrText_timedMessageBlink - (swrRace_deltaTimeSecs + swrRace_deltaTimeSecs));
+        swrText_timedMessageAlpha = (float)(swrText_timedMessageAlpha - (swrRace_deltaTimeSecs + swrRace_deltaTimeSecs));
+        if (swrText_timedMessageBlink < 0.0f)
+            swrText_timedMessageBlink = 1.0f;
+    }
+    swrText_timedMessageTimer = (float)(swrText_timedMessageTimer - swrRace_deltaTimeSecs);
+}
+
+// 0x00450100
+void swrText_RenderEntries1(void)
+{
+    for (int i = 0; i < swrTextEntries1Count; i++) {
+        swrSprite_setCurrentSpriteColor(swrTextEntries1Colors[i][0], swrTextEntries1Colors[i][1], swrTextEntries1Colors[i][2], swrTextEntries1Colors[i][3]);
+        swrSprite_setCurrentTextPos(swrTextEntries1Pos[i][0], swrTextEntries1Pos[i][1]);
+        // swrText_SetEntryClipRect stores entry i's clip one slot up, at [i + 1]; the enable flag is never cleared
+        if (swrTextEntries1ClipEnabled[i + 1] != 0) {
+            swrText_clipEnabled = 1;
+            swrText_clipLeft = swrTextEntries1ClipRect[i + 1][0];
+            swrText_clipTop = swrTextEntries1ClipRect[i + 1][1];
+            swrText_clipRight = swrTextEntries1ClipRect[i + 1][2];
+            swrText_clipBottom = swrTextEntries1ClipRect[i + 1][3];
+        }
+        swrText_RenderString(swrTextEntries1Text[i]);
+        swrText_clipEnabled = 0;
+    }
+    swrTextEntries1Count = 0;
+}
+
+// 0x004501f0
+void swrText_RenderEntries2(void)
+{
+    for (int i = 0; i < swrTextEntries2Count; i++) {
+        swrSprite_setCurrentSpriteColor(swrTextEntries2Colors[i][0], swrTextEntries2Colors[i][1], swrTextEntries2Colors[i][2], swrTextEntries2Colors[i][3]);
+        swrSprite_setCurrentTextPos(swrTextEntries2Pos[i][0], swrTextEntries2Pos[i][1]);
+        swrText_RenderString(swrTextEntries2Text[i]);
+    }
+    swrTextEntries2Count = 0;
+}
+
 // 0x00450280
 void DrawTextEntries()
 {
-    HANG("TODO");
+    if (numMiniMapPositions < 1 && swrTextEntries1Count < 1)
+        return;
+    swrSprite_ResetCurrentMaterial();
+    swrText_RenderEntries1();
+    RenderMiniMapDotsAndCrosses();
+    swr_noop2();
 }
 
 // 0x004502B0
 void DrawTextEntries2()
 {
-    HANG("TODO");
+    if (swrText_timedMessageTimer <= 0.0f && swrTextEntries2Count < 1)
+        return;
+    swrSprite_ResetCurrentMaterial();
+    swrText_UpdateTimedMessage();
+    swrText_RenderEntries2();
+    swr_noop2();
 }
 
 // 0x004503e0
@@ -552,6 +635,12 @@ void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int 
     else
         sprintf(buffer, "%s%d:%.2d.%.3d", screenText, minutes, seconds, millis);
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
+}
+
+// 0x0042ec50
+void swrText_RenderString(char* text)
+{
+    HANG("TODO");
 }
 
 // 0x0042e0e0
