@@ -1691,6 +1691,44 @@ static void spinPartTowardCamera(rdMatrix44* m, const rdMatrix44* cam)
     rdMatrix_AddRotationFromVectorAngle44After(m, m, swrObjHang_partSpinAngle * -1.0f, cam->vC.x, cam->vC.y, cam->vC.z);
 }
 
+// 0x004557e0
+void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float fill, float alpha, float width, float height)
+{
+    short id;
+    float empty;
+    float barWidth;
+    float barHeight;
+    uint8_t a;
+
+    if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+        barWidth = 0.375f;
+        barHeight = 3.75f;
+    } else {
+        barHeight = height * 0.125f;
+        barWidth = (width - 2.0f) * 0.125f;
+        x = x + 3;
+        y = y + 1;
+    }
+
+    // dark backing for the unfilled part, then the filled part shaded red -> green
+    id = (short)swrRace_statBarSpriteCount + SWR_STAT_BAR_SPRITE_BASE;
+    swrRace_statBarSpriteCount++;
+    swrSprite_SetVisible(id, 1);
+    swrSprite_SetPos(id, x, y);
+    empty = 1.0f - fill;
+    swrSprite_SetDim(id, barWidth, barHeight * empty);
+    a = (uint8_t)(int)alpha;
+    swrSprite_SetColor(id, 0, 0, 0, a);
+
+    id = (short)swrRace_statBarSpriteCount + SWR_STAT_BAR_SPRITE_BASE;
+    swrRace_statBarSpriteCount++;
+    swrSprite_SetVisible(id, 1);
+    // the original offsets by the unscaled height arg here
+    swrSprite_SetPos(id, x, (short)(int)(height * empty + (float)y));
+    swrSprite_SetDim(id, barWidth, barHeight * fill);
+    swrSprite_SetColor(id, (uint8_t)(int)(empty * 255.0f), (uint8_t)(int)(fill * 255.0f), 0, a);
+}
+
 // 0x00455dc0
 void swrRace_UpdateStatPartModels(void)
 {

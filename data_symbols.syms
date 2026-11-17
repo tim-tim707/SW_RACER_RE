@@ -393,6 +393,8 @@ swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
 swrRace_nodeFlagsResetLatch 0x004c7a50 int # cleared by swrRace_ResetModelNodeFlags; no reader found
+g_pTxtDebugCompFormat 0x004c7d30 char[1] # "~r~scomp: %.5f"
+g_pTxtDebugPosFormat 0x004c7d40 char[1] # "~r~spos: %d,%d,%d"
 swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 } # per-flame respawn timers; <= 0 re-rolls the flame (swrRace_UpdateFireEffects)
 
 swrSpline_trackLength 0x004c7be0 float
@@ -687,6 +689,7 @@ swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlo
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
+swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
 swrObjHang_partLerpActive 0x0050c46c int # part icons are gliding vector2 -> vector3 (swrRace_UpdatePartMenuLayout)
