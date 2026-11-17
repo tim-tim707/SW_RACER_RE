@@ -212,6 +212,33 @@ void swrObj_Free(swrObj* obj)
     }
 }
 
+// 0x00451020
+void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue)
+{
+    float prev = swrObjcMan_preRaceSweepTimer;
+    swrRace* pod = cman->unkf4_objTest;
+
+    if (targetValue == -1.0f)
+        swrObjcMan_preRaceSweepTimer = targetValue;
+    if (targetValue == -2.0f) {
+        if (swrObjcMan_preRaceSweepTimer != -1.0f)
+            swrObjcMan_preRaceSweepTimer = (float)(swrObjcMan_preRaceSweepTimer + swrRace_deltaTimeSecs);
+    } else if (swrObjcMan_preRaceSweepTimer < targetValue) {
+        swrObjcMan_preRaceSweepTimer = targetValue;
+    }
+    if (swrObjcMan_preRaceSweepTimer == -1.0f)
+        return;
+    // binder ignition; Neva Kee (pilot 0xe) has no binder
+    if (swrObjcMan_preRaceSweepTimer >= 6.0f && prev < 6.0f && targetValue < 100.0f && pod != NULL && *pod->score_ptr->pilotId != 0xe)
+        playASound(0x74, 6, 0.25f, 0.5f, 0);
+    if (swrObjcMan_preRaceSweepTimer < 6.0f) {
+        swrRace_energyBinderTime = 0.0f;
+        return;
+    }
+    if (pod != NULL && (pod->flags0 & swrObjTest_FLAG0_LOCAL) != 0)
+        swrRace_energyBinderTime = (float)(swrRace_energyBinderTime + swrRace_deltaTimeSecs);
+}
+
 // 0x00451a80
 void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
 {
@@ -223,7 +250,7 @@ void swrObjcMan_F0(swrObjcMan* cman)
 {
     if (cman->mode_type == 0 || cman->metaCamIndex_count < 0)
         return;
-    swrEvent_UpdateTimedSound_Maybe((int)cman, -2.0f);
+    swrObjcMan_UpdatePreRaceSweepTimer(cman, -2.0f);
     if (cman->mode_type != 1 && cman->mode_type == 5 && cman->unkf4_objTest != NULL)
         cman->unkf4_objTest->flags0 |= swrObjTest_FLAG0_POD_HIDDEN;
     if (multiplayer_enabled != 0 && &swrScoresPtr[playerNumber] != NULL)
@@ -2057,7 +2084,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
             }
         }
         swrObjJdge_UpdateStandings(jdge);
-        swrObjJdge_UpdateOvertakeSounds(jdge);
+        swrObjJdge_PlayPassingVoiceLines(jdge);
         if ((jdge->flag & 0xf) == 2) {
             // every local racer just finished: freeze the race timer and extrapolate
             // unfinished racers' totals from their lap progress
@@ -2084,7 +2111,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
 // When a local racer's place changes, the pod it swapped with (if close and AI-driven) taunts:
 // losing a place plays the passer's gloat, gaining one plays the passed racer's complaint.
 // 0x0045ef70
-void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge)
+void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
 {
     swrScore* score;
     swrScore* other;

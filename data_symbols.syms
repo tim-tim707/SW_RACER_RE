@@ -340,7 +340,7 @@ swrText_timedMessageTimer 0x004c3e40 float
 
 swrText_timedMessageAlpha 0x004c3e44 float
 
-swrEvent_timedSoundTimer 0x004c3ee8 float = -1.0 # -1 idle; swrEvent_UpdateTimedSound_Maybe ticks it, engine-start sfx at 6s
+swrObjcMan_preRaceSweepTimer 0x004c3ee8 float = -1.0 # -1 idle; pre-race camera sweep clock (swrObjcMan_UpdatePreRaceSweepTimer), binder ignition sfx at 6s
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
 numEnabledLights 0x00004C3BA0 int[12]
@@ -818,7 +818,7 @@ swrObjHang_idleCameraSeeded 0x0050c9cc char # sentinel 5 once the sway has been 
 
 someUI 0x0050c968 swrUI_unk*
 
-swrObjJdge_prevRacePositions 0x0050c9d0 short[20] # per-score place last frame (swrObjJdge_UpdateOvertakeSounds); reset by swrObjJdge_InitTrack
+swrObjJdge_prevRacePositions 0x0050c9d0 short[20] # per-score place last frame (swrObjJdge_PlayPassingVoiceLines); reset by swrObjJdge_InitTrack
 swrObjJdge_teardownFlags 0x0050c9f8 int # bit 2 = TeardownRace restarts the track in place on 'Fini'; no writer in the retail binary
 swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
 swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
@@ -1254,7 +1254,7 @@ swrScores 0x00E29BC0 swrScore[20]
 swrRace_meshNodeCount 0x00e27130 int
 swrRace_meshNodeAssignCount 0x00e27134 int
 swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
-swrRace_energyBinderTime 0x0050caf8 float # seconds since swrEvent_timedSoundTimer passed 6 (local pod); grows the energy binder in swrRace_UpdateEnergyBinder (forced 1000 for flags0 state 2)
+swrRace_energyBinderTime 0x0050caf8 float # seconds since swrObjcMan_preRaceSweepTimer passed 6 (local pod); grows the energy binder in swrRace_UpdateEnergyBinder (forced 1000 for flags0 state 2)
 swrRace_meshNodeRoundRobin 0x0050cb10 int
 swrRace_fireballTransform 0x00e289c0 rdMatrix44
 
