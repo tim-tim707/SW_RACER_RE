@@ -698,7 +698,7 @@ void swrObjHang_TickHolotableSpin_Maybe(void);
 // Rotates an object's facing vector toward the camera until it faces it, then reapplies its transform (best guess).
 void swrObjHang_TurnIconToCamera_Maybe(int obj);
 // Looks up the playback rate and duration for the current animation (per character type).
-void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
+void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outLoopEnd);
 // Sets the arrived flag when within range of the walk target.
 void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
 // Turns toward the target and, once aligned, starts the type-specific walk animation.

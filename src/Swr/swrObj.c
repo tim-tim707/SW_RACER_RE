@@ -3263,7 +3263,408 @@ unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 // 0x00466ec0
 void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
 {
-    HANG("TODO");
+    swrModel_Animation** anims;
+    float speed = elmo->animSpeed;
+    float animTime = 0.1f;
+    float loopStart = 0.1f;
+    float loopEnd = 0.2f;
+    float transition = 0.2f;
+    float loopTransition = 0.2f;
+    bool setLoop = true;
+    int apply = 1;
+    int choiceCount = 5;
+    int atWattoCounter = 0;
+    int prevState;
+    int choice;
+    float angle;
+    rdVector3 delta;
+    swrObjElmo* other;
+
+    if (elmo->unkc_index == -1)
+        return;
+    prevState = (int)elmo->unk14;
+    elmo->unk14 = (void*)animCmd;
+    elmo->unk18_ms = 0.0f;
+    if (elmo->unk8 == 6)
+        return;
+
+    if (speed < 0.0f)
+        speed = -speed;
+    swrObjElmo_CheckReachedTarget(elmo);
+    anims = (swrModel_Animation**)elmo->unk34;
+    for (int i = 0; anims[i] != NULL; i++)
+        anims[i]->flags |= ANIMATION_ENABLED;
+
+    switch ((int)elmo->unk14) {
+    case 0:
+        elmo->animSpeed = 0.0f;
+        for (int i = 0; anims[i] != NULL; i++)
+            anims[i]->flags &= ~ANIMATION_ENABLED;
+        break;
+    case 1:
+        setLoop = false;
+        switch ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f)) {
+        case 0:
+            elmo->unk88 = 0x1b;
+            break;
+        case 1:
+            elmo->unk88 = 0x1c;
+            break;
+        case 2:
+            elmo->unk88 = 0xf;
+            break;
+        case 3:
+            elmo->unk88 = 0x19;
+            break;
+        default:
+            elmo->unk88 = 0x1a;
+            break;
+        }
+        break;
+    case 2:
+    case 0x21:
+        elmo->unk88 = 0xf;
+        setLoop = false;
+        break;
+    case 4:
+    case 5:
+        elmo->unk88 = 0x10;
+        setLoop = false;
+        break;
+    case 6:
+        setLoop = false;
+        elmo->unk88 = 0xb;
+        if (prevState == 6)
+            transition = 0.0f;
+        break;
+    case 7:
+        elmo->unk88 = 0x13;
+        setLoop = false;
+        break;
+    case 8:
+        playASound((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.3 ? 0x31 : 0x32, 6, 0.25f, 0.5f, 0);
+        elmo->unk88 = 0x14;
+        transition = 0.0f;
+        break;
+    case 9:
+        elmo->unk88 = 0x15;
+        transition = 0.0f;
+        setLoop = false;
+        break;
+    case 0xa:
+        elmo->unk88 = 8;
+        setLoop = false;
+        break;
+    case 0xb:
+        elmo->unk88 = 9;
+        transition = 0.0f;
+        loopTransition = 0.0f;
+        break;
+    case 0xc:
+        elmo->unk88 = 10;
+        transition = 0.0f;
+        setLoop = false;
+        break;
+    case 0xd:
+    case 0x36:
+    case 0x3b:
+    case 0x40:
+        elmo->unk88 = 3;
+        setLoop = false;
+        break;
+    case 0xe:
+        transition = 0.0f;
+        elmo->unk88 = 4;
+        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0f + 8.0f;
+        break;
+    case 0xf:
+        setLoop = false;
+        elmo->unk88 = 5;
+        transition = 0.0f;
+        break;
+    case 0x10:
+        setLoop = false;
+        elmo->unk88 = 0;
+        break;
+    case 0x11:
+        elmo->unk88 = 5;
+        if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER) != 0)
+            break;
+        if (swrObjHang_lastMenuScreen == swrObjHang_STATE_JUNKYARD || swrObjHang_lastMenuScreen == swrObjHang_STATE_WATTO) {
+            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM >= 0.15f)
+                break;
+            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM <= 0.998f) {
+                swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 1, 5, 0x12, 0xe, 8, NULL);
+            } else {
+                swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 6, 9, 6, 9, 6, NULL);
+            }
+        } else if (swrObjHang_lastMenuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
+            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f) {
+                if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+                    swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 0xc, 7, 5, 1, 0xb, NULL);
+                } else {
+                    swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 8, 7, 5, 3, 0xc, NULL);
+                }
+            } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.001f) {
+                swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 6, 9, 6, 9, 6, NULL);
+            }
+        }
+        break;
+    case 0x12:
+        if (elmo->moveTarget.x == maybeUICameraPlacements[1].position2.x && elmo->moveTarget.y == maybeUICameraPlacements[1].position2.y) {
+            choiceCount = 2;
+            atWattoCounter = 1;
+        }
+        choice = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * choiceCount);
+        if (choice == elmo->unka4)
+            choice++;
+        if (choice >= choiceCount)
+            choice = 0;
+        elmo->unka4 = choice;
+        setLoop = false;
+        switch (choice) {
+        case 0:
+            elmo->unk88 = atWattoCounter ? 4 : 3;
+            break;
+        case 1:
+            elmo->unk88 = atWattoCounter ? 8 : 6;
+            break;
+        case 2:
+            elmo->unk88 = 7;
+            break;
+        case 3:
+            elmo->unk88 = 4;
+            break;
+        default:
+            elmo->unk88 = 8;
+            break;
+        }
+        break;
+    case 0x13:
+        loopTransition = 0.0f;
+        if (elmo->unk88 == 1)
+            apply = 0;
+        elmo->unk88 = 1;
+        break;
+    case 0x14:
+        rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
+        delta.z = 0.0f;
+        if (elmo->unka0 != 0) {
+            angle = elmo->yawTarget;
+        } else {
+            angle = stdMath_ArcTan2(-delta.x, delta.y);
+        }
+        angle -= elmo->yaw;
+        if (angle < -180.0f)
+            angle += 360.0f;
+        if (angle > 180.0f)
+            angle -= 360.0f;
+        elmo->unk88 = 1;
+        if (angle > 5.0f || angle < -5.0f) {
+            if (angle > 85.0f && angle < 175.0f) {
+                elmo->unk88 = 0xb;
+                setLoop = false;
+            }
+            if (angle < -85.0f && angle > -175.0f) {
+                elmo->unk88 = 0xb;
+                setLoop = false;
+                speed = -1.0f;
+            }
+            if (angle > 175.0f || angle < -175.0f) {
+                elmo->unk88 = 0xc;
+                setLoop = false;
+            }
+        }
+        loopTransition = 0.0f;
+        if (prevState == 0x13 && elmo->unk88 == 1)
+            apply = 0;
+        break;
+    case 0x18:
+        elmo->unk88 = 9;
+        break;
+    case 0x19:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(10, 0xb, 0xc, 0xd, 0x12);
+        } else {
+            swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 2, 2, 2, 2, 2, NULL);
+        }
+        elmo->unk88 = 9;
+        setLoop = false;
+        other = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x15);
+        if ((int)other->unk14 == 0x20) {
+            swrObjElmo_SetAnimState(other, 0x25);
+        } else if ((int)other->unk14 == 0x1d) {
+            swrObjElmo_SetAnimState(other, 0x23);
+        }
+        break;
+    case 0x1a:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(2, 0x1f, 7, 8, 9);
+        } else {
+            swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 3, 3, 3, 5, 5, NULL);
+        }
+        elmo->unk88 = 10;
+        setLoop = false;
+        other = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x15);
+        if ((int)other->unk14 == 0x20) {
+            swrObjElmo_SetAnimState(other, 0x26);
+        } else if ((int)other->unk14 == 0x1d) {
+            swrObjElmo_SetAnimState(other, 0x24);
+        }
+        break;
+    case 0x1b:
+        // the EXE also walks the anim list here without touching it
+        elmo->unk88 = 0xd;
+        break;
+    case 0x1c:
+        elmo->unk88 = 0xd;
+        break;
+    case 0x1d:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x30, 0x31, 0x32, 0x22, 0x2b);
+        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x23, 0x24, 0x25, 0x26, 0x27);
+        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x18, 0x2e, 0x13, 0x29, 0x2b);
+        } else {
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x19, 0x20, 0x2c, 0x19, 0x20);
+        }
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        elmo->unk88 = 0;
+        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
+        break;
+    case 0x1f:
+        setLoop = false;
+        elmo->unk88 = 0xb;
+        transition = 0.0f;
+        break;
+    case 0x20:
+        elmo->unk88 = 0xc;
+        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
+        break;
+    case 0x22:
+    case 0x1e:
+        elmo->unk88 = 0;
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        break;
+    case 0x23:
+    case 0x25:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0xb, 0xc, 0xd, 0x2d, 0x14);
+        elmo->unk88 = (int)elmo->unk14 == 0x23 ? 3 : 0xd;
+        setLoop = false;
+        break;
+    case 0x24:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x12, 0x28, 0x36, 0xe, 0x17);
+        elmo->unk88 = 1;
+        setLoop = false;
+        break;
+    case 0x26:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x12, 0x28, 0x36, 0xe, 0x17);
+        // fallthrough
+    case 3:
+        elmo->unk88 = 0xe;
+        setLoop = false;
+        break;
+    case 0x27:
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f) {
+            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
+                swrObjElmo_PlayRandomVoiceSfx_Maybe(0x2a, 0x32, 0x31, 0x33, 0x13);
+            } else {
+                swrObjElmo_PlayRandomVoiceSfx_Maybe(0x2c, 0x19, 0x20, 0x2c, 0x19);
+            }
+        }
+        // fallthrough
+    case 0x2d:
+    case 0x31:
+        setLoop = false;
+        elmo->unk88 = 2;
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        break;
+    case 0x2b:
+    case 0x2f:
+    case 0x33:
+    case 0x38:
+    case 0x3d:
+        setLoop = false;
+        elmo->unk88 = 0;
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        break;
+    case 0x2c:
+    case 0x30:
+    case 0x34:
+    case 0x39:
+    case 0x3e:
+        elmo->unk88 = 1;
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        break;
+    case 0x2e:
+        elmo->unk88 = 3;
+        loopTransition = 0.0f;
+        speed = 0.5f;
+        break;
+    case 0x32:
+        elmo->unk88 = 3;
+        loopTransition = 0.0f;
+        break;
+    case 0x35:
+    case 0x3a:
+    case 0x3f:
+        elmo->unk88 = 2;
+        loopTransition = 0.0f;
+        transition = 0.0f;
+        break;
+    case 0x37:
+    case 0x3c:
+    case 0x41:
+        elmo->unk88 = 4;
+        loopTransition = 0.0f;
+        break;
+    case 0x42:
+        elmo->unk88 = 5;
+        break;
+    default:
+        break;
+    }
+
+    if (elmo->unk8 == 3) {
+        loopTransition = 0.0f;
+        transition = 0.1f;
+    }
+    if (elmo->unk14 != NULL) {
+        swrObjElmo_GetAnimTiming(elmo, &loopStart, &loopEnd);
+        animTime = loopStart;
+    }
+    if ((int)elmo->unk14 == 0x1b && elmo->unk88 != 0xd)
+        loopEnd = loopStart + 0.1f;
+    if (speed < 0.0f)
+        animTime = loopEnd - 0.1f;
+    if ((int)elmo->unk14 == 5) {
+        loopStart = loopEnd - 0.1f;
+        animTime = loopStart;
+    }
+    if ((int)elmo->unk14 == 0x2a)
+        loopTransition = 0.0f;
+    if (apply != 0)
+        swrModel_AnimationsSetSettings(anims, animTime, loopStart, loopEnd, setLoop, transition, loopTransition);
+    if (elmo->animSpeed != speed) {
+        elmo->animSpeed = speed;
+        swrModel_SetAnimListSpeed(anims, speed);
+    }
+}
+
+// 0x00467c80
+void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5)
+{
+    if (swrSound_TestSfxFlag(0, 0x10) != 0 && swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING) == 0)
+        swrSound_PlayRandomSfx(2, 0, sfx1, sfx2, sfx3, sfx4, sfx5, NULL);
 }
 
 // 0x00467cd0
@@ -3401,6 +3802,62 @@ void swrObjElmo_SetAnimStateById(int elmoId, int animCmd)
 
     if (elmo != NULL)
         swrObjElmo_SetAnimState(elmo, animCmd);
+}
+
+// 0x00468a30
+void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outLoopEnd)
+{
+    const swrObjElmo_AnimFrames* frames;
+    float frameTime = 0.0333f;
+
+    if (elmo->unk88 == -1 && (elmo->unk8 == 1 || elmo->unk8 == 2 || elmo->unk8 == 6 || elmo->unk8 == 3))
+        return;
+
+    switch (elmo->unk8) {
+    case 1:
+        frames = swrObjElmo_animFramesKind1;
+        frameTime = 0.0666f;
+        break;
+    case 2:
+        frames = swrObjElmo_animFramesKind2;
+        break;
+    case 3:
+        frames = swrObjElmo_animFramesKind3;
+        break;
+    case 4:
+        *outLoopStart = 0.03333f;
+        *outLoopEnd = 14.3333f;
+        return;
+    case 5:
+        *outLoopStart = 0.03333f;
+        *outLoopEnd = 4.2f;
+        return;
+    case 7:
+        *outLoopStart = 0.0666f;
+        *outLoopEnd = 5.0616f;
+        return;
+    case 8:
+        frames = swrObjElmo_animFramesKind8;
+        break;
+    case 9:
+        frames = swrObjElmo_animFramesKind9;
+        break;
+    case 10:
+        frames = swrObjElmo_animFramesKind10;
+        break;
+    case 11:
+        frames = swrObjElmo_animFramesKind11;
+        break;
+    case 12:
+        frames = swrObjElmo_animFramesKind12;
+        break;
+    default:
+        *outLoopStart = 0.0f;
+        *outLoopEnd = 0.0f;
+        return;
+    }
+    *outLoopStart = (float)frames[elmo->unk88].start * frameTime;
+    *outLoopEnd = (float)frames[elmo->unk88].end * frameTime;
 }
 
 // 0x00468d00

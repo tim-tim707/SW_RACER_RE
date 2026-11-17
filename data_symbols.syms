@@ -313,6 +313,14 @@ upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
+swrObjElmo_animFramesKind1 0x004c25a8 swrObjElmo_AnimFrames[30] # swrObjElmo_GetAnimTiming, elmo kind 1
+swrObjElmo_animFramesKind2 0x004c2620 swrObjElmo_AnimFrames[14] # swrObjElmo_GetAnimTiming, elmo kind 2
+swrObjElmo_animFramesKind3 0x004c2658 swrObjElmo_AnimFrames[16] # swrObjElmo_GetAnimTiming, elmo kind 3
+swrObjElmo_animFramesKind10 0x004c2698 swrObjElmo_AnimFrames[4] # swrObjElmo_GetAnimTiming, elmo kind 10
+swrObjElmo_animFramesKind12 0x004c26a8 swrObjElmo_AnimFrames[4] # swrObjElmo_GetAnimTiming, elmo kind 12
+swrObjElmo_animFramesKind11 0x004c26b8 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, elmo kind 11
+swrObjElmo_animFramesKind8 0x004c26d0 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, elmo kind 8
+swrObjElmo_animFramesKind9 0x004c26e8 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, elmo kind 9
 swrRacer_PodData 0x004c2700 swrRacerData[23]
 swrRacer_PodHandlingData 0x004c2bb0 PodHandlingData[23]
 swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData

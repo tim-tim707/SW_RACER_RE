@@ -954,6 +954,13 @@ extern "C"
         float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
+    // Per-kind anim frame ranges read by swrObjElmo_GetAnimTiming, indexed by swrObjElmo.unk88
+    typedef struct swrObjElmo_AnimFrames
+    {
+        short start; // 0x0
+        short end; // 0x2
+    } swrObjElmo_AnimFrames; // sizeof(0x4)
+
     // Generic particle entity ('Smok'): engine smoke, track fire, explosion bursts,
     // Sebulba's flame attack. Up to 5 billboards, aged by F0 and drawn by F3. Every
     // Start/End pair below is interpolated over the per-particle phase,
