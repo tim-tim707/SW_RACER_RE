@@ -323,7 +323,7 @@ void swrRace_DrawPartShopScreen(swrObjHang* hang);
 void swrRace_DrawScrollbar(short x, short y, int height);
 void swrRace_UpdatePartNodeSelection(void);
 void swrRace_SetupStatsMenuLighting(void);
-void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float value, float lo, float mid, float hi);
+void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float fill, float alpha, float width, float height);
 void swrRace_UpdateStatPartModels(void);
 
 // Randomizes and positions the pit-droid models and sets the stats-menu light (best guess).

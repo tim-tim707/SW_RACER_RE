@@ -7,6 +7,8 @@
 #include <Primitives/rdMatrix.h>
 #include <Swr/swrModel.h>
 #include <Unknown/rdMatrixStack.h>
+#include <Swr/swrObj.h>
+#include <Swr/swrText.h>
 
 // 0x00428B40
 void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
@@ -303,6 +305,24 @@ void swrViewport_SetCameraParameters(int viewportIndex, float fovY, float aspect
     if (0.0 <= param6)
         swrViewport_array[viewportIndex].unk13c = param6;
     swrViewport_UpdateUnknown(&swrViewport_array[viewportIndex]);
+}
+
+// 0x00483be0
+void swrRace_DrawDebugPosition(int debugLevel)
+{
+    char text[64];
+    double comp;
+    rdVector4* pos = &swrViewport_array[1].model_matrix.vD;
+
+    if (debugLevel <= 1)
+        return;
+    sprintf(text, swrText_Translate(g_pTxtDebugPosFormat), (int)pos->x, (int)pos->y, (int)pos->z);
+    swrText_CreateColorlessFormattedEntry1(4, 0x11d, 0xd6, text);
+    comp = swrRace_GetLapProgressIfAvailable();
+    if (0.0 < comp) {
+        sprintf(text, swrText_Translate(g_pTxtDebugCompFormat), comp);
+        swrText_CreateColorlessFormattedEntry1(4, 300, 0xc2, text);
+    }
 }
 
 // 0x00483fc0

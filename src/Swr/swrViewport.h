@@ -75,7 +75,7 @@ void swrViewport_Render(int x);
 void swrViewport_Activate(int viewportIndex);
 
 // Prints the pod position and lap progress as a debug text overlay.
-void swrRace_DrawDebugPosition(int param_1);
+void swrRace_DrawDebugPosition(int debugLevel);
 
 // Debug overlay near DrawDebugPosition; forwards to the metacamera draw (best guess).
 void swrRace_DrawDebugMetaCamera_Maybe(void);

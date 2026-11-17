@@ -178,4 +178,7 @@
 #define SWR_PART_DETAIL_SCALE (0.010000001f) // the selected part while its detail view is open or closing
 #define SWR_PART_INSTALLED_PREVIEW_SCALE (0.004f) // the installed part shown beside it for comparison
 
+// swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
+#define SWR_STAT_BAR_SPRITE_BASE (0x90)
+
 #endif // ENGINE_CONFIG_H
