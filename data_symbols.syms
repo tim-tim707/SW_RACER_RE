@@ -127,6 +127,7 @@ unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
 
 Main_display_intro_scene 0x004b7a00 int = 1
+swrObjHang_cinematicFiles 0x004b7a08 char*[10] # PlanetTAT/A/B/C/D/E/F/J.znm, Goldie.znm, TextCrawl.znm; indexed by planet
 
 swrMainDisplay_currentDevice 0x004b7a34 int
 swrMain_GuiAdvanceFunction 0x004b7a38 void*
@@ -174,7 +175,7 @@ swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared t
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
-swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
+swrMusicPlanetIntroTable 0x004b8780 int16_t[12] # 8 planets, then 4 x -1 (swrSound_SelectPlanetIntroMusic indexes it % 12)
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
 swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
@@ -379,6 +380,7 @@ swrTextFmtString2 0x004c3e48 char[8] = "~f%d%s\0\0"
 
 swrObjHang_menuJustEntered 0x004c4000 int # set by swrObjHang_SetMenuState; each menu update consumes it for first-frame init
 swrObjHang_cameraLerpNeedsInit 0x004c4004 int # swrObjHang_LerpHoloCamera: recompute the move deltas and restart the clock
+swrObjHang_fadeDone 0x004c4008 int # set when a fade in/out completes, cleared when a fade-out starts; read by swrUI_UpdatePlayerMenuInput
 swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; swrObjHang_UpdateIdleCamera consumes it
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
@@ -624,6 +626,8 @@ swrSound_sfxCategoryCooldown 0x0050b600 float[8]
 swrSound_sfxVariantCooldown 0x0050b620 float[23]
 swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed each variant cooldown slot (swrSound_MarkSfxPlayed)
 swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
+swrSound_musicStartDelay 0x0050b6f0 float # seconds until swrSound_UpdateMusic starts the queued track
+swrSound_musicElapsed 0x0050b6f4 float # seconds since the current track was queued
 swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
 swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
 
@@ -697,6 +701,7 @@ DAT_0050c134 0x0050c134 int
 
 DAT_0050c17c 0x0050c17c int
 
+swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose in the results intro; drifts down at 100 units/s
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
@@ -735,6 +740,8 @@ swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlo
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
+swrObjHang_resultsIntroCameraSet 0x0050c1d0 int # the results intro already started its camera pan
+swrObjHang_resultsIntroTimer 0x0050c214 float # seconds left in the results intro (12 at entry; the pan starts at 10)
 swrRace_audioVideoMenuX 0x0050c224 float # A/V settings page column x, set to 165 each frame
 swrRace_audioVideoMenuY 0x0050c43c float # A/V settings page top row y, set to 70 each frame
 swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music .. 5 exit)
@@ -752,6 +759,8 @@ swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (le
 swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
 swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
 swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
+swrUI_menuHorizontalDir 0x0050c970 int[4] # per local player: -1 left / 0 / +1 right, latched by swrUI_UpdatePlayerMenuInput for the left/right repeat
+swrUI_menuVerticalDir 0x0050c980 int[4] # same for up (-1) / down (+1)
 swrAssetBuffer_debugPrintSlots 0x0050c608 int # gates the per-slot debug sprintf in swrAssetBuffer_CheckOverflow; never written (debug-build leftover)
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
 swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange
@@ -849,7 +858,12 @@ swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateH
 
 swrObjHang_lookAtMenuFade 0x0050c958 float # look-at-vehicle menu fade, ramps 0 <-> 0.4 s with activeMenu (swrObjHang_UpdateLookAtVehicle); x2.5 = panel alpha
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
+swrObjHang_fadeOutAlpha 0x0050c570 float # fade sprite alpha while fading out, 0 -> 255 (swrObjHang_FadeOutAndAdvance)
 swrObjHang_inspectIdleTimer 0x0050c574 float # seconds on the current idle look-at-vehicle camera (swrObjHang_CycleInspectCamera)
+swrObjHang_fadeOutHoldFrames 0x004c02a8 short = 3 # frames held at full black before swrObjHang_FadeOutAndAdvance switches screen
+swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading in (swrObjHang_FadeScreenFlash_Maybe)
+swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
+swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
@@ -909,6 +923,7 @@ swrObjJdge_musicFadedForPause 0x0050ca88 int
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
 
+swrRender_cameraCount 0x0050ccec int # live entries in swrRender_cameraPositions
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
 
@@ -1162,6 +1177,7 @@ rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
 
+swrRender_cameraPositions 0x00e22820 rdVector3[4] # eye position of each active viewport camera, refreshed every frame
 swrSprite_dirtyRects 0x00E22720 short[124]
 
 backBufferClearColor 0x00E229A8 int16_t[3]
@@ -1250,6 +1266,7 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
+swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
 
 fireballChildNodeArray2 0x00E288C0 swrModel_Node*[40] # one per fireballChildNodeArray entry; runs up to swrScoresPtr
 
@@ -1327,7 +1344,7 @@ rdMatrix44_unk7 0x00e2af00 rdMatrix44
 swrRace_statBarsPreview 0x00e2af40 float[7] // bars with the candidate upgrade applied (parts-shop preview)
 
 swrObjHang_holoCameraMatrix 0x00e2af60 rdMatrix44 # .vD is the point the front-end camera looks at
-swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
+swr_sceneAnimations 0x00e2afa0 swrModel_Animation**[300] # per scene slot: the model's animation list (swrModel_LoadAllAnimationsOfModel)
 
 tr_rot3 0x00e2b200 swrTranslationRotation
 

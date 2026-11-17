@@ -1337,7 +1337,11 @@ char* swrUI_Front_GetTrackNameFromId(int trackId) // swrRace_TRACK
 // 0x00440bc0
 bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
 {
-    HANG("TODO");
+    if (!hang->isTournamentMode)
+        return (swrRace_saveData.unlockFlags & swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST) != 0;
+
+    // 2 bits of best place per track: 7 tracks x 1st in each of the 3 circuits, 4 in Invitational
+    return g_aBeatTrackPlace[0] == 0x3fff && g_aBeatTrackPlace[1] == 0x3fff && g_aBeatTrackPlace[2] == 0x3fff && g_aBeatTrackPlace[3] == 0xff;
 }
 
 // 0x00457C20

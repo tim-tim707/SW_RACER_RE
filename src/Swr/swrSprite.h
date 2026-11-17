@@ -188,7 +188,7 @@ void swrSprite_SetDrawStateWord_Maybe(unsigned int value);
 // out_xscale = screenWidth / 640, out_yscale = screenHeight / 480 (independent).
 void swrSprite_GetUIScale(float* out_xscale, float* out_yscale);
 
-int AddDotToMiniMap(char, short, short);
+int AddDotToMiniMap(char type, short x, short y);
 void RenderMiniMapDotsAndCrosses();
 
 // Dirty-rectangle list: each drawn 2D overlay element registers its bounding box (expanded 1px,

@@ -24,6 +24,7 @@
 
 #include <macros.h>
 #include <General/utils.h>
+#include <Win95/Window.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -714,25 +715,173 @@ void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
 // 0x0043d4e0
 void swrObjHang_UpdateResultsIntro(void)
 {
-    HANG("TODO");
+    rdMatrix44 podTransform;
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_resultsIntroTimer = 12.0f;
+        swrObjHang_resultsIntroCameraSet = 0;
+        rdVector_Set3(&swrObjHang_resultsPodPose.translation, 0.0f, 1200.0f, 50.0f);
+        rdVector_Set3(&swrObjHang_resultsPodPose.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS], (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        swrObjHang_holoCameraMatrix.vD.z = -97.0f;
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        swrObjHang_cameraMatrix.vD.y += 500.0f;
+        playASound(0xa1, 7, 0.25f, 0.8f, 0);
+    }
+
+    if (swrObjHang_resultsIntroTimer <= 10.0 && swrObjHang_resultsIntroCameraSet == 0) {
+        swrObjHang_resultsIntroCameraSet = 1;
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixStart.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixStart.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        swrObjHang_cameraMatrixTarget.vD.x += 500.0f;
+        swrObjHang_cameraMoveMode = 1;
+    }
+
+    swrObjHang_resultsPodPose.translation.y -= swrRace_fdeltaTimeSecs * 100.0f;
+    swrModel_Header* pod = swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
+    if (pod != NULL) {
+        rdMatrix_SetTransform44(&podTransform, &swrObjHang_resultsPodPose);
+        swrRace_AnimateDisplayPod((swrModel_Node**)pod, &podTransform, 0, 70.0f, 70.0f, 70.0f, -157.0f, 1, 0.0f, 0.0f);
+        if (pod->entries[0x3b].node != NULL)
+            swrModel_NodeModifyFlags(pod->entries[0x3b].node, 2, 3, 0x10, 2);
+    }
+
+    if (swrObjHang_fadeState == -1)
+        return;
+    int expired = 0;
+    if (swrObjHang_resultsIntroTimer >= 0.0f) {
+        swrObjHang_resultsIntroTimer -= swrRace_fdeltaTimeSecs;
+        expired = swrObjHang_resultsIntroTimer <= 0.0f;
+    }
+    if (!expired) {
+        if (swrControl_menuAcceptPressedEdge == 0 && swrControl_cancelPressedEdge == 0)
+            return;
+        swrObjHang_resultsIntroTimer = 0.0f;
+    }
+    swrObjHang_fadeState = -1;
+    swrObjHang_state2 = swrObjHang_STATE_POST_RACE_INFO;
 }
 
 // 0x0043e330
 int swrObjHang_FadeOutAndAdvance(swrObjHang* hang)
 {
-    HANG("TODO");
+    int done = 0;
+    swrObjHang_fadeDone = 0;
+    if (swrObjHang_fadeOutAlpha < 255.0f) {
+        swrObjHang_fadeOutAlpha += swrRace_fdeltaTimeSecs * 849.99994f;
+    } else {
+        swrObjHang_fadeOutHoldFrames--;
+        done = swrObjHang_fadeOutHoldFrames <= 0;
+        swrObjHang_fadeOutAlpha = 255.0f;
+    }
+    if (swrObjHang_fadeOutAlpha > 255.0f) {
+        swrObjHang_fadeOutHoldFrames = 3;
+        swrObjHang_fadeOutAlpha = 255.0f;
+    }
+    swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)swrObjHang_fadeOutAlpha);
+    if (!done)
+        return 0;
+
+    swrObjHang_fadeOutAlpha = 0.0f;
+    if (swrObjHang_state2 != ~swrObjHang_STATE_LEGAL) {
+        if (swrObjHang_state2 == swrObjHang_STATE_SPLASH && hang->menuScreen == swrObjHang_STATE_VEHICLE_SELECT_INTRO) {
+            swrObjElmo* elmo = swrEvent_GetItem('Elmo', hang->elmoEntityIndex);
+            if (elmo != NULL)
+                swrObjElmo_SetAnimState(elmo, 0);
+        }
+        swrObjHang_fadeState = 1;
+        swrObjHang_cameraMoveActive = 0;
+        swr_noop2();
+        swrSound_ResetRequestedVoices();
+        swrRace_SaveCurrentProfile();
+        swrObjHang_SetMenuState(hang, swrObjHang_state2);
+        return 0;
+    }
+
+    swrSprite_SetVisible(-0x67, 0);
+    swrObjHang_fadeDone = 1;
+    swrObjHang_fadeState = 0;
+    swr_noop2();
+    swrSound_ResetRequestedVoices();
+    swrRace_SaveCurrentProfile();
+    return 1;
 }
 
 // 0x0043e490
 int swrObjHang_FadeScreenFlash_Maybe(void)
 {
-    HANG("TODO");
+    int done = 0;
+    if (swrObjHang_fadeInAlpha == 255.0f || swrObjHang_fadeInDelayFrames > 0) {
+        swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+        swrObjHang_fadeInDelayFrames--;
+        if (swrObjHang_fadeInDelayFrames > 0)
+            return 0;
+    }
+
+    if (swrObjHang_fadeInAlpha > 0.0f) {
+        swrObjHang_fadeInAlpha -= swrRace_fdeltaTimeSecs * 849.99994f;
+    } else {
+        swrObjHang_fadeInHoldFrames--;
+        done = swrObjHang_fadeInHoldFrames <= 0;
+        swrObjHang_fadeInAlpha = 0.0f;
+    }
+    if (swrObjHang_fadeInAlpha < 0.0f) {
+        swrObjHang_fadeInHoldFrames = 3;
+        swrObjHang_fadeInAlpha = 0.0f;
+    }
+    swrSprite_SetColor(-0x67, 0, 0, 0, (uint8_t)(int)swrObjHang_fadeInAlpha);
+    if (!done)
+        return 0;
+
+    swrSprite_SetVisible(-0x67, 0);
+    swrObjHang_fadeInAlpha = 255.0f;
+    swrObjHang_fadeInDelayFrames = 3;
+    swrObjHang_fadeDone = 1;
+    swrObjHang_fadeState = 0;
+    return 1;
 }
 
 // 0x00457410
-void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3)
+void swrObjHang_LoadScreen(swrObjHang* hang, int rosterArg, int noBroadcast)
 {
-    HANG("TODO");
+    swrControl_uiInputActive = 1;
+    swrControl_ClearDeviceState(1);
+    swrControl_StopForceEffect(swrForceEffect_AUTO_CENTER);
+    swrUI_ResetProgressBar();
+    swrEvent_FreeObjs('Elmo');
+    swrUI_UpdateProgressBar(10);
+    swrEvent_ClearObjs('Elmo');
+    swrUI_UpdateProgressBar(20);
+    resetOverlayDrawQueues();
+    swrUI_UpdateProgressBar(30);
+    swrSprite_SetVisible(-0x67, 0);
+    hang->room = HangRoom_None;
+    swrSprite_ResetAllSprites();
+    swrUI_UpdateProgressBar(40);
+    swrModel_ClearLoadedModels();
+    swrUI_UpdateProgressBar(50);
+    swrViewport_SetRootNodeForAllViewports(NULL);
+    // rosterArg is a plain int the original forwards untouched into the roster builders' pointer slot
+    swrObjHang_StartRace(hang, (int*)rosterArg, noBroadcast);
+    swrUI_UpdateProgressBar(98);
+
+    int message = 'Stop';
+    swrEvent_CallF4('Hang', &message);
+    message = 'Wake';
+    if (hang->unk68_type >= 0) {
+        swrEvent_CallF4('Scen', &message);
+        return;
+    }
+
+    char planet = g_aTrackInfos[hang->track_index].PlanetIdx;
+    if ((swrRace_saveData.profiles[0].planetIntrosSeen & (1 << planet)) == 0 && multiplayer_enabled == 0 && swrRace_creditsMode == 0 && hang->demo_mode == 0) {
+        // tests save slot 0's mask but records into the live profile
+        Window_PlayCinematic(swrObjHang_cinematicFiles[planet]);
+        swrRace_aProfiles[0].planetIntrosSeen |= 1 << g_aTrackInfos[hang->track_index].PlanetIdx;
+    }
+    swrEvent_CallF4('Jdge', &message);
 }
 
 // 0x004575a0
@@ -766,7 +915,7 @@ void swrObjHang_F0(swrObjHang* hang)
         hang->unk60 = 0;
         swrObjHang_TickHolotableSpin_Maybe();
         swrControl_uiInputActive = 0;
-        swrControl_PlayForceEffect(0x11, -1, -1, -1);
+        swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
         for (int player = 0; player < 4; player++)
             swrUI_UpdatePlayerMenuInput(player);
 
@@ -1089,6 +1238,12 @@ void swrObjHang_SetState5_Maybe(void)
     swrObjHang_displayPodResetFrames = SWR_DISPLAY_POD_RESET_FRAMES;
 }
 
+// 0x004337e0
+void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int param_3, float scaleX, float scaleY, float scaleZ, float param_7, int animated, float param_9, float param_10)
+{
+    HANG("TODO");
+}
+
 // 0x0043da90
 int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targetOffset)
 {
@@ -1127,6 +1282,12 @@ int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targ
         }
     }
     return 0;
+}
+
+// 0x0045b290
+void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
+{
+    HANG("TODO");
 }
 
 // 0x0045bab0
@@ -1446,7 +1607,50 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 // 0x0045a460
 void swrUI_UpdatePlayerMenuInput(int player)
 {
-    HANG("TODO");
+    swrUI_localPlayersInputPressedBitset[player] = 0;
+    if (swrObjHang_fadeDone == 0)
+        return;
+
+    // the original unrolls this over bits 0x1..0x800000
+    for (unsigned int bit = 0x1; bit <= 0x800000; bit <<= 1)
+        swrUI_AccumulateMenuInputBit(player, inRaceLocalPlayerInputBitset3[player] & bit, bit);
+
+    int down = swrUI_localPlayersInputDownBitset[player];
+    if (down & 0x40000)
+        swrUI_menuHorizontalDir[player] = 0;
+    else if (down & swrUI_INPUT_MENU_LEFT)
+        swrUI_menuHorizontalDir[player] = -1;
+    else if (down & swrUI_INPUT_MENU_RIGHT)
+        swrUI_menuHorizontalDir[player] = 1;
+
+    if (down & 0x80000)
+        swrUI_menuVerticalDir[player] = 0;
+    else if (down & swrUI_INPUT_MENU_UP)
+        swrUI_menuVerticalDir[player] = -1;
+    else if (down & swrUI_INPUT_MENU_DOWN)
+        swrUI_menuVerticalDir[player] = 1;
+
+    int pressed = swrUI_localPlayersInputPressedBitset[player];
+    if ((pressed & 0x100000) && swrUI_menuHorizontalDir[player] == -1)
+        swrUI_localPlayersInputDownBitset[player] = down | swrUI_INPUT_MENU_LEFT;
+    if ((pressed & 0x200000) && swrUI_menuHorizontalDir[player] == 1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_RIGHT;
+    if ((pressed & 0x400000) && swrUI_menuVerticalDir[player] == -1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_UP;
+    if ((pressed & 0x800000) && swrUI_menuVerticalDir[player] == 1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_DOWN;
+}
+
+// 0x0045a7f0
+void swrUI_AccumulateMenuInputBit(int player, int held, unsigned int mask)
+{
+    if (held == 0) {
+        swrUI_localPlayersInputDownBitset[player] &= ~mask;
+        return;
+    }
+    if ((swrUI_localPlayersInputDownBitset[player] & mask) == 0)
+        swrUI_localPlayersInputPressedBitset[player] |= mask;
+    swrUI_localPlayersInputDownBitset[player] |= mask;
 }
 
 // 0x0045a840
@@ -3529,10 +3733,33 @@ void LoadTrackModels(swrObjJdge* judge)
     HANG("TODO");
 }
 
-// 0x00465D00
-void LoadTrackSpline(swrObjJdge*)
+// 0x00465cb0
+void swrObjJdge_InitSplineCursor(swrObjJdge* judge)
 {
-    HANG("TODO");
+    swrSplineCursor* cursor = &judge->cursor;
+    cursor->spline = judge->unk2c_spline;
+    cursor->velocity = 0.0f;
+    cursor->segmentT = 0.0f;
+    cursor->tangentLength = 0.0f;
+    cursor->endFlag = 0;
+    cursor->startFlag = 0;
+    cursor->branchSelector = 0;
+    cursor->branchFlags = 0;
+    if (cursor->spline != NULL)
+        swrSpline_CursorSeek(cursor, 0);
+    swrSpline_EvaluateAtOffset(cursor, &judge->camBaseMat, 0.0f);
+    cursor->velocity = 1.8f;
+}
+
+// 0x00465D00
+void LoadTrackSpline(swrObjJdge* judge)
+{
+    int bufferBefore = (int)swrAssetBuffer_GetBuffer();
+    // the spline id doubles as the loader's out-pointer slot
+    judge->unk2c_spline = (swrSpline*)swrSpline_LoadSplineById((char*)judge->unk1b4_splineId);
+    swrObjJdge_splineBufferBytes += (int)swrAssetBuffer_GetBuffer() - bufferBefore;
+    swrSpline_Build(judge->unk2c_spline, (swrModel_Node*)judge->unk30);
+    swrObjJdge_InitSplineCursor(judge);
 }
 
 // 0x00466370
@@ -4640,10 +4867,122 @@ void swrObjSmok_SetOwnerHandle(swrObjSmok* smok, void* ownerHandle)
         smok->ownerHandle = ownerHandle;
 }
 
+// 0x0046d040
+void swrRace_HandleDeathSnap(swrRace* player)
+{
+    player->accelThrust = 0.0f;
+    player->flags0 &= ~swrObjTest_FLAG0_THROTTLE_SETTLED;
+    player->deathExplodeTimer -= swrRace_deltaTimeSecs;
+    if (player->deathExplodeTimer > 0.0f)
+        return;
+
+    int subEvents[2] = { 'Snap', 0 };
+    swrEvent_DispatchSubEvents(player, subEvents);
+    for (int i = 0; i < 6; i++) {
+        player->engineStatus[i] &= ~8;
+        if (player->engineHealth[i] <= 0.1f)
+            player->engineHealth[i] = 0.1f;
+    }
+    player->flags0 &= ~swrObjTest_FLAG0_RESET;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        swrControl_ClearDeviceState(1);
+        swrControl_StopAllForceEffects(0);
+        swrControl_SetForceFeedbackPlayer(player);
+    }
+}
+
+// 0x0046d100
+void swrRace_HandleRespawnFlag(swrRace* player)
+{
+    if ((player->flags0 & swrObjTest_FLAG0_RESPAWN) == 0)
+        return;
+
+    player->flags0 &= ~swrObjTest_FLAG0_RESPAWN;
+    player->flags1 &= ~(swrObjTest_FLAG1_EXPLODING | swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT);
+    if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) != swrObjTest_FLAG0_RACING)
+        return;
+
+    if ((player->flags0 & swrObjTest_FLAG0_DEAD) == 0)
+        swrRace_HandleDeathExplosion(player);
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL)
+        swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xe, 0xe, 0xe, 0xe, 0xe, (rdVector3*)&player->transform.vD);
+}
+
 // 0x0046d170
 void swrObjTest_F0(swrRace* player)
 {
-    HANG("TODO");
+    rdMatrix44 splinePoint;
+    if (player->flags0 & swrObjTest_FLAG0_AI) {
+        if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING && (player->flags0 & (swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0) {
+            // an AI stuck for 5 s (2 s on the simple path) asks for a respawn
+            if (player->idleTick > 5.0f || ((player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) && player->idleTick > 2.0f))
+                player->flags0 |= swrObjTest_FLAG0_RESPAWN;
+        } else {
+            player->idleTick = 0.0f;
+        }
+    }
+
+    if (player->flags0 & swrObjTest_FLAG0_TP_TO_SPLINE) {
+        swrRace_ResetToSpline(player, 0.5f);
+        player->flags0 &= ~swrObjTest_FLAG0_TP_TO_SPLINE;
+    }
+
+    // AI Sebulba from lap 3 on: flame attack at anyone close in front
+    if ((player->flags0 & swrObjTest_FLAG0_AI) && *player->score_ptr->pilotId == 2 && player->speedValue > 200.0f && player->score_ptr->results_P1_Lap + 1 >= 3) {
+        rdVector3 pos = *(rdVector3*)&player->transform.vD;
+        float distances[8];
+        rdVector3 deltas[8];
+        swrRace* nearby[8];
+        int count = swrEvent_FindNearestObjects('Test', &pos, 10000.0f, NULL, 2, distances, deltas, (void**)nearby);
+        for (int i = 0; i < count; i++) {
+            if (nearby[i] == player)
+                continue;
+            rdVector3 toOther;
+            rdVector_Sub3(&toOther, (rdVector3*)&nearby[i]->transform.vD, (rdVector3*)&player->transform.vD);
+            if (player->transform.vA.x * toOther.x + player->transform.vA.y * toOther.y + player->transform.vA.z * toOther.z > 0.0f)
+                swrRace_SpawnFlameAttack(player);
+        }
+    }
+
+    if (player->score_ptr->results_P1_total_time < 10.0f)
+        player->unk12_2 = 5.0f;
+    if (player->flameSmokeHandle != NULL) {
+        if (player->unk12_2 < 5.0f)
+            player->unk12_2 = 5.0f;
+    } else {
+        player->unk12_2 -= swrRace_deltaTimeSecs;
+    }
+
+    player->lodDistance = (int)DistanceToNearestViewportCamera((rdVector3*)&player->transform.vD);
+    if (((player->lodDistance - 400.0f) * 0.0016666667f < 1.0 || (player->flags0 & swrObjTest_FLAG0_LOCAL) || (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND)) && (player->flags1 & swrObjTest_FLAG1_SPLINE_SNAP)) {
+        player->flags1 &= ~swrObjTest_FLAG1_SPLINE_SNAP;
+        swrSpline_EvaluateAtOffset(&player->splineCursor, &splinePoint, 0.0f);
+        player->transform.vD.x = splinePoint.vD.x;
+        player->transform.vD.y = splinePoint.vD.y;
+        player->transform.vD.z = splinePoint.vD.z;
+        player->flags1 |= swrObjTest_FLAG1_IMMUNITY;
+    }
+
+    player->flags0 &= ~swrObjTest_FLAG0_POD_HIDDEN;
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && player->wallHitCooldown <= 0.0f)
+        player->flags0 |= swrObjTest_FLAG0_THROTTLE_SETTLED;
+
+    player->flags0 &= ~swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+    if (player->podStats.maxSpeed * 0.75 < player->speedValue && (player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0 && (player->flags1 & swrObjTest_FLAG1_EXPLODING) == 0)
+        player->flags0 |= swrObjTest_FLAG0_CAN_CHARGE_BOOST;
+
+    if (player->podStats.maxSpeed < player->speedValue && (player->flags0 & swrObjTest_FLAG0_BOOSTING))
+        player->flags0 |= swrObjTest_FLAG0_WAS_BOOSTING;
+    else
+        player->flags0 &= ~swrObjTest_FLAG0_WAS_BOOSTING;
+
+    swrRace_CalcTargetTurnRate(player);
+    if (player->wallHitCooldown > 0.0f)
+        player->wallHitCooldown -= swrRace_deltaTimeSecs;
+    swr_noop2();
+    if (player->flags0 & swrObjTest_FLAG0_RESET)
+        swrRace_HandleDeathSnap(player);
+    swrRace_HandleRespawnFlag(player);
 }
 
 // 0x00470610
@@ -4820,6 +5159,12 @@ void swrRace_Explode(swrRace* player, char side)
         swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, &pos, 0, 0, 10.0f, 500.0f);
     }
     swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 9, 9, 9, 9, 9, (rdVector3*)&player->transform.vD);
+}
+
+// 0x00474970
+void swrRace_HandleDeathExplosion(swrRace* player)
+{
+    HANG("TODO");
 }
 
 // 0x00474d80

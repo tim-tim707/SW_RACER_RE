@@ -1788,13 +1788,19 @@ void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_
 // 0x00454C60
 void swrModel_ClearLoadedModels()
 {
-    HANG("TODO");
+    memset(swrScene_ChildNodes, 0, sizeof(swrScene_ChildNodes));
+    memset(swr_sceneModels, 0, sizeof(swr_sceneModels));
+    swrModel_ClearSceneAnimations();
 }
 
 // 0x00454C90
 void swrModel_ReloadAnimations()
 {
-    HANG("TODO");
+    swrModel_ClearSceneAnimations();
+    for (int i = 0; i < SWR_SCENE_MODEL_SLOT_COUNT; i++) {
+        if (swr_sceneModels[i] != NULL)
+            swr_sceneAnimations[i] = swrModel_LoadAllAnimationsOfModel(swr_sceneModels[i]);
+    }
 }
 
 // 0x0047BD80
@@ -3070,4 +3076,19 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
 void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
 {
     sunSpriteColors[index * 4 + 3] = alpha;
+}
+
+// 0x00482e60
+float DistanceToNearestViewportCamera(rdVector3* point)
+{
+    if (swrRender_cameraCount < 1)
+        return -1.0f;
+
+    float nearest = rdVector_DistSquared3(point, &swrRender_cameraPositions[0]);
+    for (int i = 1; i < swrRender_cameraCount; i++) {
+        float distSq = rdVector_DistSquared3(point, &swrRender_cameraPositions[i]);
+        if (distSq < nearest)
+            nearest = distSq;
+    }
+    return stdMath_Sqrt(nearest);
 }

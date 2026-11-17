@@ -536,3 +536,9 @@ int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range,
 {
     HANG("TODO");
 }
+
+// 0x0047f6f0
+void swrSpline_Build(swrSpline* spline, struct swrModel_Node* trackModel)
+{
+    HANG("TODO");
+}

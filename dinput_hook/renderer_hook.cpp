@@ -2378,16 +2378,13 @@ extern "C" int cutscene_should_skip_prerace_cinematic(void);
 extern "C" int g_cutscene_skip_edge;// swrControl_delta.cpp: fresh accept/cancel skip press
 
 extern "C" int g_boot_progress_throttle;
-extern "C" int Window_PlayCinematic_delta(char **znmFile) {
+extern "C" int Window_PlayCinematic_delta(char *znmFile) {
     g_boot_progress_throttle = 0;
     // A cinematic is starting: drop the freecam so its input suppression can't eat the FMV skip
     // (Window_SmushPlayCallback reads swrControl_accept/cancelPressedEdge, which the freecam zeroes).
     freecam_ForceOff();
 
-    // The parameter is declared char** to match the game signature, but every caller passes a
-    // char* to the filename string (e.g. "Goldie.znm") cast to char**, and the original uses it
-    // directly as the %s filename. So znmFile IS the string pointer -- read it as char*, don't deref.
-    const char *name = (const char *) znmFile;
+    const char *name = znmFile;
     if (name == nullptr)
         name = "";
     const bool is_startup = std::strstr(name, "Goldie") || std::strstr(name, "TextCrawl") ||

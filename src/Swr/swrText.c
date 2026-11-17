@@ -256,6 +256,14 @@ int swrText_UnescapeString(char* dest, char* src)
     return (int) (out - dest);
 }
 
+// 0x0044fcc0
+void resetOverlayDrawQueues(void)
+{
+    numMiniMapPositions = 0;
+    swrTextEntries1Count = 0;
+    swrTextEntries2Count = 0;
+}
+
 // 0x0044fce0
 void swrText_ShowTimedMessage(char* text, float duration)
 {
