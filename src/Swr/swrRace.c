@@ -4371,6 +4371,31 @@ void swrRace_RandomizeMeshNodes(swrModel_Node* dst, swrModel_Node* src)
 // Spawn the engine-blowout fireball: re-skin the shared fireball node from the pod's
 // meshes and place it at the given engine with a random orientation and scale. Gated on
 // a free fx-animation slot (swrModel_AnyFxAnimDone).
+// 0x0046ebf0
+void swrRace_UpdateEngineFireballNode(int player)
+{
+    swrRace* racer = (swrRace*)player;
+    rdMatrix44 m;
+
+    if (fireballNodePtr == NULL || fx_podasx_anim == NULL)
+        return;
+    if (swrModel_AnyFxAnimDone(fx_podasx_anim) != 0) {
+        // burnt out: hide the fireball and park it far below the track
+        if (fireballNodePtr != NULL)
+            swrModel_NodeModifyFlags(fireballNodePtr, 2, -4, 0x10, 3);
+        racer->fireballEngineSlot = -1;
+        swrRace_fireballTransform.vD.z = -50000.0f;
+        return;
+    }
+    rdMatrix_Copy44(&m, &swrRace_fireballTransform);
+    if (racer->fireballEngineSlot >= 0)
+        rdVector_Copy3((rdVector3*)&m.vD, (rdVector3*)&(&racer->unk350_mat)[racer->fireballEngineSlot].vD);
+    rdMatrix_Copy44(&swrRace_fireballTransform, &m);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)fireballNodePtr, &m);
+    if (fireballNodePtr != NULL)
+        swrModel_NodeModifyFlags(fireballNodePtr, 2, 3, 0x10, 2);
+}
+
 // 0x0046e950
 void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos, float scale)
 {
