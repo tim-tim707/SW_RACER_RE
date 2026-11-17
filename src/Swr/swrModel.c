@@ -4,6 +4,7 @@
 #include "swrLoader.h"
 #include "swrEvent.h"
 #include "swrObj.h"
+#include "swrViewport.h"
 
 #include <Engine/rdMaterial.h>
 #include <engine_config.h>
@@ -650,6 +651,44 @@ void swrModel_LoadAnimation(swrModel_Animation* animation)
     animation->flags |= ANIMATION_RESET;
 }
 
+// Patch a model's node table with the alt model's non-null nodes, then wire the model's 'AltN'
+// slot pointers to the alt model's 'AltN' nodes.
+// 0x00448c70
+void swrModel_FixupAltNodePointers(int* model, int* altModel)
+{
+    while (*model != -1) {
+        if (*altModel != 0)
+            *model = *altModel;
+        model++;
+        altModel++;
+    }
+    model++;
+    altModel++;
+    if (*model == 'Data') {
+        int count = model[1];
+        model += 2;
+        if (count > 0)
+            model += count;
+    }
+    if (*model == 'Anim') {
+        do {
+            model++;
+        } while (*model != 0);
+        model++;
+    }
+    // faithful: altModel is not advanced past its own Data/Anim blocks
+    if (*model == 'AltN' && *altModel == 'AltN') {
+        model++;
+        altModel++;
+        while (*model != 0) {
+            *(int*)*model = *altModel;
+            swrModel_ByteSwapNode((swrModel_Node*)*altModel);
+            model++;
+            altModel++;
+        }
+    }
+}
+
 // 0x00448BD0 TODO: crashes on game startup
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header)
 {
@@ -1245,7 +1284,28 @@ Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* mesh)
 // 0x00465480
 void swrModel_LoadAllLightStreaks(swrModel_Header* header)
 {
-    HANG("TODO");
+    int* cursor = (int*)header;
+    rdVector3 position;
+
+    // skip the -1 terminated node table, then scan the 'Data' block for 'LStr' entries
+    while (*cursor != -1)
+        cursor++;
+    cursor++;
+    if (*cursor != 'Data')
+        return;
+    int count = cursor[1];
+    cursor += 2;
+    for (int index = 0; index < count; index++) {
+        if (*cursor == 'LStr') {
+            position.x = *(float*)&cursor[1];
+            position.y = *(float*)&cursor[2];
+            position.z = *(float*)&cursor[3];
+            InitLightStreak(index, &position);
+            cursor += 4;
+        } else {
+            cursor++;
+        }
+    }
 }
 
 // 0x0046D610
@@ -1782,7 +1842,27 @@ void swrModel_MeshMaterialSetTextureUVOffset(swrModel_MeshMaterial* a1, float a2
 // 0x00454BC0
 void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_MODELID ingame_model_id, bool load_animations)
 {
-    HANG("TODO");
+    swrModel_Header* header;
+
+    swr_sceneModels[ingame_model_id] = NULL;
+    swrScene_ChildNodes[ingame_model_id] = NULL;
+    swr_sceneAnimations[ingame_model_id] = NULL;
+    header = swrModel_LoadFromId(model_id);
+    if ((int)alt_model_id >= 0)
+        swrModel_FixupAltNodePointers((int*)header, (int*)swrModel_LoadFromId(alt_model_id));
+    if (header != NULL) {
+        // faithful: the original spins forever on an out-of-range slot
+        if ((int)ingame_model_id >= SWR_SCENE_MODEL_SLOT_COUNT) {
+            for (;;) {
+            }
+        }
+        swr_sceneModels[ingame_model_id] = header;
+        swrScene_ChildNodes[ingame_model_id] = header->entries[0].node;
+        if (load_animations)
+            swr_sceneAnimations[ingame_model_id] = swrModel_LoadAllAnimationsOfModel(header);
+    }
+    swrViewport_SetRootNodeForAllViewports(&someUnkRootNode);
+    swrObjHang_SetState5_Maybe();
 }
 
 // 0x00454C60

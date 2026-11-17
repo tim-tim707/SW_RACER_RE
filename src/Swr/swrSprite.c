@@ -905,9 +905,12 @@ swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
 }
 
 // 0x0044EF70
-void swrSprite_SetViewport(int x0, int y0, int x1, int y1)
+void swrSprite_SetViewport(int minX, int maxX, int minY, int maxY)
 {
-    HANG("TODO");
+    spriteViewportMinX = minX;
+    spriteViewportMinY = minY;
+    spriteViewportMaxX = maxX;
+    spriteViewportMaxY = maxY;
 }
 
 // 0x0044EFA0
@@ -932,7 +935,8 @@ void swrSprite_ResetCurrentMaterial()
 // 0x0044F600
 void swrSprite_InitDrawing()
 {
-    HANG("TODO");
+    swrSprite_ResetCurrentMaterial();
+    swrSprite_SetViewport(0, swrDisplay_screenWidth - 1, 0, swrDisplay_screenHeight - 1);
 }
 
 // 0x0044F640

@@ -831,6 +831,7 @@ swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
 swrText_timedMessageBuffer 0x0050c770 char[256]
 
 swrText_timedMessageCentered 0x0050c870 int
+swrText_timedMessageBlink 0x0050c874 float # 1 -> 0 at 2/s, wraps; alpha of the blinking "-" under a centered timed message
 
 swrEvent_lastIndex 0x0050c878 int
 swrEvent_f0SkipMask 0x0050c87c int
