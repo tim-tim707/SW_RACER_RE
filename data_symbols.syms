@@ -699,6 +699,7 @@ DAT_0050c134 0x0050c134 int
 
 DAT_0050c17c 0x0050c17c int
 
+swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose in the results intro; drifts down at 100 units/s
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
@@ -737,6 +738,8 @@ swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlo
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
+swrObjHang_resultsIntroCameraSet 0x0050c1d0 int # the results intro already started its camera pan
+swrObjHang_resultsIntroTimer 0x0050c214 float # seconds left in the results intro (12 at entry; the pan starts at 10)
 swrRace_audioVideoMenuX 0x0050c224 float # A/V settings page column x, set to 165 each frame
 swrRace_audioVideoMenuY 0x0050c43c float # A/V settings page top row y, set to 70 each frame
 swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music .. 5 exit)
@@ -754,6 +757,8 @@ swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (le
 swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
 swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
 swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
+swrUI_menuHorizontalDir 0x0050c970 int[4] # per local player: -1 left / 0 / +1 right, latched by swrUI_UpdatePlayerMenuInput for the left/right repeat
+swrUI_menuVerticalDir 0x0050c980 int[4] # same for up (-1) / down (+1)
 swrAssetBuffer_debugPrintSlots 0x0050c608 int # gates the per-slot debug sprintf in swrAssetBuffer_CheckOverflow; never written (debug-build leftover)
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
 swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange

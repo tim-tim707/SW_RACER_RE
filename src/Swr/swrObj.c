@@ -715,7 +715,53 @@ void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
 // 0x0043d4e0
 void swrObjHang_UpdateResultsIntro(void)
 {
-    HANG("TODO");
+    rdMatrix44 podTransform;
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_resultsIntroTimer = 12.0f;
+        swrObjHang_resultsIntroCameraSet = 0;
+        rdVector_Set3(&swrObjHang_resultsPodPose.translation, 0.0f, 1200.0f, 50.0f);
+        rdVector_Set3(&swrObjHang_resultsPodPose.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS], (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        swrObjHang_holoCameraMatrix.vD.z = -97.0f;
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        swrObjHang_cameraMatrix.vD.y += 500.0f;
+        playASound(0xa1, 7, 0.25f, 0.8f, 0);
+    }
+
+    if (swrObjHang_resultsIntroTimer <= 10.0 && swrObjHang_resultsIntroCameraSet == 0) {
+        swrObjHang_resultsIntroCameraSet = 1;
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixStart.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixStart.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        swrObjHang_cameraMatrixTarget.vD.x += 500.0f;
+        swrObjHang_cameraMoveMode = 1;
+    }
+
+    swrObjHang_resultsPodPose.translation.y -= swrRace_fdeltaTimeSecs * 100.0f;
+    swrModel_Header* pod = swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
+    if (pod != NULL) {
+        rdMatrix_SetTransform44(&podTransform, &swrObjHang_resultsPodPose);
+        swrRace_AnimateDisplayPod((swrModel_Node**)pod, &podTransform, 0, 70.0f, 70.0f, 70.0f, -157.0f, 1, 0.0f, 0.0f);
+        if (pod->entries[0x3b].node != NULL)
+            swrModel_NodeModifyFlags(pod->entries[0x3b].node, 2, 3, 0x10, 2);
+    }
+
+    if (swrObjHang_fadeState == -1)
+        return;
+    int expired = 0;
+    if (swrObjHang_resultsIntroTimer >= 0.0f) {
+        swrObjHang_resultsIntroTimer -= swrRace_fdeltaTimeSecs;
+        expired = swrObjHang_resultsIntroTimer <= 0.0f;
+    }
+    if (!expired) {
+        if (swrControl_menuAcceptPressedEdge == 0 && swrControl_cancelPressedEdge == 0)
+            return;
+        swrObjHang_resultsIntroTimer = 0.0f;
+    }
+    swrObjHang_fadeState = -1;
+    swrObjHang_state2 = swrObjHang_STATE_POST_RACE_INFO;
 }
 
 // 0x0043e330
@@ -802,7 +848,7 @@ void swrObjHang_LoadScreen(swrObjHang* hang, int rosterArg, int noBroadcast)
 {
     swrControl_uiInputActive = 1;
     swrControl_ClearDeviceState(1);
-    swrControl_StopForceEffect(0x11);
+    swrControl_StopForceEffect(swrForceEffect_AUTO_CENTER);
     swrUI_ResetProgressBar();
     swrEvent_FreeObjs('Elmo');
     swrUI_UpdateProgressBar(10);
@@ -869,7 +915,7 @@ void swrObjHang_F0(swrObjHang* hang)
         hang->unk60 = 0;
         swrObjHang_TickHolotableSpin_Maybe();
         swrControl_uiInputActive = 0;
-        swrControl_PlayForceEffect(0x11, -1, -1, -1);
+        swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
         for (int player = 0; player < 4; player++)
             swrUI_UpdatePlayerMenuInput(player);
 
@@ -1190,6 +1236,12 @@ void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
 void swrObjHang_SetState5_Maybe(void)
 {
     swrObjHang_displayPodResetFrames = SWR_DISPLAY_POD_RESET_FRAMES;
+}
+
+// 0x004337e0
+void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int param_3, float scaleX, float scaleY, float scaleZ, float param_7, int animated, float param_9, float param_10)
+{
+    HANG("TODO");
 }
 
 // 0x0043da90
@@ -1555,7 +1607,50 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 // 0x0045a460
 void swrUI_UpdatePlayerMenuInput(int player)
 {
-    HANG("TODO");
+    swrUI_localPlayersInputPressedBitset[player] = 0;
+    if (swrObjHang_fadeDone == 0)
+        return;
+
+    // the original unrolls this over bits 0x1..0x800000
+    for (unsigned int bit = 0x1; bit <= 0x800000; bit <<= 1)
+        swrUI_AccumulateMenuInputBit(player, inRaceLocalPlayerInputBitset3[player] & bit, bit);
+
+    int down = swrUI_localPlayersInputDownBitset[player];
+    if (down & 0x40000)
+        swrUI_menuHorizontalDir[player] = 0;
+    else if (down & swrUI_INPUT_MENU_LEFT)
+        swrUI_menuHorizontalDir[player] = -1;
+    else if (down & swrUI_INPUT_MENU_RIGHT)
+        swrUI_menuHorizontalDir[player] = 1;
+
+    if (down & 0x80000)
+        swrUI_menuVerticalDir[player] = 0;
+    else if (down & swrUI_INPUT_MENU_UP)
+        swrUI_menuVerticalDir[player] = -1;
+    else if (down & swrUI_INPUT_MENU_DOWN)
+        swrUI_menuVerticalDir[player] = 1;
+
+    int pressed = swrUI_localPlayersInputPressedBitset[player];
+    if ((pressed & 0x100000) && swrUI_menuHorizontalDir[player] == -1)
+        swrUI_localPlayersInputDownBitset[player] = down | swrUI_INPUT_MENU_LEFT;
+    if ((pressed & 0x200000) && swrUI_menuHorizontalDir[player] == 1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_RIGHT;
+    if ((pressed & 0x400000) && swrUI_menuVerticalDir[player] == -1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_UP;
+    if ((pressed & 0x800000) && swrUI_menuVerticalDir[player] == 1)
+        swrUI_localPlayersInputDownBitset[player] |= swrUI_INPUT_MENU_DOWN;
+}
+
+// 0x0045a7f0
+void swrUI_AccumulateMenuInputBit(int player, int held, unsigned int mask)
+{
+    if (held == 0) {
+        swrUI_localPlayersInputDownBitset[player] &= ~mask;
+        return;
+    }
+    if ((swrUI_localPlayersInputDownBitset[player] & mask) == 0)
+        swrUI_localPlayersInputPressedBitset[player] |= mask;
+    swrUI_localPlayersInputDownBitset[player] |= mask;
 }
 
 // 0x0045a840
