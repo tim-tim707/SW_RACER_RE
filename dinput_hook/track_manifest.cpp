@@ -8,6 +8,7 @@
 
 #include <simdjson.h>
 
+#include "hash_util.h"
 #include "virtual_block.h"
 
 extern "C" FILE *hook_log;
@@ -54,35 +55,6 @@ namespace {
         return fs::path(CONTENT_DIR) / sha256.substr(0, 2) / sha256;
     }
 
-    // The content store names a blob by its hash, so a blob that does not hash to its own name has
-    // been corrupted or swapped. Hashing is done through CNG rather than a vendored implementation.
-    bool sha256_hex(const std::vector<uint8_t> &data, std::string *out) {
-        BCRYPT_ALG_HANDLE algorithm = nullptr;
-        if (!BCRYPT_SUCCESS(
-                BCryptOpenAlgorithmProvider(&algorithm, BCRYPT_SHA256_ALGORITHM, nullptr, 0)))
-            return false;
-
-        uint8_t digest[32] = {};
-        BCRYPT_HASH_HANDLE hash = nullptr;
-        bool ok = BCRYPT_SUCCESS(BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0));
-        if (ok) {
-            ok = BCRYPT_SUCCESS(BCryptHashData(hash, (PUCHAR) data.data(), (ULONG) data.size(), 0)) &&
-                BCRYPT_SUCCESS(BCryptFinishHash(hash, digest, sizeof(digest), 0));
-            BCryptDestroyHash(hash);
-        }
-        BCryptCloseAlgorithmProvider(algorithm, 0);
-        if (!ok)
-            return false;
-
-        static const char HEX[] = "0123456789abcdef";
-        out->clear();
-        for (uint8_t byte: digest) {
-            out->push_back(HEX[byte >> 4]);
-            out->push_back(HEX[byte & 0xf]);
-        }
-        return true;
-    }
-
     bool equals_ignoring_case(const std::string &a, const std::string &b) {
         if (a.size() != b.size())
             return false;
@@ -98,6 +70,8 @@ namespace {
     std::set<std::string> verified_blobs;
 }
 
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out);
+
 bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::parser parser;
     simdjson::dom::element root;
@@ -107,12 +81,29 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         fflush(hook_log);
         return false;
     }
+    if (!parse_root(root, path.generic_string().c_str(), out))
+        return false;
+    out->directory = path.parent_path();
+    return true;
+}
 
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out) {
+    simdjson::dom::parser parser;
+    simdjson::dom::element root;
+    if (parser.parse(json).get(root) != simdjson::SUCCESS) {
+        fprintf(hook_log, "[track_manifest] %s is not readable JSON\n", label);
+        fflush(hook_log);
+        return false;
+    }
+    return parse_root(root, label, out);
+}
+
+static bool parse_root(simdjson::dom::element root, const char *label, TrackManifest *out) {
     TrackManifest manifest = {};
     manifest.schema = (int) get_int(root, "schema", 0);
     if (manifest.schema != SUPPORTED_SCHEMA) {
-        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n",
-                path.generic_string().c_str(), manifest.schema, SUPPORTED_SCHEMA);
+        fprintf(hook_log, "[track_manifest] %s declares schema %d, this build reads %d\n", label,
+                manifest.schema, SUPPORTED_SCHEMA);
         fflush(hook_log);
         return false;
     }
@@ -128,8 +119,7 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
     simdjson::dom::element model;
     if (root["model"].get(model) != simdjson::SUCCESS ||
         !read_asset(model, "block_id", &manifest.model)) {
-        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n",
-                path.generic_string().c_str());
+        fprintf(hook_log, "[track_manifest] %s has no usable model asset\n", label);
         fflush(hook_log);
         return false;
     }
@@ -147,7 +137,36 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         }
     }
 
+    simdjson::dom::element rules;
+    if (root["rules"].get(rules) == simdjson::SUCCESS) {
+        bool flag = false;
+        rules["point_to_point"].get(flag);
+        manifest.point_to_point = flag;
+    }
+
+    simdjson::dom::array sounds;
+    if (root["sounds"].get(sounds) == simdjson::SUCCESS) {
+        for (simdjson::dom::element sound: sounds) {
+            TrackSoundSpec spec;
+            spec.name = get_string(sound, "name", "");
+            spec.sha256 = get_string(sound, "sha256", "");
+            spec.size = (uint32_t) get_int(sound, "size", 0);
+            if (!spec.name.empty() && !spec.sha256.empty())
+                manifest.sounds.push_back(spec);
+        }
+    }
+
     manifest.placement = {0, 0, 0, -1};
+    manifest.environment = {"", -1, -1, -1};
+    manifest.environment.draw_distance = -1.0f;
+    manifest.environment.ai_level = -1.0f;
+    manifest.environment.ai_spread_range = -1.0f;
+    manifest.environment.ai_script = -2;
+    manifest.environment.ai_spline_variant = -1;
+    manifest.environment.dust_planet = -1;
+    manifest.environment.trigger_planet = -1;
+    manifest.environment.holo_tilt = -1000.0f;
+    manifest.environment.holo_spin = -1000.0f;
     simdjson::dom::element placement;
     if (root["placement"].get(placement) == simdjson::SUCCESS) {
         manifest.placement.planet = (int) get_int(placement, "planet", 0);
@@ -156,9 +175,196 @@ bool track_manifest_Read(const fs::path &path, TrackManifest *out) {
         manifest.placement.favorite_pilot = (int) get_int(placement, "favorite_pilot", 0);
         manifest.placement.overrides_stock_slot =
             (int) get_int(placement, "overrides_stock_slot", -1);
+        // The older block said the same thing with a slot number; say it as a preset.
+        if (manifest.placement.overrides_stock_slot >= 0)
+            manifest.environment.inherit =
+                "vanilla:track:" + std::to_string(manifest.placement.overrides_stock_slot);
+        manifest.environment.planet = manifest.placement.planet;
+        manifest.environment.planet_track_number = manifest.placement.planet_track_number;
+        manifest.environment.favorite_pilot = manifest.placement.favorite_pilot;
+    }
+    simdjson::dom::element environment;
+    if (root["environment"].get(environment) == simdjson::SUCCESS) {
+        manifest.environment.inherit =
+            get_string(environment, "inherit", manifest.environment.inherit.c_str());
+        manifest.environment.planet =
+            (int) get_int(environment, "planet", manifest.environment.planet);
+        manifest.environment.planet_track_number = (int) get_int(
+            environment, "planet_track_number", manifest.environment.planet_track_number);
+        manifest.environment.favorite_pilot =
+            (int) get_int(environment, "favorite_pilot", manifest.environment.favorite_pilot);
+
+        // Sounds may be a name or a number; keep either as text and let track_env resolve it.
+        const auto sound_text = [&](const char *key) -> std::string {
+            int64_t number = 0;
+            if (environment[key].get(number) == simdjson::SUCCESS)
+                return std::to_string(number);
+            return get_string(environment, key, "");
+        };
+        manifest.environment.music = sound_text("music");
+        manifest.environment.intro_music = sound_text("intro_music");
+        manifest.environment.cutscene = get_string(environment, "cutscene", "");
+
+        simdjson::dom::array ambient;
+        if (environment["ambient"].get(ambient) == simdjson::SUCCESS) {
+            manifest.environment.has_ambient = true;
+            for (simdjson::dom::element cue: ambient) {
+                TrackAmbientCueSpec spec = {};
+                int64_t number = 0;
+                if (cue["sound"].get(number) == simdjson::SUCCESS)
+                    spec.sound = std::to_string(number);
+                else
+                    spec.sound = get_string(cue, "sound", "");
+                double value = 0.0;
+                cue["start"].get(value);
+                spec.start = (float) value;
+                value = 0.0;
+                cue["end"].get(value);
+                spec.end = (float) value;
+                spec.random = get_string(cue, "mode", "loop") == "random";
+                if (!spec.sound.empty())
+                    manifest.environment.ambient.push_back(spec);
+            }
+        }
+
+        double number_value = 0.0;
+        if (environment["draw_distance"].get(number_value) == simdjson::SUCCESS)
+            manifest.environment.draw_distance = (float) number_value;
+
+        simdjson::dom::element fog;
+        bool fog_off = false;
+        if (environment["fog"].get(fog_off) == simdjson::SUCCESS && !fog_off) {
+            manifest.environment.has_fog = true;
+            manifest.environment.fog_enabled = false;
+        } else if (environment["fog"].get(fog) == simdjson::SUCCESS && fog.is_object()) {
+            manifest.environment.has_fog = true;
+            manifest.environment.fog_enabled = true;
+            manifest.environment.fog_near = (int) get_int(fog, "near", 996);
+            simdjson::dom::array color;
+            if (fog["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 3)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    manifest.environment.fog_rgb[i++] = (int) value;
+                }
+            }
+        }
+
+        simdjson::dom::element weather;
+        bool weather_off = false;
+        if (environment["weather"].get(weather_off) == simdjson::SUCCESS && !weather_off) {
+            manifest.environment.has_weather = true;
+            manifest.environment.weather_enabled = false;
+        } else if (environment["weather"].get(weather) == simdjson::SUCCESS && weather.is_object()) {
+            TrackEnvSpec &env_spec = manifest.environment;
+            env_spec.has_weather = true;
+            env_spec.weather_enabled = true;
+            env_spec.weather_color[0] = env_spec.weather_color[1] = env_spec.weather_color[2] = 255;
+            env_spec.weather_color[3] = 200;
+            simdjson::dom::array color;
+            if (weather["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 4)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    env_spec.weather_color[i++] = (int) value;
+                }
+            }
+            if (weather["stretch"].get(number_value) == simdjson::SUCCESS)
+                env_spec.weather_stretch = (float) number_value;
+            simdjson::dom::array stages;
+            if (weather["stages"].get(stages) == simdjson::SUCCESS) {
+                for (simdjson::dom::element stage: stages) {
+                    TrackWeatherStageSpec spec = {};
+                    spec.lap = (int) get_int(stage, "lap", (int64_t) env_spec.weather_stages.size());
+                    spec.cap = (int) get_int(stage, "cap", 0);
+                    simdjson::dom::array velocity;
+                    if (stage["velocity"].get(velocity) == simdjson::SUCCESS) {
+                        int i = 0;
+                        for (simdjson::dom::element axis: velocity) {
+                            double v = 0.0;
+                            axis.get(v);
+                            if (i == 0)
+                                spec.velocity_x = (float) v;
+                            else if (i == 1)
+                                spec.velocity_y = (float) v;
+                            i++;
+                        }
+                    }
+                    spec.stretch = 0.0f;
+                    if (stage["stretch"].get(number_value) == simdjson::SUCCESS)
+                        spec.stretch = (float) number_value;
+                    spec.sun_alpha = (int) get_int(stage, "sun_alpha", -1);
+                    env_spec.weather_stages.push_back(spec);
+                }
+            }
+        }
+
+        manifest.environment.dust_planet = (int) get_int(environment, "dust_planet", -1);
+        manifest.environment.trigger_planet = (int) get_int(environment, "trigger_planet", -1);
+
+        simdjson::dom::element sun;
+        bool sun_off = false;
+        if (environment["sun"].get(sun_off) == simdjson::SUCCESS && !sun_off) {
+            manifest.environment.has_sun = true;
+            manifest.environment.sun_enabled = false;
+        } else if (environment["sun"].get(sun) == simdjson::SUCCESS && sun.is_object()) {
+            TrackEnvSpec &env_spec = manifest.environment;
+            env_spec.has_sun = true;
+            env_spec.sun_enabled = true;
+            env_spec.sun_scale = 0.9f;
+            env_spec.sun_color[0] = env_spec.sun_color[1] = env_spec.sun_color[2] = 255;
+            env_spec.sun_color[3] = 255;
+            simdjson::dom::array position;
+            if (sun["position"].get(position) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element axis: position) {
+                    if (i >= 3)
+                        break;
+                    double v = 0.0;
+                    axis.get(v);
+                    env_spec.sun_position[i++] = (float) v;
+                }
+            }
+            if (sun["scale"].get(number_value) == simdjson::SUCCESS)
+                env_spec.sun_scale = (float) number_value;
+            simdjson::dom::array color;
+            if (sun["color"].get(color) == simdjson::SUCCESS) {
+                int i = 0;
+                for (simdjson::dom::element channel: color) {
+                    if (i >= 4)
+                        break;
+                    int64_t value = 0;
+                    channel.get(value);
+                    env_spec.sun_color[i++] = (int) value;
+                }
+            }
+        }
+        manifest.environment.planet_name = get_string(environment, "planet_name", "");
+        simdjson::dom::element holo;
+        if (environment["holo"].get(holo) == simdjson::SUCCESS) {
+            if (holo["tilt"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.holo_tilt = (float) number_value;
+            if (holo["spin"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.holo_spin = (float) number_value;
+        }
+
+        simdjson::dom::element ai;
+        if (environment["ai"].get(ai) == simdjson::SUCCESS) {
+            if (ai["level"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.ai_level = (float) number_value;
+            if (ai["spread"].get(number_value) == simdjson::SUCCESS)
+                manifest.environment.ai_spread_range = (float) number_value;
+            manifest.environment.ai_script = (int) get_int(ai, "script", -2);
+            manifest.environment.ai_spline_variant = (int) get_int(ai, "spline_variant", -1);
+        }
     }
 
-    manifest.directory = path.parent_path();
     *out = std::move(manifest);
     return true;
 }
@@ -222,15 +428,19 @@ bool track_manifest_ReadAsset(const TrackAsset &asset, std::vector<uint8_t> *out
         return true;
 
     std::string digest;
-    if (!sha256_hex(*out, &digest)) {
+    if (!sha256_hex(out->data(), out->size(), &digest)) {
         fprintf(hook_log, "[track_manifest] could not hash %s to verify it\n",
                 asset.sha256.c_str());
         fflush(hook_log);
         return false;
     }
     if (!equals_ignoring_case(digest, asset.sha256)) {
+        // Not the asset its name claims, so nothing can use it; removing it is what lets the next
+        // download fetch a good copy instead of skipping a hash the store already "has".
+        std::error_code ec;
+        fs::remove(path, ec);
         fprintf(hook_log, "[track_manifest] %s hashes to %s -- corrupted or not the asset the "
-                          "manifest names\n",
+                          "manifest names; removed from the store\n",
                 asset.sha256.c_str(), digest.c_str());
         fflush(hook_log);
         return false;

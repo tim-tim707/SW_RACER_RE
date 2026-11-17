@@ -3254,6 +3254,12 @@ void InitAISettingsForTrack(swrObjJdge* judge)
     }
 }
 
+// 0x00464b90
+void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model)
+{
+    HANG("TODO");
+}
+
 // 0x00466BD0
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 {
