@@ -1364,11 +1364,14 @@ typedef enum swrUI_ITEM_FLAG
 typedef enum swrUI_FRAME_STYLE
 {
     swrUI_FRAME_STYLE_SETTINGS_BUTTON = 0x10000, // swrSprite_settings_btn_strch_end
+    swrUI_FRAME_STYLE_MIRROR_V = 0x20000, // pieces drawn with swrUI_SPRITE_SLOT_MIRROR_V (highlight raised 12px less)
+    swrUI_FRAME_STYLE_MIRROR_H = 0x40000, // pieces drawn with swrUI_SPRITE_SLOT_MIRROR_H
     swrUI_FRAME_STYLE_SMALL_WINDOW = 0x80000, // swrSprite_sml_window_strch
     swrUI_FRAME_STYLE_WINDOW_BARS = 0x100000, // swrSprite_window_strchbars
     swrUI_FRAME_STYLE_OK_BUTTON = 0x200000, // swrSprite_ok_button
     swrUI_FRAME_STYLE_EDIT_SEGMENTED = 0x400000, // swrSprite_editwindow_segmented
     swrUI_FRAME_STYLE_SEGMENT = 0x800000, // swrSprite_segment
+    swrUI_FRAME_STYLE_BACK_BUTTON = 0x1000000, // settings button with swrSprite_settings_btnback_end as its left cap
 } swrUI_FRAME_STYLE;
 
 typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderElementSprites

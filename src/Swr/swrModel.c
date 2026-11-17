@@ -3215,3 +3215,48 @@ float swrMath_StepTowardClamped(float value, float current, float min, float max
         result = max;
     return result;
 }
+
+// 0x0044b060
+void swrModel_CompensateRootMotion(swrModel_Node** nodes, swrModel_Animation** anims, rdVector3* prevPos, float maxStep)
+{
+    rdMatrix44 rootXf;
+    rdMatrix44 childXf;
+    rdVector3 pos;
+    rdVector3 step;
+
+    if (nodes == NULL || anims == NULL || *anims == NULL)
+        return;
+    if (nodes[0] == NULL || nodes[1] == NULL)
+        return;
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[0], &rootXf);
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[1], &childXf);
+    pos.x = childXf.vD.x;
+    pos.y = childXf.vD.y;
+    pos.z = childXf.vD.z;
+    rdVector_Sub3(&step, &pos, prevPos);
+    *prevPos = pos;
+    // pull the root back along its forward axis when the animated child jumps (or during a transition)
+    if (((*anims)->flags & ANIMATION_TRANSITIONING_NOW) || step.y < -maxStep || step.y > maxStep) {
+        rdVector_Scale3Add3((rdVector3*)&rootXf.vD, (rdVector3*)&rootXf.vD, -step.y, (rdVector3*)&rootXf.vB);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[0], &rootXf);
+    }
+}
+
+// 0x0044b470
+float swrModel_GetAnimListTime(swrModel_Animation** anims)
+{
+    if (anims == NULL || *anims == NULL)
+        return 0.0f;
+    return (*anims)->animation_time;
+}
+
+// 0x0044b4a0
+float swrModel_GetNodeYaw(swrModel_Node** nodes, swrModel_Animation** anims)
+{
+    rdMatrix44 xf;
+
+    if (anims == NULL || *anims == NULL || nodes == NULL || nodes[1] == NULL || nodes[2] == NULL)
+        return 0.0f;
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[2], &xf);
+    return stdMath_ArcTan2(-xf.vB.x, xf.vB.y);
+}

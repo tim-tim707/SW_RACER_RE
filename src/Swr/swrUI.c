@@ -1416,6 +1416,101 @@ void swrUI_ApplyListColors(swrUI_unk* list)
     }
 }
 
+// 0x00418cb0
+void swrUI_BuildHighlightSprites(swrUI_unk* ui, int highlighted)
+{
+    unsigned int style = ui->frame_style;
+    unsigned int mirror = 0;
+    int raised = 0;
+    int leftId;
+    int midId = 0; // left uninitialized by the original when no three-piece style bit is set
+    int rightId;
+    int leftWidth;
+    int rightWidth;
+    int height;
+    int singleId;
+    int singleOffset;
+    int rect[4];
+
+    if (style == 0)
+        return;
+    if (style & swrUI_FRAME_STYLE_MIRROR_V)
+        mirror = swrUI_SPRITE_SLOT_MIRROR_V;
+    if (style & swrUI_FRAME_STYLE_MIRROR_H)
+        mirror |= swrUI_SPRITE_SLOT_MIRROR_H;
+
+    if (style & (swrUI_FRAME_STYLE_OK_BUTTON | swrUI_FRAME_STYLE_EDIT_SEGMENTED | swrUI_FRAME_STYLE_SEGMENT)) {
+        if (style & swrUI_FRAME_STYLE_OK_BUTTON) {
+            singleId = swrSprite_ok_button;
+            singleOffset = 0;
+        } else if (style & swrUI_FRAME_STYLE_EDIT_SEGMENTED) {
+            singleId = swrSprite_editwindow_segmented;
+            singleOffset = -4;
+        } else {
+            singleId = swrSprite_segment;
+            singleOffset = -4;
+        }
+        swrSprite_GetTextureDimFromId(singleId, &leftWidth, &height);
+        rect[0] = ui->x;
+        rect[1] = ui->y;
+        rect[2] = leftWidth + ui->x - 1;
+        rect[3] = height + ui->y - 1;
+        swrUI_AddSprite(ui, 0, singleId, rect, 1, mirror);
+        swrUI_SetSpriteOffset(ui, 0, 0, singleOffset);
+        swrUI_SetSelected(ui, highlighted);
+        return;
+    }
+
+    if (style & (swrUI_FRAME_STYLE_SETTINGS_BUTTON | swrUI_FRAME_STYLE_BACK_BUTTON)) {
+        raised = (style & swrUI_FRAME_STYLE_MIRROR_V) ? -14 : -26;
+        if (highlighted) {
+            leftId = swrSprite_settings_btn_end_selected;
+            midId = swrSprite_settings_btn_strch_selected;
+            rightId = swrSprite_settings_btn_end2_selected;
+        } else {
+            leftId = (style & swrUI_FRAME_STYLE_BACK_BUTTON) ? swrSprite_settings_btnback_end : swrSprite_settings_btn_end;
+            midId = swrSprite_settings_btn_strch_end;
+            rightId = swrSprite_settings_btn_end2;
+        }
+    } else if (style & swrUI_FRAME_STYLE_SMALL_WINDOW) {
+        raised = -7;
+        leftId = rightId = highlighted ? swrSprite_sml_window_end_selected : swrSprite_sml_window_end;
+        midId = highlighted ? swrSprite_sml_window_strch_selected : swrSprite_sml_window_strch;
+    } else if (style & swrUI_FRAME_STYLE_WINDOW_BARS) {
+        raised = -20;
+        leftId = rightId = highlighted ? swrSprite_window_end_selected : swrSprite_window_end;
+        midId = highlighted ? swrSprite_window_strchbars_selected : swrSprite_window_strchbars;
+    } else {
+        // faithful: the highlight flag itself is used as the sprite id
+        leftId = rightId = highlighted;
+    }
+
+    swrSprite_GetTextureDimFromId(leftId, &leftWidth, &height);
+    swrSprite_GetTextureDimFromId(rightId, &rightWidth, &height);
+
+    rect[0] = ui->x;
+    rect[1] = ui->y;
+    rect[2] = leftWidth + ui->x - 1;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 0, leftId, rect, 1, mirror);
+    swrUI_SetSpriteOffset(ui, 0, 0, raised);
+
+    rect[0] = leftWidth + ui->x;
+    rect[1] = ui->y;
+    rect[2] = ui->width - rightWidth;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 1, midId, rect, 1, mirror);
+    swrUI_SetSpriteOffset(ui, 1, 0, raised);
+
+    rect[0] = ui->width - rightWidth + 1;
+    rect[1] = ui->y;
+    rect[2] = ui->width;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 2, rightId, rect, 1, mirror | swrUI_SPRITE_SLOT_MIRROR_H);
+    swrUI_SetSpriteOffset(ui, 2, 0, raised);
+    swrUI_SetSelected(ui, highlighted);
+}
+
 // 0x00419030
 void swrUI_SetSpriteOffset(swrUI_unk* ui, int slot, int offsetX, int offsetY)
 {
@@ -2053,6 +2148,31 @@ int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int co
     swrUI_SetSpriteOffset(elem, last + 1, 0, 0);
     outPositions[last] = (partW >> 1) - (circleW >> 1) + x;
     return partH + 4;
+}
+
+// 0x0041b260
+swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind)
+{
+    swrUI_unk* ui;
+    int left = 0;
+    int top = 0;
+    int right = 0;
+    int bottom = 0;
+
+    ui = swrUI_New(parent, id, -1, NULL, 0, 0, 0, NULL, NULL);
+    ui->flags |= swrUI_STATIC;
+    if (rect != NULL) {
+        top = rect[1];
+        left = rect[0];
+        right = rect[2];
+        bottom = rect[3];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, kind, 0);
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_PANEL;
+    return ui;
 }
 
 // 0x0041b380

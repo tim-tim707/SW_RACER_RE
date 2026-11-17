@@ -1377,7 +1377,7 @@ extern "C"
         char unk0_0_119[4];
         int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
-        unsigned int unk0_flag;
+        unsigned int frame_style; // 0x4f0 swrUI_FRAME_STYLE bits (swrUI_BuildHighlightSprites)
         int unk4f4; // 0x4f4 (written by swrUI_SetValue2_Maybe)
         char* value_text; // 0x4f8 secondary value-text (swrUI_SetValueText / swrUI_GetValueText)
         int value; // 0x4fc element value (swrUI_SetValue)
