@@ -250,6 +250,8 @@
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
 #define SWR_UI_CARET_BLINK_MS (250)
+#define SWR_SCANCODE_MINUS (0x0c) // '-' key, also accepted by swrUI_HandleSliderKey
+#define SWR_SCANCODE_EQUALS (0x0d) // '=' / '+' key
 #define SWR_UI_CARET_WIDE_SCREEN_WIDTH (512) // the caret is stretched 1.25x at this screen width
 #define SWR_UI_FRAME_NATIVE_SCREEN_WIDTH (640) // panel/frame edges are widened by two edge sprites at any other width
 #define SWR_HUD_WORLD_SPRITE_MAX_DIST (1500.0f)

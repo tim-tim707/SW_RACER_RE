@@ -416,6 +416,15 @@ int swrUI_GetNumberValue(swrUI_unk* ui)
     return 0;
 }
 
+// 0x00413b30
+void swrUI_SetNumberValue(swrUI_unk* ui, int value)
+{
+    if (ui == NULL)
+        return;
+    ui->number_value = value;
+    swrUI_BuildSliderSprites(ui, (ui->flags & swrUI_SLIDER_SELECTED) != 0);
+}
+
 // 0x00413b90
 swrUI_unk* swrUI_NewSpriteElement(swrUI_unk* parent, int id, int* rect, int spriteId, int spriteFlag, swrUI_unk_F2* f2, int sizeUnk)
 {
@@ -844,6 +853,17 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x004168f0
+void swrUI_ClearElementRefs(swrUI_unk* element)
+{
+    if (element == swrUI_GetUI4())
+        swrUI_SetUI4(NULL);
+    if (element == swrUI_GetUI5())
+        swrUI_SetUI5(NULL);
+    if (element == swrUI_GetUI6())
+        swrUI_SetFocusedElement(NULL);
 }
 
 // 0x00416cc0
@@ -1521,6 +1541,49 @@ resize:
         swrUI_SetSize(slider, startBox.x2 - startBox.x + 1, endBox.y2 - startBox.y + 1);
     } else {
         swrUI_SetSize(slider, endBox.x2 - startBox.x + 1, startBox.y2 - startBox.y + 1);
+    }
+}
+
+// 0x0041a640
+void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
+{
+    unsigned int minusKey;
+    unsigned int plusKey;
+    unsigned int step;
+
+    minusKey = MapVirtualKeyA(SWR_SCANCODE_MINUS, MAPVK_VSC_TO_VK);
+    plusKey = MapVirtualKeyA(SWR_SCANCODE_EQUALS, MAPVK_VSC_TO_VK);
+    if (key == VK_SUBTRACT || key == minusKey) {
+        playUISound(0x48);
+        step = (unsigned int)slider->slider_step;
+        if (step < (unsigned int)slider->slider_percent) {
+            slider->slider_percent -= step;
+        } else {
+            slider->slider_percent = 0;
+        }
+        if (step < (unsigned int)slider->slider_spread) {
+            slider->slider_spread -= step;
+        } else {
+            slider->slider_spread = 0;
+        }
+        swrUI_RunCallbacks(slider->prev, swrUI_MSG_SLIDER_DECREASED, slider->id, (int)slider);
+        swrUI_BuildSliderSprites(slider, 1);
+    }
+    if (key == VK_ADD || key == plusKey) {
+        playUISound(0x48);
+        step = (unsigned int)slider->slider_step;
+        if ((unsigned int)slider->slider_percent < 100 - step) {
+            slider->slider_percent += step;
+        } else {
+            slider->slider_percent = 100;
+        }
+        if ((unsigned int)slider->slider_spread < 100 - step) {
+            slider->slider_spread += step;
+        } else {
+            slider->slider_spread = 100;
+        }
+        swrUI_RunCallbacks(slider->prev, swrUI_MSG_SLIDER_INCREASED, slider->id, (int)slider);
+        swrUI_BuildSliderSprites(slider, 1);
     }
 }
 
