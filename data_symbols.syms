@@ -259,6 +259,8 @@ g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
 swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
+swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
+swrObjHang_dewbackCheatInitials 0x004c484c char[4] # "LKJ": profile initials that put a dewback puppet in the shop/junkyard scene
 swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
 g_pTxtOptions 0x004c094c char[1] # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char[1] # "~f4~sCutscene:"
@@ -660,6 +662,7 @@ swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-playe
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
+swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
 swrAssetBuffer_debugPrintSlots 0x0050c608 int # gates the per-slot debug sprintf in swrAssetBuffer_CheckOverflow; never written (debug-build leftover)
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
 swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange

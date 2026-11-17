@@ -136,4 +136,17 @@
 #define SWR_SCENE_SLOT_SHOP_PARTS (0x62) // swr_sceneModels slot of the first shop/junkyard part model
 #define SWR_SCENE_SLOT_INSTALLED_PARTS (0x8e) // swr_sceneModels slot of the first installed part model
 
+// swrObjHang_LoadScreenAssets (0x004586e0): swr_sceneModels / puppet slots of the hangar scenes
+#define SWR_SCENE_SLOT_POD_MODELS (0xf) // pod models, one per local player; header entry 0x3c holds the pilot id
+#define SWR_SCENE_POD_PILOT_ENTRY (0x3c)
+#define SWR_SCENE_SLOT_PILOT_PUPPETS (0x1c) // pilot puppets, one per local player / podium place
+#define SWR_SCENE_SLOT_PIT_DROIDS (0x34)
+#define SWR_SCENE_SLOT_SHADOW_CIRCLES (0x7)
+#define SWR_SCENE_SLOT_SHADOW_SQUARES (0xb)
+#define SWR_SCENE_SLOT_AWARD_PLATFORMS (0x4d)
+#define SWR_SCENE_SLOT_CANTINA_PILOT (0x38)
+#define SWR_SCENE_SLOT_CANTINA_GUEST (0x39)
+#define SWR_MAX_PIT_DROIDS (4)
+#define SWR_CANTINA_PILOT_POOL (0x7ffff) // pilots 0..18; the cantina guest is a pit droid once any is unlocked
+
 #endif // ENGINE_CONFIG_H

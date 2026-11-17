@@ -655,10 +655,215 @@ void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks)
     }
 }
 
+static void loadPilotPuppet(int pilot, int slot)
+{
+    swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, slot, 2, swrRacer_PodData[pilot].float20);
+}
+
+static void loadPodModel(int pilot, int slot)
+{
+    swrModel_LoadModelIntoScene(swrRacer_PodData[pilot].pod_modelID, swrRacer_PodData[pilot].pod_alt_modelID, SWR_SCENE_SLOT_POD_MODELS + slot, false);
+    if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + slot] != NULL)
+        swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + slot]->entries[SWR_SCENE_POD_PILOT_ENTRY].value = pilot;
+}
+
 // 0x004586e0
 void swrObjHang_LoadScreenAssets(swrObjHang* hang)
 {
-    HANG("TODO");
+    char* pods = &hang->vehiclePlayer;
+    swrSpriteTexture* tex;
+    int pilot;
+
+    switch (hang->menuScreen) {
+    case swrObjHang_STATE_SPLASH:
+    case swrObjHang_STATE_ENTER_NAME:
+    case swrObjHang_STATE_MAIN_MENU:
+    case swrObjHang_STATE_POST_RACE_INFO:
+    case swrObjHang_STATE_SELECT_VEHICLE:
+    case 10:
+    case 11:
+    case swrObjHang_STATE_SELECT_PLANET:
+    case swrObjHang_STATE_SELECT_TRACK:
+    case swrObjHang_STATE_VEHICLE_SELECT_INTRO:
+        hang->room = Cantina;
+        break;
+    case swrObjHang_STATE_JUNKYARD:
+        hang->room = Junkyard;
+        break;
+    case swrObjHang_STATE_WATTO:
+        hang->room = Shop;
+        break;
+    case swrObjHang_STATE_LOOK_AT_VEHICLE:
+    case swrObjHang_STATE_TAUNT_SCENE:
+    case swrObjHang_STATE_RESULTS_INTRO:
+        hang->room = Hangar;
+        break;
+    case swrObjHang_STATE_LOAD_SCREEN:
+        return;
+    case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        hang->room = HangRoom_Awards;
+        break;
+    default:
+        hang->room = HangRoom_None;
+        break;
+    }
+    if (hang->roomPrev == Cantina && hang->room == Cantina)
+        return;
+    if (hang->roomPrev != hang->room)
+        swrDisplay_SkipNextFrameUpdate = 1;
+
+    swrObjHang_CullElmoAssets(2);
+    for (int id = 0; id < 0xb8; id++) {
+        // sprites 0xa2..0xb7 (the menu selector set) survive a screen change
+        if ((id < 0xa2 || id > 0xb7) && id != 0xf9 && id != 0xfa)
+            swrSprite_NewSprite((short)id, NULL);
+    }
+    swrModel_ClearSceneAnimations();
+    swrModel_clearSceneModelsAndChildren();
+
+    if (hang->room == Cantina) {
+        swrModel_tileReadOneRowUp = 1;
+        tex = swrSprite_GetTextureFromTGA("data\\images\\greyedsplash.tga", 0x50);
+        swrModel_tileReadOneRowUp = 0;
+        swrSprite_NewSprite(0x50, tex);
+        swrSprite_NewSprite(0x4d, swrSprite_GetTextureFromTGA("data\\images\\settings_btn_strch_sel.tga", 0x4d));
+        swrSprite_NewSprite(0x4e, swrSprite_GetTextureFromTGA("data\\images\\podhangar_backdrop.tga", 0x4e));
+        swrSprite_NewSprite(0x4f, swrSprite_GetTextureFromTGA("data\\images\\podhangar_backdrop2.tga", 0x4f));
+        swrSprite_NewSprite(0x51, swrSprite_GetTextureFromTGA("data\\images\\episode1.tga", 0x51));
+        swrSprite_NewSprite(0x54, swrSprite_GetTextureFromTGA("data\\images\\racer.tga", 0x54));
+        swrSprite_NewSprite(0x52, swrSprite_GetTextureFromTGA("data\\images\\star.tga", 0x52));
+        swrSprite_NewSprite(0x53, swrSprite_GetTextureFromTGA("data\\images\\wars.tga", 0x53));
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadPlanetModels();
+        swrUI_Front_LoadMapPartModels();
+        swrSprite_NewSprite(0x45, swrSprite_LoadTexture_(swrSprite_int_planet_tat_rgb));
+        swrSprite_NewSprite(0x46, swrSprite_LoadTexture_(swrSprite_int_planet_a_rgb));
+        swrSprite_NewSprite(0x47, swrSprite_LoadTexture_(swrSprite_int_planet_b_rgb));
+        swrSprite_NewSprite(0x48, swrSprite_LoadTexture_(swrSprite_int_planet_c_rgb));
+        swrSprite_NewSprite(0x49, swrSprite_LoadTexture_(swrSprite_int_planet_d_rgb));
+        swrSprite_NewSprite(0x4a, swrSprite_LoadTexture_(swrSprite_int_planet_e_rgb));
+        swrSprite_NewSprite(0x4b, swrSprite_LoadTexture_(swrSprite_int_planet_f_rgb));
+        swrSprite_NewSprite(0x4c, swrSprite_LoadTexture_(swrSprite_int_planet_j_rgb));
+        swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
+        swrObjHang_LoadAllPilotSprites();
+        swrModel_LoadModelIntoScene(MODELID_flag2_part, -1, INGAME_MODELID_flag2_part, false);
+
+        // a random unlocked pilot sits in the cantina
+        do {
+            pilot = 1 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -22.0f);
+        } while (((1 << pilot) & swrRace_unlockedPilotsMask) == 0);
+        swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, 2, swrRacer_PodData[pilot].float20);
+        if ((swrRace_unlockedPilotsMask & SWR_CANTINA_PILOT_POOL) == 0) {
+            do {
+                pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 23.0f);
+            } while ((swrRace_unlockedPilotsMask & (1 << pilot)) != 0);
+            swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, 2, swrRacer_PodData[pilot].float20);
+        } else {
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_CANTINA_GUEST, 1, -1.0f);
+        }
+        swrModel_LoadPuppet(MODELID_char_npc_bartender_puppet, 0x16, 7, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
+
+        hang->sprite_whitesquare_rgb = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int i = 0; i < 4; i++)
+            swrSprite_NewSprite((short)(i + 0x82), hang->sprite_whitesquare_rgb);
+        hang->award_first_rgb = swrSprite_LoadTexture_(swrSprite_award_first_rgb);
+        hang->award_second_rgb = swrSprite_LoadTexture_(swrSprite_award_second_rgb);
+        hang->award_third_rgb = swrSprite_LoadTexture_(swrSprite_award_third_rgb);
+        hang->award_wdw_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_wdw_blue_rgb);
+        hang->award_wdw_select_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_window_ylw_rgb);
+        swrSprite_NewSprite(0x62, swrSprite_LoadTexture_(swrSprite_award_wdw_select_blue_rgb));
+        swrSprite_SetFlag(0x62, swrSprite_FLAG_UNK_8000);
+        swrSprite_SetColor(0x62, 0x32, 0xff, 0xff, 0xfe);
+        swrObjHang_CullElmoAssets(3);
+        // only the first pod's pilot (the loop bound is 1 in the original)
+        for (int k = 0; k < 1; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        swrAssetBuffer_CheckOverflow();
+        return;
+    }
+
+    switch (hang->menuScreen) {
+    case swrObjHang_STATE_JUNKYARD:
+    case swrObjHang_STATE_WATTO:
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadPartsUIElements();
+        swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
+        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrModel_LoadPuppet(MODELID_char_watto_puppet, 0x15, 3, -1.0f);
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        for (int i = 0; i < SWR_MAX_PIT_DROIDS - (int)(uint8_t)swrRace_nbPitDroids; i++)
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+        for (int i = 0; i < 4; i++)
+            swrModel_LoadModelIntoScene(MODELID_shadow_square_part, -1, SWR_SCENE_SLOT_SHADOW_SQUARES + i, false);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jarjar_puppet, 0x1b, 9, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_quigon_puppet, 0x19, 0xb, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_r2d2_puppet, 0x18, 0xc, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_c3po_puppet, 0x1a, 8, -1.0f);
+        if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_dewbackCheatInitials) != 0) {
+            swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
+        } else if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_rontoCheatInitials) != 0) {
+            swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+        }
+        break;
+    case swrObjHang_STATE_LOOK_AT_VEHICLE:
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadWindowUIElements();
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPodModel(pods[k], k);
+        swrModel_LoadModelIntoScene(MODELID_moneybox1_part, -1, INGAME_MODELID_moneybox1_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox2_part, -1, INGAME_MODELID_moneybox2_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox3_part, -1, INGAME_MODELID_moneybox3_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox2_part, -1, INGAME_MODELID_moneybox2_0_part, false);
+        for (int i = 0; i < 4; i++) {
+            swrModel_LoadModelIntoScene(MODELID_hovcart_part, -1, INGAME_MODELID_hovcart_part_0 + i, false);
+            swrModel_LoadModelIntoScene(MODELID_shadow_circle_part, -1, SWR_SCENE_SLOT_SHADOW_CIRCLES + i, false);
+            swrModel_LoadModelIntoScene(MODELID_shadow_square_part, -1, SWR_SCENE_SLOT_SHADOW_SQUARES + i, false);
+        }
+        swrModel_LoadModelIntoScene(MODELID_beamanim_vlec, -1, INGAME_MODELID_beamanim_vlec, true);
+        for (int i = 0; i < 4; i++)
+            swrModel_LoadModelIntoScene(MODELID_sparky_part, -1, INGAME_MODELID_sparky_part_0 + i, true);
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        for (int i = 0; i < (int)(uint8_t)swrRace_nbPitDroids; i++)
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrModel_LoadModelIntoScene(MODELID_char_pitdroid_puppet, -1, INGAME_MODELID_char_pitdroid_puppet, false);
+        swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+        break;
+    case swrObjHang_STATE_TAUNT_SCENE:
+        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int k = 0; k < 2; k++) {
+            swrSprite_NewSprite((short)(k + 0x82), tex);
+            pilot = k == 0 ? pods[0] : (char)g_aTrackInfos[hang->track_index].FavoritePilot;
+            loadPilotPuppet(pilot, SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+            loadPodModel(pilot, k);
+        }
+        break;
+    case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        for (int place = 0; place < 3; place++) {
+            loadPilotPuppet(hang->podiumCharacters[place], SWR_SCENE_SLOT_PILOT_PUPPETS + place);
+            swrModel_LoadModelIntoScene(MODELID_award_platform_part, -1, SWR_SCENE_SLOT_AWARD_PLATFORMS + place, false);
+        }
+        swrModel_LoadModelIntoScene(MODELID_award_first_part, -1, INGAME_MODELID_award_first_part, false);
+        swrModel_LoadModelIntoScene(MODELID_award_second_part, -1, INGAME_MODELID_award_second_part, false);
+        swrModel_LoadModelIntoScene(MODELID_award_third_part, -1, INGAME_MODELID_award_third_part, false);
+        swrModel_LoadModelIntoScene(MODELID_loc_awards_part, -1, INGAME_MODELID_loc_awards_part, false);
+        break;
+    case swrObjHang_STATE_RESULTS_INTRO:
+        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int k = 0; k < 2; k++)
+            swrSprite_NewSprite((short)(k + 0x82), tex);
+        loadPodModel((char)g_aTrackInfos[hang->track_index].FavoritePilot, 0);
+        swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS, 1, -1.0f);
+        break;
+    default:
+        break;
+    }
+    swrAssetBuffer_CheckOverflow();
 }
 
 // 0x00459150

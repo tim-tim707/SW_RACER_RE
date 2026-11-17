@@ -488,6 +488,8 @@ typedef enum HangRoom
     Junkyard = 1,
     Hangar = 2,
     Cantina = 3,
+    HangRoom_Awards = 0x4c, // awards podium (swrObjHang_LoadScreenAssets, state 16)
+    HangRoom_None = -1,
 } HangRoom;
 
 // char sized enum
