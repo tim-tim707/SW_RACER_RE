@@ -1297,6 +1297,10 @@ typedef enum swrUI_FLAG
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
     swrUI_CHECKED = 0x20000, // same bit: checked state on checkable class-0xa items (swrUI_SetChecked)
     swrUI_CHECK_CIRCLE_UNK = 0x40000, // draw the check as the axis_check_circ art (swrUI_SetChecked)
+    swrUI_SLIDER_THUMB = 0x40000, // same bit on sliders: draw the point marker at the fill end (swrUI_BuildSliderSprites)
+    swrUI_SLIDER_SHOW_VALUE = 0x80000, // slider: draw the fill bar (or the centered markers)
+    swrUI_SLIDER_CENTERED = 0x100000, // slider: centered marker + brackets instead of a fill bar
+    swrUI_SLIDER_NO_CAPS = 0x200000, // slider: no +/- end-cap sprites
 } swrUI_FLAG;
 
 typedef enum swrUI_ITEM_FLAG

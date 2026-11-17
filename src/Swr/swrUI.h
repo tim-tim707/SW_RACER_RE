@@ -550,7 +550,7 @@ void swrUI_ProcessPendingClose(void);
 
 void swrUI_Shutdown(void);
 swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind);
-void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int param3);
+void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int selected);
 void swrUI_SetSpriteRect(swrUI_unk* ui, int slot, int* rect);
 void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key);
 void swrUI_ClearListSelection(swrUI_unk* list);

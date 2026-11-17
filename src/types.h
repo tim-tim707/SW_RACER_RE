@@ -1390,8 +1390,12 @@ extern "C"
         int unk538;
         int has_option_value; // 0x53c set when option_value holds a real value (else swrUI_GetValue returns -1)
         int option_value; // 0x540 radio-group option value (swrUI_GetValue, matched by swrUI_GetByValue)
-        char unk544[24]; // 0x544 number-field/slider block: style flags @0x544 (bit 0x1000000 draws the
-                         // number), track length @0x548, percent @0x54c and @0x550, step @0x558
+        int slider_style; // 0x544 number-field style flags (bit 0x1000000 draws the number)
+        int slider_length; // 0x548 track length in pixels (swrUI_BuildSliderSprites)
+        int slider_percent; // 0x54c fill bar length, 0..100
+        int slider_spread; // 0x550 centered slider: bracket spread, 0..100
+        int slider_center_value; // 0x554 centered slider: marker position, -100..100
+        int slider_step; // 0x558
         int number_value; // 0x55c number-field / slider value (swrUI_GetNumberValue / swrUI_SetNumberValue)
         char unk560[4192]; // 0x560 rest of the class payload; the swrUI_New slot array follows it
     } swrUI_unk; // sizeof(0x15c0 + unk size)

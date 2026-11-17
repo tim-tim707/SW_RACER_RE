@@ -248,6 +248,11 @@
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
+#define SWR_UI_CARET_SPRITE_ID (0xfa)
+#define SWR_UI_CARET_BLINK_MS (250)
+#define SWR_UI_CARET_WIDE_SCREEN_WIDTH (512) // the caret is stretched 1.25x at this screen width
+#define SWR_UI_FRAME_NATIVE_SCREEN_WIDTH (640) // panel/frame edges are widened by two edge sprites at any other width
+#define SWR_HUD_WORLD_SPRITE_MAX_DIST (1500.0f)
 
 // swrControl force feedback (0x00409d70 LoadForceEffects .. 0x0040b5e0 UpdateImpactForceEffect)
 #define SWR_FF_EFFECT_SLOTS (6) // cifr_EffectSet.slots

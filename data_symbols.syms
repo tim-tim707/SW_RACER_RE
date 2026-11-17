@@ -523,6 +523,8 @@ swrUI_caretY 0x004d7c4c int
 swrUI_caretH 0x004d8780 int
 swrUI_caretW 0x004d8788 int
 swrUI_caretEnabled 0x004d87bc int # caret blink enabled, set by swrUI_SetCaretActive
+swrUI_caretBlinkTimer 0x004d8784 uint32_t # ms left in the caret's current blink phase (swrUI_DrawCaret)
+swrUI_caretVisible 0x004d87c0 int # caret blink phase, toggled every SWR_UI_CARET_BLINK_MS
 
 swrSpriteTexIsTGA 0x004d79f8 int[149]
 
@@ -1603,6 +1605,11 @@ player_sprite_pixel_pos_y 0x00e9a780 int[20]
 player_sprite_depth_values 0x00e9a7e0 float[20]
 
 player_sprite_unknown_values 0x00e9a840 int[20]
+swrPlayerHUD_worldSpriteCount 0x0050c088 int # entries drawn by swrPlayerHUD_RenderWorldSprites; only ever zeroed in retail
+swrPlayerHUD_worldSpritePositions 0x00e997c0 rdVector3[13] # size maybe wrong (gap to swrWeather_particlePositions); never written in retail
+swrPlayerHUD_worldSpritePixelX 0x00e9a8a0 int[16] # last projected screen x, -1000 when off screen
+swrPlayerHUD_worldSpriteDepth 0x00e9a8e0 float[16] # z-buffer depth sampled by swrPlayerHUD_SampleOcclusion
+swrPlayerHUD_worldSpritePixelY 0x00e9a920 int[16]
 
 rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
 
