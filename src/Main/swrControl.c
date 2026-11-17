@@ -827,7 +827,7 @@ unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask)
                 if (returnBitmask == 0) {
                     return i;
                 }
-                pressed |= 1 << (i & 0x1f);
+                pressed |= 1 << i;
             }
         }
     } else if (device == swrConfig_DEVICE_JOYSTICK) {
@@ -836,7 +836,7 @@ unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask)
                 if (returnBitmask == 0) {
                     return i;
                 }
-                pressed |= 1 << (i & 0x1f);
+                pressed |= 1 << i;
             }
         }
     } else if (device == swrConfig_DEVICE_KEYBOARD) {
@@ -853,9 +853,8 @@ unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask)
 }
 
 // 0x00407700
-int swrControl_FindMovedAxis(int device, void* param_2)
+int swrControl_FindMovedAxis(int device, int* outDirection)
 {
-    int* outDirection;
     const float* axes;
     const float* axesPrev;
     int numAxes;
@@ -866,7 +865,6 @@ int swrControl_FindMovedAxis(int device, void* param_2)
     float magnitude;
     double threshold;
 
-    outDirection = (int*)param_2;
     found = -1;
     numAxes = (device != swrConfig_DEVICE_MOUSE ? 3 : 0) + 3;
     axes = swrControl_joystickAxes + device * STDCONTROL_AXES_PER_JOYSTICK;
@@ -1098,7 +1096,7 @@ int swrControl_Initialize(void)
     swrConfig_joystickNbAxis = 0;
     for (i = 0; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
         if (stdControl_EnableAxis(stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK + i) != 0) {
-            swrControl_joystickAxisMask |= 1 << (i & 0x1f);
+            swrControl_joystickAxisMask |= 1 << i;
             swrConfig_joystickNbAxis++;
         }
     }
@@ -1114,7 +1112,7 @@ int swrControl_Initialize(void)
     swrConfig_mouseNbAxis = 0;
     for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
         if (stdControl_EnableAxis(STDCONTROL_MOUSE_AXIS_BASE + i) != 0) {
-            swrControl_mouseAxisMask |= 1 << (i & 0x1f);
+            swrControl_mouseAxisMask |= 1 << i;
             swrConfig_mouseNbAxis++;
         }
     }
@@ -1217,14 +1215,14 @@ int swrControl_FormatBinding(int device, int action, int flagsMask, unsigned cha
         if (table->action != action || (flags & mask) != mask) {
             continue;
         }
-        if (isButton && (flags & 0xf0) != direction) {
+        if (isButton && (flags & SWR_CONTROL_BINDING_DIRECTION_MASK) != direction) {
             continue;
         }
         if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && input < numButtons) {
             valid = 1;
         } else if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && input >= STDCONTROL_JOYSTICK_POV_KEY_BASE && input <= numPOVs * STDCONTROL_KEYS_PER_POV + STDCONTROL_JOYSTICK_POV_KEY_BASE - 1) {
             valid = 1;
-        } else if ((flags & swrControlBinding_FLAG_AXIS) != 0 && (axisMask & (1 << (input & 0x1f))) != 0) {
+        } else if ((flags & swrControlBinding_FLAG_AXIS) != 0 && (axisMask & (1 << (input & 0x1f))) != 0) { // x86 SHL count wraps at 32
             valid = 1;
         } else {
             valid = 0;
