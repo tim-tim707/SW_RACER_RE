@@ -146,6 +146,7 @@ typedef enum swrRace_RESULTSFLAG
 typedef enum swrModel_BEHAVIOR_FLAG
 {
     swrModel_BEHAVIOR_SPLINE_AMBIGUOUS = 0x8, // mesh shared between spline branches; blocks swrRace_UpdateSplineBinding
+    swrModel_BEHAVIOR_SURFACE_MAGNET = 0x20, // surface-relative gravity (sets swrObjTest_FLAG1_MAGNET); no ground dust kick
 } swrModel_BEHAVIOR_FLAG;
 
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.

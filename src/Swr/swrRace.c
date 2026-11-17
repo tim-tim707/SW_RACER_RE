@@ -5560,6 +5560,416 @@ void swrRace_UpdateEngineExhaust(swrRace* player, swrModel_Node** partNodes, flo
     }
 }
 
+// 0x0046f9a0
+void swrRace_UpdateEngineDamageFX(swrRace* player)
+{
+    int burning[2];
+    int side;
+    int i;
+    int count;
+    int engine;
+    rdMatrix44* engineXf;
+    rdMatrix44* src;
+    float scale;
+    rdVector3 pos;
+    rdVector3 vel;
+    rdVector3 probe;
+    float nearDist[8];
+    rdVector3 nearDelta[8];
+    swrRace* nearPods[8];
+    swrObjSmok* flame;
+    swrRace* other;
+
+    burning[0] = 0;
+    burning[1] = 0;
+    if (player->partNodes != NULL) {
+        for (i = 0; i < 6; i++) {
+            if (player->engineStatus[i] & swrRace_ENGINESTATUS_ON_FIRE)
+                burning[i / 3] = 1;
+        }
+        for (side = 0; side < 2; side++) {
+            if (!burning[side] && player->engineDamageSmoke[side] == NULL)
+                continue;
+            // side 0 -> engineXfL (partXf[2]), side 1 -> engineXfR (partXf[1])
+            engineXf = &(&player->unk350_mat)[2 - side];
+            pos.x = engineXf->vD.x;
+            pos.y = engineXf->vD.y;
+            pos.z = engineXf->vD.z;
+            rdVector_Scale3Add3(&pos, &pos, -2.0f, (rdVector3*)&engineXf->vB);
+            if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+                rdVector_Scale3Add3(&pos, &pos, side != 0 ? 2.0f : -2.0f, (rdVector3*)&engineXf->vA);
+            rdVector_Scale3(&vel, -20.0f, (rdVector3*)&engineXf->vB);
+            if (burning[side]) {
+                if (player->engineDamageSmoke[side] == NULL) {
+                    player->engineDamageSmoke[side] = swrObjSmok_Spawn(swrObjSmok_TYPE_ENGINE_SMOKE, 0, 1000.0f, &pos, 1.0f);
+                    swrObjSmok_SetOwnerHandle(player->engineDamageSmoke[side], &player->engineDamageSmoke[side]);
+                } else {
+                    swrObjSmok_SetLifetime(player->engineDamageSmoke[side], 5.0f);
+                }
+            }
+            if (player->engineDamageSmoke[side] != NULL) {
+                swrObjSmok_SetPosition(player->engineDamageSmoke[side], &pos);
+                swrObjSmok_SetVelocity(player->engineDamageSmoke[side], &vel);
+            }
+        }
+        if ((player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN)) || (player->flags1 & swrObjTest_FLAG1_EXPLODING)) {
+            for (i = 0; i < 2; i++) {
+                if (player->engineDamageSmoke[i] != NULL)
+                    swrObjSmok_SetLifetime(player->engineDamageSmoke[i], 0.0f);
+            }
+        }
+    }
+
+    flame = player->flameSmokeHandle;
+    if (flame == NULL || flame->type != swrObjSmok_TYPE_FLAME_ATTACK || !(flame->lifetime > 3.0f))
+        return;
+
+    if (player->partNodes != NULL) {
+        src = &player->engineXfR;
+        scale = 12.0f;
+    } else {
+        src = &player->transform;
+        scale = 15.0f;
+    }
+    pos.x = src->vD.x;
+    pos.y = src->vD.y;
+    pos.z = src->vD.z;
+    rdVector_Scale3Add3(&pos, &pos, 1.0f, (rdVector3*)&src->vB);
+    rdVector_Scale3Add3(&pos, &pos, scale, (rdVector3*)&src->vA);
+    rdVector_Scale3(&vel, 10.0f, (rdVector3*)&src->vA);
+    swrObjSmok_SetPosition(flame, &pos);
+    swrObjSmok_SetVelocity(flame, &vel);
+
+    // sets a random engine on fire on each pod in the flame's path (rear bank when facing away)
+    rdVector_Scale3Add3(&probe, &pos, 0.5f, &vel);
+    count = swrEvent_FindNearestObjects('Test', &probe, 64.0f, NULL, 2, nearDist, nearDelta, (void**)nearPods);
+    for (i = 0; i < count; i++) {
+        other = nearPods[i];
+        if (other == player)
+            continue;
+        if (other->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD))
+            continue;
+        if (other->flags1 & swrObjTest_FLAG1_FINISHED)
+            continue;
+        engine = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f);
+        if (player->transform.vB.x * other->transform.vB.x + player->transform.vB.y * other->transform.vB.y + player->transform.vB.z * other->transform.vB.z < 0.0f)
+            engine += 3;
+        other->engineStatus[engine] |= swrRace_ENGINESTATUS_ON_FIRE;
+    }
+
+    if (((player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN)) || (player->flags1 & swrObjTest_FLAG1_EXPLODING)) && player->flameSmokeHandle != NULL)
+        swrObjSmok_SetLifetime(player->flameSmokeHandle, 0.0f);
+}
+
+// 0x0046fd60
+void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float offset, int tossFlag)
+{
+    swrModel_Behavior* behavior;
+    uint32_t reaction;
+    int lava = 0;
+    int soft = 0;
+    int wet = 0;
+    int ruff = 0;
+    int swamp = 0;
+    int mirr = 0;
+    int snow = 0;
+    int dust = 0;
+    int playSplash = 0;
+    int tossFlags = 0; // original leaves this uninitialized when tossFlag == 0
+    rdMatrix44 m;
+    float intensity;
+    float r = 0.0f;
+    float g = 0.0f;
+    float b = 0.0f;
+    float alphaBase = 0.0f;
+    float alpha;
+    int ri;
+    int alphaI;
+    int spawned;
+
+    if (player == NULL)
+        return;
+    if (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_ZON))
+        return;
+    if (player->slide > 0.5f)
+        return;
+    if (player->terrainModel != NULL) {
+        behavior = swrModel_MeshGetBehavior((swrModel_Mesh*)player->terrainModel);
+        if (behavior != NULL) {
+            if (behavior->unk1 & swrModel_BEHAVIOR_SURFACE_MAGNET)
+                return;
+            reaction = behavior->vehicle_reaction;
+            lava = (reaction & swrVehicleReaction_Lava) != 0;
+            if (reaction & swrVehicleReaction_Fall)
+                return;
+            soft = (reaction & swrVehicleReaction_Soft) != 0;
+            wet = (reaction & swrVehicleReaction_Wet) != 0;
+            ruff = (reaction & swrVehicleReaction_Ruff) != 0;
+            swamp = (reaction & swrVehicleReaction_Swmp) != 0;
+            mirr = (reaction & swrVehicleReaction_Mirr) != 0;
+            snow = (reaction & swrVehicleReaction_Snow) != 0;
+            dust = (reaction & swrVehicleReaction_Dust) != 0;
+        }
+    }
+    if (tossFlag != 0)
+        tossFlags |= 1;
+
+    rdMatrix_SetIdentity44(&m);
+    m.vD.x = transform[12];
+    m.vD.y = transform[13];
+    m.vD.z = transform[14];
+    m.vB.x = transform[8];
+    m.vB.y = transform[9];
+    m.vB.z = transform[10];
+    m.vA.x = transform[4];
+    m.vA.y = transform[5];
+    m.vA.z = transform[6];
+    m.vC.x = transform[0];
+    m.vC.y = transform[1];
+    m.vC.z = transform[2];
+    rdVector_Normalize3Acc((rdVector3*)&m.vA);
+    rdVector_Normalize3Acc((rdVector3*)&m.vB);
+    rdVector_Normalize3Acc((rdVector3*)&m.vC);
+
+    intensity = (player->speedValue - 200.0f) * 0.005f;
+    if (intensity <= 0.0f)
+        return;
+    if (intensity > 1.0f)
+        intensity = 1.0f;
+
+    switch (PlanetID) {
+    case 0:
+        if (dust || (!ruff && swamp)) {
+            r = 200.0f;
+            g = 170.0f;
+            b = 120.0f;
+            alphaBase = 255.0f;
+        } else if (ruff) {
+            r = 150.0f;
+            g = 120.0f;
+            b = 100.0f;
+            alphaBase = 255.0f;
+        } else {
+            r = 182.0f;
+            g = 164.0f;
+            b = 136.0f;
+            alphaBase = 200.0f;
+        }
+        break;
+    case 1:
+        r = 220.0f;
+        g = 250.0f;
+        b = 255.0f;
+        if (snow)
+            alphaBase = 255.0f;
+        else if (dust)
+            alphaBase = 150.0f;
+        else if (mirr || soft)
+            alphaBase = 0.0f;
+        else
+            alphaBase = 50.0f;
+        break;
+    case 2:
+        if (wet) {
+            r = 120.0f;
+            g = 100.0f;
+            b = 120.0f;
+            alphaBase = 255.0f;
+        } else if (dust) {
+            r = 75.0f;
+            g = 75.0f;
+            b = 120.0f;
+            alphaBase = 64.0f;
+        } else {
+            r = 120.0f;
+            g = 100.0f;
+            b = 120.0f;
+            alphaBase = 16.0f;
+        }
+        break;
+    case 4:
+        if (dust) {
+            r = 190.0f;
+            g = 150.0f;
+            b = 110.0f;
+            alphaBase = 255.0f;
+        } else if (ruff) {
+            r = 175.0f;
+            g = 135.0f;
+            b = 85.0f;
+            alphaBase = 255.0f;
+        } else if (swamp) {
+            r = 75.0f;
+            g = 70.0f;
+            b = 50.0f;
+            alphaBase = 255.0f;
+        } else if (wet) {
+            r = 220.0f;
+            g = 220.0f;
+            b = 200.0f;
+            alphaBase = 255.0f;
+        } else if (lava) {
+            r = 255.0f;
+            g = 100.0f;
+            b = 30.0f;
+            alphaBase = 255.0f;
+        } else {
+            r = 110.0f;
+            g = 90.0f;
+            b = 80.0f;
+            alphaBase = 50.0f;
+        }
+        break;
+    case 5:
+        r = 210.0f;
+        g = 130.0f;
+        b = 60.0f;
+        if (dust)
+            alphaBase = 200.0f;
+        else
+            alphaBase = ruff ? 255.0f : 16.0f;
+        break;
+    case 6:
+        if (dust) {
+            r = 186.0f;
+            g = 179.0f;
+            b = 170.0f;
+            alphaBase = 150.0f;
+        } else if (ruff) {
+            r = 137.0f;
+            g = 122.0f;
+            b = 104.0f;
+            alphaBase = 255.0f;
+        } else {
+            r = 203.0f;
+            g = 203.0f;
+            b = 204.0f;
+            alphaBase = 75.0f;
+        }
+        break;
+    case 7:
+        if (wet) {
+            r = 0.0f;
+            g = 255.0f;
+            b = 0.0f;
+            alphaBase = 255.0f;
+        } else {
+            r = 150.0f;
+            g = 150.0f;
+            b = 230.0f;
+            alphaBase = ruff ? 255.0f : 128.0f;
+        }
+        break;
+    }
+
+    if (!(m.vB.z > 0.8f))
+        return;
+    if (wet) {
+        offset = 0.0f;
+        playSplash = 1;
+    }
+    rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, -offset, (rdVector3*)&m.vA);
+    alpha = alphaBase * intensity;
+    m.vA.x *= sx;
+    m.vA.y *= sx;
+    m.vA.z *= sx;
+    m.vB.x *= sy;
+    m.vB.y *= sy;
+    m.vB.z *= sy;
+    m.vC.x *= sz;
+    m.vC.y *= sz;
+    m.vC.z *= sz;
+    if (alpha < 1.0f)
+        alpha = 1.0f;
+    else if (alpha > 254.0f)
+        alpha = 254.0f;
+    if (swamp)
+        playSplash = 1;
+    if (!(alpha > 0.0f))
+        return;
+
+    alphaI = (int)alpha;
+    ri = (int)r;
+    spawned = swrRace_SpawnDustKickObject(&m, (uint8_t)ri, (uint8_t)(int)g, (uint8_t)(int)b, alphaI, 0.2f, tossFlags);
+    // a faint puff returns without setting EAX, so the original sees the leftover red value
+    if (alphaI <= 15)
+        spawned = ri;
+    if (spawned && playSplash)
+        playASound(0x45, 7, intensity * 0.1f * 0.25f, 1.0f, 1);
+}
+
+// 0x00472750
+void swrRace_UpdateEnergyBinder(swrRace* player, int side, rdVector3* pointA, rdVector3* pointB)
+{
+    int beam;
+    int scale;
+    float t;
+    float alpha;
+    float width;
+    float len;
+    rdVector3 dir;
+    rdVector3 perp;
+    rdMatrix44 m;
+
+    if (player->partNodes == NULL)
+        return;
+    if (side == 1) {
+        scale = 7;
+        beam = 6;
+    } else {
+        scale = 9;
+        beam = 8;
+    }
+    if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) == swrObjTest_FLAG0_RACING)
+        swrRace_energyBinderTime = 1000.0f;
+
+    t = swrRace_energyBinderTime - (float)player->obj.id * 0.1f;
+    if (t > 0.0f)
+        t = t * t;
+    if (t < 0.01) {
+        if (player->partNodes[beam] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[beam], 2, -4, 0x10, 3);
+        rdMatrix_SetTranslation44(&(&player->unk350_mat)[beam], 0.0f, 0.0f, -100000.0f);
+        rdMatrix_SetIdentity44(&(&player->unk350_mat)[scale]);
+        return;
+    }
+    alpha = t * 8.0f;
+    if (alpha > 1.0f)
+        alpha = 1.0f;
+    width = t * 0.1f;
+    if (width > 1.0f)
+        width = 1.0f;
+
+    dir.x = pointA->x - pointB->x;
+    dir.y = pointA->y - pointB->y;
+    dir.z = pointA->z - pointB->z;
+    len = rdVector_Len3(&dir);
+    rdVector_Scale3(&dir, 1.0f / len, &dir);
+    perp.x = dir.y;
+    perp.y = -dir.x;
+    perp.z = 0.0f;
+    rdVector_Normalize3Acc(&perp);
+    rdVector_Cross3((rdVector3*)&m.vA, &dir, &perp);
+    rdVector_Copy3((rdVector3*)&m.vC, &dir);
+    rdVector_Copy3((rdVector3*)&m.vB, &perp);
+    m.vA.w = 0.0f;
+    m.vB.w = 0.0f;
+    m.vC.w = 0.0f;
+    m.vD.w = 1.0f;
+    rdVector_Scale3((rdVector3*)&m.vD, 0.5f, pointA);
+    rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, 0.5f, pointB);
+    rdMatrix_Copy44(&(&player->unk350_mat)[beam], &m);
+    rdMatrix_SetDiagonal44(&m, width * 0.2f, width, alpha * len * 0.05f);
+    rdMatrix_Copy44(&(&player->unk350_mat)[scale], &m);
+
+    if (player->partNodes[beam] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[beam], 2, 3, 0x10, 2);
+    if (player->partNodes[scale] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[scale], &(&player->unk350_mat)[scale]);
+    if (player->partNodes[beam] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[beam], &(&player->unk350_mat)[beam]);
+}
+
 // 0x00477ad0
 void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotion, rdVector3* pRDot)
 {
@@ -7109,6 +7519,64 @@ void swrRace_ApplyPartSinkOffset(swrRace* player)
 void swrRace_PlayEngineSounds(swrRace* player, float param_2)
 {
     HANG("TODO");
+}
+
+// 0x0046dea0
+void swrRace_AnimateSpinoutEngines(swrRace* player)
+{
+    float dir;
+    int engine;
+    rdMatrix44* engineXf;
+    rdMatrix44 tmp;
+    rdVector3 axis;
+    rdVector3 cockpitAxis;
+    rdVector3 savedPos;
+
+    if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND))
+        return;
+    if (player->flags1 & swrObjTest_FLAG1_EXPLODING_LEFT) {
+        dir = -1.0f;
+    } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_RIGHT) {
+        dir = 1.0f;
+    } else {
+        dir = 0.0f;
+        player->spinoutSpinRamp = 0.0f;
+        player->spinoutCockpitAngle = 0.0f;
+        player->spinoutEngineAngle = 0.0f;
+    }
+    if (dir == 0.0f)
+        return;
+
+    player->spinoutSpinRamp = player->spinoutSpinRamp - swrRace_deltaTimeSecs * -0.5;
+    if (player->spinoutSpinRamp > 1.0f)
+        player->spinoutSpinRamp = 1.0f;
+
+    engine = dir > 0.0f ? 1 : 2;
+    engineXf = &(&player->unk350_mat)[engine];
+    player->spinoutEngineAngle = player->spinoutEngineAngle - dir * swrRace_deltaTimeSecs * player->spinoutSpinRamp * -360.0;
+    rdMatrix_Copy44(&tmp, engineXf);
+    // the first two axis writes are dead: the spin axis is always overwritten below
+    rdVector_Scale3Add3(&axis, (rdVector3*)&tmp.vB, 0.0f, (rdVector3*)&tmp.vA);
+    rdVector_Copy3(&axis, (rdVector3*)&tmp.vB);
+    rdVector_Set3(&axis, 0.0f, 1.0f, 0.0f);
+    rdVector_Normalize3Acc(&axis);
+    rdVector_Copy3(&savedPos, (rdVector3*)&engineXf->vD);
+    rdMatrix_AddRotationFromVectorAngle44Before(engineXf, player->spinoutEngineAngle, axis.x, axis.y, axis.z, engineXf);
+    rdVector_Copy3((rdVector3*)&engineXf->vD, &savedPos);
+    if (player->partNodes[engine] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[engine], engineXf);
+
+    player->spinoutCockpitAngle = player->spinoutCockpitAngle - dir * swrRace_deltaTimeSecs * player->spinoutSpinRamp * -600.0;
+    rdMatrix_Copy44(&tmp, &player->cockpitXf);
+    rdVector_Scale3Add3(&cockpitAxis, (rdVector3*)&tmp.vB, 0.0f, (rdVector3*)&tmp.vA);
+    rdVector_Copy3(&cockpitAxis, (rdVector3*)&tmp.vB);
+    rdVector_Set3(&cockpitAxis, dir * 0.5f, 1.0f, 0.0f);
+    rdVector_Normalize3Acc(&cockpitAxis);
+    rdVector_Copy3(&savedPos, (rdVector3*)&player->cockpitXf.vD);
+    rdMatrix_AddRotationFromVectorAngle44Before(&player->cockpitXf, player->spinoutCockpitAngle, cockpitAxis.x, cockpitAxis.y, cockpitAxis.z, &player->cockpitXf);
+    rdVector_Copy3((rdVector3*)&player->cockpitXf.vD, &savedPos);
+    if (player->partNodes[5] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[5], &player->cockpitXf);
 }
 
 // 0x0046e150

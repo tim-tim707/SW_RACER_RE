@@ -45,7 +45,7 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport);
 void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out);
 
 // Compares the two split-screen viewport cameras and copies the one nearest the given position (best guess).
-void swrCam_PickNearestSplitCameraTransform_Maybe(swrModel_Behavior* out, float* pos);
+void swrCam_PickNearestSplitCameraTransform_Maybe(rdMatrix44* out, float* pos);
 
 // Returns whether the given mesh behavior is the active camera of any viewport (best guess).
 int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior);

@@ -277,6 +277,9 @@ g_pTxtBuyParts 0x004c09d0 char[1] # "/SCREENTEXT_102/~f4~sBuy Parts"
 g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
+swrScene_previewModelId 0x004c17e0 int # -1 = none; debug model preview id (read by swrScene_LoadObjects and swrScene_LoadPreviewModel)
+swrScene_previewAltModelId 0x004c17e4 int # -1; alt-node source fixed up into the preview model
+swrScene_previewCompanionModelId 0x004c17e8 int # -1; when set, previewed alongside the main model under someRootNode
 swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
 swrObjHang_nameEntrySelection 0x004c0204 int = -1 # reset to -1 by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_shopLastSelectedItem 0x004c020c int = -1 # last swrRace_MenuSelectedItem the Watto shop computed stats/prices for
@@ -664,7 +667,7 @@ swrSprite_unk2_g 0x0050b709 char
 swrSprite_unk2_b 0x0050b70a char
 swrSprite_unk2_a 0x0050b70b char
 
-currentUnkCameraStructPtr 0x0050C034 swrUnkCameraStruct*
+currentUnkCameraStructPtr 0x0050C034 swrCamera_unk*
 unkCameraArrayIndex 0x0050C038 int
 swrViewport_cameraApplied 0x0050c03c int # 0 when the active camera was just (re)selected, set to 1 by swrViewport_UpdateCameras once its transform is applied
 swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
@@ -811,6 +814,7 @@ swrSound_Position 0x0050c668 rdVector4
 swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
+swrSound_layeredStreamActive 0x0050c69c int # set while swrSound_PlayLayeredStream_Maybe owns IA3dSource2_ptr (intro) / IA3dSource3_ptr (loop)
 
 IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
