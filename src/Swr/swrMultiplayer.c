@@ -31,6 +31,35 @@ void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
     multiplayer_in_mp = bInMultiplayer;
 }
 
+// 0x0041bc20
+char* swrMultiplayer_FormatTimeString_Maybe(float seconds)
+{
+    double total;
+    double rem;
+    int minutes;
+    int secs;
+    int hundredths;
+
+    total = seconds * (double)0.016666668f;
+    minutes = (int)total;
+    rem = (total - minutes) * 60.0f;
+    secs = (int)rem;
+    hundredths = (int)((rem - secs - -0.005f) * 100.0f);
+    if (hundredths == 100) {
+        hundredths = 0;
+        secs++;
+        // faithful: seconds are not wrapped back to 0 when they carry into the minutes
+        if (secs == 60)
+            minutes++;
+    }
+    if (minutes != 0) {
+        sprintf(time_buffer, "%d:%.2d.%.2d", minutes, secs, hundredths);
+        return time_buffer;
+    }
+    sprintf(time_buffer, "%.2d.%.2d", secs, hundredths);
+    return time_buffer;
+}
+
 // 0x0041bcc0
 wchar_t* swrMultiplayer_GetPlayerName(int playerIndex)
 {
@@ -134,6 +163,38 @@ void swrMultiplayer_Shutdown(void)
         sithMulti_CloseGame();
         stdComm_Shutdown();
         swrMulti_Initialized = 0;
+    }
+}
+
+// 0x00420990
+void swrMultiplayer_UpdateRacerSelectUI(swrUI_unk* page, swrUI_unk* list)
+{
+    swrUI_unk* selected;
+    swrUI_unk* element;
+    int slot;
+    char podName[1024];
+
+    if (list == NULL || page == NULL)
+        return;
+    selected = swrUI_GetSelectedItem(list);
+    if (selected == NULL)
+        return;
+    slot = selected->id;
+    if (slot == playerNumber) {
+        swrUI_EnableElement(swrUI_GetById(page, 0x7e));
+        swrUI_DisableElement(swrUI_GetById(page, 0x80));
+    } else {
+        swrUI_DisableElement(swrUI_GetById(page, 0x7e));
+        element = swrUI_GetById(page, 0x80);
+        if (multiplayer_track_change_permission != 0 && multiplayer_race_button_toggle[slot] != 0)
+            swrUI_EnableElement(element);
+        else
+            swrUI_DisableElement(element);
+    }
+    element = swrUI_GetById(page, 0x186b9);
+    if (element != NULL) {
+        swrText_FormatPodName(swrMultiplayer_GetRacerId(slot), podName, sizeof(podName));
+        swrUI_RunCallbacksScreenText(element, podName, 0);
     }
 }
 

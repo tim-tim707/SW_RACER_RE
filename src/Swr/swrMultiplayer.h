@@ -242,7 +242,7 @@ int swrMultiplayer_VerifyPlayerList(void* message);
 int swrMultiplayer_ApplyPlayerLeave(void* message);
 
 // Formats a minutes/seconds/hundredths time into a shared text buffer and returns it (best guess).
-char* swrMultiplayer_FormatTimeString_Maybe(float minutes, float seconds, float hundredths);
+char* swrMultiplayer_FormatTimeString_Maybe(float seconds);
 // 0x2a: handles a player quit - closes the game on host quit, else removes that player.
 int swrMultiplayer_ApplyPlayerQuit(void* message);
 // 0x24/0x2f: no-op handler (acknowledges without acting).

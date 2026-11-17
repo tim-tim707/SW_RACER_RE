@@ -7090,16 +7090,16 @@ int swrObjToss_F4(swrObjToss* toss, int* subEvents)
 }
 
 // 0x0047BC40
-void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk64)
+int swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk64)
 {
     swrObjToss* toss;
 
-    // nearly transparent puffs are not spawned
+    // nearly transparent puffs are not spawned; the original returns here without setting EAX
     if (a <= 15)
-        return;
+        return 0;
     toss = (swrObjToss*)swrEvent_AllocObj('Toss');
     if (toss == NULL)
-        return;
+        return 0;
     toss->animDuration = life_time;
     toss->animTimer_ms = life_time;
     toss->r = r;
@@ -7111,6 +7111,7 @@ void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b
     rdMatrix_Copy44(&toss->transform, in);
     if (toss->model != NULL)
         swrModel_NodeModifyFlags(toss->model, 2, 3, 0x10, 2);
+    return 1;
 }
 
 // 0x0047BCD0
@@ -7966,6 +7967,108 @@ void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat
     unkCameraArray[entry].sourceType = val2;
     unkCameraArray[entry].behaviorType = val1;
     unkCameraArray[entry].matrixSource = mat;
+}
+
+// 0x00448d90
+void swrScene_LoadPreviewModel(void)
+{
+    swrModel_Header* header;
+    swrModel_Header* companion;
+
+    if (swrScene_previewCompanionModelId < 0) {
+        header = swrModel_LoadFromId((MODELID)swrScene_previewModelId);
+        if (swrScene_previewAltModelId >= 0)
+            swrModel_FixupAltNodePointers((int*)header, (int*)swrModel_LoadFromId((MODELID)swrScene_previewAltModelId));
+        if (header->entries[0].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0].node, 2, 3, 0x10, 2);
+        swrViewport_SetViewport(0, 8, 8, 0x138, 0xe8);
+        swrViewport_SetViewport(1, 8, 8, 0x138, 0xe8);
+        swrViewport_Enable(1, 0);
+        swrViewport_SetRootNodeForAllViewports(header->entries[0].node);
+        swrModel_LoadAllAnimationsOfModel(header);
+        return;
+    }
+
+    swrModel_NodeInit(&someRootNode, NODE_BASIC);
+    someRootNode.num_children = 2;
+    someRootNode.children.nodes = someRootNodeChildNodes;
+    header = swrModel_LoadFromId((MODELID)swrScene_previewModelId);
+    if (swrScene_previewAltModelId >= 0)
+        swrModel_FixupAltNodePointers((int*)header, (int*)swrModel_LoadFromId((MODELID)swrScene_previewAltModelId));
+    if (header->entries[0].node != NULL)
+        swrModel_NodeModifyFlags(header->entries[0].node, 2, 3, 0x10, 2);
+    swrModel_LoadAllAnimationsOfModel(header);
+    someRootNodeChildNodes[0] = header->entries[0].node;
+    companion = swrModel_LoadFromId((MODELID)swrScene_previewCompanionModelId);
+    if (companion->entries[0].node != NULL)
+        swrModel_NodeModifyFlags(companion->entries[0].node, 2, 3, 0x10, 2);
+    swrModel_LoadAllAnimationsOfModel(companion);
+    someRootNodeChildNodes[1] = companion->entries[0].node;
+    swrViewport_SetViewport(0, 8, 8, 0x138, 0xe8);
+    swrViewport_SetViewport(1, 8, 8, 0x138, 0xe8);
+    swrViewport_Enable(1, 0);
+    swrViewport_SetRootNodeForAllViewports(&someRootNode);
+}
+
+// 0x004292b0
+void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out)
+{
+    int count = swrViewport_GetNumViewports();
+    for (int i = 0; i < count; i++) {
+        swrViewport* viewport = swrViewport_Get(i);
+        if (viewport != NULL && (swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID)) {
+            // returns the viewport's camera index
+            int cam = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport);
+            rdMatrix_Copy44(out, &unkCameraArray[cam].transform);
+            return;
+        }
+    }
+    rdMatrix_SetIdentity44(out);
+}
+
+// 0x00429330
+void swrCam_PickNearestSplitCameraTransform_Maybe(rdMatrix44* out, float* pos)
+{
+    swrViewport* viewport1;
+    swrViewport* viewport2;
+    unsigned int flags1;
+    unsigned int flags2;
+    int cam1 = 0;
+    int cam2 = 0;
+    float dist1 = -1.0f;
+    float dist2 = -1.0f;
+    float dx;
+    float dy;
+    float dz;
+
+    viewport1 = swrViewport_Get(1);
+    viewport2 = swrViewport_Get(2);
+    flags1 = swrModel_NodeGetFlags((swrModel_Node*)viewport1);
+    flags2 = swrModel_NodeGetFlags((swrModel_Node*)viewport2);
+    if (flags1 & swrViewport_FLAGS_CAMERA_VALID) {
+        cam1 = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport1);
+        dx = pos[0] - unkCameraArray[cam1].transform.vD.x;
+        dy = pos[1] - unkCameraArray[cam1].transform.vD.y;
+        dz = pos[2] - unkCameraArray[cam1].transform.vD.z;
+        dist1 = dz * dz + dy * dy + dx * dx;
+    }
+    if (flags2 & swrViewport_FLAGS_CAMERA_VALID) {
+        cam2 = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport2);
+        dx = pos[0] - unkCameraArray[cam2].transform.vD.x;
+        dy = pos[1] - unkCameraArray[cam2].transform.vD.y;
+        dz = pos[2] - unkCameraArray[cam2].transform.vD.z;
+        dist2 = dz * dz + dy * dy + dx * dx;
+    }
+    // faithful: when only viewport 2 has a camera, dist2 <= -1 fails and the result is identity
+    if (dist2 >= 0.0f && dist2 <= dist1) {
+        rdMatrix_Copy44(out, &unkCameraArray[cam2].transform);
+        return;
+    }
+    if (dist1 >= 0.0f) {
+        rdMatrix_Copy44(out, &unkCameraArray[cam1].transform);
+        return;
+    }
+    rdMatrix_SetIdentity44(out);
 }
 
 // 0x004294e0

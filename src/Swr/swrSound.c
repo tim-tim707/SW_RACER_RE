@@ -1259,6 +1259,69 @@ float swrSound_GetSoundLengthSeconds(int soundId)
     return (float) (*(unsigned int*) ((char*) entry + 0x38) / 1000);
 }
 
+// 0x0044a970
+void swrSound_PlayLayeredStream_Maybe(int enable, float gain, char* introWav, char* loopWav)
+{
+    rdVector3 pos;
+
+    if (enable == 0) {
+        if (swrSound_layeredStreamActive == 0)
+            return;
+        goto release;
+    }
+    if (swrSound_layeredStreamActive == 0) {
+        swrSound_layeredStreamActive = 1;
+        if (IA3dSource2_ptr == NULL) {
+            IA3dSource2_ptr = swrSound_CreateSourceFromFile(introWav);
+            if (IA3dSource2_ptr == NULL)
+                goto release;
+            swrSound_SetRenderMode(IA3dSource2_ptr, 0x20);
+        }
+        if (IA3dSource3_ptr == NULL) {
+            pos.x = 0.0f;
+            pos.y = 0.0f;
+            pos.z = 1.0f;
+            IA3dSource3_ptr = swrSound_CreateSourceFromFile(loopWav);
+            if (IA3dSource3_ptr == NULL)
+                goto release;
+            swrSound_SetPosition(IA3dSource3_ptr, &pos);
+            swrSound_SetDistanceModelScale(IA3dSource3_ptr, 0.0f);
+            swrSound_SetGain(IA3dSource3_ptr, 1.0f);
+        }
+        swrSound_Flush();
+    }
+
+    if (gain < 0.0f)
+        gain = 0.0f;
+    else if (gain > 1.0f)
+        gain = 1.0f;
+    swrSound_SetMainGain(gain);
+    swrSound_SetGain(IA3dSource2_ptr, 1.0f);
+    if (swrSound_GetWavePosition(IA3dSource2_ptr, NULL) == 0)
+        swrSound_Play(IA3dSource2_ptr, 0);
+    swrSound_Flush();
+    // busy-waits until the intro source has finished playing
+    while (swrSound_GetWavePosition(IA3dSource2_ptr, NULL) != 0) {
+    }
+    swrSound_Rewind(IA3dSource3_ptr);
+    swrSound_Play(IA3dSource3_ptr, 0);
+    swrSound_Flush();
+    return;
+
+release:
+    if (IA3dSource2_ptr != NULL) {
+        swrSound_Rewind(IA3dSource2_ptr);
+        swrSound_ReleaseSource(IA3dSource2_ptr);
+        IA3dSource2_ptr = NULL;
+    }
+    if (IA3dSource3_ptr != NULL) {
+        swrSound_Rewind(IA3dSource3_ptr);
+        swrSound_ReleaseSource(IA3dSource3_ptr);
+        IA3dSource3_ptr = NULL;
+    }
+    swrSound_layeredStreamActive = 0;
+}
+
 // Arms the per-variant (categories 0-1) or per-category cooldown timer for a just-played sfx, set
 // to the sound's length (+1.0s; category 2 uses its own per-id source +0.25s).
 // 0x00427530

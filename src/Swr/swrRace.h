@@ -448,7 +448,7 @@ void swrRace_UpdateEngineSound(swrRace* player);
 void swrRace_UpdateEngineDamageFX(swrRace* player);
 
 // Spawns a per-planet ground dust kick with a scrape sound during a vehicle reaction (best guess).
-void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float param_6, int param_7);
+void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float offset, int tossFlag);
 
 // Smooths a per-side engine exhaust size toward a target over time (best guess).
 void swrRace_SmoothEngineExhaustSize(int player, float side, float a, float b, float c, float rate, int param_7, int param_8);
@@ -546,7 +546,7 @@ void swrRace_UpdateCollisionToggles(swrRace* player);
 
 // pod model beams + wall/pod collision:
 // Builds the energy-binder plasma beam transform stretched between the engines.
-void swrRace_UpdateEnergyBinder(swrRace* player, float side, rdVector3* pointA, rdVector3* pointB);
+void swrRace_UpdateEnergyBinder(swrRace* player, int side, rdVector3* pointA, rdVector3* pointB);
 // Builds a quad transform stretched between two engine matrices (beam/connector segment).
 void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, float param_4, int keyframeIdx, rdMatrix44* out);
 // Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.

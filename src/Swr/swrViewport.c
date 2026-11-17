@@ -28,6 +28,21 @@ void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
     }
 }
 
+// 0x00428bd0
+void swrViewport_SetActiveCamera(short cameraIndex)
+{
+    if (unkCameraArrayIndex != -1)
+        unkCameraArray[unkCameraArrayIndex].flags &= ~1u;
+    if (cameraIndex == -1) {
+        unkCameraArrayIndex = -1;
+        return;
+    }
+    unkCameraArrayIndex = cameraIndex;
+    currentUnkCameraStructPtr = &unkCameraArray[unkCameraArrayIndex];
+    currentUnkCameraStructPtr->flags |= 1u;
+    swrViewport_cameraApplied = 0;
+}
+
 // Deferred: decoded, but it calls swrCam_CamState_GetOffsetTransform /
 // swrCam_CamState_ApplyToViewport and BuildLookAtTransform, which are not
 // reimplemented yet, so a real body would not link into dinput_hook.

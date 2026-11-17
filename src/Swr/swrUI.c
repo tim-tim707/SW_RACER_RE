@@ -12,6 +12,7 @@
 #include <General/stdMath.h>
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
+#include <Win95/stdConsole.h>
 
 #include <macros.h>
 #include <engine_config.h>
@@ -296,6 +297,28 @@ void swrUI_SetSpriteFlag(swrUI_unk* ui, int slot, int enabled)
     }
 }
 
+// 0x00413130
+swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2)
+{
+    swrUI_unk* ui;
+    int x0 = 0;
+    int y0 = 0;
+    int x1 = 0;
+    int y1 = 0;
+
+    ui = swrUI_New(parent, id, -1, NULL, 0, 0, 0, (swrUI_unk_F1)swrUI_DefaultElementProc, (swrUI_unk_F2)f2);
+    if (rect != NULL) {
+        y0 = rect[1];
+        x0 = rect[0];
+        x1 = rect[2];
+        y1 = rect[3];
+    }
+    swrUI_SetSize(ui, x1 - x0 + 1, y1 - y0 + 1);
+    swrUI_SetPos(ui, x0, y0);
+    ui->widget_class = 0;
+    return ui;
+}
+
 // 0x00413500
 void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
 {
@@ -316,6 +339,20 @@ swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
         } while (child != NULL);
     }
     return NULL;
+}
+
+// 0x00413740
+int swrUI_GetSelectedIndex(swrUI_unk* list)
+{
+    int index = 0;
+    swrUI_unk* item;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (item->item_flags & swrUI_ITEM_SELECTED)
+            return index;
+        index++;
+    }
+    return -1;
 }
 
 // 0x004137a0
@@ -594,6 +631,16 @@ swrUI_unk* swrUI_GetById(swrUI_unk* ui, int id)
     return NULL;
 }
 
+// 0x00414e10
+swrUI_unk* swrUI_GetLastSibling(swrUI_unk* element)
+{
+    if (element == NULL)
+        return NULL;
+    while (element->next2 != NULL)
+        element = element->next2;
+    return element;
+}
+
 // 0x00414e30
 void swrUI_SetSelected(swrUI_unk* ui, int bSelected)
 {
@@ -645,6 +692,15 @@ void swrUI_SetUI4(swrUI_unk* ui)
 void swrUI_SetUI5(swrUI_unk* ui)
 {
     swrUI_unk5_ptr = ui;
+}
+
+// 0x00414f10
+void swrUI_FocusElement(swrUI_unk* element, int moveCursor)
+{
+    if (swrUI_IsFocusable(element))
+        swrUI_SetFocusedElement(element);
+    if (element != NULL && moveCursor != 0)
+        stdConsole_SetCursorPos((element->width - element->x + 1) / 2 + element->x, (element->height - element->y + 1) / 2 + element->y);
 }
 
 // 0x00414f70
@@ -764,6 +820,22 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x00416cc0
+void swrUI_QuantizeNavAxis(float x, float y, int* outX, int* outY)
+{
+    if (outX == NULL || outY == NULL)
+        return;
+    // faithful: a small deflection maps to +-2 only on the positive side
+    if (x < 0.0f)
+        *outX = x < -0.5f ? -2 : -1;
+    else
+        *outX = x > 0.5f ? 1 : 2;
+    if (y < 0.0f)
+        *outY = y < -0.5f ? -2 : -1;
+    else
+        *outY = y > 0.5f ? 1 : 2;
 }
 
 // 0x00416D70
@@ -954,6 +1026,34 @@ void swrUI_SetSpriteOffset(swrUI_unk* ui, int slot, int offsetX, int offsetY)
     }
 }
 
+// 0x00419070
+void swrUI_GetFrameTextureDim(int flags, int* outWidth, int* outHeight)
+{
+    if (flags == 0)
+        return;
+    if (flags & swrUI_FRAME_STYLE_OK_BUTTON) {
+        swrSprite_GetTextureDimFromId(swrSprite_ok_button, outWidth, outHeight);
+        return;
+    }
+    if (flags & swrUI_FRAME_STYLE_EDIT_SEGMENTED) {
+        swrSprite_GetTextureDimFromId(swrSprite_editwindow_segmented, outWidth, outHeight);
+        return;
+    }
+    if (flags & swrUI_FRAME_STYLE_SEGMENT) {
+        swrSprite_GetTextureDimFromId(swrSprite_segment, outWidth, outHeight);
+        return;
+    }
+    if (flags & swrUI_FRAME_STYLE_SETTINGS_BUTTON) {
+        swrSprite_GetTextureDimFromId(swrSprite_settings_btn_strch_end, outWidth, outHeight);
+        return;
+    }
+    if (flags & swrUI_FRAME_STYLE_SMALL_WINDOW) {
+        swrSprite_GetTextureDimFromId(swrSprite_sml_window_strch, outWidth, outHeight);
+        return;
+    }
+    swrSprite_GetTextureDimFromId((flags & swrUI_FRAME_STYLE_WINDOW_BARS) ? swrSprite_window_strchbars : (swrSprite_NAME)flags, outWidth, outHeight);
+}
+
 // 0x00419140
 void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
 {
@@ -1012,6 +1112,18 @@ int swrUI_IsFocusable(swrUI_unk* element)
             return 1;
     }
     return 0;
+}
+
+// 0x0041b3c0
+swrUI_unk* swrUI_NextFocusable(swrUI_unk* element)
+{
+    swrUI_unk* it;
+
+    for (it = element; it != NULL; it = it->next2) {
+        if (swrUI_IsFocusable(it) && it != element)
+            return it;
+    }
+    return it;
 }
 
 // 0x0041b5e0
@@ -1603,6 +1715,12 @@ void swrUI_Front_LoadSelectionsUIElements(void)
         swrSprite_SetFlag((short)id, 0x8000);
         id = id + 1;
     } while (id < 0xb8);
+}
+
+// 0x00417670
+int swrUI_IsElementFocused(swrUI_unk* ui)
+{
+    return ui != NULL && ui == swrUI_focusedElement;
 }
 
 // 0x00417ca0
