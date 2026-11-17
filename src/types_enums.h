@@ -1304,6 +1304,18 @@ typedef enum swrUI_ITEM_FLAG
     swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
 } swrUI_ITEM_FLAG;
 
+// Frame-style bits on the value swrUI_GetFrameTextureDim takes; each picks the frame sprite
+// whose dimensions are returned. With none set, the value itself is the sprite id.
+typedef enum swrUI_FRAME_STYLE
+{
+    swrUI_FRAME_STYLE_SETTINGS_BUTTON = 0x10000, // swrSprite_settings_btn_strch_end
+    swrUI_FRAME_STYLE_SMALL_WINDOW = 0x80000, // swrSprite_sml_window_strch
+    swrUI_FRAME_STYLE_WINDOW_BARS = 0x100000, // swrSprite_window_strchbars
+    swrUI_FRAME_STYLE_OK_BUTTON = 0x200000, // swrSprite_ok_button
+    swrUI_FRAME_STYLE_EDIT_SEGMENTED = 0x400000, // swrSprite_editwindow_segmented
+    swrUI_FRAME_STYLE_SEGMENT = 0x800000, // swrSprite_segment
+} swrUI_FRAME_STYLE;
+
 typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderElementSprites
 {
     swrUI_SPRITE_SLOT_IN_USE = 0x10000, // slot allocated (swrUI_AddSprite)

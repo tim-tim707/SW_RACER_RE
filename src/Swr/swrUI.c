@@ -1031,28 +1031,27 @@ void swrUI_GetFrameTextureDim(int flags, int* outWidth, int* outHeight)
 {
     if (flags == 0)
         return;
-    if (flags & 0x200000) {
+    if (flags & swrUI_FRAME_STYLE_OK_BUTTON) {
         swrSprite_GetTextureDimFromId(swrSprite_ok_button, outWidth, outHeight);
         return;
     }
-    if (flags & 0x400000) {
+    if (flags & swrUI_FRAME_STYLE_EDIT_SEGMENTED) {
         swrSprite_GetTextureDimFromId(swrSprite_editwindow_segmented, outWidth, outHeight);
         return;
     }
-    if (flags & 0x800000) {
+    if (flags & swrUI_FRAME_STYLE_SEGMENT) {
         swrSprite_GetTextureDimFromId(swrSprite_segment, outWidth, outHeight);
         return;
     }
-    if (flags & 0x10000) {
+    if (flags & swrUI_FRAME_STYLE_SETTINGS_BUTTON) {
         swrSprite_GetTextureDimFromId(swrSprite_settings_btn_strch_end, outWidth, outHeight);
         return;
     }
-    if (flags & 0x80000) {
+    if (flags & swrUI_FRAME_STYLE_SMALL_WINDOW) {
         swrSprite_GetTextureDimFromId(swrSprite_sml_window_strch, outWidth, outHeight);
         return;
     }
-    // no frame bit: flags is passed through as the sprite id
-    swrSprite_GetTextureDimFromId((flags & 0x100000) ? swrSprite_window_strchbars : (swrSprite_NAME)flags, outWidth, outHeight);
+    swrSprite_GetTextureDimFromId((flags & swrUI_FRAME_STYLE_WINDOW_BARS) ? swrSprite_window_strchbars : (swrSprite_NAME)flags, outWidth, outHeight);
 }
 
 // 0x00419140
