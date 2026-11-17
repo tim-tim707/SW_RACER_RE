@@ -253,6 +253,7 @@
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
+#define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this
 #define SWR_UI_CARET_BLINK_MS (250)
 #define SWR_SCANCODE_MINUS (0x0c) // '-' key, also accepted by swrUI_HandleSliderKey
 #define SWR_SCANCODE_EQUALS (0x0d) // '=' / '+' key

@@ -1305,6 +1305,7 @@ typedef enum swrUISprite
 typedef enum swrUI_FLAG
 {
     swrUI_STATIC = 0x4, // non-interactive static element (set by swrUI_NewLabel); skipped by focus navigation
+    swrUI_EDITING = 0x8, // text entry is being edited (swrUI_MSG_SET_EDITING); key-downs go to swrUI_HandleTextEntryKey
     swrUI_HOVERED = 0x10, // element under the cursor (swrUI_SetUI4)
     swrUI_FOCUSED = 0x20, // element currently has keyboard focus (swrUI_SetFocusedElement)
     swrUI_VISIBLE = 0x40, // element is visible (swrUI_IsElementVisible walks the parent chain)
@@ -1325,8 +1326,11 @@ typedef enum swrUI_FLAG
 
 typedef enum swrUI_ITEM_FLAG
 {
-    swrUI_ITEM_WRAPPED_UNK = 0x10000, // set on the lines swrUI_DrawWrappedText adds when its flag is nonzero
+    swrUI_ITEM_CENTERED = 0x10000, // list item is centered in the list's content rect (swrUI_RefreshListLayout); set on swrUI_DrawWrappedText lines when its flag is nonzero
+    swrUI_ITEM_NO_AUTO_POS = 0x20000, // swrUI_RefreshListLayout leaves the item's position alone
     swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
+    swrUI_LIST_NO_SELECTION_FRAME = 0x100000, // on the list: no highlight frame around the selected item
+    swrUI_LIST_NO_SCROLLBAR = 0x200000, // on the list: never add the vertical scrollbar
 } swrUI_ITEM_FLAG;
 
 // Frame-style bits on the value swrUI_GetFrameTextureDim takes; each picks the frame sprite
@@ -1377,9 +1381,16 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
     swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
     swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
+    swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
+    swrUI_MSG_SET_TEXT = 10, // swrUI_RunCallbacksScreenText; param = new string
+    swrUI_MSG_SET_POS = 0xb, // swrUI_SetPos; param = x, param2 = y
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
+    swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
+    swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent
     swrUI_MSG_SLIDER_DECREASED = 2000, // fired to the parent by swrUI_HandleSliderKey; param = slider id
     swrUI_MSG_SLIDER_INCREASED = 2001,
+    swrUI_MSG_TEXT_ENTRY_CHANGED = 3003, // fired to the parent by swrUI_TextEntryProc; param = id, param2 = text
+    swrUI_MSG_LIST_SELECTION_CHANGED = 4002, // fired to the parent by swrUI_ListProc; param = list, param2 = item
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;
 
