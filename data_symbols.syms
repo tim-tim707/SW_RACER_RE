@@ -262,6 +262,8 @@ g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
 swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
+swrObjHang_shopLastSelectedItem 0x004c020c int = -1 # last swrRace_MenuSelectedItem the Watto shop computed stats/prices for
+g_pTxtPartNameFormat 0x004c0bc0 char[1] # "~c~s%s"
 swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
 swrObjHang_dewbackCheatInitials 0x004c484c char[4] # "LKJ": profile initials that put a dewback puppet in the shop/junkyard scene
 swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
@@ -675,6 +677,8 @@ swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-playe
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
+swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
+swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
 swrObjHang_partLerpActive 0x0050c46c int # part icons are gliding vector2 -> vector3 (swrRace_UpdatePartMenuLayout)
 swrObjHang_partLerpTime 0x0050c56c float

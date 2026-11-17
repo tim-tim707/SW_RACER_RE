@@ -164,4 +164,11 @@
 #define SWR_PART_LERP_TIME (0.2f)
 #define SWR_PART_LERP_TIME_CAMERA_MOVE (0.5f) // while a front-end camera move is running
 
+// swrObjHang_UpdateWattoShop (0x004376c0)
+#define SWR_PIT_DROID_PRICE (1000)
+#define SWR_ELMO_ID_PIT_DROID_BASE (0x33) // elmo id of pit droid n (1-based) = base + n
+#define SWR_SHOP_SWING_PHASE_RATE (50.0f) // swrObjHang_shopSwingPhase gain per second while scrolling
+#define SWR_SHOP_SWING_PHASE_MAX (1.5f)
+#define SWR_SHOP_SWING_LEAN_RATE (5.5f)
+
 #endif // ENGINE_CONFIG_H

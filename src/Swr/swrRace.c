@@ -1254,6 +1254,18 @@ void swrRace_ComputeUpgradePrices(void)
     swrRace_upgradeUnaffordable = (uint16_t)(tradeIn + swrRace_truguts < swrRace_upgradePrice);
 }
 
+// 0x0043ec10
+void swrRace_DrawPartShopScreen(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
+// 0x00455dc0
+void swrRace_UpdateStatPartModels(void)
+{
+    HANG("TODO");
+}
+
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
