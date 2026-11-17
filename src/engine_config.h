@@ -192,4 +192,13 @@
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
 
+// swrMultiplayer chat overlay (0x0041e800 AddChatMessage, 0x0041e880 TickRacerListOverlay)
+#define SWR_MP_CHAT_LINE_COUNT (15) // swrMultiplayer_chatLines entries
+#define SWR_MP_CHAT_LINE_LIFETIME_MS (10000)
+#define SWR_MP_CHAT_LINE_SPACING (15) // pixels between overlay lines
+#define SWR_MP_CHAT_INPUT_SIZE (0x400) // swrMultiplayer_chatInput bytes
+#define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
+#define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
+#define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
+
 #endif // ENGINE_CONFIG_H

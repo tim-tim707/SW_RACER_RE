@@ -1515,3 +1515,43 @@ void swrUI_Front_LoadSelectionsUIElements(void)
         id = id + 1;
     } while (id < 0xb8);
 }
+
+// 0x00417ca0
+void swrUI_RefreshListLayout(swrUI_unk* list)
+{
+    HANG("TODO");
+}
+
+// 0x00417fe0
+void swrUI_DrawWrappedText(swrUI_unk* ui, char* text, int flag)
+{
+    HANG("TODO");
+}
+
+// 0x00418680
+int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end)
+{
+    int count;
+    int width;
+    int total;
+    int height;
+
+    if (text == NULL)
+        return 0;
+    // Faithful: font -1 returns whatever EAX held; 0 here.
+    if (font == -1)
+        return 0;
+    if (strlen(text) <= start)
+        return 0;
+
+    text += start;
+    total = 0;
+    for (count = end - start; count != 0; count--) {
+        if (*text == '\0')
+            break;
+        swrText_GetCharSize(*text, swrText_fontsByIndex[font], &width, &height);
+        total += width;
+        text++;
+    }
+    return total;
+}
