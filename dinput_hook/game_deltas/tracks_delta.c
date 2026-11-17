@@ -674,7 +674,7 @@ void swrRace_CourseSelectionMenu_delta(void) {
     }
 
     if (DAT_0050c54c == 0) {
-        if (DAT_00e295d4 == swrRace_MenuSelectedItem) {
+        if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem) {
             uVar6 = 3.3f;
             DAT_0050c134 = Track.PlanetIdx;
             DAT_0050c17c = hang->circuitIdx;
@@ -870,7 +870,7 @@ LAB_0043b5c4:
             if ((puVar2 & 0x8000) != 0) {
                 if (circuitIdx < g_CircuitIdxMax) {
                     hang->circuitIdx++;
-                    DAT_00e295d4 = -1;
+                    swrObjHang_settledMenuItem = -1;
                     FUN_00440550(0x58);
                     HandleCircuits_delta(hang);
                 } else {
@@ -884,7 +884,7 @@ LAB_0043b5c4:
                     FUN_00440550(0x4b);
                 } else {
                     hang->circuitIdx--;
-                    DAT_00e295d4 = -1;
+                    swrObjHang_settledMenuItem = -1;
                     FUN_00440550(88);
                     HandleCircuits_delta(hang);
                 }

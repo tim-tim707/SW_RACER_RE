@@ -213,7 +213,10 @@ g_aTrackIDs 0x004c0018 int[28]
 poddLodDistances1 0x004C0088 float[4]
 poddLodDistances2 0x004C0098 float[3]
 
+swrObjHang_legalPage 0x004c00a4 char = -1 # N64 boot legal/logo sequence page (unreachable on PC): 0 legal text, 1 logo, 2 fade into the menus (swrObjHang_UpdateLegalScreen)
 time_ms_unk 0x004c00a8 float
+swrObjHang_legalFadeAlpha 0x004c00ac float = 255.0
+swrObjHang_legalDelayFrames 0x004c00b0 int = 5 # frames to wait before drawing the legal text
 
 
 # All these are static string. char[1] is a workaround for flimsy GenerateGlobalHeaderFromSymbols.py not generating char* properly
@@ -258,7 +261,19 @@ g_pTxtBuyParts 0x004c09d0 char[1] # "/SCREENTEXT_102/~f4~sBuy Parts"
 g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
+swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
+swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
+swrObjHang_dewbackCheatInitials 0x004c484c char[4] # "LKJ": profile initials that put a dewback puppet in the shop/junkyard scene
 swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
+g_pTxtLegalTitle 0x004c08a4 char[1] # "/SCREENTEXT_476/~f4~sStar Wars%: Episode 1: Racer#"
+g_pTxtLegalLucasArts 0x004c0868 char[1] # "/SCREENTEXT_477/~f4~s$LucasArts Entertainment Company LLC."
+g_pTxtLegalLucasfilm 0x004c0824 char[1] # "/SCREENTEXT_478/~f4~s$Lucasfilm Ltd. and #. All Rights Reserved."
+g_pTxtLegalAuthorization 0x004c07f4 char[1] # "/SCREENTEXT_479/~f4~sUsed under authorization."
+g_pTxtLegalLogo1 0x004c07bc char[1] # "/SCREENTEXT_600/~f4~sThe LucasArts Logo is a registered"
+g_pTxtLegalLogo2 0x004c0788 char[1] # "/SCREENTEXT_601/~f4~strademark of Lucasfilm Ltd.,"
+g_pTxtLegalLogo3 0x004c0758 char[1] # "/SCREENTEXT_481/~f4~sused under authorization."
+g_pTxtLegalNintendo 0x004c072c char[1] # "/SCREENTEXT_602/~f4~sLicensed to Nintendo."
+g_pTxtLegalExpansionPak 0x004c0700 char[1] # "/SCREENTEXT_482/~sExpansion Pak enhanced."
 g_pTxtOptions 0x004c094c char[1] # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char[1] # "~f4~sCutscene:"
 
@@ -659,6 +674,12 @@ swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-playe
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
 swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
+swrObjHang_shopSwingPhase 0x0050c938 float # shop ring swing phase, advanced while left/right is held (swrObjHang_UpdateWattoShop), clamped at 1.5
+swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (left); scales the icon tilt in swrObjHang_LayoutVehicleSelectIcons
+swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
+swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
+swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
+swrAssetBuffer_debugPrintSlots 0x0050c608 int # gates the per-slot debug sprintf in swrAssetBuffer_CheckOverflow; never written (debug-build leftover)
 swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
 swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange
 swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
@@ -748,6 +769,7 @@ swrObjHang_cameraMoveMode 0x0050c930 short # front-end camera transition mode; e
 swrObjHang_cameraMoveParity 0x0050c934 int # flips 0<->1 each time a camera move completes
 swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 
+swrObjHang_legalFadingOut 0x0050c484 char # set once the legal sequence's last page starts fading out
 swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateHoloCamera / StepCameraToward
 
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
@@ -1164,7 +1186,7 @@ g_bCircuitIdxInRange 0x00e295c4 int
 g_CircuitIdxMax 0x00e295c8 int
 swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
-DAT_00e295d4 0x00e295d4 int
+swrObjHang_settledMenuItem 0x00e295d4 int # selection the left/right slide transition last settled on (swrObjHang_NavigateVehicleSelect)
 swrObjHang_menuRepeatTimer 0x00e295d8 float # seconds until held left/right auto-repeats in swrObjHang_NavigateVehicleSelect
 swrObjHang_menuRepeatCount 0x00e295dc int # signed run length of consecutive auto-repeat steps; shortens the repeat delay
 swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu step
@@ -1174,6 +1196,7 @@ swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
 swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
 swrRace_upgradeUnaffordable 0x00e99400 uint16_t # 1 when truguts + trade-in < price
+swrObjHang_junkyardStock 0x00e29860 swrJunkyardSlot[16] # rolled by swrObjHang_GenerateJunkyardStock
 swrObjHang_creditsTracks 0x00e29890 char[5] # end-credits playlist of track ids, raced by AI behind the scrolling credits (swrObjHang_SelectCreditsTracks)
 swrObjHang_sceneCameraEye 0x00e298a0 rdVector3 # eye position swrObjHang_ComputeCameraEye resolves for the scene
 swrObjHang_cameraMatrix 0x00e298c0 rdMatrix44 # front-end camera; .vD is the current eye position
@@ -1201,7 +1224,7 @@ someUnkRootNode 0x00e2a660 swrModel_Node # NODE_BASIC root over swrScene_ChildNo
 swrObjHang_lastMenuScreen 0x00e2a67c swrObjHang_STATE # copy of hang->menuScreen; swrObjElmo_SetAnimState picks pit-droid chatter from it
 
 swrRace_statBarChanged 0x00e2a6b0 short[7] // per-upgrade-slot flag: the candidate upgrade moves this bar
-uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[7] // size maybe wrong
+uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[35] # shop/junkyard part list (LoadUpgradeModelsIntoScene_Maybe); 35 = 7 types x 5 non-installed levels, fills the gap up to 0xe2ae80
 
 swrObjHang_menuAcceptLock 0x00e2a698 int # blocks course-select/-info accept+cancel while nonzero; no writer found in the retail binary
 
@@ -1218,7 +1241,7 @@ swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
 
 tr_rot3 0x00e2b200 swrTranslationRotation
 
-uiUpgradeInfos 0x00E2B220 swrUIUpgradeInfo[7] // size maybe wrong
+uiUpgradeInfos 0x00E2B220 swrUIUpgradeInfo[8] # installed parts (7) + one hangar slot; swrObjHang_LayoutVehicleSelectIcons walks 8 (0x1c0 bytes), which fills the gap up to 0xe2b3e0
 
 tr_rot2 0x00e2b420 swrTranslationRotation
 

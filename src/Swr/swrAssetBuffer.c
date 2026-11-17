@@ -66,6 +66,24 @@ int swrAssetBuffer_GetNewIndex(unsigned int offset)
     return i + 1;
 }
 
+// 0x00445b90
+void swrAssetBuffer_CheckOverflow(void)
+{
+    char debugText[64];
+    int slot = 1;
+
+    while ((&assetBuffer)[slot] != NULL) {
+        if (swrAssetBuffer_debugPrintSlots != 0)
+            sprintf(debugText, swrAssetBuffer_slotDebugFormat, slot);
+        slot++;
+    }
+    // the original spins forever once the newest slot reaches the end of the buffer
+    if (assetBufferEnd <= (&assetBuffer)[slot - 1]) {
+        while (1) {
+        }
+    }
+}
+
 // 0x00445bf0
 int swrAssetBuffer_RemainingSize(void)
 {

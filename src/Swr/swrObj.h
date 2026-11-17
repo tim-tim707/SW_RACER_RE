@@ -720,7 +720,7 @@ float swrObjHang_StepTransition(float rate);
 void swrObjHang_TickMenuRepeatDelay_Maybe(void);
 
 // Handles up/down vehicle-select navigation with key-repeat, UI sounds, and transition stepping.
-void swrObjHang_NavigateVehicleSelect(int player, float param_2, int param_3);
+void swrObjHang_NavigateVehicleSelect(int player, float speed, int slideInWhenSettled);
 
 // Frees a particle object: hides its model nodes, clears the owner's backref, swrObj_Free.
 void swrObjSmok_Free(swrObj* obj);

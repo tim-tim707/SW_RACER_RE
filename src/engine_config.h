@@ -130,4 +130,34 @@
 #define SWR_POD_PART_SHADOW_FIRST (0x3d)
 #define SWR_POD_PART_SHADOW_LAST (0x40)
 
+// LoadUpgradeModelsIntoScene_Maybe (0x0043e840)
+#define SWR_UPGRADE_LEVEL_COUNT (6) // levels per upgrade type; upgradeInfos index = type * 6 + level
+#define SWR_SHOP_STARTING_TRACKS (3) // unlocked tracks a new profile starts with; not counted toward shop unlocks
+#define SWR_SCENE_SLOT_SHOP_PARTS (0x62) // swr_sceneModels slot of the first shop/junkyard part model
+#define SWR_SCENE_SLOT_INSTALLED_PARTS (0x8e) // swr_sceneModels slot of the first installed part model
+
+// swrObjHang_LoadScreenAssets (0x004586e0): swr_sceneModels / puppet slots of the hangar scenes
+#define SWR_SCENE_SLOT_POD_MODELS (0xf) // pod models, one per local player; header entry 0x3c holds the pilot id
+#define SWR_SCENE_POD_PILOT_ENTRY (0x3c)
+#define SWR_SCENE_SLOT_PILOT_PUPPETS (0x1c) // pilot puppets, one per local player / podium place
+#define SWR_SCENE_SLOT_PIT_DROIDS (0x34)
+#define SWR_SCENE_SLOT_SHADOW_CIRCLES (0x7)
+#define SWR_SCENE_SLOT_SHADOW_SQUARES (0xb)
+#define SWR_SCENE_SLOT_AWARD_PLATFORMS (0x4d)
+#define SWR_SCENE_SLOT_CANTINA_PILOT (0x38)
+#define SWR_SCENE_SLOT_CANTINA_GUEST (0x39)
+#define SWR_MAX_PIT_DROIDS (4)
+#define SWR_CANTINA_PILOT_POOL (0x7ffff) // pilots 0..18; the cantina guest is a pit droid once any is unlocked
+
+// swrObjHang_NavigateVehicleSelect (0x00469c30): held left/right auto-repeat
+#define SWR_MENU_REPEAT_DELAY (0.6f) // seconds before the first repeat
+#define SWR_MENU_REPEAT_INTERVAL (0.1f) // repeat interval once repeating, divided by the speed arg
+#define SWR_MENU_SLIDE_RATE (3.3f) // swrRace_Transition rate (x speed) for the left/right slide
+
+// swrObjHang_LayoutVehicleSelectIcons (0x0045a840)
+#define SWR_SHOP_LIST_CAPACITY (35) // uiUpgradeInfos2 entries
+#define SWR_HANGAR_ICON_COUNT (8) // uiUpgradeInfos entries
+#define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
+#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
+
 #endif // ENGINE_CONFIG_H

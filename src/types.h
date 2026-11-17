@@ -3316,7 +3316,7 @@ extern "C"
     {
         uint8_t id; // 0x0
         uint8_t level; // 0x1
-        uint8_t unk2; // 0x2
+        uint8_t shopTracksRequired; // 0x2. Watto lists the part once (unlocked tracks - 3) >= this (LoadUpgradeModelsIntoScene_Maybe)
         uint8_t type; // 0x3
         uint32_t price; // 0x4. base price at full health (scaled by health / 255 in swrRace_ComputeUpgradePrices)
         MODELID model; // 0x8
@@ -3332,10 +3332,20 @@ extern "C"
         rdVector3 vector1; // 0x4
         rdVector3 vector2; // 0x10
         rdVector3 vector3; // 0x1c
-        uint8_t unk[16]; // 0x28
+        float yawDegrees; // 0x28. icon facing (swrObjHang_LayoutVehicleSelectIcons)
+        float tiltDegrees; // 0x2c. swing tilt while the shop ring scrolls
+        uint8_t unk[8]; // 0x30
     } swrUIUpgradeInfo; // sizeof(0x38)
 
     // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.
+    // One junkyard stock slot (swrObjHang_junkyardStock, 16 slots, rolled by swrObjHang_GenerateJunkyardStock).
+    typedef struct swrJunkyardSlot
+    {
+        char partType; // 0x0. upgrade type shown in this slot, -1 = empty
+        char level; // 0x1
+        uint8_t health; // 0x2
+    } swrJunkyardSlot; // sizeof(0x3)
+
     typedef struct swrUICameraPlacement
     {
         rdVector3 position1; // 0x0  eye

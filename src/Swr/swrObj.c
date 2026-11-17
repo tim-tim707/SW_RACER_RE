@@ -198,6 +198,22 @@ void swrObjcMan_F2(swrObjcMan* cman)
     HANG("TODO");
 }
 
+// 0x00451d60
+void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
+{
+    // the original copies unk20_mat + focusTransform_mat into the block starting at
+    // unk1e4_mat.vD, i.e. one row past the start of unk1e4_mat
+    cman->mode_type = mode;
+    cman->unk1e4_mat.vD = cman->unk20_mat.vA;
+    cman->stagingTransform.vA = cman->unk20_mat.vB;
+    cman->stagingTransform.vB = cman->unk20_mat.vC;
+    cman->stagingTransform.vC = cman->unk20_mat.vD;
+    cman->stagingTransform.vD = cman->focusTransform_mat.vA;
+    cman->stagingTransformFocus.vA = cman->focusTransform_mat.vB;
+    cman->stagingTransformFocus.vB = cman->focusTransform_mat.vC;
+    cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
+}
+
 // 0x004542e0
 void swrObjcMan_F3(swrObjcMan* cman)
 {
@@ -519,6 +535,82 @@ void swrObjHang_EnterMultiplayerMenu_Maybe(void)
     swrObjHang_fadeState = -1;
 }
 
+// N64 boot legal/logo sequence, unreachable on PC: nothing enters swrObjHang_STATE_LEGAL, and
+// swrObjHang_F4's 'Strt' path does this sequence's exit (black overlay, fadeState 1, state 14) directly.
+// 0x00434ec0
+void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
+{
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_legalPage++;
+        if (swrObjHang_legalPage == 2) {
+            playASound(0x74, 6, 0.25f, 0.5f, 0);
+            time_ms_unk = 2.5f;
+        }
+        swrObjHang_legalFadeAlpha = 255.0f;
+    }
+    hang->unk68_type = 0x15;
+    swrObjHang_state2 = swrObjHang_STATE_LOAD_SCREEN;
+
+    if (swrObjHang_legalPage == 0) {
+        if (swrObjHang_legalDelayFrames > 0) {
+            swrObjHang_legalDelayFrames--;
+        } else {
+            swrText_CreateColorlessEntry1(0x1e, 0x1e, swrText_Translate(g_pTxtLegalTitle));
+            swrText_CreateColorlessEntry1(0x1e, 0x32, swrText_Translate(g_pTxtLegalLucasArts));
+            swrText_CreateColorlessEntry1(0x1e, 0x3c, swrText_Translate(g_pTxtLegalLucasfilm));
+            swrText_CreateColorlessEntry1(0x1e, 0x46, swrText_Translate(g_pTxtLegalAuthorization));
+            swrText_CreateColorlessEntry1(0x1e, 0x5a, swrText_Translate(g_pTxtLegalLogo1));
+            swrText_CreateColorlessEntry1(0x1e, 0x64, swrText_Translate(g_pTxtLegalLogo2));
+            swrText_CreateColorlessEntry1(0x1e, 0x6e, swrText_Translate(g_pTxtLegalLogo3));
+            swrText_CreateColorlessEntry1(0x1e, 0x82, swrText_Translate(g_pTxtLegalNintendo));
+            swrText_CreateColorlessEntry1(0x1e, 0xb4, swrText_Translate(g_pTxtLegalExpansionPak));
+            swrSprite_SetPos(0x52, 0xb4, 100);
+            swrSprite_SetDim(0x52, 1.0f, 1.0f);
+            swrSprite_SetVisible(0x52, 1);
+        }
+    } else if (swrObjHang_legalPage == 1) {
+        swrSprite_SetPos(0x50, 0x57, 0x2e);
+        swrSprite_SetDim(0x50, 1.0f, 1.0f);
+        swrSprite_SetVisible(0x50, 1);
+    } else if (swrObjHang_legalPage == 2) {
+        if (swrObjHang_fadeState != 1 || swrObjHang_legalFadingOut != 0) {
+            swrObjHang_legalFadeAlpha = swrObjHang_legalFadeAlpha - swrRace_fdeltaTimeSecs * 255.0f;
+            if (swrObjHang_legalFadeAlpha < 0.0f) {
+                swrObjHang_legalFadeAlpha = 0.0f;
+                if (swrObjHang_legalFadingOut != 0) {
+                    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+                    swrObjHang_SetMenuState(hang, swrObjHang_state2);
+                    return;
+                }
+            }
+        }
+        swrSprite_SetPos(0x56, 0x34, 0);
+        swrSprite_SetDim(0x56, 1.0f, 1.0f);
+        if (swrObjHang_legalFadingOut == 0)
+            swrSprite_SetVisible(0x56, 1);
+        swrSprite_SetColor(0x56, 0xff, 0xff, 0xff, (uint8_t)(int)swrObjHang_legalFadeAlpha);
+        if (swrObjHang_fadeState != 1) {
+            swrSprite_SetPos(0x55, 0x52, 0xf);
+            swrSprite_SetDim(0x55, 1.0f, 1.0f);
+            swrSprite_SetVisible(0x55, 1);
+            swrSprite_SetColor(0x55, 0xff, 0xff, 0xff, swrObjHang_legalFadingOut != 0 ? (uint8_t)(int)swrObjHang_legalFadeAlpha : 0xff);
+        }
+    }
+
+    if (swrObjHang_fadeState == 0 && 0.0f < time_ms_unk)
+        time_ms_unk = time_ms_unk - swrRace_fdeltaTimeSecs;
+    if (time_ms_unk <= 0.0f) {
+        time_ms_unk = 1.3f;
+        if (swrObjHang_legalPage < 2) {
+            swrObjHang_fadeState = -1;
+            return;
+        }
+        swrObjHang_legalFadingOut = 1;
+        swrObjHang_legalFadeAlpha = 255.0f;
+    }
+}
+
 // 0x004337d0
 void swrObjHang_SetState5_Maybe(void)
 {
@@ -655,10 +747,215 @@ void swrObjHang_InitTrackSprites(swrObjHang* hang, int initTracks)
     }
 }
 
+static void loadPilotPuppet(int pilot, int slot)
+{
+    swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, slot, 2, swrRacer_PodData[pilot].float20);
+}
+
+static void loadPodModel(int pilot, int slot)
+{
+    swrModel_LoadModelIntoScene(swrRacer_PodData[pilot].pod_modelID, swrRacer_PodData[pilot].pod_alt_modelID, SWR_SCENE_SLOT_POD_MODELS + slot, false);
+    if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + slot] != NULL)
+        swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS + slot]->entries[SWR_SCENE_POD_PILOT_ENTRY].value = pilot;
+}
+
 // 0x004586e0
 void swrObjHang_LoadScreenAssets(swrObjHang* hang)
 {
-    HANG("TODO");
+    char* pods = &hang->vehiclePlayer;
+    swrSpriteTexture* tex;
+    int pilot;
+
+    switch (hang->menuScreen) {
+    case swrObjHang_STATE_SPLASH:
+    case swrObjHang_STATE_ENTER_NAME:
+    case swrObjHang_STATE_MAIN_MENU:
+    case swrObjHang_STATE_POST_RACE_INFO:
+    case swrObjHang_STATE_SELECT_VEHICLE:
+    case 10:
+    case 11:
+    case swrObjHang_STATE_SELECT_PLANET:
+    case swrObjHang_STATE_SELECT_TRACK:
+    case swrObjHang_STATE_VEHICLE_SELECT_INTRO:
+        hang->room = Cantina;
+        break;
+    case swrObjHang_STATE_JUNKYARD:
+        hang->room = Junkyard;
+        break;
+    case swrObjHang_STATE_WATTO:
+        hang->room = Shop;
+        break;
+    case swrObjHang_STATE_LOOK_AT_VEHICLE:
+    case swrObjHang_STATE_TAUNT_SCENE:
+    case swrObjHang_STATE_RESULTS_INTRO:
+        hang->room = Hangar;
+        break;
+    case swrObjHang_STATE_LOAD_SCREEN:
+        return;
+    case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        hang->room = HangRoom_Awards;
+        break;
+    default:
+        hang->room = HangRoom_None;
+        break;
+    }
+    if (hang->roomPrev == Cantina && hang->room == Cantina)
+        return;
+    if (hang->roomPrev != hang->room)
+        swrDisplay_SkipNextFrameUpdate = 1;
+
+    swrObjHang_CullElmoAssets(2);
+    for (int id = 0; id < 0xb8; id++) {
+        // sprites 0xa2..0xb7 (the menu selector set) survive a screen change
+        if ((id < 0xa2 || id > 0xb7) && id != 0xf9 && id != 0xfa)
+            swrSprite_NewSprite((short)id, NULL);
+    }
+    swrModel_ClearSceneAnimations();
+    swrModel_clearSceneModelsAndChildren();
+
+    if (hang->room == Cantina) {
+        swrModel_tileReadOneRowUp = 1;
+        tex = swrSprite_GetTextureFromTGA("data\\images\\greyedsplash.tga", 0x50);
+        swrModel_tileReadOneRowUp = 0;
+        swrSprite_NewSprite(0x50, tex);
+        swrSprite_NewSprite(0x4d, swrSprite_GetTextureFromTGA("data\\images\\settings_btn_strch_sel.tga", 0x4d));
+        swrSprite_NewSprite(0x4e, swrSprite_GetTextureFromTGA("data\\images\\podhangar_backdrop.tga", 0x4e));
+        swrSprite_NewSprite(0x4f, swrSprite_GetTextureFromTGA("data\\images\\podhangar_backdrop2.tga", 0x4f));
+        swrSprite_NewSprite(0x51, swrSprite_GetTextureFromTGA("data\\images\\episode1.tga", 0x51));
+        swrSprite_NewSprite(0x54, swrSprite_GetTextureFromTGA("data\\images\\racer.tga", 0x54));
+        swrSprite_NewSprite(0x52, swrSprite_GetTextureFromTGA("data\\images\\star.tga", 0x52));
+        swrSprite_NewSprite(0x53, swrSprite_GetTextureFromTGA("data\\images\\wars.tga", 0x53));
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadPlanetModels();
+        swrUI_Front_LoadMapPartModels();
+        swrSprite_NewSprite(0x45, swrSprite_LoadTexture_(swrSprite_int_planet_tat_rgb));
+        swrSprite_NewSprite(0x46, swrSprite_LoadTexture_(swrSprite_int_planet_a_rgb));
+        swrSprite_NewSprite(0x47, swrSprite_LoadTexture_(swrSprite_int_planet_b_rgb));
+        swrSprite_NewSprite(0x48, swrSprite_LoadTexture_(swrSprite_int_planet_c_rgb));
+        swrSprite_NewSprite(0x49, swrSprite_LoadTexture_(swrSprite_int_planet_d_rgb));
+        swrSprite_NewSprite(0x4a, swrSprite_LoadTexture_(swrSprite_int_planet_e_rgb));
+        swrSprite_NewSprite(0x4b, swrSprite_LoadTexture_(swrSprite_int_planet_f_rgb));
+        swrSprite_NewSprite(0x4c, swrSprite_LoadTexture_(swrSprite_int_planet_j_rgb));
+        swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
+        swrObjHang_LoadAllPilotSprites();
+        swrModel_LoadModelIntoScene(MODELID_flag2_part, -1, INGAME_MODELID_flag2_part, false);
+
+        // a random unlocked pilot sits in the cantina
+        do {
+            pilot = 1 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -22.0f);
+        } while (((1 << pilot) & swrRace_unlockedPilotsMask) == 0);
+        swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, 2, swrRacer_PodData[pilot].float20);
+        if ((swrRace_unlockedPilotsMask & SWR_CANTINA_PILOT_POOL) == 0) {
+            do {
+                pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 23.0f);
+            } while ((swrRace_unlockedPilotsMask & (1 << pilot)) != 0);
+            swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, 2, swrRacer_PodData[pilot].float20);
+        } else {
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_CANTINA_GUEST, 1, -1.0f);
+        }
+        swrModel_LoadPuppet(MODELID_char_npc_bartender_puppet, 0x16, 7, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
+
+        hang->sprite_whitesquare_rgb = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int i = 0; i < 4; i++)
+            swrSprite_NewSprite((short)(i + 0x82), hang->sprite_whitesquare_rgb);
+        hang->award_first_rgb = swrSprite_LoadTexture_(swrSprite_award_first_rgb);
+        hang->award_second_rgb = swrSprite_LoadTexture_(swrSprite_award_second_rgb);
+        hang->award_third_rgb = swrSprite_LoadTexture_(swrSprite_award_third_rgb);
+        hang->award_wdw_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_wdw_blue_rgb);
+        hang->award_wdw_select_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_window_ylw_rgb);
+        swrSprite_NewSprite(0x62, swrSprite_LoadTexture_(swrSprite_award_wdw_select_blue_rgb));
+        swrSprite_SetFlag(0x62, swrSprite_FLAG_UNK_8000);
+        swrSprite_SetColor(0x62, 0x32, 0xff, 0xff, 0xfe);
+        swrObjHang_CullElmoAssets(3);
+        // only the first pod's pilot (the loop bound is 1 in the original)
+        for (int k = 0; k < 1; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        swrAssetBuffer_CheckOverflow();
+        return;
+    }
+
+    switch (hang->menuScreen) {
+    case swrObjHang_STATE_JUNKYARD:
+    case swrObjHang_STATE_WATTO:
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadPartsUIElements();
+        swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
+        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrModel_LoadPuppet(MODELID_char_watto_puppet, 0x15, 3, -1.0f);
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        for (int i = 0; i < SWR_MAX_PIT_DROIDS - (int)(uint8_t)swrRace_nbPitDroids; i++)
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+        for (int i = 0; i < 4; i++)
+            swrModel_LoadModelIntoScene(MODELID_shadow_square_part, -1, SWR_SCENE_SLOT_SHADOW_SQUARES + i, false);
+        swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, 10, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_jarjar_puppet, 0x1b, 9, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_quigon_puppet, 0x19, 0xb, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_r2d2_puppet, 0x18, 0xc, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_npc_c3po_puppet, 0x1a, 8, -1.0f);
+        if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_dewbackCheatInitials) != 0) {
+            swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
+        } else if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_rontoCheatInitials) != 0) {
+            swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+        }
+        break;
+    case swrObjHang_STATE_LOOK_AT_VEHICLE:
+        swrUI_Front_LoadUIElements();
+        swrUI_Front_LoadWindowUIElements();
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPodModel(pods[k], k);
+        swrModel_LoadModelIntoScene(MODELID_moneybox1_part, -1, INGAME_MODELID_moneybox1_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox2_part, -1, INGAME_MODELID_moneybox2_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox3_part, -1, INGAME_MODELID_moneybox3_part, false);
+        swrModel_LoadModelIntoScene(MODELID_moneybox2_part, -1, INGAME_MODELID_moneybox2_0_part, false);
+        for (int i = 0; i < 4; i++) {
+            swrModel_LoadModelIntoScene(MODELID_hovcart_part, -1, INGAME_MODELID_hovcart_part_0 + i, false);
+            swrModel_LoadModelIntoScene(MODELID_shadow_circle_part, -1, SWR_SCENE_SLOT_SHADOW_CIRCLES + i, false);
+            swrModel_LoadModelIntoScene(MODELID_shadow_square_part, -1, SWR_SCENE_SLOT_SHADOW_SQUARES + i, false);
+        }
+        swrModel_LoadModelIntoScene(MODELID_beamanim_vlec, -1, INGAME_MODELID_beamanim_vlec, true);
+        for (int i = 0; i < 4; i++)
+            swrModel_LoadModelIntoScene(MODELID_sparky_part, -1, INGAME_MODELID_sparky_part_0 + i, true);
+        for (int k = 0; k < hang->num_local_players; k++)
+            loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+        for (int i = 0; i < (int)(uint8_t)swrRace_nbPitDroids; i++)
+            swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, 1, -1.0f);
+        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrModel_LoadModelIntoScene(MODELID_char_pitdroid_puppet, -1, INGAME_MODELID_char_pitdroid_puppet, false);
+        swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, 4, -1.0f);
+        swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, 5, -1.0f);
+        break;
+    case swrObjHang_STATE_TAUNT_SCENE:
+        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int k = 0; k < 2; k++) {
+            swrSprite_NewSprite((short)(k + 0x82), tex);
+            pilot = k == 0 ? pods[0] : (char)g_aTrackInfos[hang->track_index].FavoritePilot;
+            loadPilotPuppet(pilot, SWR_SCENE_SLOT_PILOT_PUPPETS + k);
+            loadPodModel(pilot, k);
+        }
+        break;
+    case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        for (int place = 0; place < 3; place++) {
+            loadPilotPuppet(hang->podiumCharacters[place], SWR_SCENE_SLOT_PILOT_PUPPETS + place);
+            swrModel_LoadModelIntoScene(MODELID_award_platform_part, -1, SWR_SCENE_SLOT_AWARD_PLATFORMS + place, false);
+        }
+        swrModel_LoadModelIntoScene(MODELID_award_first_part, -1, INGAME_MODELID_award_first_part, false);
+        swrModel_LoadModelIntoScene(MODELID_award_second_part, -1, INGAME_MODELID_award_second_part, false);
+        swrModel_LoadModelIntoScene(MODELID_award_third_part, -1, INGAME_MODELID_award_third_part, false);
+        swrModel_LoadModelIntoScene(MODELID_loc_awards_part, -1, INGAME_MODELID_loc_awards_part, false);
+        break;
+    case swrObjHang_STATE_RESULTS_INTRO:
+        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        for (int k = 0; k < 2; k++)
+            swrSprite_NewSprite((short)(k + 0x82), tex);
+        loadPodModel((char)g_aTrackInfos[hang->track_index].FavoritePilot, 0);
+        swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS, 1, -1.0f);
+        break;
+    default:
+        break;
+    }
+    swrAssetBuffer_CheckOverflow();
 }
 
 // 0x00459150
@@ -672,6 +969,93 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0045a840
+void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang)
+{
+    int count;
+    int middle;
+    int angle;
+    float s;
+    float c;
+
+    for (int i = 0; i < SWR_SHOP_LIST_CAPACITY; i++) {
+        rdVector_Set3(&uiUpgradeInfos2[i].vector1, 0.0f, 0.0f, 0.0f);
+        if (i < SWR_HANGAR_ICON_COUNT)
+            rdVector_Set3(&uiUpgradeInfos[i].vector1, 0.0f, 0.0f, 0.0f);
+    }
+    count = swrRace_MenuMaxSelection;
+
+    if (hang->room == Shop) {
+        // parts on a ring around Watto's counter
+        middle = (int)((float)(count + 1) * 0.5f);
+        swrRace_MenuSelectedItem = middle;
+        if (count == 0) {
+            swrRace_MenuSelectedItem = -1;
+            return;
+        }
+        if (swrObjHang_shopFocusTypePending == 1) {
+            for (int i = 0; i < count - 1; i++) {
+                if ((char)upgradeInfos[(char)uiUpgradeInfos2[i].index].type == swrObjHang_hangarUpgradeType) {
+                    swrRace_MenuSelectedItem = i;
+                    break;
+                }
+            }
+        }
+        // the ring is laid out from the middle item even when a part type was preselected
+        angle = (middle + 9) * 10;
+        for (int i = 0; i < count; i++, angle -= 10) {
+            swrUIUpgradeInfo* icon = &uiUpgradeInfos2[i];
+            stdMath_SinCos((float)angle, &s, &c);
+            icon->vector1.x = 12.0f - c * -256.0f;
+            icon->vector1.y = -116.0f - s * -256.0f;
+            icon->vector1.z = 106.0f;
+            rdVector_Copy3(&icon->vector2, &icon->vector1);
+            icon->yawDegrees = stdMath_ArcTan2(icon->vector1.x - 12.0f, -116.0f - icon->vector1.y) - 90.0f;
+            stdMath_SinCos((1.5f - swrObjHang_shopSwingPhase) * 360.0f, &s, &c);
+            count = swrRace_MenuMaxSelection;
+            icon->tiltDegrees = c * swrObjHang_shopSwingLean * 45.0f;
+        }
+    }
+    if (hang->room == Junkyard) {
+        for (int slot = 0; slot < SWR_JUNKYARD_SLOT_COUNT; slot++) {
+            char type = swrObjHang_junkyardStock[slot].partType;
+            if (type != -1) {
+                swrUICameraPlacement* placement = &maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot];
+                uiUpgradeInfos2[type].vector1.x = placement->position2.x;
+                uiUpgradeInfos2[type].vector1.y = placement->position2.y;
+                uiUpgradeInfos2[type].vector1.z = -130.0f;
+                uiUpgradeInfos2[type].tiltDegrees = 0.0f;
+                uiUpgradeInfos2[type].yawDegrees = 0.0f;
+            }
+        }
+    }
+    if (hang->room == Hangar) {
+        // installed parts in two columns on the hangar wall; the slot past the last part faces sideways
+        for (int i = 0; i < count + 1; i++) {
+            swrUIUpgradeInfo* icon = &uiUpgradeInfos[i];
+            icon->vector1.x = 7.7f - (float)(i % 2) * -4.3f;
+            icon->vector1.y = 40.0f;
+            icon->vector1.z = 9.0f - (float)(i / 2) * 3.8f;
+            icon->tiltDegrees = 0.0f;
+            icon->yawDegrees = 0.0f;
+            if (i == count) {
+                icon->vector1.z = icon->vector1.z - 4.1f;
+                icon->yawDegrees = 90.0f;
+            }
+        }
+    }
+
+    for (int i = 0; i < SWR_SHOP_LIST_CAPACITY; i++) {
+        rdVector_Copy3(&uiUpgradeInfos2[i].vector2, &uiUpgradeInfos2[i].vector1);
+        rdVector_Copy3(&uiUpgradeInfos2[i].vector3, &uiUpgradeInfos2[i].vector1);
+        if (i < SWR_HANGAR_ICON_COUNT) {
+            // the original seeds the hangar icons from uiUpgradeInfos2, not their own vector1
+            rdVector_Copy3(&uiUpgradeInfos[i].vector2, &uiUpgradeInfos2[i].vector1);
+            rdVector_Copy3(&uiUpgradeInfos[i].vector3, &uiUpgradeInfos2[i].vector1);
+        }
+    }
 }
 
 // 0x0045ce90
@@ -2538,6 +2922,67 @@ float swrObjHang_StepTransition(float rate)
     return swrRace_Transition;
 }
 
+// 0x00469c30
+void swrObjHang_NavigateVehicleSelect(int player, float speed, int slideInWhenSettled)
+{
+    int stepped = 0;
+
+    swrRace_MenuNavLeftActive = 0;
+    swrRace_MenuNavRightActive = 0;
+    swrRace_MenuCanScrollLeft = 0 < swrRace_MenuSelectedItem;
+    swrRace_MenuCanScrollRight = swrRace_MenuSelectedItem < swrRace_MenuMaxSelection - 1;
+    if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_RIGHT) != 0) {
+        if (swrRace_MenuSelectedItem < swrRace_MenuMaxSelection - 1) {
+            swrRace_MenuNavRightActive = 1;
+            if (swrObjHang_menuRepeatTimer == 0.0f || (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_RIGHT) != 0) {
+                stepped = 1;
+                swrObjHang_menuRepeatDir = 1;
+                swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_DELAY;
+                if (0 < swrObjHang_menuRepeatCount)
+                    swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_INTERVAL / speed;
+            }
+        } else if (swrRace_Transition == 1.0f) {
+            playUISound(0x4b);
+        }
+    }
+    if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_LEFT) != 0) {
+        if (swrRace_MenuSelectedItem < 1) {
+            if (swrRace_Transition == 1.0f)
+                playUISound(0x4b);
+        } else {
+            swrRace_MenuNavLeftActive = 1;
+            if (swrObjHang_menuRepeatTimer == 0.0f || (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_LEFT) != 0) {
+                stepped = 1;
+                swrObjHang_menuRepeatDir = -1;
+                swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_DELAY;
+                if (swrObjHang_menuRepeatCount < 0)
+                    swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_INTERVAL / speed;
+            }
+        }
+    }
+    // consume the low two pressed bits (meaning unidentified) while navigating
+    if (swrRace_MenuNavLeftActive != 0 || swrRace_MenuNavRightActive != 0)
+        swrUI_localPlayersInputPressedBitset[player] &= ~0x3;
+    if (stepped) {
+        if (swrObjHang_menuRepeatCount * swrObjHang_menuRepeatDir < 0)
+            swrObjHang_menuRepeatCount = 0;
+        swrRace_MenuSelectedItem += swrObjHang_menuRepeatDir;
+        swrObjHang_menuRepeatCount += swrObjHang_menuRepeatDir;
+        playUISound(0x58);
+    }
+    if (swrRace_MenuNavRightActive == 0 && swrRace_MenuNavLeftActive == 0)
+        swrObjHang_menuRepeatCount = 0;
+
+    if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem && swrRace_MenuNavLeftActive == 0 && swrRace_MenuNavRightActive == 0) {
+        if (slideInWhenSettled != 0)
+            swrObjHang_StepTransition(speed * SWR_MENU_SLIDE_RATE);
+    } else {
+        swrObjHang_StepTransition(speed * -SWR_MENU_SLIDE_RATE);
+        if (swrRace_Transition == 0.0f)
+            swrObjHang_settledMenuItem = swrRace_MenuSelectedItem;
+    }
+}
+
 // 0x00469e70
 void swrObjSmok_Free(swrObj* obj)
 {
@@ -3925,6 +4370,51 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
 
 // Point the camera at a scene element: resolve the element position, then either retarget the camera
 // or slide the whole rig so the eye keeps its offset.
+// 0x0043e840
+void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang)
+{
+    char unlockedTracks = 0;
+    int count = 0;
+
+    swrRace_MenuMaxSelection = 0;
+    for (int circuit = 0; circuit < SWR_CIRCUIT_COUNT; circuit++) {
+        for (int track = 0; track < g_aTracksInCircuits[circuit]; track++) {
+            if (((uint8_t)swrRace_UnlockDataBase[circuit + 1] & (1 << track)) != 0)
+                unlockedTracks++;
+        }
+    }
+    for (int type = 0; type < SWR_UPGRADE_CATEGORY_COUNT; type++) {
+        uiUpgradeInfos[type].index = (char)type * SWR_UPGRADE_LEVEL_COUNT + (&swrRace_traction_upgrade_level)[type];
+        uiUpgradeInfos[type].health = (&swrRace_traction_upgrade_health)[type];
+    }
+
+    if (hang->menuScreen == swrObjHang_STATE_WATTO) {
+        for (int type = 0; type < SWR_UPGRADE_CATEGORY_COUNT; type++) {
+            for (int level = 0; level < SWR_UPGRADE_LEVEL_COUNT; level++) {
+                int part = type * SWR_UPGRADE_LEVEL_COUNT + level;
+                if ((char)uiUpgradeInfos[type].index != part && (signed char)upgradeInfos[part].shopTracksRequired <= unlockedTracks - SWR_SHOP_STARTING_TRACKS) {
+                    uiUpgradeInfos2[count].index = (char)part;
+                    uiUpgradeInfos2[count].health = 0xff;
+                    count++;
+                }
+            }
+        }
+        swrRace_MenuMaxSelection = count;
+    } else if (hang->menuScreen == swrObjHang_STATE_JUNKYARD) {
+        for (int slot = 0; slot < SWR_UPGRADE_CATEGORY_COUNT; slot++) {
+            uiUpgradeInfos2[count].index = (char)slot * SWR_UPGRADE_LEVEL_COUNT + swrObjHang_junkyardStock[slot].level;
+            uiUpgradeInfos2[count].health = swrObjHang_junkyardStock[slot].health;
+            count++;
+        }
+        swrRace_MenuMaxSelection = count;
+    }
+
+    for (int i = 0; i < swrRace_MenuMaxSelection; i++)
+        swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos2[i].index].model, -1, SWR_SCENE_SLOT_SHOP_PARTS + i, false);
+    for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+        swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos[i].index].model, -1, SWR_SCENE_SLOT_INSTALLED_PARTS + i, false);
+}
+
 // 0x0043fbc0
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex)
 {
