@@ -46,6 +46,7 @@ extern "C" {
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/pod_motion.h"
 #include "./game_deltas/pod_fx.h"
 #include "shadows.h"
 #include "./game_deltas/swrWeather_delta.h"
@@ -3249,6 +3250,9 @@ extern "C" void init_renderer_hooks() {
     // Time-correct traction (slide decay per second, not per physics step).
     hook_function("swrRace_ApplyTraction", (uint32_t) swrRace_ApplyTraction_ADDR,
                   (uint8_t *) swrRace_ApplyTraction_delta);
+    // Movie pod motion: cockpit cable sway + independent engine banking (visual only).
+    hook_function("swrRace_PoddAnimateEngines", (uint32_t) swrRace_PoddAnimateEngines_ADDR,
+                  (uint8_t *) swrRace_PoddAnimateEngines_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

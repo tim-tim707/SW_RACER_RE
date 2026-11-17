@@ -34,6 +34,7 @@
 #include "game_deltas/tracks_delta.h"
 #include "game_deltas/swrMain_delta.h"
 #include "game_deltas/swrMain_smoothing.h"
+#include "game_deltas/pod_motion.h"
 #include "game_deltas/pod_fx.h"
 #include "shadows.h"
 #include "game_deltas/swrRace_delta.h"// swrRace_tractionDtCorrect
@@ -2931,6 +2932,7 @@ static void register_builtin_debug_panels() {
     debug_ui_register(&g_panel_hd_models);
     debug_ui_register(&g_panel_replacement_textures);
     debug_ui_register(&g_panel_mods);
+    pod_motion_register_panel();
     pod_fx_register_panel();
     shadows_register_panel();
     debug_ui_register(&g_panel_render_debug);
