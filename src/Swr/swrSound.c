@@ -33,7 +33,7 @@ int swrSound_Startup()
     if (swrSound_Playing == 0 && swrSound_Init() == 0)
         return 0;
     swrUI_UpdateProgressBar(4);
-    swrSoundHashTable = stdHashtbl_New(1200);
+    swrSoundHashTable = stdHashtbl_New(SWR_SOUND_HASHTABLE_SIZE);
     if (swrSoundHashTable == NULL)
         return 0;
     swrUI_UpdateProgressBar(6);

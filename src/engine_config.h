@@ -107,6 +107,7 @@
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
 #define SWR_SOUND_DEFAULT_BANK_SIZE (87) // swrSound_defaultBankFiles entries, allocated when sounds.map is missing
+#define SWR_SOUND_HASHTABLE_SIZE (1200) // swrSound_Startup: buckets in swrSoundHashTable
 
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
