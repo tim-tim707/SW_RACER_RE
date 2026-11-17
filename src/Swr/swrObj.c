@@ -3733,10 +3733,33 @@ void LoadTrackModels(swrObjJdge* judge)
     HANG("TODO");
 }
 
-// 0x00465D00
-void LoadTrackSpline(swrObjJdge*)
+// 0x00465cb0
+void swrObjJdge_InitSplineCursor(swrObjJdge* judge)
 {
-    HANG("TODO");
+    swrSplineCursor* cursor = &judge->cursor;
+    cursor->spline = judge->unk2c_spline;
+    cursor->velocity = 0.0f;
+    cursor->segmentT = 0.0f;
+    cursor->tangentLength = 0.0f;
+    cursor->endFlag = 0;
+    cursor->startFlag = 0;
+    cursor->branchSelector = 0;
+    cursor->branchFlags = 0;
+    if (cursor->spline != NULL)
+        swrSpline_CursorSeek(cursor, 0);
+    swrSpline_EvaluateAtOffset(cursor, &judge->camBaseMat, 0.0f);
+    cursor->velocity = 1.8f;
+}
+
+// 0x00465D00
+void LoadTrackSpline(swrObjJdge* judge)
+{
+    int bufferBefore = (int)swrAssetBuffer_GetBuffer();
+    // the spline id doubles as the loader's out-pointer slot
+    judge->unk2c_spline = (swrSpline*)swrSpline_LoadSplineById((char*)judge->unk1b4_splineId);
+    swrObjJdge_splineBufferBytes += (int)swrAssetBuffer_GetBuffer() - bufferBefore;
+    swrSpline_Build(judge->unk2c_spline, (swrModel_Node*)judge->unk30);
+    swrObjJdge_InitSplineCursor(judge);
 }
 
 // 0x00466370

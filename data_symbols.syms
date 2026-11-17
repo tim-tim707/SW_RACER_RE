@@ -175,7 +175,7 @@ swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared t
 # Streamed music + per-track ambient SFX tables. See swrSound.h (swrSound_SelectTrackMusic /
 # swrSound_UpdateEngineAudio) and the swrSfxCue struct in types.h.
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
-swrMusicPlanetIntroTable 0x004b8780 int16_t[8]
+swrMusicPlanetIntroTable 0x004b8780 int16_t[12] # 8 planets, then 4 x -1 (swrSound_SelectPlanetIntroMusic indexes it % 12)
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
 swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
@@ -626,6 +626,8 @@ swrSound_sfxCategoryCooldown 0x0050b600 float[8]
 swrSound_sfxVariantCooldown 0x0050b620 float[23]
 swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed each variant cooldown slot (swrSound_MarkSfxPlayed)
 swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
+swrSound_musicStartDelay 0x0050b6f0 float # seconds until swrSound_UpdateMusic starts the queued track
+swrSound_musicElapsed 0x0050b6f4 float # seconds since the current track was queued
 swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
 swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
 
@@ -1264,6 +1266,7 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
+swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
 
 fireballChildNodeArray2 0x00E288C0 swrModel_Node*[40] # one per fireballChildNodeArray entry; runs up to swrScoresPtr
 
@@ -1341,7 +1344,7 @@ rdMatrix44_unk7 0x00e2af00 rdMatrix44
 swrRace_statBarsPreview 0x00e2af40 float[7] // bars with the candidate upgrade applied (parts-shop preview)
 
 swrObjHang_holoCameraMatrix 0x00e2af60 rdMatrix44 # .vD is the point the front-end camera looks at
-swr_sceneAnimations 0x00e2afa0 swrModel_Animation*[300]
+swr_sceneAnimations 0x00e2afa0 swrModel_Animation**[300] # per scene slot: the model's animation list (swrModel_LoadAllAnimationsOfModel)
 
 tr_rot3 0x00e2b200 swrTranslationRotation
 

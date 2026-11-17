@@ -1532,5 +1532,12 @@ void swrSound_ResetMusic(void)
 // 0x00427ad0
 unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet)
 {
-    HANG("TODO");
+    if (swrEvent_GetEventCount('Test') > 0 && NumLocalPlayers() == 0)
+        return 0;
+
+    swrSound_musicElapsed = 0.0f;
+    swrSound_musicStartDelay = 0.1f;
+    swrSound_currentMusicId = swrMusicPlanetIntroTable[planet % 12];
+    // the original leaves the division quotient in eax
+    return planet / 12;
 }

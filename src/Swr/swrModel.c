@@ -1788,13 +1788,19 @@ void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_
 // 0x00454C60
 void swrModel_ClearLoadedModels()
 {
-    HANG("TODO");
+    memset(swrScene_ChildNodes, 0, sizeof(swrScene_ChildNodes));
+    memset(swr_sceneModels, 0, sizeof(swr_sceneModels));
+    swrModel_ClearSceneAnimations();
 }
 
 // 0x00454C90
 void swrModel_ReloadAnimations()
 {
-    HANG("TODO");
+    swrModel_ClearSceneAnimations();
+    for (int i = 0; i < SWR_SCENE_MODEL_SLOT_COUNT; i++) {
+        if (swr_sceneModels[i] != NULL)
+            swr_sceneAnimations[i] = swrModel_LoadAllAnimationsOfModel(swr_sceneModels[i]);
+    }
 }
 
 // 0x0047BD80

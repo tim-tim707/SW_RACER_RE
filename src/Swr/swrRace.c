@@ -3943,7 +3943,8 @@ void swrRace_SpawnFlameAttack(swrRace* player)
 // 0x0046bb30
 void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5)
 {
-    HANG("TODO");
+    // only the first four args are pushed; the rest are stack garbage the receiver ignores
+    swrMultiplayer_SendEvent(-1, 0, 'flam', player, 0.0f, 0.0f, 0.0, NULL, NULL, 0);
 }
 
 // The per-frame human-input -> pod-intent routine for a 'Locl' racer. Reads the processed input
