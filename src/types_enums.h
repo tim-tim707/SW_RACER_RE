@@ -1372,6 +1372,11 @@ typedef enum swrConfig_DEVICE
 } swrConfig_DEVICE;
 
 // swrControlBinding.flags, as swrControl_ProcessInputs reads them
+typedef enum stdControlInputItem_FLAG
+{
+    stdControlInputItem_FLAG_KEYDOWN = 0x200, // set from WindowsInputItem.keydown (unused by Win32 KF_* bits)
+} stdControlInputItem_FLAG;
+
 typedef enum swrControlBinding_FLAG
 {
     swrControlBinding_FLAG_ANALOG = 0x1, // feeds the action's *AxisInput value

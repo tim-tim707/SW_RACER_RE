@@ -6,7 +6,12 @@
 #include "globals.h"
 #include "engine_config.h"
 #include "Swr/swrModel.h"
+#include "Swr/swrSprite.h"
+#include "Swr/swrText.h"
+#include "General/stdString.h"
+#include "Platform/wuRegistry.h"
 
+#include <objbase.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -718,6 +723,272 @@ int swrControl_PollCancel(int excludeDevice)
     }
     if (joystick == 0 && mouse == 0 && keyboard == 0 && (int)wheelButton == 0) {
         return 0;
+    }
+    return 1;
+}
+
+// 0x00405dd0
+unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask)
+{
+    unsigned int i;
+    unsigned int pressed;
+
+    pressed = 0;
+    if (device == swrConfig_DEVICE_MOUSE) {
+        for (i = 0; (int)i < STDCONTROL_MOUSE_NUM_KEYS; i++) {
+            if (stdControl_ReadKey(STDCONTROL_MOUSE_KEY_BASE + i, NULL) != 0) {
+                if (returnBitmask == 0) {
+                    return i;
+                }
+                pressed |= 1 << (i & 0x1f);
+            }
+        }
+    } else if (device == swrConfig_DEVICE_JOYSTICK) {
+        for (i = 0; (int)i < STDCONTROL_KEYS_PER_JOYSTICK; i++) {
+            if (stdControl_ReadKey(STDCONTROL_JOYSTICK_KEY_BASE + stdControl_joystickDeviceIndex * STDCONTROL_KEYS_PER_JOYSTICK + i, NULL) != 0) {
+                if (returnBitmask == 0) {
+                    return i;
+                }
+                pressed |= 1 << (i & 0x1f);
+            }
+        }
+    } else if (device == swrConfig_DEVICE_KEYBOARD) {
+        for (i = 0; (int)i < STDCONTROL_NUM_KEYBOARD_KEYS; i++) {
+            if (stdControl_ReadKey(i, NULL) != 0 && swrControl_IsKeyStringControl(i) == 0) {
+                return i;
+            }
+        }
+    }
+    if (returnBitmask == 0 || device == swrConfig_DEVICE_KEYBOARD) {
+        pressed = SWR_CONTROL_SCAN_NONE;
+    }
+    return pressed;
+}
+
+// 0x00407700
+int swrControl_FindMovedAxis(int device, void* param_2)
+{
+    int* outDirection;
+    const float* axes;
+    const float* axesPrev;
+    int numAxes;
+    int i;
+    int found;
+    float best;
+    float delta;
+    float magnitude;
+    double threshold;
+
+    outDirection = (int*)param_2;
+    found = -1;
+    numAxes = (device != swrConfig_DEVICE_MOUSE ? 3 : 0) + 3;
+    axes = swrControl_joystickAxes + device * STDCONTROL_AXES_PER_JOYSTICK;
+    axesPrev = swrControl_axesPrev + device * STDCONTROL_AXES_PER_JOYSTICK;
+    best = 0.0f;
+    for (i = 0; i < numAxes; i++) {
+        delta = axesPrev[i] - axes[i];
+        if (delta < 0.0f) {
+            delta = -delta;
+        }
+        magnitude = axes[i];
+        if (magnitude < 0.0f) {
+            magnitude = -magnitude;
+        }
+        threshold = (device == swrConfig_DEVICE_JOYSTICK) ? SWR_CONTROL_CAPTURE_JOYSTICK_AXIS_MIN : SWR_CONTROL_CAPTURE_AXIS_MIN;
+        if (magnitude > threshold && delta > SWR_CONTROL_CAPTURE_AXIS_MIN_DELTA && delta > best) {
+            if (axes[i] < 0.0f) {
+                *outDirection = -1;
+            } else if (axes[i] > 0.0f) {
+                *outDirection = 1;
+            } else {
+                *outDirection = 0;
+            }
+            found = i;
+            best = delta;
+        }
+    }
+    return found;
+}
+
+// 0x004079f0
+int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char* a4)
+{
+    swrControlBinding* table;
+    unsigned char kindMask;
+    unsigned char flags;
+    int i;
+
+    // device is a swrConfig_DEVICE, or a binding table pointer
+    if (device == (unsigned char*)swrConfig_DEVICE_JOYSTICK) {
+        table = swrControl_bindingsJoystick;
+    } else if (device == (unsigned char*)swrConfig_DEVICE_MOUSE) {
+        table = swrControl_bindingsMouse;
+    } else if (device == (unsigned char*)swrConfig_DEVICE_KEYBOARD) {
+        table = swrControl_bindingsKeyboard;
+    } else {
+        table = (swrControlBinding*)device;
+    }
+    kindMask = a3 != 0 ? swrControlBinding_FLAG_AXIS : swrControlBinding_FLAG_BUTTON;
+    for (i = 0; table[i].flags != SWR_CONTROL_BINDING_END; i++) {
+        if (table[i].input == a2 && (table[i].flags & kindMask) != 0) {
+            flags = table[i].flags;
+            *a4 = flags;
+            if ((flags & swrControlBinding_FLAG_BUTTON) == 0) {
+                *a4 = flags & ~(swrControlBinding_FLAG_POSITIVE | swrControlBinding_FLAG_NEGATIVE);
+            }
+            *a4 &= ~(swrControlBinding_FLAG_AXIS | swrControlBinding_FLAG_BUTTON);
+            return table[i].action;
+        }
+    }
+    return -1;
+}
+
+// 0x00407cd0
+int swrControl_ParseFunctionName(void* outEntry, char* name, int mode)
+{
+    swrControlBinding* binding;
+    char* entryName;
+    int i;
+
+    binding = (swrControlBinding*)outEntry;
+    for (i = 0; keyMapping2_0[i].id != -1; i++) {
+        if (mode == 0) {
+            entryName = stdString_RemoveTEXTTag(keyMapping2_0[i].name);
+            if (strcmpi(swrText_Translate(name), entryName) == 0) {
+                break;
+            }
+        }
+        if (mode == 1) {
+            entryName = swrText_Translate(keyMapping2_0[i].name);
+            if (strcmpi(swrText_Translate(name), entryName) == 0) {
+                break;
+            }
+        }
+    }
+    if (keyMapping2_0[i].id == -1) {
+        return 0;
+    }
+    binding->action = keyMapping2_0[i].id;
+    binding->flags |= (unsigned char)keyMapping2_0[i].otherId;
+    return 1;
+}
+
+// 0x00407de0
+void swrControl_SelectSavedJoystick(void)
+{
+    char savedGuid[256];
+    OLECHAR wideGuid[128];
+    char guid[256];
+    const unsigned char* src;
+    unsigned char c;
+    size_t len;
+    unsigned int i;
+
+    stdControl_joystickDeviceIndex = 0;
+    if (wuRegistry_GetString("JoystickGUID", savedGuid, sizeof(savedGuid), wuRegistry_lpClass) != 0) {
+        return;
+    }
+    for (i = 0; i < (unsigned int)stdControl_numJoystickDevices; i++) {
+        // faithful: cchMax is the buffer's byte size, not its OLECHAR count
+        StringFromGUID2((GUID*)((char*)&DirectInputJoystickGUID + i * STDCONTROL_JOYSTICK_RECORD_SIZE), wideGuid, sizeof(wideGuid));
+        // narrows by walking the UTF-16 bytes and dropping the zero ones; stops after '}'
+        len = 0;
+        src = (const unsigned char*)wideGuid;
+        do {
+            if (*src != '\0') {
+                guid[len++] = (char)*src;
+            }
+            c = *src++;
+        } while (c != '}');
+        if (strncmp(savedGuid, guid, len) == 0) {
+            stdControl_joystickDeviceIndex = i;
+            return;
+        }
+    }
+}
+
+// 0x00407ea0
+int swrControl_PollAccept(int excludeDevice)
+{
+    int joystick;
+    int mouse;
+    int keyboard;
+    int wheel;
+
+    if (excludeDevice == swrConfig_DEVICE_JOYSTICK) {
+        joystick = 0;
+    } else {
+        joystick = stdControl_ReadKey(STDCONTROL_JOYSTICK_KEY_BASE + stdControl_joystickDeviceIndex * STDCONTROL_KEYS_PER_JOYSTICK, NULL);
+    }
+    if (excludeDevice == swrConfig_DEVICE_MOUSE) {
+        mouse = 0;
+    } else {
+        mouse = stdControl_ReadKey(STDCONTROL_MOUSE_KEY_BASE, NULL);
+    }
+    if (excludeDevice == swrConfig_DEVICE_KEYBOARD) {
+        keyboard = 0;
+    } else if (stdControl_ReadKey(DIK_RETURN, NULL) != 0 || stdControl_ReadKey(DIK_NUMPADENTER, NULL) != 0) {
+        keyboard = 1;
+    } else if (swrUI_GetMenuRoot_Maybe() == 0 && stdControl_ReadKey(DIK_SPACE, NULL) != 0) {
+        // Space only accepts while no text entry is active
+        keyboard = 1;
+    } else {
+        keyboard = 0;
+    }
+    // a wheel's throttle axis also accepts unless the joystick is excluded
+    if (cifr_deviceIsWheel != 0 && excludeDevice != swrConfig_DEVICE_JOYSTICK && JoystickAxisInput[0] > SWR_CONTROL_WHEEL_ACCEPT_AXIS_MIN) {
+        wheel = 1;
+    } else {
+        wheel = 0;
+    }
+    if (joystick == 0 && mouse == 0 && keyboard == 0 && wheel == 0) {
+        return 0;
+    }
+    return 1;
+}
+
+// 0x00408020
+int swrControl_IsKeyStringControl(int controlId)
+{
+    int i;
+
+    for (i = 0; i < SWR_CONTROL_NUM_RESERVED_KEYS; i++) {
+        if (controlId == swrConfig_aControlKeyStrings[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// 0x00408120
+void swrControl_SnapshotKeyboard(void)
+{
+    int i;
+    int count;
+
+    for (i = 0; i < STDCONTROL_NUM_KEYBOARD_KEYS; i++) {
+        stdControl_KeyPressed_unused[i] = (char)stdControl_ReadKey(i, NULL);
+    }
+    EnterCriticalSection(&WindowsInputCritSection);
+    stdControlInputItemCount = WindowsInputStackSize;
+    count = WindowsInputStackSize;
+    for (i = 0; i < count; i++) {
+        stdControlInputItems[i].virtualKeyCode = WindowsInputStack[i].virtualKeyCode;
+        stdControlInputItems[i].keystrokeMessageFlags = WindowsInputStack[i].keystrokeMessageFlags | (WindowsInputStack[i].keydown != 0 ? stdControlInputItem_FLAG_KEYDOWN : 0);
+    }
+    WindowsInputStackSize = 0;
+    LeaveCriticalSection(&WindowsInputCritSection);
+}
+
+// 0x004081c0
+int swrControl_ClearPollState_Maybe(void)
+{
+    int* state;
+    int i;
+
+    state = &swrUI_inputChangeFlags;
+    for (i = 0; i < SWR_UI_INPUT_STATE_DWORDS; i++) {
+        state[i] = 0;
     }
     return 1;
 }

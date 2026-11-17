@@ -107,7 +107,7 @@ void swrSprite_DisplayCursor(void);
 swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id);
 
 // Returns the global UI tree root pointer (best guess).
-swrUI_unk* swrUI_GetMenuRoot_Maybe(void);
+int swrUI_GetMenuRoot_Maybe(void);
 
 void swrSprite_LoadAllSprites(void);
 

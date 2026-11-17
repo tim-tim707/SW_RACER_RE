@@ -61,6 +61,12 @@ swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id)
     return NULL;
 }
 
+// 0x00411720
+int swrUI_GetMenuRoot_Maybe(void)
+{
+    return swrUI_textEntryActive;
+}
+
 // 0x00412650
 void swrSprite_LoadAllSprites(void)
 {
