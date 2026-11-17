@@ -299,7 +299,7 @@ void swrMultiplayer_OpenChatInput(void)
     swrMultiplayer_TickRacerListOverlay();
     swrMultiplayer_chatCaret = SWR_MP_CHAT_INPUT_PREFIX_LEN;
     memset(swrMultiplayer_chatInput, 0, sizeof(swrMultiplayer_chatInput));
-    strcat(swrMultiplayer_chatInput, "~F0]");
+    memcpy(swrMultiplayer_chatInput, "~F0]", SWR_MP_CHAT_INPUT_PREFIX_LEN);
     swrUI_SetCaretActive(1);
     swrUI_SetCaretRect(swrMultiplayer_chatX, swrMultiplayer_chatY, 1, 7);
     swrMultiplayer_chatSavedUiInputActive = swrControl_uiInputActive;
@@ -474,14 +474,16 @@ void swrMultiplayer_FreeRacerSlot(int slot)
 void swrMultiplayer_AddChatMessage(char* text)
 {
     int slot;
+    size_t len;
 
     for (slot = 0; swrMultiplayer_chatLines[slot] != NULL; slot++) {
         if (slot + 1 >= SWR_MP_CHAT_LINE_COUNT) {
             return;
         }
     }
-    swrMultiplayer_chatLines[slot] = malloc(strlen(text) + 1);
-    strcpy(swrMultiplayer_chatLines[slot], text);
+    len = strlen(text) + 1;
+    swrMultiplayer_chatLines[slot] = malloc(len);
+    memcpy(swrMultiplayer_chatLines[slot], text, len);
     swrMultiplayer_chatLineState[slot] = 0;
     swrMultiplayer_chatLineTimeLeftMs[slot] = SWR_MP_CHAT_LINE_LIFETIME_MS;
     swrMultiplayer_chatLastTickMs = timeGetTime();
