@@ -198,6 +198,22 @@ void swrObjcMan_F2(swrObjcMan* cman)
     HANG("TODO");
 }
 
+// 0x00451d60
+void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
+{
+    // the original copies unk20_mat + focusTransform_mat into the block starting at
+    // unk1e4_mat.vD, i.e. one row past the start of unk1e4_mat
+    cman->mode_type = mode;
+    cman->unk1e4_mat.vD = cman->unk20_mat.vA;
+    cman->stagingTransform.vA = cman->unk20_mat.vB;
+    cman->stagingTransform.vB = cman->unk20_mat.vC;
+    cman->stagingTransform.vC = cman->unk20_mat.vD;
+    cman->stagingTransform.vD = cman->focusTransform_mat.vA;
+    cman->stagingTransformFocus.vA = cman->focusTransform_mat.vB;
+    cman->stagingTransformFocus.vB = cman->focusTransform_mat.vC;
+    cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
+}
+
 // 0x004542e0
 void swrObjcMan_F3(swrObjcMan* cman)
 {
@@ -517,6 +533,80 @@ void swrObjHang_EnterMultiplayerMenu_Maybe(void)
     }
     swrObjHang_state2 = ~swrObjHang_STATE_LEGAL;
     swrObjHang_fadeState = -1;
+}
+
+// 0x00434ec0
+void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
+{
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_legalPage++;
+        if (swrObjHang_legalPage == 2) {
+            playASound(0x74, 6, 0.25f, 0.5f, 0);
+            time_ms_unk = 2.5f;
+        }
+        swrObjHang_legalFadeAlpha = 255.0f;
+    }
+    hang->unk68_type = 0x15;
+    swrObjHang_state2 = swrObjHang_STATE_LOAD_SCREEN;
+
+    if (swrObjHang_legalPage == 0) {
+        if (swrObjHang_legalDelayFrames > 0) {
+            swrObjHang_legalDelayFrames--;
+        } else {
+            swrText_CreateColorlessEntry1(0x1e, 0x1e, swrText_Translate(g_pTxtLegalTitle));
+            swrText_CreateColorlessEntry1(0x1e, 0x32, swrText_Translate(g_pTxtLegalLucasArts));
+            swrText_CreateColorlessEntry1(0x1e, 0x3c, swrText_Translate(g_pTxtLegalLucasfilm));
+            swrText_CreateColorlessEntry1(0x1e, 0x46, swrText_Translate(g_pTxtLegalAuthorization));
+            swrText_CreateColorlessEntry1(0x1e, 0x5a, swrText_Translate(g_pTxtLegalLogo1));
+            swrText_CreateColorlessEntry1(0x1e, 0x64, swrText_Translate(g_pTxtLegalLogo2));
+            swrText_CreateColorlessEntry1(0x1e, 0x6e, swrText_Translate(g_pTxtLegalLogo3));
+            swrText_CreateColorlessEntry1(0x1e, 0x82, swrText_Translate(g_pTxtLegalNintendo));
+            swrText_CreateColorlessEntry1(0x1e, 0xb4, swrText_Translate(g_pTxtLegalExpansionPak));
+            swrSprite_SetPos(0x52, 0xb4, 100);
+            swrSprite_SetDim(0x52, 1.0f, 1.0f);
+            swrSprite_SetVisible(0x52, 1);
+        }
+    } else if (swrObjHang_legalPage == 1) {
+        swrSprite_SetPos(0x50, 0x57, 0x2e);
+        swrSprite_SetDim(0x50, 1.0f, 1.0f);
+        swrSprite_SetVisible(0x50, 1);
+    } else if (swrObjHang_legalPage == 2) {
+        if (swrObjHang_fadeState != 1 || swrObjHang_legalFadingOut != 0) {
+            swrObjHang_legalFadeAlpha = swrObjHang_legalFadeAlpha - swrRace_fdeltaTimeSecs * 255.0f;
+            if (swrObjHang_legalFadeAlpha < 0.0f) {
+                swrObjHang_legalFadeAlpha = 0.0f;
+                if (swrObjHang_legalFadingOut != 0) {
+                    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+                    swrObjHang_SetMenuState(hang, swrObjHang_state2);
+                    return;
+                }
+            }
+        }
+        swrSprite_SetPos(0x56, 0x34, 0);
+        swrSprite_SetDim(0x56, 1.0f, 1.0f);
+        if (swrObjHang_legalFadingOut == 0)
+            swrSprite_SetVisible(0x56, 1);
+        swrSprite_SetColor(0x56, 0xff, 0xff, 0xff, (uint8_t)(int)swrObjHang_legalFadeAlpha);
+        if (swrObjHang_fadeState != 1) {
+            swrSprite_SetPos(0x55, 0x52, 0xf);
+            swrSprite_SetDim(0x55, 1.0f, 1.0f);
+            swrSprite_SetVisible(0x55, 1);
+            swrSprite_SetColor(0x55, 0xff, 0xff, 0xff, swrObjHang_legalFadingOut != 0 ? (uint8_t)(int)swrObjHang_legalFadeAlpha : 0xff);
+        }
+    }
+
+    if (swrObjHang_fadeState == 0 && 0.0f < time_ms_unk)
+        time_ms_unk = time_ms_unk - swrRace_fdeltaTimeSecs;
+    if (time_ms_unk <= 0.0f) {
+        time_ms_unk = 1.3f;
+        if (swrObjHang_legalPage < 2) {
+            swrObjHang_fadeState = -1;
+            return;
+        }
+        swrObjHang_legalFadingOut = 1;
+        swrObjHang_legalFadeAlpha = 255.0f;
+    }
 }
 
 // 0x004337d0

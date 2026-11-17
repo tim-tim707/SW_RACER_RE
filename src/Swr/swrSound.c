@@ -982,6 +982,29 @@ void swrSound_SetDefaultConfig(void)
     *(unsigned char*) &sound_music_volume = 200; // original sets only the low byte
 }
 
+// 0x004226c0
+void swrSound_FreeBank(void)
+{
+    char* bank = (char*)swrSound_bank;
+    swrSoundDescriptor* entry = *(swrSoundDescriptor**)(bank + 0x28);
+
+    if (entry == NULL)
+        return;
+    for (unsigned int i = 0; i < *(unsigned int*)(bank + 0x20); i++, entry++) {
+        if ((entry->flags & swrSoundDescriptor_LOADED) != 0) {
+            // flag 0x2 (meaning unidentified) keeps a sound loaded when -p was given (Main_sound_unk == 0)
+            if (Main_sound_unk != 0 || (entry->flags & 0x2) == 0)
+                swrSound_UnloadSound(entry);
+            entry->flags &= ~0x2;
+        }
+        swrSound_Remove((char*)(*(int*)(bank + 0x28) + i * 0x4c));
+    }
+    free(*(void**)(bank + 0x28));
+    *(int*)(bank + 0x20) = 0;
+    *(int*)(bank + 0x24) = 0;
+    *(void**)(bank + 0x28) = NULL;
+}
+
 // Allocate the bank's descriptor array (count entries of 0x4c bytes each), zero it,
 // and reset the live count to 0. Returns 1 on success, 0 if the allocation failed.
 // 0x00422770

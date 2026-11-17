@@ -213,7 +213,10 @@ g_aTrackIDs 0x004c0018 int[28]
 poddLodDistances1 0x004C0088 float[4]
 poddLodDistances2 0x004C0098 float[3]
 
+swrObjHang_legalPage 0x004c00a4 char = -1 # legal/logo sequence page: 0 legal text, 1 logo, 2 fade into the menus (swrObjHang_UpdateLegalScreen)
 time_ms_unk 0x004c00a8 float
+swrObjHang_legalFadeAlpha 0x004c00ac float = 255.0
+swrObjHang_legalDelayFrames 0x004c00b0 int = 5 # frames to wait before drawing the legal text
 
 
 # All these are static string. char[1] is a workaround for flimsy GenerateGlobalHeaderFromSymbols.py not generating char* properly
@@ -262,6 +265,15 @@ swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
 swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
 swrObjHang_dewbackCheatInitials 0x004c484c char[4] # "LKJ": profile initials that put a dewback puppet in the shop/junkyard scene
 swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
+g_pTxtLegalTitle 0x004c08a4 char[1] # "/SCREENTEXT_476/~f4~sStar Wars%: Episode 1: Racer#"
+g_pTxtLegalLucasArts 0x004c0868 char[1] # "/SCREENTEXT_477/~f4~s$LucasArts Entertainment Company LLC."
+g_pTxtLegalLucasfilm 0x004c0824 char[1] # "/SCREENTEXT_478/~f4~s$Lucasfilm Ltd. and #. All Rights Reserved."
+g_pTxtLegalAuthorization 0x004c07f4 char[1] # "/SCREENTEXT_479/~f4~sUsed under authorization."
+g_pTxtLegalLogo1 0x004c07bc char[1] # "/SCREENTEXT_600/~f4~sThe LucasArts Logo is a registered"
+g_pTxtLegalLogo2 0x004c0788 char[1] # "/SCREENTEXT_601/~f4~strademark of Lucasfilm Ltd.,"
+g_pTxtLegalLogo3 0x004c0758 char[1] # "/SCREENTEXT_481/~f4~sused under authorization."
+g_pTxtLegalNintendo 0x004c072c char[1] # "/SCREENTEXT_602/~f4~sLicensed to Nintendo."
+g_pTxtLegalExpansionPak 0x004c0700 char[1] # "/SCREENTEXT_482/~sExpansion Pak enhanced."
 g_pTxtOptions 0x004c094c char[1] # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char[1] # "~f4~sCutscene:"
 
@@ -753,6 +765,7 @@ swrObjHang_cameraMoveMode 0x0050c930 short # front-end camera transition mode; e
 swrObjHang_cameraMoveParity 0x0050c934 int # flips 0<->1 each time a camera move completes
 swrObjHang_cameraMoveActive 0x0050c940 int # a camera move is in flight
 
+swrObjHang_legalFadingOut 0x0050c484 char # set once the legal sequence's last page starts fading out
 swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateHoloCamera / StepCameraToward
 
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
