@@ -552,7 +552,7 @@ extern "C"
         float surfaceSpeedFactor; // 0x244
         float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
-        int unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
+        float unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
         struct swrModel_Node* guideArrowNode; // 0x254. HUD spline guide arrow node (written by swrObjJdge_UpdatePlayerHUD while FLAG0_GUIDE_ARROW; drawn by swrObjcMan_UpdateSplineGuideMarker)
         rdVector3 guideArrowTarget; // 0x258. spline point 0.5 ahead that the guide arrow points at
         float wallHitCooldown; // 0x264. set 0.1 on a hard wall impact (ApplyWallCollision, clearing FLAG0_THROTTLE_SETTLED); counts down in F0; expiry re-sets the flag

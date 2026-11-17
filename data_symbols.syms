@@ -919,6 +919,7 @@ swrJdge_Cleared 0x0050ca34 int
 swrRace_creditsMode 0x0050ca3c int
 swrObjcMan_spectatorCamTimer 0x0050c8a0 float # seconds until the auto-cycling spectator cam picks a new mode (3..10 s)
 swrObjcMan_spectatorCamIndex 0x0050c8a4 int # current index into swrObjcMan_SpectatorCamModes
+swrObjcMan_guideArrowPhase 0x0050c8a8 float # guide-arrow pulse phase, -1..1: drives its alpha and forward bob (swrObjcMan_UpdateSplineGuideMarker)
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
