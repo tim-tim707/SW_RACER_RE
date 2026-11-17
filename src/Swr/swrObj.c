@@ -3364,6 +3364,37 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
     HANG("TODO");
 }
 
+// 0x00473e40
+void swrRace_GetSplineLookahead(rdVector3* out, swrRace* racer)
+{
+    rdMatrix44 frame;
+    rdVector3 ahead;
+    rdVector3 hit;
+    rdVector3 normal;
+    float ray[7]; // origin xyz, direction xyz, max distance
+
+    // drop a ray onto the track from high above a point 50 units ahead on the spline
+    swrSpline_EvaluateAtOffset(&racer->splineCursor, &frame, 1.0f);
+    rdVector_Scale3Add3(&ahead, (rdVector3*)&frame.vD, 50.0f, (rdVector3*)&frame.vA);
+    ahead.z = ahead.z - -1000.0f;
+    ray[0] = ahead.x;
+    ray[1] = ahead.y;
+    ray[2] = ahead.z;
+    ray[3] = 0.0f;
+    ray[4] = 0.0f;
+    ray[5] = -1.0f;
+    ray[6] = 1500.0f;
+    if (swrRace_RaycastModel(racer->collisionModel, ray, &hit, &normal) < 0.0f) {
+        out->x = frame.vD.x;
+        out->y = frame.vD.y;
+        out->z = frame.vD.z;
+        return;
+    }
+    out->x = hit.x;
+    out->y = hit.y;
+    out->z = hit.z - -20.0f;
+}
+
 // 0x00473f40
 void swrRace_ResetToSpline(swrRace* racer, float t)
 {
@@ -3489,9 +3520,27 @@ int swrObjToss_F4(swrObjToss* toss)
 }
 
 // 0x0047BC40
-void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int)
+void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk64)
 {
-    HANG("TODO");
+    swrObjToss* toss;
+
+    // nearly transparent puffs are not spawned
+    if (a <= 15)
+        return;
+    toss = (swrObjToss*)swrEvent_AllocObj('Toss');
+    if (toss == NULL)
+        return;
+    toss->animDuration = life_time;
+    toss->animTimer_ms = life_time;
+    toss->r = r;
+    toss->unk64 = unk64;
+    toss->g = g;
+    toss->b = b;
+    toss->a = (char)a;
+    toss->meshMaterial = swrModel_NodeFindFirstMeshMaterial(toss->model);
+    rdMatrix_Copy44(&toss->transform, in);
+    if (toss->model != NULL)
+        swrModel_NodeModifyFlags(toss->model, 2, 3, 0x10, 2);
 }
 
 // 0x0047BCD0
