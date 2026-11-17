@@ -117,7 +117,7 @@ int swrControl_ClearPollState_Maybe(void);
 
 // Input rebinding / device-scan helpers:
 unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask); // scan kbd 0x200-3 / joystick buttons for presses
-int swrControl_FormatBinding(char* out, int a2, unsigned char* a3, unsigned char a4, int a5, char* a6, unsigned int* a7); // binding -> display string
+int swrControl_FormatBinding(int device, int action, int flagsMask, unsigned char direction, int index, char* out, unsigned int* outControl);
 unsigned char swrControl_CaptureBinding(int a1, void* a2, swrUI_unk* a3, char* a4, int a5); // capture a new key/axis for a mapping row
 int swrControl_FindMovedAxis(int device, void* param_2);          // which analog axis moved past the deadzone
 int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char* a4); // look up a binding in a device table

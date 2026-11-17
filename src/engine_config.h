@@ -34,6 +34,11 @@
 // Per-action arrays (*ButtonPressedInput, the button-state array at swrControl_viewButton, hold times).
 #define SWR_CONTROL_NUM_ACTIONS (15)
 #define STDCONTROL_MOUSE_NUM_KEYS (4)
+#define STDCONTROL_MOUSE_AXIS_BASE (0x30) // stdControl_aAxes index of mouse X (Y, Z follow)
+#define STDCONTROL_MOUSE_NUM_AXES (3)
+#define STDCONTROL_MOUSE_X_EXTENT (250.0f) // stdControl_SetMouseRange (0x004ae2dc)
+#define STDCONTROL_MOUSE_Y_EXTENT (200.0f) // (0x004ae2e0)
+#define SWR_CONTROL_AXIS_STEER (2) // analog action index of swrRace_SteeringInput
 #define SWR_CONTROL_SCAN_NONE (0xffff) // swrControl_ScanPressedButtons: nothing pressed
 #define SWR_CONTROL_NUM_RESERVED_KEYS (16) // swrConfig_aControlKeyStrings entries
 #define SWR_CONTROL_CAPTURE_JOYSTICK_AXIS_MIN (0.5) // swrControl_FindMovedAxis (0x004ac330)

@@ -6,12 +6,14 @@
 #include "globals.h"
 #include "engine_config.h"
 #include "Swr/swrModel.h"
+#include "Swr/swrConfig.h"
 #include "Swr/swrSprite.h"
 #include "Swr/swrText.h"
 #include "General/stdString.h"
 #include "Platform/wuRegistry.h"
 
 #include <objbase.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -991,4 +993,213 @@ int swrControl_ClearPollState_Maybe(void)
         state[i] = 0;
     }
     return 1;
+}
+
+// 0x00404b10
+int swrControl_Initialize(void)
+{
+    int i;
+
+    if (stdControl_Startup() != 0) {
+        return 1;
+    }
+    if (stdControl_Open() != 0) {
+        return 1;
+    }
+    swrControl_SelectSavedJoystick();
+    swrConfig_joystickNbPOVs = 0;
+    swrConfig_joystickNbButtons = 0;
+    swrControl_joystickAxisMask = 0;
+    swrConfig_joystickNbAxis = 0;
+    for (i = 0; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
+        if (stdControl_EnableAxis(stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK + i) != 0) {
+            swrControl_joystickAxisMask |= 1 << (i & 0x1f);
+            swrConfig_joystickNbAxis++;
+        }
+    }
+    if (swrConfig_joystickNbAxis == 0) {
+        joystick_detected = 0;
+        swrConfig_joystick_enabled = 0;
+    } else {
+        swrConfig_joystickNbButtons = *(DWORD*)((char*)&stdControlJoystickCapsButtons + stdControl_joystickDeviceIndex * STDCONTROL_JOYSTICK_RECORD_SIZE);
+        swrConfig_joystickNbPOVs = *(DWORD*)((char*)&stdControlJoystickCapsPOVs + stdControl_joystickDeviceIndex * STDCONTROL_JOYSTICK_RECORD_SIZE);
+    }
+    swrConfig_mouseNbButtons = 0;
+    swrControl_mouseAxisMask = 0;
+    swrConfig_mouseNbAxis = 0;
+    for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
+        if (stdControl_EnableAxis(STDCONTROL_MOUSE_AXIS_BASE + i) != 0) {
+            swrControl_mouseAxisMask |= 1 << (i & 0x1f);
+            swrConfig_mouseNbAxis++;
+        }
+    }
+    if (swrConfig_mouseNbAxis == 0) {
+        mouse_detected = 0;
+        swrConfig_mouse_enabled = 0;
+    } else {
+        swrConfig_mouseNbButtons = stdControlMouseCapsButtons;
+    }
+    InitializeCriticalSection(&WindowsInputCritSection);
+    memset(swrControl_buttonHeldPrev, 0, SWR_CONTROL_NUM_ACTIONS);
+    WindowsInputStackSize = 0;
+    // faithful: byte store into the int flag
+    *(unsigned char*)&enableWindowInput = 1;
+    swrControl_cancelHeldPrev = 0;
+    swrControl_acceptHeldPrev = 0;
+    swrControl_cancelUpPrev = 1;
+    swrControl_acceptUpPrev = 1;
+    swrControl_menuAcceptHeldPrev = 0;
+    swrControl_ClearBindings(-1);
+    swrControl_StopAllForceEffects(0);
+    swrControl_LoadForceEffects(0);
+    swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
+    if (swrConfig_ReadForceFeedbackConfig("current") < 0) {
+        swrConfig_SetDefaultForce();
+        swrConfig_WriteForceFeedbackConfig("current");
+    }
+    if (stdConfFile_readAndApplyConf(-1, wuRegistry_lpClass, 1) < 0) {
+        swrControl_SetDefaultMappings(swrConfig_DEVICE_JOYSTICK);
+        swrControl_SetDefaultMappings(swrConfig_DEVICE_MOUSE);
+        swrControl_SetDefaultMappings(swrConfig_DEVICE_KEYBOARD);
+    }
+    if (cifr_deviceIsWheel != 0) {
+        stdConfFile_readAndApplyConf(swrConfig_DEVICE_JOYSTICK, "wheel", 1);
+        swrControl_defaultDeadzone = 0.0f;
+        Deadzone = 0.0f;
+    }
+    if (stdConfFile_readAndApplyConf(-1, "current", 0) < 0) {
+        swrConfig_WriteMappings("current");
+    }
+    swrControl_ApplyAxisConfig(swrConfig_DEVICE_JOYSTICK);
+    swrControl_ApplyAxisConfig(swrConfig_DEVICE_MOUSE);
+    return 0;
+}
+
+// 0x00406470
+int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00406a50
+int swrControl_FormatBinding(int device, int action, int flagsMask, unsigned char direction, int index, char* out, unsigned int* outControl)
+{
+    swrControlBinding* table;
+    int numButtons;
+    int numPOVs;
+    unsigned int axisMask;
+    int count;
+    char sign[5];
+    unsigned char mask;
+    unsigned char flags;
+    int input;
+    int isButton;
+    int valid;
+
+    sign[0] = wuRegistry_lpClass[0];
+    count = 0;
+    memset(&sign[1], 0, 4);
+    if (index < 0) {
+        index = -index;
+    }
+    *outControl = (unsigned int)-1;
+    sprintf(out, "---");
+    if (device == swrConfig_DEVICE_JOYSTICK) {
+        numButtons = swrConfig_joystickNbButtons;
+        numPOVs = swrConfig_joystickNbPOVs;
+        axisMask = swrControl_joystickAxisMask;
+        table = swrControl_bindingsJoystick;
+    } else if (device == swrConfig_DEVICE_MOUSE) {
+        numButtons = swrConfig_mouseNbButtons;
+        numPOVs = 0;
+        axisMask = swrControl_mouseAxisMask;
+        table = swrControl_bindingsMouse;
+    } else if (device == swrConfig_DEVICE_KEYBOARD) {
+        numButtons = STDCONTROL_NUM_KEYBOARD_KEYS;
+        numPOVs = 0;
+        axisMask = 0;
+        table = swrControl_bindingsKeyboard;
+    } else {
+        // faithful: a custom table comes in through flagsMask, whose low byte is then also the mask
+        table = (swrControlBinding*)flagsMask;
+    }
+    mask = (unsigned char)flagsMask;
+    isButton = mask & swrControlBinding_FLAG_BUTTON;
+    for (; table->flags != SWR_CONTROL_BINDING_END; table++) {
+        flags = table->flags;
+        input = table->input;
+        if (table->action != action || (flags & mask) != mask) {
+            continue;
+        }
+        if (isButton && (flags & 0xf0) != direction) {
+            continue;
+        }
+        if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && input < numButtons) {
+            valid = 1;
+        } else if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && input >= STDCONTROL_JOYSTICK_POV_KEY_BASE && input <= numPOVs * STDCONTROL_KEYS_PER_POV + STDCONTROL_JOYSTICK_POV_KEY_BASE - 1) {
+            valid = 1;
+        } else if ((flags & swrControlBinding_FLAG_AXIS) != 0 && (axisMask & (1 << (input & 0x1f))) != 0) {
+            valid = 1;
+        } else {
+            valid = 0;
+        }
+        if (!valid) {
+            continue;
+        }
+        count++;
+        if (index != count) {
+            continue;
+        }
+        *outControl = input;
+        if (device == swrConfig_DEVICE_KEYBOARD) {
+            sprintf(out, "%s", swrText_Translate(swrConfig_ControlToString(input, NULL)));
+        } else if (isButton) {
+            if (input < STDCONTROL_JOYSTICK_POV_KEY_BASE) {
+                char* name = swrText_Translate(swrConfig_ControlToString(input, keyMapping1));
+                sprintf(out, swrText_Translate("/MONDOTEXT_H_0213/BUTTON %s"), name);
+            } else {
+                sprintf(out, "%s", swrText_Translate(swrConfig_ControlToString(input, keyMapping1)));
+            }
+        } else {
+            char* name;
+            if ((flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                sprintf(sign, "+");
+            } else if ((flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                sprintf(sign, "-");
+            }
+            name = swrText_Translate(swrConfig_ControlToString(input, keyMapping0));
+            sprintf(out, swrText_Translate("/MONDOTEXT_H_0216/%s%s AXIS"), sign, name);
+        }
+    }
+    return count;
+}
+
+// 0x00407630
+void swrControl_ApplyAxisConfig(int axis)
+{
+    char text[64];
+    unsigned int steerAxis;
+
+    if (swrControl_FormatBinding(axis, SWR_CONTROL_AXIS_STEER, swrControlBinding_FLAG_ANALOG | swrControlBinding_FLAG_AXIS, 0, 1, text, &steerAxis) == 0) {
+        return;
+    }
+    // axis is the device here: joystick or mouse
+    if (axis == swrConfig_DEVICE_MOUSE) {
+        if (steerAxis == 0) {
+            stdControl_SetMouseRange(1.0f / swrControl_axisSensitivity[swrConfig_DEVICE_MOUSE], 1.0f);
+        } else if (steerAxis == 1) {
+            stdControl_SetMouseRange(1.0f, 1.0f / swrControl_axisSensitivity[swrConfig_DEVICE_MOUSE]);
+        }
+        return;
+    }
+    stdControl_SetAxisDeadzone(Deadzone, stdControl_joystickDeviceIndex, steerAxis);
+    {
+        float sensitivity = swrControl_axisSensitivity[axis];
+        int i;
+        for (i = 0; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
+            swrControl_joystickAxisScale[i] = 1.0f;
+        }
+        swrControl_joystickAxisScale[steerAxis] = sensitivity;
+    }
 }

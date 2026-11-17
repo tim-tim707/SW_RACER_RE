@@ -1895,3 +1895,15 @@ lensFlare_screenCenterDistScale 0x004ac5a0 float
 lightStreak_rotationPivotX 0x004ac5f8 float
 lightStreak_rotationScale 0x004ac5fc float
 swrUI_textEntryActive 0x004d87c8 int # 1 while a swrUI_TextEntryProc field has focus (Space then types instead of accepting)
+stdControlJoystickCapsButtons 0x00eca0f8 DWORD # record's DIDEVCAPS.dwButtons; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+stdControlJoystickCapsPOVs 0x00eca0fc DWORD # record's DIDEVCAPS.dwPOVs; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+stdControlMouseCapsButtons 0x00ecb498 DWORD # mouse DIDEVCAPS.dwButtons (caps struct at 0x00ecb488)
+stdControl_mouseRangeX 0x004c817c float # stdControl_SetMouseRange scale for mouse axis X
+stdControl_mouseRangeY 0x004c8180 float
+mouse_detected 0x004b2950 int # cleared by swrControl_Initialize when no mouse axis enables
+swrControl_joystickAxisScale 0x004b2980 float[6] # per joystick axis multiplier; steer axis = sensitivity (swrControl_ApplyAxisConfig)
+swrControl_acceptUpPrev 0x004d5fb8 int # accept was up last frame (swrControl_ProcessInputs release edge)
+swrControl_cancelHeldPrev 0x004d6300 int # cancel held last frame
+swrControl_cancelUpPrev 0x004d6304 int # cancel was up last frame
+swrControl_menuAcceptHeldPrev 0x004d6308 int # front-end accept held last frame
+swrControl_acceptHeldPrev 0x004d6824 int # accept held last frame
