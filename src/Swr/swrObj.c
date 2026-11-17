@@ -5976,6 +5976,34 @@ void swrObjHang_TickHolotableSpin_Maybe(void)
     swrObjHang_ambientAnimSpeed = swrObjHang_EaseSine_Maybe(swrObjHang_ambientAnimPhase, 3.13333f) * 0.15957463f + 0.5;
 }
 
+// 0x004692a0
+void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo)
+{
+    rdVector3 delta;
+    float targetYaw;
+    float diff;
+
+    rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
+    delta.z = 0.0f;
+    rdVector_Len3(&delta); // result unused
+    targetYaw = stdMath_ArcTan2(-delta.x, delta.y);
+    diff = targetYaw - elmo->yaw;
+    elmo->yawTarget = targetYaw;
+    if (diff < -180.0f)
+        diff -= -360.0f;
+    if (diff > 180.0f)
+        diff -= 360.0f;
+    if (diff <= 5.0f && diff >= -5.0f) {
+        elmo->yaw = targetYaw;
+        return;
+    }
+    // 90 degrees per second toward the target
+    if (diff < 0.0f)
+        elmo->yaw -= swrRace_fdeltaTimeSecs * 90.0f;
+    else
+        elmo->yaw -= swrRace_fdeltaTimeSecs * -90.0f;
+}
+
 // 0x00469380
 void swrObjHang_UpdateCantinaHolotable(int menuScreen)
 {

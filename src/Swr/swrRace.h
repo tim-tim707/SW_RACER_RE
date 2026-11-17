@@ -548,7 +548,7 @@ void swrRace_UpdateCollisionToggles(swrRace* player);
 // Builds the energy-binder plasma beam transform stretched between the engines.
 void swrRace_UpdateEnergyBinder(swrRace* player, int side, rdVector3* pointA, rdVector3* pointB);
 // Builds a quad transform stretched between two engine matrices (beam/connector segment).
-void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float param_3, float param_4, int keyframeIdx, rdMatrix44* out);
+void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float mirrorX, float mirrorZ, int pilot, rdMatrix44* out);
 // Wall-contact dispatch: wall-scrape + collision response when fast/airborne, else terrain follow.
 float swrRace_UpdateWallContact(swrRace* player, float* pos, float* prevPos, rdVector3* up);
 

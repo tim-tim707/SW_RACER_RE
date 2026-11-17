@@ -139,10 +139,11 @@
 #define swrModel_LoadAllAnimationsOfModel_ADDR (0x00448BD0)
 
 #define swrModel_FixupAltNodePointers_ADDR (0x00448c70)
+#define swrModel_CompensateRootMotion_ADDR (0x0044b060)
 #define swrModel_SetAnimListSpeed_ADDR (0x0044b330)
 
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
-#define swrModel_NodeGetAnimSpeed_Maybe_ADDR (0x0044b470)
+#define swrModel_GetAnimListTime_ADDR (0x0044b470)
 
 // Per-node render-matrix (MVP) compose + cache into swrModel_NodeTransformed +0xf4.
 #define swrModel_GetNodeYaw_ADDR (0x0044b4a0)
@@ -370,10 +371,12 @@ void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed);
 void swrModel_AnimationsSetSettings(swrModel_Animation** anims, float animation_time, float loop_start_time, float loop_end_time, bool set_loop, float transition_speed, float loop_transition_speed);
 
 // Returns a node's animation speed field, defaulting when the node is null (best guess).
-float swrModel_NodeGetAnimSpeed_Maybe(int** node);
+void swrModel_CompensateRootMotion(swrModel_Node** nodes, swrModel_Animation** anims, rdVector3* prevPos, float maxStep);
+
+float swrModel_GetAnimListTime(swrModel_Animation** anims);
 
 // Per-node render-matrix caching (fills swrModel_NodeTransformed +0xf4 block used for collision/render).
-float swrModel_GetNodeYaw(int a1, int* nodePair);
+float swrModel_GetNodeYaw(swrModel_Node** nodes, swrModel_Animation** anims);
 void swrModel_CachePrecomputedMatrices(void);
 void swrModel_ComputeNodeRenderMatrix(swrModel_NodeTransformed* node, int a2);
 void swrModel_CopyNodeRenderMatrix(void* srcNode, swrModel_NodeTransformed* dstNode, int a3);

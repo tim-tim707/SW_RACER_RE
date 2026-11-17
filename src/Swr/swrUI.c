@@ -15,6 +15,9 @@
 #include <Win95/stdConsole.h>
 
 #include <macros.h>
+#include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 #include <engine_config.h>
 
 // 0x00408640
@@ -238,6 +241,18 @@ void swrUI_PopMenuPage(void)
         swrUI_pageStackDepth = swrUI_pageStackDepth - 1;
     if ((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth] != NULL)
         swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
+}
+
+// 0x00411910
+void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element)
+{
+    if (parent == NULL || element == NULL)
+        return;
+    swrUI_UnlinkElement(element);
+    element->fun2 = NULL;
+    swrUI_RunCallbacks2(element, 1);
+    element->fun2 = parent->fun2;
+    swrUI_Enqueue(parent, element);
 }
 
 // 0x00412630
@@ -481,6 +496,28 @@ int swrUI_CountSelectableItems(swrUI_unk* ui)
             count++;
     }
     return count;
+}
+
+// 0x00413800
+void swrUI_RefreshListSelection(swrUI_unk* list)
+{
+    swrUI_unk* element = list->next;
+    swrUI_unk* next;
+    int index = 0;
+
+    // remember the selected item's index and text, then free every list item
+    list->first_visible = 0;
+    while (element != NULL) {
+        next = element->next2;
+        if (element->item_flags & swrUI_ITEM_SELECTED) {
+            list->selected_index = index;
+            list->selected_text = swrUI_replaceAllocatedStr(list->selected_text, element->str_allocated);
+        }
+        if (((uint8_t)element->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM)
+            swrUI_FreeElement(element);
+        index++;
+        element = next;
+    }
 }
 
 // 0x004138b0
@@ -1048,7 +1085,7 @@ int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2
         rect[1] = ui->y;
         rect[2] = ui->width;
         rect[3] = ui->height;
-        swrUI_DrawTextAligned(ui->font_index, ui->str_allocated, (short*)rect, 0x120000, ui->r, ui->g, ui->b, ui->a, 0, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
+        swrUI_DrawTextAligned(ui->font_index, ui->str_allocated, (short*)rect, swrUI_TEXT_ALIGN_CENTER_Y | swrUI_TEXT_ALIGN_INDENT_5, ui->r, ui->g, ui->b, ui->a, 0, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
         break;
     case swrUI_MSG_SET_TEXT:
         swrUI_DefaultElementProc(ui, msg, param, param2);
@@ -1377,6 +1414,101 @@ void swrUI_ApplyListColors(swrUI_unk* list)
             swrUI_SetColorUnk5(item, list->r5, list->g5, list->b5, list->a5);
         }
     }
+}
+
+// 0x00418cb0
+void swrUI_BuildHighlightSprites(swrUI_unk* ui, int highlighted)
+{
+    unsigned int style = ui->frame_style;
+    unsigned int mirror = 0;
+    int raised = 0;
+    int leftId;
+    int midId = 0; // left uninitialized by the original when no three-piece style bit is set
+    int rightId;
+    int leftWidth;
+    int rightWidth;
+    int height;
+    int singleId;
+    int singleOffset;
+    int rect[4];
+
+    if (style == 0)
+        return;
+    if (style & swrUI_FRAME_STYLE_MIRROR_V)
+        mirror = swrUI_SPRITE_SLOT_MIRROR_V;
+    if (style & swrUI_FRAME_STYLE_MIRROR_H)
+        mirror |= swrUI_SPRITE_SLOT_MIRROR_H;
+
+    if (style & (swrUI_FRAME_STYLE_OK_BUTTON | swrUI_FRAME_STYLE_EDIT_SEGMENTED | swrUI_FRAME_STYLE_SEGMENT)) {
+        if (style & swrUI_FRAME_STYLE_OK_BUTTON) {
+            singleId = swrSprite_ok_button;
+            singleOffset = 0;
+        } else if (style & swrUI_FRAME_STYLE_EDIT_SEGMENTED) {
+            singleId = swrSprite_editwindow_segmented;
+            singleOffset = -4;
+        } else {
+            singleId = swrSprite_segment;
+            singleOffset = -4;
+        }
+        swrSprite_GetTextureDimFromId(singleId, &leftWidth, &height);
+        rect[0] = ui->x;
+        rect[1] = ui->y;
+        rect[2] = leftWidth + ui->x - 1;
+        rect[3] = height + ui->y - 1;
+        swrUI_AddSprite(ui, 0, singleId, rect, 1, mirror);
+        swrUI_SetSpriteOffset(ui, 0, 0, singleOffset);
+        swrUI_SetSelected(ui, highlighted);
+        return;
+    }
+
+    if (style & (swrUI_FRAME_STYLE_SETTINGS_BUTTON | swrUI_FRAME_STYLE_BACK_BUTTON)) {
+        raised = (style & swrUI_FRAME_STYLE_MIRROR_V) ? -14 : -26;
+        if (highlighted) {
+            leftId = swrSprite_settings_btn_end_selected;
+            midId = swrSprite_settings_btn_strch_selected;
+            rightId = swrSprite_settings_btn_end2_selected;
+        } else {
+            leftId = (style & swrUI_FRAME_STYLE_BACK_BUTTON) ? swrSprite_settings_btnback_end : swrSprite_settings_btn_end;
+            midId = swrSprite_settings_btn_strch_end;
+            rightId = swrSprite_settings_btn_end2;
+        }
+    } else if (style & swrUI_FRAME_STYLE_SMALL_WINDOW) {
+        raised = -7;
+        leftId = rightId = highlighted ? swrSprite_sml_window_end_selected : swrSprite_sml_window_end;
+        midId = highlighted ? swrSprite_sml_window_strch_selected : swrSprite_sml_window_strch;
+    } else if (style & swrUI_FRAME_STYLE_WINDOW_BARS) {
+        raised = -20;
+        leftId = rightId = highlighted ? swrSprite_window_end_selected : swrSprite_window_end;
+        midId = highlighted ? swrSprite_window_strchbars_selected : swrSprite_window_strchbars;
+    } else {
+        // faithful: the highlight flag itself is used as the sprite id
+        leftId = rightId = highlighted;
+    }
+
+    swrSprite_GetTextureDimFromId(leftId, &leftWidth, &height);
+    swrSprite_GetTextureDimFromId(rightId, &rightWidth, &height);
+
+    rect[0] = ui->x;
+    rect[1] = ui->y;
+    rect[2] = leftWidth + ui->x - 1;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 0, leftId, rect, 1, mirror);
+    swrUI_SetSpriteOffset(ui, 0, 0, raised);
+
+    rect[0] = leftWidth + ui->x;
+    rect[1] = ui->y;
+    rect[2] = ui->width - rightWidth;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 1, midId, rect, 1, mirror);
+    swrUI_SetSpriteOffset(ui, 1, 0, raised);
+
+    rect[0] = ui->width - rightWidth + 1;
+    rect[1] = ui->y;
+    rect[2] = ui->width;
+    rect[3] = height + ui->y - 1;
+    swrUI_AddSprite(ui, 2, rightId, rect, 1, mirror | swrUI_SPRITE_SLOT_MIRROR_H);
+    swrUI_SetSpriteOffset(ui, 2, 0, raised);
+    swrUI_SetSelected(ui, highlighted);
 }
 
 // 0x00419030
@@ -1864,6 +1996,74 @@ void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
     }
 }
 
+// 0x0041a750
+void swrUI_HandleSliderClick(swrUI_unk* slider, int mouseX, int mouseY)
+{
+    int w;
+    int h;
+    int decrease = 0;
+    int increase = 0;
+    swrSprite_BBox startCap;
+    swrSprite_BBox endCap;
+    swrSprite_BBox track;
+
+    if (slider == NULL)
+        return;
+    if (slider->flags & swrUI_VERTICAL) {
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_end, &w, &h);
+        startCap.x = slider->x;
+        startCap.y = slider->y;
+        startCap.x2 = w + slider->x - 1;
+        startCap.y2 = h + slider->y - 1;
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_end, &w, &h);
+        endCap.x = slider->x;
+        endCap.y = slider->slider_length + slider->y - h;
+        endCap.x2 = w + slider->x - 1;
+        endCap.y2 = slider->slider_length + slider->y - 1;
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_strch, &w, &h);
+        track.x = slider->x;
+        track.y = startCap.y2 + 1;
+        track.x2 = w + slider->x - 1;
+        track.y2 = endCap.y - 1;
+    } else {
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_end, &w, &h);
+        startCap.x = slider->x;
+        startCap.y = slider->y;
+        startCap.x2 = w + slider->x - 1;
+        startCap.y2 = h + slider->y - 1;
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_end, &w, &h);
+        endCap.x = slider->slider_length + slider->x - w;
+        endCap.y = slider->y;
+        endCap.x2 = slider->slider_length + slider->x - 1;
+        endCap.y2 = h + slider->y - 1;
+        swrSprite_GetTextureDimFromId(swrSprite_sliderbar_strch, &w, &h);
+        track.x = startCap.x2 + 1;
+        track.y = slider->y;
+        track.x2 = endCap.x - 1;
+        track.y2 = h + slider->y - 1;
+    }
+
+    // the start cap decreases, the end cap increases; swrUI_LEFT_RIGHT_UNK swaps them
+    if (swrSprite_IsInsideBBox(&startCap, mouseX, mouseY)) {
+        if (slider->flags & swrUI_LEFT_RIGHT_UNK)
+            increase = 1;
+        else
+            decrease = 1;
+    }
+    if (swrSprite_IsInsideBBox(&endCap, mouseX, mouseY)) {
+        if (slider->flags & swrUI_LEFT_RIGHT_UNK)
+            decrease = 1;
+        else
+            increase = 1;
+    }
+    // faithful: the track is hit-tested but the result is unused
+    swrSprite_IsInsideBBox(&track, mouseX, mouseY);
+    if (decrease)
+        swrUI_HandleSliderKey(slider, VK_SUBTRACT);
+    if (increase)
+        swrUI_HandleSliderKey(slider, VK_ADD);
+}
+
 // 0x0041af00
 int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int count, int* outPositions)
 {
@@ -1948,6 +2148,31 @@ int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int co
     swrUI_SetSpriteOffset(elem, last + 1, 0, 0);
     outPositions[last] = (partW >> 1) - (circleW >> 1) + x;
     return partH + 4;
+}
+
+// 0x0041b260
+swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind)
+{
+    swrUI_unk* ui;
+    int left = 0;
+    int top = 0;
+    int right = 0;
+    int bottom = 0;
+
+    ui = swrUI_New(parent, id, -1, NULL, 0, 0, 0, NULL, NULL);
+    ui->flags |= swrUI_STATIC;
+    if (rect != NULL) {
+        top = rect[1];
+        left = rect[0];
+        right = rect[2];
+        bottom = rect[3];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, kind, 0);
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_PANEL;
+    return ui;
 }
 
 // 0x0041b380
@@ -2790,7 +3015,102 @@ void swrUI_UpdateTimers(void)
 // 0x00418120
 void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
 {
-    HANG("TODO");
+    char buffer[SWR_UI_TEXT_ENTRY_MAX_LENGTH];
+    unsigned int limit;
+    int textWidth;
+    int caretHeight;
+
+    if (ui == NULL)
+        return;
+    memset(buffer, 0, sizeof(buffer));
+    if (ui->str_allocated != NULL) {
+        strncpy(buffer, ui->str_allocated, sizeof(buffer) - 1);
+        buffer[sizeof(buffer) - 1] = '\0';
+    }
+
+    switch (key) {
+    case VK_BACK:
+        if (ui->caret_pos == 0)
+            break;
+        // overlapping copy (memmove semantics)
+        memmove(buffer + ui->caret_pos - 1, buffer + ui->caret_pos, sizeof(buffer) - ui->caret_pos);
+        buffer[sizeof(buffer) - 1] = '\0';
+        ui->caret_pos--;
+        swrUI_RunCallbacksScreenText(ui, buffer, 0);
+        break;
+    case VK_RETURN:
+        playUISound(0x46);
+        swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
+        swrUI_RunCallbacks(ui, swrUI_MSG_SET_EDITING, 0, ui->id);
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_COMMITTED, ui->id, (int)ui->str_allocated);
+        if (ui->entry_style & swrUI_TEXT_ENTRY_CLEAR_ON_COMMIT) {
+            ui->str_allocated = swrUI_replaceAllocatedStr(ui->str_allocated, NULL);
+            break;
+        }
+        if (ui->str_allocated != NULL && (ui->entry_style & swrUI_TEXT_ENTRY_CARET_TO_END))
+            ui->caret_pos = strlen(ui->str_allocated);
+        break;
+    case VK_ESCAPE:
+        playUISound(0x47);
+        swrUI_RunCallbacksScreenText(ui, swrUI_textEntryOriginalText, *(int*)ui->unk0_0_119);
+        swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_CANCELLED, ui->id, (int)ui->str_allocated);
+        break;
+    case VK_END:
+        if (ui->str_allocated != NULL)
+            ui->caret_pos = strlen(ui->str_allocated);
+        break;
+    case VK_HOME:
+        ui->caret_pos = 0;
+        break;
+    case VK_LEFT:
+        if (ui->caret_pos != 0)
+            ui->caret_pos--;
+        break;
+    case VK_RIGHT:
+        if (ui->str_allocated != NULL && (unsigned int)ui->caret_pos < strlen(ui->str_allocated))
+            ui->caret_pos++;
+        break;
+    case VK_DELETE:
+        // Delete clears the whole field, unless it is already empty with the caret at the start
+        if (ui->caret_pos == 0 && (ui->str_allocated == NULL || ui->str_allocated[0] == '\0'))
+            break;
+        ui->caret_pos = 0;
+        swrUI_RunCallbacksScreenText(ui, NULL, 0);
+        break;
+    default:
+        // the original tests the CRT ctype table with _ALPHA | _DIGIT (0x107)
+        if (!isalnum(key) && key != ' ')
+            break;
+        limit = (unsigned int)ui->max_length;
+        if (limit > SWR_UI_TEXT_ENTRY_MAX_LENGTH - 1)
+            limit = SWR_UI_TEXT_ENTRY_MAX_LENGTH;
+        if ((unsigned int)ui->caret_pos >= limit || (key == ' ' && ui->caret_pos == 0))
+            break;
+        memmove(buffer + ui->caret_pos + 1, buffer + ui->caret_pos, sizeof(buffer) - 1 - ui->caret_pos);
+        buffer[ui->caret_pos] = (char)key;
+        ui->caret_pos++;
+        swrUI_RunCallbacksScreenText(ui, buffer, 0);
+        break;
+    }
+
+    textWidth = swrUI_GetSubstringWidth(ui->str_allocated, ui->font_index, 0, ui->caret_pos);
+    caretHeight = swrText_GetStringHeight("l", swrText_fontsByIndex[ui->font_index]) * 2;
+    swrUI_SetCaretRect(swrText_GetStringWidth(" ", swrText_fontsByIndex[ui->font_index]) * 5 + textWidth + ui->x, ((ui->height - ui->y + 1) >> 1) - (caretHeight >> 1) + ui->y, 1, caretHeight);
+}
+
+// 0x00413a30
+swrUI_unk* swrUI_AddListElement(swrUI_unk* list, swrUI_unk* element)
+{
+    if (list == NULL || element == NULL)
+        return NULL;
+    element->widget_class |= swrUI_CLASS_LIST_ITEM;
+    swrUI_UnlinkElement(element);
+    swrUI_Enqueue(list, element);
+    if (swrUI_GetSelectedItem(list) == NULL)
+        swrUI_SelectListItem(element, 1);
+    swrUI_RefreshListLayout(list);
+    return element;
 }
 
 // 0x00413a90
@@ -2811,14 +3131,107 @@ swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int par
 // 0x00416690
 int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
 {
-    HANG("TODO");
-    return 0;
+    int rect[4];
+    char text[256];
+
+    switch (msg) {
+    case swrUI_MSG_HOVER_CHANGED:
+        if (param != NULL) {
+            playUISound(0x58);
+            swrUI_BuildSliderSprites(ui, 1);
+        } else {
+            swrUI_BuildSliderSprites(ui, 0);
+        }
+        break;
+    case swrUI_MSG_MOUSE_DOWN:
+        swrUI_sliderClickX = (int)param;
+        swrUI_sliderClickY = param2;
+        swrUI_AddTimer(ui, 100, (int)ui);
+        swrUI_HandleSliderClick(ui, swrUI_sliderClickX, swrUI_sliderClickY);
+        break;
+    case swrUI_MSG_MOUSE_UP:
+        swrUI_RemoveTimer((int)ui);
+        break;
+    case swrUI_MSG_KEY_DOWN:
+        swrUI_HandleSliderKey(ui, (unsigned int)param);
+        break;
+    case swrUI_MSG_UPDATE:
+        if (ui->slider_style & swrUI_SLIDER_SHOW_NUMBER) {
+            rect[0] = ui->x;
+            rect[1] = ui->y;
+            rect[2] = ui->width;
+            rect[3] = ui->height;
+            sprintf(text, "%d", ui->number_value);
+            swrUI_DrawTextAligned(ui->font_index, text, (short*)rect, swrUI_TEXT_ALIGN_CENTER, ui->r, ui->g, ui->b, ui->a, 0, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
+        }
+        break;
+    }
+    return swrUI_DefaultElementProc(ui, msg, param, param2);
+}
+
+// 0x004172a0
+int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y)
+{
+    // x/y/width/height are laid out as a swrSprite_BBox
+    return swrSprite_IsInsideBBox((swrSprite_BBox*)&ui->x, x, y);
+}
+
+// 0x004173c0
+void swrUI_DrawText(int font, int x, int y, int color0, int color1, int color2, int color3, char* text, int unk9, int unk10, int disabled)
+{
+    char buffer[1024];
+    int prefixLength;
+
+    if (text == NULL)
+        return;
+    if (disabled)
+        color3 = (color3 & ~0xff) | SWR_UI_DISABLED_TEXT_ALPHA;
+    // "~F<n>" selects the font for swrText
+    prefixLength = sprintf(buffer, "~F%d", font);
+    memcpy(buffer + prefixLength, text, strlen(text) + 1);
+    if (font == SWR_UI_FONT_LOW_BASELINE)
+        y += SWR_UI_FONT_LOW_BASELINE;
+    swrText_CreateTextEntry1(x, y, color0, color1, color2, color3, buffer);
+    swrText_SetEntryClipRect((int*)unk10);
+    // write-only pulse, nothing reads it
+    swrUI_textPulse = swrUI_textPulseStep + swrUI_textPulse;
+    if (swrUI_textPulse > 255.0f)
+        swrUI_textPulseStep = -1.0f;
+    if (swrUI_textPulse < 40.0f)
+        swrUI_textPulseStep = 0.5f;
 }
 
 // 0x00417540
 void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int alignFlags, int color0, int color1, int color2, int color3, int unk9, int unk10, int unk11)
 {
-    HANG("TODO");
+    // bbox is really an int[4] box; x/y are 16-bit here (swrText_CreateEntry takes shorts)
+    int* box = (int*)bbox;
+    int textWidth;
+    int textHeight;
+    short x;
+    short y;
+
+    if (text == NULL)
+        return;
+    textWidth = swrText_GetStringWidth(text, swrText_fontsByIndex[font]);
+    textHeight = swrText_GetStringHeight(text, swrText_fontsByIndex[font]);
+    x = (short)box[0];
+    y = (short)box[1];
+    if (alignFlags & swrUI_TEXT_ALIGN_CENTER) {
+        x += (unsigned int)(box[2] - textWidth - box[0] + 1) >> 1;
+        y += (unsigned int)(box[3] - textHeight - box[1] + 1) >> 1;
+    } else if (alignFlags & swrUI_TEXT_ALIGN_CENTER_X) {
+        x += (unsigned int)(box[2] - textWidth - box[0] + 1) >> 1;
+    } else if (alignFlags & swrUI_TEXT_ALIGN_CENTER_Y) {
+        y += (unsigned int)(box[3] - textHeight - box[1] + 1) >> 1;
+    } else if (alignFlags & swrUI_TEXT_ALIGN_RIGHT) {
+        x = (short)box[2] - (short)textWidth;
+    }
+    if (alignFlags & swrUI_TEXT_ALIGN_INDENT_5)
+        x += swrText_GetStringWidth(" ", swrText_fontsByIndex[font]) * 5;
+    else if (alignFlags & swrUI_TEXT_ALIGN_INDENT_1)
+        x += swrText_GetStringWidth(" ", swrText_fontsByIndex[font]);
+    swrUI_DrawText(font, x, y, color0, color1, color2, color3, text, unk9, unk10, unk11);
 }
 
 // 0x0041aa90

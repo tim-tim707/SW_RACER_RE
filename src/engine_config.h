@@ -253,6 +253,11 @@
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
+#define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
+#define SWR_UI_DESIGN_HEIGHT (480)
+#define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
+#define SWR_UI_DISABLED_TEXT_ALPHA (100) // swrUI_DrawText alpha for disabled elements
+#define SWR_UI_FONT_LOW_BASELINE (6) // swrUI_DrawText draws font 6 this many pixels lower
 #define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this
 #define SWR_UI_CARET_BLINK_MS (250)
 #define SWR_SCANCODE_MINUS (0x0c) // '-' key, also accepted by swrUI_HandleSliderKey

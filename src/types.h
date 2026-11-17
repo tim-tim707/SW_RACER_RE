@@ -1377,7 +1377,7 @@ extern "C"
         char unk0_0_119[4];
         int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
-        unsigned int unk0_flag;
+        unsigned int frame_style; // 0x4f0 swrUI_FRAME_STYLE bits (swrUI_BuildHighlightSprites)
         int unk4f4; // 0x4f4 (written by swrUI_SetValue2_Maybe)
         char* value_text; // 0x4f8 secondary value-text (swrUI_SetValueText / swrUI_GetValueText)
         int value; // 0x4fc element value (swrUI_SetValue)
@@ -1388,8 +1388,8 @@ extern "C"
         int content_top; // 0x510
         int content_right; // 0x514
         int content_bottom; // 0x518
-        int unk51c; // 0x51c list selection text
-        int unk520; // 0x520 list selection index
+        char* selected_text; // 0x51c list: copy of the selected item's text (swrUI_RefreshListSelection)
+        int selected_index; // 0x520 list: index of the selected item among the children
         int row_spacing; // 0x524 list row spacing in pixels (5 from swrUI_NewList)
         int unk528; // 0x528
         int entry_style; // 0x52c text-entry style: the high 16 bits of the swrUI_NewTextEntry flags
@@ -3244,7 +3244,10 @@ extern "C"
     {
         rdVector3 hoverPadOffsetA; // 0x00. pod-local hover-pad offset (4th pad of swrRace_UpdateHoverPads)
         rdVector3 hoverPadOffsetB; // 0x0c. 2nd pad offset; the 3rd pad mirrors it in X
-        float unk18[13];
+        float unk18[3];
+        rdVector3 cableCockpitAnchor; // 0x24. cockpit end of the engine->cockpit cable quads (swrRace_BuildStretchedQuad), X mirrored per side
+        rdVector3 cableEngineAnchor; // 0x30. engine end; X mirrored per side, Z mirrored for the second engine pair
+        float unk3c[4];
         float chaseCamTrail;  // 0x4c. chase-camera distance behind the pod (doubled in the far chase view)
         float chaseCamHeight; // 0x50. chase-camera height above the pod
         float unk54[6];
