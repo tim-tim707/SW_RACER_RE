@@ -373,6 +373,11 @@ nearClipDistance 0x004c4a60 float # per-track near clip, set by swrObjJdge_Setup
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
 swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
+swrObjJdge_creditsPage1 0x004c4ac8 char*[74] # end-credits text, NULL-terminated; entry "" = header, leading '\\' = gap
+swrObjJdge_creditsPage2 0x004c4bf0 char*[112]
+swrObjJdge_creditsPage3 0x004c4db0 char*[60]
+swrObjJdge_creditsPage4 0x004c4ea0 char*[178]
+swrObjJdge_creditsPage5 0x004c5168 char*[75]
 swrObjJdge_finishTriggered 0x004c5294 int
 
 miniMapAlpha 0x004C5298 float
@@ -836,7 +841,7 @@ swrJdge_Cleared 0x0050ca34 int
 swrRace_creditsMode 0x0050ca3c int
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
-swrObjJdge_creditsScrollState 0x0050ca48 int
+swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int

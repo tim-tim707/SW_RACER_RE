@@ -1231,7 +1231,79 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 // 0x0045d130
 void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll)
 {
-    HANG("TODO");
+    char text[256];
+    char** page;
+    int lineCount;
+    float scroll;
+    int y;
+    int i;
+    int color;
+
+    scroll = restartScroll != 0 ? 0.0f : swrObjJdge_creditsScrollState;
+    y = (int)(240.0f - scroll * 24.0f);
+    swrObjJdge_creditsScrollState = (float)(scroll + swrRace_deltaTimeSecs);
+
+    switch (swrObjJdge_creditsHudCycleIndex) {
+    case 1:
+        page = swrObjJdge_creditsPage1;
+        lineCount = SWR_CREDITS_PAGE1_LINES;
+        break;
+    case 2:
+        page = swrObjJdge_creditsPage2;
+        lineCount = SWR_CREDITS_PAGE2_LINES;
+        break;
+    case 3:
+        page = swrObjJdge_creditsPage3;
+        lineCount = SWR_CREDITS_PAGE3_LINES;
+        break;
+    case 4:
+        page = swrObjJdge_creditsPage4;
+        lineCount = SWR_CREDITS_PAGE4_LINES;
+        break;
+    case 5:
+        page = swrObjJdge_creditsPage5;
+        lineCount = SWR_CREDITS_PAGE5_LINES;
+        break;
+    default:
+        page = NULL; // EXE walks garbage pointers here; no caller passes another index
+        lineCount = 0;
+        break;
+    }
+
+    // Each line's spacing and style come from the PREVIOUS entry: "" = section header,
+    // a leading '\\' = gap line, anything else = a regular name.
+    for (i = 0; i + 1 < lineCount; i++) {
+        char lead = page[i][0];
+        if (lead == '\0') {
+            y += 40;
+        } else if (lead == '\\') {
+            y += 24;
+        } else {
+            y += 12;
+        }
+        if (y <= -10 || y >= 250)
+            continue;
+        if (lead == '\0') {
+            sprintf(text, "~f4~o~c%s", page[i + 1]);
+            color = 0xbe;
+        } else {
+            sprintf(text, "~k~c%s", page[i + 1]);
+            color = 0xff;
+        }
+        for (char* c = text; *c != '\0'; c++) {
+            if (*c == '\\')
+                *c = ' ';
+        }
+        swrText_CreateTextEntry1(0xa0, y, color, color, -1, -1, text);
+    }
+
+    if (y > 0)
+        return;
+    if (swrObjJdge_creditsHudCycleIndex != 5 && swrObjJdge_creditsHudCycled == 0) {
+        swrObjJdge_Clear(jdge, 'Fini');
+        return;
+    }
+    swrObjJdge_Clear(jdge, 'Abrt');
 }
 
 // 0x0045D350
@@ -1771,7 +1843,21 @@ void swrObjJdge_F0(swrObjJdge* jdge)
 // 0x0045e970
 void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score)
 {
-    HANG("TODO");
+    swrModel_Node** markers = ((swrObjJdge*)nodeOwner)->splineMarkers;
+    rdMatrix44 mats[7]; // the EXE evaluates 7 points but only places 6 markers
+    float offset = -0.01f;
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        swrSpline_EvaluateAtOffset(&score->obj_test_ptr->splineCursor, &mats[i], offset);
+        offset -= (i < 2) ? -0.01f : -0.03f;
+    }
+    for (i = 0; i < 6; i++) {
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)markers[i], &mats[i]);
+        if (markers[i] != NULL)
+            swrModel_NodeModifyFlags(markers[i], 2, 3, 0x10, 2);
+        swrModel_NodeSetColorsOnAllMaterials(markers[i], -1, -1, 0, 0xff, 0, -1);
+    }
 }
 
 // Race-tick judge update. Lap times are sub-frame accurate: swrRace_UpdateRaceProgress reports the
@@ -3132,8 +3218,18 @@ void swrObjElmo_F3(swrObjElmo* elmo)
 // 0x00468660
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Aloc':
+    case 'Modl':
+    case 'Free':
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&elmo->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x00468800

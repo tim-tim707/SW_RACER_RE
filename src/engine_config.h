@@ -34,6 +34,12 @@
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)
+// swrObjJdge_ScrollCredits (0x0045d130): per-page line counts the EXE walks
+#define SWR_CREDITS_PAGE1_LINES (0x49)
+#define SWR_CREDITS_PAGE2_LINES (0x6f)
+#define SWR_CREDITS_PAGE3_LINES (0x3b)
+#define SWR_CREDITS_PAGE4_LINES (0xb1)
+#define SWR_CREDITS_PAGE5_LINES (0x4b)
 // swrRace_UpdatePartsHealth (0x0043d720): cap on one race's damage points (6 * 255)
 #define SWR_PART_DAMAGE_MAX (0x5fa)
 
