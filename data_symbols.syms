@@ -262,6 +262,7 @@ g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
 swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
+swrObjHang_nameEntrySelection 0x004c0204 int = -1 # reset to -1 by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_shopLastSelectedItem 0x004c020c int = -1 # last swrRace_MenuSelectedItem the Watto shop computed stats/prices for
 g_pTxtPartNameFormat 0x004c0bc0 char[1] # "~c~s%s"
 swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
@@ -666,6 +667,9 @@ swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzer
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
 DAT_0050c480 0x0050c480 int
+swrObjHang_nameEntryStateB 0x0050c4b4 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
+swrObjHang_nameEntryStateA 0x0050c4b8 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
+swrObjHang_nameEntryBuffer 0x0050c4c0 int[8] # 32 bytes zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_partDetailActive 0x0050c470 int # a part detail/purchase view is open; suppresses the idle camera
 
 DAT_0050c524 0x0050c524 char
@@ -805,6 +809,7 @@ swrObjHang_idleCameraSeeded 0x0050c9cc char # sentinel 5 once the sway has been 
 
 someUI 0x0050c968 swrUI_unk*
 
+swrObjJdge_prevRacePositions 0x0050c9d0 short[20] # per-score place last frame (swrObjJdge_UpdateOvertakeSounds); reset by swrObjJdge_InitTrack
 swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
 swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 

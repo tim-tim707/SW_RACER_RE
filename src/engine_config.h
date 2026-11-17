@@ -34,6 +34,8 @@
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)
+// swrRace_UpdatePartsHealth (0x0043d720): cap on one race's damage points (6 * 255)
+#define SWR_PART_DAMAGE_MAX (0x5fa)
 
 // swr_sceneModels slot of the first front-end holo-table model; swrObjHang_PositionHoloNode(n, ...)
 // places slot SWROBJHANG_HOLO_MODEL_SLOT_BASE + n.

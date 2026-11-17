@@ -484,6 +484,27 @@ void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
         hang->activeMenu = swrObjHang_unused_unk;
 }
 
+// Leaves the name-entry screen: commit the profile and return to the previous menu.
+// 0x004367c0
+void swrObjHang_UpdateEnterName(swrObjHang* hang)
+{
+    swrSaveProfile* profile;
+    int i;
+
+    if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE)
+        swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotId = 0;
+    profile = &swrRace_aProfiles[hang->current_player_for_vehicle_selection];
+    if (profile->linkedToSave == 1)
+        swrRace_CopyProfileToSave((char)profile->saveSlot, hang->current_player_for_vehicle_selection);
+    swrRace_SaveCurrentProfile();
+    swrObjHang_nameEntrySelection = -1;
+    for (i = 0; i < 8; i++)
+        swrObjHang_nameEntryBuffer[i] = 0;
+    swrObjHang_nameEntryStateA = 0;
+    swrObjHang_nameEntryStateB = 0;
+    swrObjHang_SetMenuState(hang, hang->menuScreenPrev);
+}
+
 // 0x00456800
 void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
 {
@@ -1898,10 +1919,55 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     }
 }
 
+// When a local racer's place changes, the pod it swapped with (if close and AI-driven) taunts:
+// losing a place plays the passer's gloat, gaining one plays the passed racer's complaint.
 // 0x0045ef70
 void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    swrScore* score;
+    swrScore* other;
+    swrRace* otherPod;
+    short pos;
+    short prev;
+    int variant;
+    int i;
+    int j;
+
+    for (i = 0; i < jdge->num_players; i++) {
+        score = &swrScoresPtr[i];
+        pos = (short)score->results_P1_Position;
+        prev = swrObjJdge_prevRacePositions[i];
+        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && pos > 0 && prev != pos) {
+            int lost = prev < pos;
+            if ((lost && (pos == 2 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)) || (!lost && (pos == 1 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f))) {
+                variant = -1;
+                other = NULL;
+                for (j = 0; j < jdge->num_players; j++) {
+                    other = &swrScoresPtr[j];
+                    short otherPos = (short)other->results_P1_Position;
+                    if (otherPos > 0 && other != score && otherPos == pos + (lost ? -1 : 1)) {
+                        variant = *other->pilotId;
+                        break;
+                    }
+                }
+                if (variant != -1) {
+                    otherPod = other->obj_test_ptr;
+                    if ((otherPod->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (otherPod->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0 && otherPod->lodDistance < 500.0 && multiplayer_enabled == 0) {
+                        rdVector3* at = (rdVector3*)&otherPod->transform.vD;
+                        if (!lost) {
+                            swrSound_PlayRandomSfx(1, variant, 0x15, 0x01, 0x17, 0x03, 0x14, at);
+                        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+                            // 0x11 is skipped for variant 14 (its first slot is 0x12 too)
+                            swrSound_PlayRandomSfx(1, variant, variant == 0xe ? 0x12 : 0x11, 0x12, 0x13, 0x14, 0x15, at);
+                        } else {
+                            swrSound_PlayRandomSfx(1, variant, 0x17, 0x17, 0x18, 0x19, 0x03, at);
+                        }
+                    }
+                }
+            }
+        }
+        swrObjJdge_prevRacePositions[i] = pos;
+    }
 }
 
 // 0x0045fe70

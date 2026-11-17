@@ -1452,10 +1452,74 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
     }
 }
 
+// Post-race: spend the race's damage as random 25..76-point hits on installed parts, then
+// let the pit droids (255 points each) repair random parts the same way.
 // 0x0043d720
 void swrRace_UpdatePartsHealth(void)
 {
-    HANG("TODO");
+    swrSaveProfile* profile = &swrRace_aProfiles[0];
+    int damage;
+    int repair;
+    int missing;
+    int installed;
+    int part;
+    uint8_t wear;
+    uint8_t health;
+    int i;
+
+    damage = (int)(swrScores[0].lastRaceDamage * 255.0f);
+    if (damage > SWR_PART_DAMAGE_MAX)
+        damage = SWR_PART_DAMAGE_MAX;
+    installed = 0;
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        if (profile->upgradeLevels[i] != 0)
+            installed++;
+    }
+    if (installed == 0)
+        return;
+
+    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    while (wear <= damage) {
+        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        if (profile->upgradeLevels[part] != 0) {
+            health = (uint8_t)profile->upgradeHealths[part];
+            profile->upgradeHealths[part] = (health > wear) ? (char)(health - wear) : 0;
+        }
+        damage -= wear;
+        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    }
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        if (profile->upgradeLevels[i] == 0)
+            profile->upgradeHealths[i] = (char)0xff;
+    }
+
+    missing = 0;
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+        missing += 0xff - (uint8_t)profile->upgradeHealths[i];
+    repair = (uint8_t)profile->nbPitDroids * 0xff;
+    if (repair >= missing) {
+        for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+            profile->upgradeHealths[i] = (char)0xff;
+        swrRace_SaveCurrentProfile();
+        return;
+    }
+
+    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    while (wear <= repair) {
+        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        health = (uint8_t)profile->upgradeHealths[part];
+        if (health != 0xff) {
+            if (0xff - health < wear) {
+                profile->upgradeHealths[part] = (char)0xff;
+                wear = (uint8_t)(wear + health + 1); // EXE charges wear + health + 1 (byte), not 255 - health
+            } else {
+                profile->upgradeHealths[part] = (char)(wear + health);
+            }
+            repair -= wear;
+        }
+        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    }
+    swrRace_SaveCurrentProfile();
 }
 
 // 0x0043d970
