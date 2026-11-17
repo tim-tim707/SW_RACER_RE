@@ -7085,3 +7085,99 @@ void swrRace_ResolvePodCollision(swrRace* player)
     other->velocityCollisionOpponent.x = other->velocityCollisionOpponent.x - movedOther.x * -0.5f;
     other->velocityCollisionOpponent.y = other->velocityCollisionOpponent.y - movedOther.y * -0.5f;
 }
+
+// 0x0046d6a0
+void swrRace_ApplyPartSinkOffset(swrRace* player)
+{
+    float sink = player->unk11_1;
+    swrModel_Node** nodes = player->partNodes;
+    if (nodes == NULL)
+        return;
+    if (nodes[1] != NULL)
+        player->engineXfR.vD.z = sink + player->engineXfR.vD.z;
+    if (nodes[2] != NULL)
+        player->engineXfL.vD.z = sink + player->engineXfL.vD.z;
+    if (nodes[3] != NULL)
+        player->engineXfR2.vD.z = sink + player->engineXfR2.vD.z;
+    if (nodes[4] != NULL)
+        player->engineXfL2.vD.z = sink + player->engineXfL2.vD.z;
+    if (nodes[5] != NULL)
+        player->cockpitXf.vD.z = sink + player->cockpitXf.vD.z;
+}
+
+// 0x0046d7a0
+void swrRace_PlayEngineSounds(swrRace* player, float param_2)
+{
+    HANG("TODO");
+}
+
+// 0x0046e150
+void swrRace_UpdateSpinoutNodes(swrRace* player)
+{
+    if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND))
+        return;
+    swrModel_Node** nodes = player->partNodes;
+    // hide the parts left behind by a one-sided spinout
+    if (player->flags1 & swrObjTest_FLAG1_EXPLODING_LEFT) {
+        if (nodes[1] != NULL)
+            swrModel_NodeModifyFlags(nodes[1], 2, -4, 0x10, 3);
+        if (nodes[6] != NULL)
+            swrModel_NodeModifyFlags(nodes[6], 2, -4, 0x10, 3);
+        if (nodes[10] != NULL)
+            swrModel_NodeModifyFlags(nodes[10], 2, -4, 0x10, 3);
+        if (nodes[0x3e] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x3e], 2, -4, 0x10, 3);
+        if (nodes[0x43] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x43], 2, -4, 0x10, 3);
+    } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_RIGHT) {
+        if (nodes[2] != NULL)
+            swrModel_NodeModifyFlags(nodes[2], 2, -4, 0x10, 3);
+        if (nodes[6] != NULL)
+            swrModel_NodeModifyFlags(nodes[6], 2, -4, 0x10, 3);
+        if (nodes[11] != NULL)
+            swrModel_NodeModifyFlags(nodes[11], 2, -4, 0x10, 3);
+        if (nodes[0x3f] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x3f], 2, -4, 0x10, 3);
+        if (nodes[0x44] != NULL)
+            swrModel_NodeModifyFlags(nodes[0x44], 2, -4, 0x10, 3);
+    }
+}
+
+// 0x004705d0
+void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt)
+{
+    rdMatrix_Copy44(out, in);
+    rdVector_Scale3Add3((rdVector3*)&out->vD, (rdVector3*)&out->vD, player->speedValue * dt, (rdVector3*)&out->vB);
+}
+
+// 0x004709a0
+void swrRace_UpdateReflectionNode(swrRace* player)
+{
+    swrModel_Node* node = player->reflectionNode;
+    if (node == NULL)
+        return;
+    int hide = !(player->flags1 & swrObjTest_FLAG1_ON_MIRR) || (player->flags0 & (swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN));
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEBUG_KEYS) && swrRace_DebugLevel != 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1000))
+        hide = 1;
+    if (hide) {
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+        return;
+    }
+    swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    swrModel_NodeSetTranslation((swrModel_NodeTransformed*)player->reflectionNode, 0.0f, 0.0f, (player->groundZ + player->groundZ) - 3.0f);
+}
+
+// 0x00470a40
+void swrRace_UpdateEngineSound(swrRace* player)
+{
+    if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND)) {
+        if (!(player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) || NumLocalPlayers() != 0) {
+            if ((double)player->lodDistance < 500.0) {
+                swrRace_aiEngineLoopPlayed = 0;
+                swrSound_PlaySpatialRange((short)((*(uint8_t*)player->score_ptr->pilotId & 1) + 0xa6 + swrRace_aiEngineLoopSoundBase), 4, 0.25f, 1.0f, (rdVector3*)&player->transform.vD, 1, 0, 10.0f, 5000.0f);
+            }
+            return;
+        }
+    }
+    swrRace_PlayEngineSounds(player, 0.7f);
+}

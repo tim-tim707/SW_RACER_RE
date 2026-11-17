@@ -947,6 +947,8 @@ swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
 
+swrRace_aiEngineLoopSoundBase 0x0050cb04 int # added to the far-AI engine loop sound id 0xa6/0xa7 (swrRace_UpdateEngineSound); 0 in retail
+swrRace_aiEngineLoopPlayed 0x0050cb08 int # cleared by swrRace_UpdateEngineSound when it plays the AI engine loop; never read
 swrObjTrig_regionGridLayout 0x0050CB40 int # 0 = off; 1/2 pick the swrObjTrig_regionBounds* layout for two tracks (swrObjJdge_InitTrack)
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int

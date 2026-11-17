@@ -400,7 +400,7 @@ int swrModel_FxAnimGetState_Maybe(void);
 
 // Adds the pod's vertical sink offset (swrRace 0x250) to the Z translation of the engine /
 // cockpit part transforms (partXf[1..5]) each frame. Misnamed historically as anim timers.
-void swrRace_ApplyPartSinkOffset(int entity);
+void swrRace_ApplyPartSinkOffset(swrRace* player);
 
 // Rate-limited approach: clamps value into [current - lower, current + upper], then into
 // [min, max] (asymmetric step toward a target).
