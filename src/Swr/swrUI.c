@@ -240,6 +240,12 @@ void swrUI_PopMenuPage(void)
         swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
 }
 
+// 0x00412630
+void swrUI_ResetAttractDemoTimer(void)
+{
+    swrObjHang_attractDemoTimer = 30.0f;
+}
+
 // 0x00412fb0
 int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2)
 {
@@ -326,6 +332,73 @@ void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
         ui->max_length = maxLength;
 }
 
+// 0x00413430
+swrUI_unk* swrUI_NewTextEntry(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2)
+{
+    swrUI_unk* ui;
+    int left;
+    int top;
+    int right;
+    int bottom;
+
+    right = 0;
+    bottom = 0;
+    left = 0;
+    top = 0;
+    ui = swrUI_New(parent, id, new_index, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_TextEntryProc, NULL);
+    if (rect != NULL) {
+        left = rect[0];
+        top = rect[1];
+        right = rect[2];
+        bottom = rect[3];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, 1, 0);
+    ui->entry_style = flag & SWR_UI_TEXT_ENTRY_STYLE_MASK;
+    ui->flags |= swrUI_STATIC;
+    swrUI_SetMaxLength(ui, SWR_UI_TEXT_ENTRY_MAX_LENGTH);
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_TEXT_ENTRY;
+    return ui;
+}
+
+// 0x00413520
+swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, int flag, int size_unk2)
+{
+    swrUI_unk* ui;
+    int left;
+    int top;
+    int right;
+    int bottom;
+    int inset[4];
+
+    right = 0;
+    left = 0;
+    top = 0;
+    bottom = 0;
+    ui = swrUI_New(parent, id, new_index, NULL, flag, size_unk2, 0, (swrUI_unk_F1)swrUI_ListProc, NULL);
+    if (rect != NULL) {
+        bottom = rect[3];
+        left = rect[0];
+        top = rect[1];
+        right = rect[2];
+    }
+    swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
+    swrUI_SetPos(ui, left, top);
+    swrUI_BuildPanelFrame(ui, 0, 0);
+    swrUI_SetSpriteSelectionBBox_Maybe(inset, 0);
+    ui->content_left = left + inset[0];
+    ui->content_top = top + inset[1];
+    ui->item_flags = (swrUI_ITEM_FLAG)flag;
+    ui->row_spacing = 5;
+    ui->content_right = right - inset[2];
+    ui->content_bottom = bottom - inset[3];
+    swrUI_RunCallbacks2(ui, 1);
+    ui->widget_class = swrUI_CLASS_LIST;
+    return ui;
+}
+
 // 0x004136f0
 swrUI_unk* swrUI_FindChildByText(swrUI_unk* list, char* text)
 {
@@ -394,6 +467,13 @@ void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t 
     }
 }
 
+// 0x004138f0
+swrUI_unk* swrUI_AddListItem(swrUI_unk* list, char* text, int value, int id, int param5)
+{
+    HANG("TODO");
+    return NULL;
+}
+
 // 0x00413b10
 int swrUI_GetNumberValue(swrUI_unk* ui)
 {
@@ -401,6 +481,15 @@ int swrUI_GetNumberValue(swrUI_unk* ui)
         return ui->number_value;
     }
     return 0;
+}
+
+// 0x00413b30
+void swrUI_SetNumberValue(swrUI_unk* ui, int value)
+{
+    if (ui == NULL)
+        return;
+    ui->number_value = value;
+    swrUI_BuildSliderSprites(ui, (ui->flags & swrUI_SLIDER_SELECTED) != 0);
 }
 
 // 0x00413b90
@@ -744,7 +833,18 @@ void swrUI_ClearUI5(void)
 // 0x00415640
 int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
 {
-    HANG("TODO");
+    if (swrUI_IsElementVisible(swrUI_unk_ptr) == 0)
+        return 0;
+
+    swrUI_ResetAttractDemoTimer();
+    if (swrUI_focusedElement != NULL)
+        return swrUI_RunCallbacks(swrUI_focusedElement, pressed != 0 ? swrUI_MSG_KEY_DOWN : swrUI_MSG_KEY_UP, virtual_key_code, 0);
+    if (pressed != 0)
+        return pressed;
+
+    swrUI_FocusFirstOnNav(virtual_key_code);
+    // retail returns swrUI_FocusFirstOnNav's leftover EAX here
+    return 0;
 }
 
 // 0x004151a0
@@ -795,6 +895,20 @@ int swrUI_DefaultElementProc(swrUI_unk* ui, unsigned int msg, void* param, int p
     HANG("TODO");
 }
 
+// 0x00416130
+int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x00416370
+int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    HANG("TODO");
+    return 0;
+}
+
 // 0x00416840
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
 {
@@ -820,6 +934,17 @@ void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
     }
     next->next2 = toEnqueue;
     toEnqueue->prev2 = next;
+}
+
+// 0x004168f0
+void swrUI_ClearElementRefs(swrUI_unk* element)
+{
+    if (element == swrUI_GetUI4())
+        swrUI_SetUI4(NULL);
+    if (element == swrUI_GetUI5())
+        swrUI_SetUI5(NULL);
+    if (element == swrUI_GetUI6())
+        swrUI_SetFocusedElement(NULL);
 }
 
 // 0x00416cc0
@@ -974,6 +1099,47 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     return res;
 }
 
+// 0x004184d0
+void swrUI_DrawCaret(void)
+{
+    unsigned int elapsedMs;
+    unsigned int step;
+    unsigned int bgWidth;
+    unsigned int bgHeight;
+    float bgW;
+    float bgH;
+    float width;
+    float height;
+
+    elapsedMs = (unsigned int)(int)(swrRace_deltaTimeSecs * 1000.0);
+    swrSprite_SetVisible(SWR_UI_CARET_SPRITE_ID, 0);
+    if (swrUI_caretEnabled == 0)
+        return;
+
+    swrSprite_GetTextureDimFromId(swrSprite_background, (int*)&bgWidth, (int*)&bgHeight);
+    bgW = (float)bgWidth;
+    bgH = (float)bgHeight;
+    swrSprite_SetPos(SWR_UI_CARET_SPRITE_ID, (short)swrUI_caretX, (short)swrUI_caretY);
+    if (swrDisplay_screenWidth == SWR_UI_CARET_WIDE_SCREEN_WIDTH) {
+        width = (float)((double)(unsigned int)swrUI_caretW * 1.25 / bgW);
+    } else {
+        width = (float)((double)(unsigned int)swrUI_caretW / bgW);
+    }
+    height = (float)((double)(unsigned int)swrUI_caretH / bgH);
+    swrSprite_SetDim(SWR_UI_CARET_SPRITE_ID, width, height);
+    swrSprite_SetColor(SWR_UI_CARET_SPRITE_ID, 0xff, 0xff, 0xff, 0xff);
+
+    step = swrUI_caretBlinkTimer < elapsedMs ? swrUI_caretBlinkTimer : elapsedMs;
+    swrUI_caretBlinkTimer -= step;
+    if (swrUI_caretBlinkTimer == 0) {
+        swrUI_caretBlinkTimer = SWR_UI_CARET_BLINK_MS;
+        swrUI_caretVisible = swrUI_caretVisible == 0;
+    }
+    swrSprite_SetVisible(SWR_UI_CARET_SPRITE_ID, swrUI_caretVisible);
+    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, 0x800);
+    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, 0x10000);
+}
+
 // 0x00418b70
 void swrUI_ClearGroupChecked(swrUI_unk* ui)
 {
@@ -1101,6 +1267,493 @@ void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed)
     }
 }
 
+// 0x00419830
+void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int selected)
+{
+    int corner;
+    int cornerW;
+    int cornerH;
+    int vEdgeW;
+    int vEdgeH;
+    int hEdgeW;
+    int hEdgeH;
+    int hSpan;
+    int vSpan;
+    swrSprite_NAME barEnd;
+    swrSprite_NAME barStretch;
+    int barEndW;
+    int barEndH;
+    int barStretchW;
+    int barStretchH;
+    int rect[4];
+
+    if (ui == NULL)
+        return;
+
+    corner = kind == 1 ? swrSprite_sml_edit_box_corner : swrSprite_edit_window_corner;
+    swrSprite_GetTextureDimFromId((swrSprite_NAME)(corner + 1), &vEdgeW, &vEdgeH);
+    swrSprite_GetTextureDimFromId((swrSprite_NAME)corner, &cornerW, &cornerH);
+    swrSprite_GetTextureDimFromId((swrSprite_NAME)(corner + 2), &hEdgeW, &hEdgeH);
+
+    if (kind == 1) {
+        rect[0] = cornerW + ui->x;
+        rect[1] = ui->y + 4;
+        rect[2] = ui->width - cornerW;
+        rect[3] = ui->height - 3;
+    } else {
+        rect[0] = ui->x + 10;
+        rect[1] = ui->y + 10;
+        rect[2] = ui->width - 10;
+        rect[3] = ui->height - 10;
+    }
+    swrUI_AddSprite(ui, 0, swrSprite_background, rect, 1, 0);
+    swrUI_SetSpriteColor(ui, 0, 0, 0, 0, 0x96);
+
+    rect[0] = ui->x;
+    rect[1] = ui->y;
+    rect[2] = cornerW + rect[0] - 1;
+    rect[3] = cornerH + rect[1] - 1;
+    swrUI_AddSprite(ui, 1, corner, rect, 1, swrUI_SPRITE_SLOT_MIRROR_V);
+
+    hSpan = ui->width - cornerW * 2 - ui->x + 1;
+    if (swrDisplay_screenWidth != SWR_UI_FRAME_NATIVE_SCREEN_WIDTH)
+        hSpan += hEdgeW * 2;
+    rect[0] = cornerW + ui->x;
+    rect[1] = ui->y;
+    rect[2] = cornerW + hSpan + ui->x - 1;
+    rect[3] = hEdgeH + rect[1] - 1;
+    swrUI_AddSprite(ui, 2, corner + 2, rect, 1, swrUI_SPRITE_SLOT_MIRROR_V);
+
+    rect[2] = ui->width;
+    rect[0] = rect[2] - cornerW + 1;
+    rect[1] = ui->y;
+    rect[3] = cornerH + rect[1] - 1;
+    swrUI_AddSprite(ui, 3, corner, rect, 1, swrUI_SPRITE_SLOT_MIRROR_V | swrUI_SPRITE_SLOT_MIRROR_H);
+
+    vSpan = ui->height - cornerH * 2 - ui->y + 1;
+    if (swrDisplay_screenWidth != SWR_UI_FRAME_NATIVE_SCREEN_WIDTH)
+        vSpan += vEdgeH * 2;
+    rect[0] = ui->x;
+    rect[1] = cornerH + ui->y;
+    rect[2] = vEdgeW + rect[0] - 1;
+    rect[3] = vSpan + cornerH + ui->y - 1;
+    swrUI_AddSprite(ui, 4, corner + 1, rect, 1, 0);
+
+    rect[0] = ui->width - cornerW + 1;
+    rect[1] = cornerH + ui->y;
+    rect[2] = vEdgeW + ui->width - cornerW;
+    rect[3] = vSpan + cornerH + ui->y - 1;
+    swrUI_AddSprite(ui, 5, corner + 1, rect, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    rect[0] = ui->x;
+    rect[1] = ui->height - cornerH + 1;
+    rect[2] = cornerW + rect[0] - 1;
+    rect[3] = ui->height;
+    swrUI_AddSprite(ui, 6, corner, rect, 1, 0);
+
+    rect[0] = cornerW + ui->x;
+    rect[1] = ui->height - hEdgeH + 1;
+    rect[2] = hSpan + cornerW + ui->x - 1;
+    rect[3] = ui->height;
+    swrUI_AddSprite(ui, 7, corner + 2, rect, 1, 0);
+
+    // faithful: the bottom-right corner's top edge uses the horizontal edge height
+    rect[2] = ui->width;
+    rect[0] = rect[2] - cornerW + 1;
+    rect[1] = ui->height - hEdgeH + 1;
+    rect[3] = cornerH + ui->height - hEdgeH;
+    swrUI_AddSprite(ui, 8, corner, rect, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    if (kind != 0)
+        return;
+
+    swrUI_SetSelected(ui, selected);
+    if (selected != 0) {
+        barEnd = swrSprite_edit_window_bar_end_selected;
+        barStretch = swrSprite_edit_windowbar_strch_selected;
+    } else {
+        barEnd = swrSprite_edit_window_bar_end;
+        barStretch = swrSprite_edit_window_bar_strch;
+    }
+    swrSprite_GetTextureDimFromId(barEnd, &barEndW, &barEndH);
+    swrSprite_GetTextureDimFromId(barStretch, &barStretchW, &barStretchH);
+    ui->rand_alpha_first = 9;
+
+    rect[0] = cornerW + ui->x;
+    rect[1] = ui->y;
+    rect[2] = barEndW + cornerW + ui->x - 1;
+    rect[3] = barEndH + rect[1] - 1;
+    swrUI_AddSprite(ui, 9, barEnd, rect, 1, 0);
+
+    rect[0] = barEndW + cornerW + ui->x;
+    rect[1] = ui->y;
+    rect[2] = ui->width - cornerW - barEndW;
+    rect[3] = barStretchH + rect[1] - 1;
+    swrUI_AddSprite(ui, 10, barStretch, rect, 1, 0);
+
+    // faithful: the top-right bar end is sized with the stretch sprite's height
+    rect[2] = ui->width - cornerW;
+    rect[0] = rect[2] - barEndW + 1;
+    rect[1] = ui->y;
+    rect[3] = barStretchH + rect[1] - 1;
+    swrUI_AddSprite(ui, 11, barEnd, rect, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    rect[0] = cornerW + ui->x;
+    rect[1] = ui->height - barStretchH + 1;
+    rect[2] = barEndW + cornerW + ui->x - 1;
+    rect[3] = barEndH + ui->height - barStretchH;
+    swrUI_AddSprite(ui, 12, barEnd, rect, 1, 0);
+
+    rect[0] = barEndW + cornerW + ui->x;
+    rect[1] = ui->height - barStretchH + 1;
+    rect[2] = ui->width - cornerW - barEndW;
+    rect[3] = ui->height;
+    swrUI_AddSprite(ui, 13, barStretch, rect, 1, 0);
+
+    rect[2] = ui->width - cornerW;
+    rect[0] = rect[2] - barEndW + 1;
+    rect[1] = ui->height - barStretchH + 1;
+    rect[3] = ui->height;
+    swrUI_AddSprite(ui, 14, barEnd, rect, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+
+    ui->rand_alpha_count = 15 - ui->rand_alpha_first;
+}
+
+// 0x00419db0
+void swrUI_BuildSliderSprites(swrUI_unk* slider, int state)
+{
+    swrSprite_NAME endSprite;
+    swrSprite_NAME stretchSprite;
+    swrSprite_NAME startCap;
+    swrSprite_NAME endCap;
+    swrSprite_BBox startBox;
+    swrSprite_BBox endBox;
+    swrSprite_BBox track;
+    swrSprite_BBox box;
+    unsigned int w;
+    int h;
+    int offset;
+    unsigned int fillW;
+    unsigned int spread;
+    int mirror;
+    int slot;
+
+    if (slider == NULL)
+        return;
+
+    if (state != 0) {
+        if (slider->flags & swrUI_VERTICAL) {
+            endSprite = swrSprite_vslider_end_selected;
+            stretchSprite = swrSprite_vslider_strch_selected;
+        } else {
+            endSprite = swrSprite_sliderbar_end_selected;
+            stretchSprite = swrSprite_sliderbar_strch_selected;
+        }
+    } else if (slider->flags & swrUI_VERTICAL) {
+        endSprite = swrSprite_vsliderbar_end;
+        stretchSprite = swrSprite_vsliderbar_strch;
+    } else {
+        endSprite = swrSprite_sliderbar_end;
+        stretchSprite = swrSprite_sliderbar_strch;
+    }
+    if (slider->flags & swrUI_LEFT_RIGHT_UNK) {
+        startCap = swrSprite_slider_plus;
+        endCap = swrSprite_slider_minus;
+    } else {
+        startCap = swrSprite_slider_minus;
+        endCap = swrSprite_slider_plus;
+    }
+
+    if (slider->flags & swrUI_VERTICAL) {
+        swrSprite_GetTextureDimFromId(endSprite, (int*)&w, &h);
+        startBox.x = slider->x;
+        startBox.y = slider->y;
+        startBox.x2 = w + startBox.x - 1;
+        startBox.y2 = h + startBox.y - 1;
+        swrSprite_GetTextureDimFromId(endSprite, (int*)&w, &h);
+        endBox.x = slider->x;
+        endBox.y = slider->slider_length + slider->y - h;
+        endBox.x2 = w + endBox.x - 1;
+        endBox.y2 = slider->slider_length + slider->y - 1;
+        swrSprite_GetTextureDimFromId(stretchSprite, (int*)&w, &h);
+        track.x = slider->x;
+        track.y = startBox.y2 + 1;
+        track.x2 = w + track.x - 1;
+        track.y2 = endBox.y - 1;
+    } else {
+        swrSprite_GetTextureDimFromId(endSprite, (int*)&w, &h);
+        startBox.x = slider->x;
+        startBox.y = slider->y;
+        startBox.x2 = w + startBox.x - 1;
+        startBox.y2 = h + startBox.y - 1;
+        swrSprite_GetTextureDimFromId(endSprite, (int*)&w, &h);
+        endBox.x = slider->slider_length + slider->x - w;
+        endBox.y = slider->y;
+        endBox.x2 = slider->slider_length + slider->x - 1;
+        endBox.y2 = h + endBox.y - 1;
+        swrSprite_GetTextureDimFromId(stretchSprite, (int*)&w, &h);
+        track.x = startBox.x2 + 1;
+        track.y = slider->y;
+        track.x2 = endBox.x - 1;
+        track.y2 = h + track.y - 1;
+    }
+
+    if (slider->flags & swrUI_VERTICAL) {
+        box.x = track.x + 15;
+        box.y = track.y - 7;
+        box.x2 = track.x2 - 15;
+        box.y2 = track.y2 + 7;
+    } else {
+        box.x = track.x - 7;
+        box.y = track.y + 15;
+        box.x2 = track.x2 + 7;
+        box.y2 = track.y2 - 15;
+    }
+    swrUI_AddSprite(slider, 0, swrSprite_background, (int*)&box, 1, 0);
+    swrUI_SetSpriteColor(slider, 0, 0, 0, 0, 0x82);
+    swrUI_AddSprite(slider, 1, endSprite, (int*)&startBox, 1, 0);
+    swrUI_AddSprite(slider, 2, stretchSprite, (int*)&track, 1, 0);
+    swrUI_AddSprite(slider, 3, endSprite, (int*)&endBox, 1, (slider->flags & swrUI_VERTICAL) ? swrUI_SPRITE_SLOT_MIRROR_V : swrUI_SPRITE_SLOT_MIRROR_H);
+    slot = 4;
+
+    if ((slider->flags & (swrUI_SLIDER_NO_CAPS | swrUI_DISABLED)) == 0) {
+        swrSprite_GetBBoxFromId(startCap, &box);
+        swrSprite_MoveBBox(&box, &startBox, 1, 1);
+        swrUI_AddSprite(slider, 4, startCap, (int*)&box, 1, 0);
+        swrSprite_GetBBoxFromId(endCap, &box);
+        swrSprite_MoveBBox(&box, &endBox, 1, 1);
+        slot = 6;
+        swrUI_AddSprite(slider, 5, endCap, (int*)&box, 1, 0);
+    }
+
+    if ((slider->flags & swrUI_SLIDER_SHOW_VALUE) == 0)
+        goto resize;
+
+    if (slider->flags & swrUI_SLIDER_CENTERED) {
+        swrSprite_GetTextureDimFromId(swrSprite_slider_point, (int*)&w, &h);
+        offset = ((int)(track.x2 - track.x + 1) >> 1) - (int)(w >> 1);
+        box.x = track.x + offset;
+        box.y = track.y;
+        box.x2 = w + track.x + offset - 1;
+        box.y2 = h + track.y - 1;
+        swrSprite_MoveBBox(&box, &track, 0, 1);
+        swrSprite_TranslateBBox(&box, 0, 1);
+        swrUI_AddSprite(slider, slot++, swrSprite_slider_point, (int*)&box, 1, 0);
+
+        // faithful: the center marker reuses slider_point's dimensions
+        offset = (track.x2 - track.x + 1) * (unsigned int)(slider->slider_center_value + 100) / 200 - (w >> 1);
+        box.x = track.x + offset;
+        box.y = track.y;
+        box.x2 = w + track.x + offset - 1;
+        box.y2 = h + track.y - 1;
+        swrSprite_MoveBBox(&box, &track, 0, 1);
+        swrSprite_TranslateBBox(&box, 0, 1);
+        swrUI_AddSprite(slider, slot++, swrSprite_slider_point_center, (int*)&box, 1, 0);
+
+        swrSprite_GetTextureDimFromId(swrSprite_slider_bracket, (int*)&w, &h);
+        offset = ((int)(track.x2 - track.x + 1) >> 1) - (int)(w >> 1);
+        spread = (unsigned int)slider->slider_spread * (unsigned int)(offset - 4) / 100;
+        box.x = track.x + offset;
+        box.y = track.y;
+        box.x2 = w + track.x + offset - 1;
+        box.y2 = h + track.y - 1;
+        swrSprite_MoveBBox(&box, &track, 0, 1);
+        swrSprite_TranslateBBox(&box, -4 - (int)spread, 0);
+        swrUI_AddSprite(slider, slot++, swrSprite_slider_bracket, (int*)&box, 1, 0);
+
+        offset = ((int)(track.x2 - track.x + 1) >> 1) + (int)(w >> 1);
+        box.x = track.x + offset;
+        box.y = track.y;
+        box.x2 = w + track.x + offset - 1;
+        box.y2 = h + track.y - 1;
+        swrSprite_MoveBBox(&box, &track, 0, 1);
+        swrSprite_TranslateBBox(&box, (int)spread - 15, 0);
+        swrUI_AddSprite(slider, slot, swrSprite_slider_bracket, (int*)&box, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+        goto resize;
+    }
+
+    fillW = (track.x2 - track.x + 1) * (unsigned int)slider->slider_percent / 100;
+    swrSprite_GetTextureDimFromId(swrSprite_slider_gradient, NULL, &h);
+    box.x = track.x;
+    box.y = 0;
+    box.x2 = fillW + track.x - 1;
+    box.y2 = h - 1;
+    swrSprite_MoveBBox(&box, &track, 0, 1);
+    swrSprite_TranslateBBox(&box, 0, 1);
+    if (slider->flags & swrUI_LEFT_RIGHT_UNK)
+        swrSprite_MoveBBoxTo(&box, track.x2 - box.x2 + box.x, box.y);
+    mirror = (slider->flags & swrUI_LEFT_RIGHT_UNK) ? swrUI_SPRITE_SLOT_MIRROR_H : 0;
+    swrUI_AddSprite(slider, slot++, swrSprite_slider_gradient, (int*)&box, 1, mirror);
+    if ((slider->flags & swrUI_SLIDER_THUMB) == 0)
+        goto resize;
+
+    swrSprite_GetTextureDimFromId(swrSprite_slider_point, (int*)&w, &h);
+    if (slider->flags & swrUI_LEFT_RIGHT_UNK) {
+        box.x = track.x2 - fillW - (w >> 1) + 1;
+        box.x2 = w - fillW + track.x2 - (w >> 1);
+    } else {
+        box.x = track.x + fillW - (w >> 1);
+        box.x2 = w + track.x + fillW - (w >> 1) - 1;
+    }
+    box.y = track.y;
+    box.y2 = h + track.y - 1;
+    swrSprite_MoveBBox(&box, &track, 0, 1);
+    swrSprite_TranslateBBox(&box, 0, 1);
+    mirror = (slider->flags & swrUI_LEFT_RIGHT_UNK) ? swrUI_SPRITE_SLOT_MIRROR_H : 0;
+    swrUI_AddSprite(slider, slot++, swrSprite_slider_point, (int*)&box, 1, mirror);
+
+    swrSprite_GetTextureDimFromId(swrSprite_slider_point_center, (int*)&w, &h);
+    if (slider->flags & swrUI_LEFT_RIGHT_UNK) {
+        box.x = track.x2 - fillW - (w >> 1) + 1;
+        box.x2 = w - fillW + track.x2 - (w >> 1);
+    } else {
+        box.x = track.x + fillW - (w >> 1);
+        box.x2 = w + track.x + fillW - (w >> 1) - 1;
+    }
+    box.y = track.y;
+    box.y2 = h + track.y - 1;
+    swrSprite_MoveBBox(&box, &track, 0, 1);
+    swrSprite_TranslateBBox(&box, 0, 1);
+    mirror = (slider->flags & swrUI_LEFT_RIGHT_UNK) ? swrUI_SPRITE_SLOT_MIRROR_H : 0;
+    swrUI_AddSprite(slider, slot, swrSprite_slider_point_center, (int*)&box, 1, mirror);
+
+resize:
+    if (slider->flags & swrUI_VERTICAL) {
+        swrUI_SetSize(slider, startBox.x2 - startBox.x + 1, endBox.y2 - startBox.y + 1);
+    } else {
+        swrUI_SetSize(slider, endBox.x2 - startBox.x + 1, startBox.y2 - startBox.y + 1);
+    }
+}
+
+// 0x0041a640
+void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
+{
+    unsigned int minusKey;
+    unsigned int plusKey;
+    unsigned int step;
+
+    minusKey = MapVirtualKeyA(SWR_SCANCODE_MINUS, MAPVK_VSC_TO_VK);
+    plusKey = MapVirtualKeyA(SWR_SCANCODE_EQUALS, MAPVK_VSC_TO_VK);
+    if (key == VK_SUBTRACT || key == minusKey) {
+        playUISound(0x48);
+        step = (unsigned int)slider->slider_step;
+        if (step < (unsigned int)slider->slider_percent) {
+            slider->slider_percent -= step;
+        } else {
+            slider->slider_percent = 0;
+        }
+        if (step < (unsigned int)slider->slider_spread) {
+            slider->slider_spread -= step;
+        } else {
+            slider->slider_spread = 0;
+        }
+        swrUI_RunCallbacks(slider->prev, swrUI_MSG_SLIDER_DECREASED, slider->id, (int)slider);
+        swrUI_BuildSliderSprites(slider, 1);
+    }
+    if (key == VK_ADD || key == plusKey) {
+        playUISound(0x48);
+        step = (unsigned int)slider->slider_step;
+        if ((unsigned int)slider->slider_percent < 100 - step) {
+            slider->slider_percent += step;
+        } else {
+            slider->slider_percent = 100;
+        }
+        if ((unsigned int)slider->slider_spread < 100 - step) {
+            slider->slider_spread += step;
+        } else {
+            slider->slider_spread = 100;
+        }
+        swrUI_RunCallbacks(slider->prev, swrUI_MSG_SLIDER_INCREASED, slider->id, (int)slider);
+        swrUI_BuildSliderSprites(slider, 1);
+    }
+}
+
+// 0x0041af00
+int swrUI_LayoutRadioGroup(swrUI_unk* elem, int y, unsigned int minWidth, int count, int* outPositions)
+{
+    unsigned int circleW;
+    int circleH;
+    unsigned int partW;
+    int partH;
+    unsigned int totalW;
+    unsigned int cellGap;
+    int x;
+    int cellX;
+    int last;
+    int rect[4];
+
+    swrSprite_GetTextureDimFromId(swrSprite_axis_check_circ, (int*)&circleW, &circleH);
+    x = elem->x;
+    totalW = (circleW + 10) * count - 10;
+    if (totalW < minWidth) {
+        totalW = minWidth;
+    } else {
+        x += (minWidth >> 1) - (totalW >> 1);
+    }
+
+    swrSprite_GetTextureDimFromId(swrSprite_axis_check_strch, (int*)&partW, &partH);
+    rect[0] = x;
+    rect[1] = y;
+    rect[2] = totalW + x - 1;
+    rect[3] = partH + y - 1;
+    swrUI_AddSprite(elem, 0, swrSprite_axis_check_strch, rect, 1, 0);
+    swrUI_SetSpriteOffset(elem, 0, 0, 0);
+
+    swrSprite_GetTextureDimFromId(swrSprite_axis_check_end, (int*)&partW, &partH);
+    rect[0] = x - 4;
+    rect[1] = y;
+    rect[2] = rect[0] + partW - 1;
+    rect[3] = partH + y - 1;
+    swrUI_AddSprite(elem, 1, swrSprite_axis_check_end, rect, 1, 0);
+    swrUI_SetSpriteOffset(elem, 1, 0, 0);
+    outPositions[0] = (x - 4) - (circleW >> 1) + 2;
+
+    last = 1;
+    if (count == 4) {
+        cellGap = (totalW - circleW * 3) / 3;
+        swrSprite_GetTextureDimFromId(swrSprite_axis_check_center, (int*)&partW, &partH);
+        cellX = cellGap + x + 5;
+        rect[0] = (circleW >> 1) + cellX;
+        rect[1] = y;
+        rect[2] = partW - 1 + rect[0];
+        rect[3] = partH + y - 1;
+        swrUI_AddSprite(elem, 2, swrSprite_axis_check_center, rect, 1, 0);
+        swrUI_SetSpriteOffset(elem, 2, 0, 0);
+        outPositions[1] = cellX + 6;
+
+        cellX += cellGap + circleW;
+        rect[0] = (circleW >> 1) + cellX;
+        rect[1] = y;
+        rect[2] = partW - 1 + rect[0];
+        rect[3] = partH + y - 1;
+        swrUI_AddSprite(elem, 3, swrSprite_axis_check_center, rect, 1, 0);
+        swrUI_SetSpriteOffset(elem, 3, 0, 0);
+        outPositions[2] = cellX + 4;
+        last = 3;
+    } else if (count == 3) {
+        swrSprite_GetTextureDimFromId(swrSprite_axis_check_center, (int*)&partW, &partH);
+        rect[0] = x + (totalW >> 1) - (partW >> 1);
+        rect[1] = y;
+        rect[2] = rect[0] + partW - 1;
+        rect[3] = partH + y - 1;
+        swrUI_AddSprite(elem, 2, swrSprite_axis_check_center, rect, 1, 0);
+        swrUI_SetSpriteOffset(elem, 2, 0, 0);
+        last = 2;
+        outPositions[1] = x - (circleW >> 1) + (totalW >> 1) - 6;
+    }
+
+    swrSprite_GetTextureDimFromId(swrSprite_axis_check_end, (int*)&partW, &partH);
+    x = x - partW + totalW + 4;
+    rect[0] = x;
+    rect[1] = y;
+    rect[2] = x + partW - 1;
+    rect[3] = partH + y - 1;
+    swrUI_AddSprite(elem, last + 1, swrSprite_axis_check_end, rect, 1, swrUI_SPRITE_SLOT_MIRROR_H);
+    swrUI_SetSpriteOffset(elem, last + 1, 0, 0);
+    outPositions[last] = (partW >> 1) - (circleW >> 1) + x;
+    return partH + 4;
+}
+
 // 0x0041b380
 int swrUI_IsFocusable(swrUI_unk* element)
 {
@@ -1124,6 +1777,38 @@ swrUI_unk* swrUI_NextFocusable(swrUI_unk* element)
             return it;
     }
     return it;
+}
+
+// 0x0041b420
+void swrUI_FocusFirstOnNav(int vk)
+{
+    swrUI_unk* page;
+
+    page = swrUI_GetCurrentPage();
+    if (g_objHang2->menuScreen != swrObjHang_STATE_SPLASH)
+        return;
+    if (vk != VK_TAB && (vk < VK_LEFT || vk > VK_DOWN))
+        return;
+    if (swrUI_textEntryActive != 0 || page == NULL || page->next == NULL)
+        return;
+    swrUI_FocusElement(swrUI_NextFocusable(page->next), 1);
+}
+
+// 0x0041b470
+void swrUI_RefreshPageButtons(swrUI_unk* page, int backArg, int okArg)
+{
+    swrUI_unk* button;
+
+    button = swrUI_GetById(page, SWR_UI_ID_BACK_BUTTON);
+    if (button != NULL) {
+        swrUI_RunCallbacks2(button, backArg);
+        button->flags |= swrUI_STATIC;
+    }
+    button = swrUI_GetById(page, SWR_UI_ID_OK_BUTTON);
+    if (button != NULL) {
+        swrUI_RunCallbacks2(button, okArg);
+        button->flags |= swrUI_STATIC;
+    }
 }
 
 // 0x0041b5e0
@@ -1732,7 +2417,43 @@ void swrUI_RefreshListLayout(swrUI_unk* list)
 // 0x00417fe0
 void swrUI_DrawWrappedText(swrUI_unk* ui, char* text, int flag)
 {
-    HANG("TODO");
+    unsigned int len;
+    unsigned int avgCharWidth;
+    unsigned int maxChars;
+    unsigned int n;
+    char* lineStart;
+    char* cursor;
+    char* lastSpace;
+
+    len = strlen(text);
+    if (len == 0)
+        return;
+
+    avgCharWidth = (unsigned int)swrText_GetStringWidth(text, swrText_fontsByIndex[ui->font_index]) / len;
+    swrText_GetStringHeight(text, swrText_fontsByIndex[ui->font_index]);
+    maxChars = (unsigned int)(ui->content_right - ui->content_left + 1) / (avgCharWidth + 1);
+
+    lineStart = text;
+    for (;;) {
+        lastSpace = NULL;
+        cursor = lineStart;
+        for (n = 0; *cursor != '\0' && n < maxChars; n++, cursor++) {
+            if (*cursor == ' ')
+                lastSpace = cursor;
+        }
+        if (*cursor != '\0' && lastSpace != NULL)
+            *lastSpace = '\0';
+        swrUI_AddListItem(ui, lineStart, flag != 0 ? swrUI_ITEM_WRAPPED_UNK : 0, 0, 0);
+        // faithful: a line with no space to break at drops the rest of the text
+        if (*cursor != '\0') {
+            if (lastSpace == NULL)
+                return;
+            *lastSpace = ' ';
+        }
+        if (lastSpace == NULL || *cursor == '\0')
+            return;
+        lineStart = lastSpace + 1;
+    }
 }
 
 // 0x00418680

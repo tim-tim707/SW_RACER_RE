@@ -642,7 +642,11 @@ extern "C"
         struct swrScore* score_ptr;
         char unk1e74[64];
         int remoteId; // 0x1eb4. network id of the owning remote player (-1 = unassigned; set by the 'RmHi' event, REMO pods only)
-        char remoteState[64]; // 0x1eb8. remote-pod staging: controls @+0/+4/+8 ('RmCn'), steer target @+0x10 ('RmTh', consumed by CalcTargetTurnRate -> turnRateTarget), pos+rot 6 floats @+0x14 ('RmLc'/'RmHi')
+        int remoteControls[3]; // 0x1eb8. remote-pod controls from the 'RmCn' event (two payload words + subEvent[4])
+        int unk1ec4; // 0x1ec4
+        float remoteSteerTarget; // 0x1ec8. 'RmTh' steer target, consumed by CalcTargetTurnRate -> turnRateTarget
+        swrTranslationRotation remotePose; // 0x1ecc. 'RmLc' pose; seeded from spawn_pos_rot by 'RmHi'
+        char unk1ee4[20]; // 0x1ee4
         float unk1ef8; // 0x1ef8. never referenced (label was 4 bytes off pre-2026-07: unk1ebc)
         float unk1efc; // 0x1efc. init 0.25 (Init/ResetToSpline); no reader in the retail binary
         float unk1f00; // 0x1f00. init 80.0; no reader in the retail binary
@@ -1383,15 +1387,28 @@ extern "C"
         int unk500;
         int first_visible; // 0x504 list first-visible index
         swrUI_ITEM_FLAG item_flags; // 0x508 list-item state (swrUI_ITEM_SELECTED 0x80000)
-        char unk50c[40]; // 0x50c scroll layout: left/top/right/bottom @0x50c-0x518, sel text/idx @0x51c/0x520, row spacing @0x524
+        int content_left; // 0x50c list content rect (swrUI_DrawWrappedText wraps to its width)
+        int content_top; // 0x510
+        int content_right; // 0x514
+        int content_bottom; // 0x518
+        int unk51c; // 0x51c list selection text
+        int unk520; // 0x520 list selection index
+        int row_spacing; // 0x524 list row spacing in pixels (5 from swrUI_NewList)
+        int unk528; // 0x528
+        int entry_style; // 0x52c text-entry style: the high 16 bits of the swrUI_NewTextEntry flags
+        int caret_pos; // 0x530 text-entry caret index (swrUI_HandleTextEntryKey)
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
         // 0x538 per-widget-class payload. Radio buttons (widget_class 10) use the first two
         // ints; number fields / sliders (widget_class 6) use the block from 0x544 on.
         int unk538;
         int has_option_value; // 0x53c set when option_value holds a real value (else swrUI_GetValue returns -1)
         int option_value; // 0x540 radio-group option value (swrUI_GetValue, matched by swrUI_GetByValue)
-        char unk544[24]; // 0x544 number-field/slider block: style flags @0x544 (bit 0x1000000 draws the
-                         // number), track length @0x548, percent @0x54c and @0x550, step @0x558
+        int slider_style; // 0x544 number-field style flags (bit 0x1000000 draws the number)
+        int slider_length; // 0x548 track length in pixels (swrUI_BuildSliderSprites)
+        int slider_percent; // 0x54c fill bar length, 0..100
+        int slider_spread; // 0x550 centered slider: bracket spread, 0..100
+        int slider_center_value; // 0x554 centered slider: marker position, -100..100
+        int slider_step; // 0x558
         int number_value; // 0x55c number-field / slider value (swrUI_GetNumberValue / swrUI_SetNumberValue)
         char unk560[4192]; // 0x560 rest of the class payload; the swrUI_New slot array follows it
     } swrUI_unk; // sizeof(0x15c0 + unk size)

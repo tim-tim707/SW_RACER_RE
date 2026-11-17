@@ -247,7 +247,22 @@
 #define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
+#define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
+#define SWR_UI_ID_BACK_BUTTON (4)
+#define SWR_UI_TEXT_ENTRY_STYLE_MASK (0xffff0000) // flag bits swrUI_NewTextEntry keeps as entry_style
+#define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
+#define SWR_UI_CARET_SPRITE_ID (0xfa)
+#define SWR_UI_CARET_BLINK_MS (250)
+#define SWR_SCANCODE_MINUS (0x0c) // '-' key, also accepted by swrUI_HandleSliderKey
+#define SWR_SCANCODE_EQUALS (0x0d) // '=' / '+' key
+#define SWR_UI_CARET_WIDE_SCREEN_WIDTH (512) // the caret is stretched 1.25x at this screen width
+#define SWR_UI_FRAME_NATIVE_SCREEN_WIDTH (640) // panel/frame edges are widened by two edge sprites at any other width
+#define SWR_HUD_WORLD_SPRITE_MAX_DIST (1500.0f)
+
+// swrObjTest_F4 'Hitt' event (0x00474d80)
+#define SWR_OBJTEST_HIT_LOG_SIZE (8) // swrObjTest_hitKindLog / swrObjTest_hitAmountLog ring entries
+#define SWR_POD_HIT_SOUND_MAX_LOD (500) // impact sound / rumble only while swrRace.lodDistance is below this
 
 // swrControl force feedback (0x00409d70 LoadForceEffects .. 0x0040b5e0 UpdateImpactForceEffect)
 #define SWR_FF_EFFECT_SLOTS (6) // cifr_EffectSet.slots

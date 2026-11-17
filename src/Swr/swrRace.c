@@ -4399,7 +4399,7 @@ void swrRace_CalcTargetTurnRate(swrRace* player)
         if (((uint8_t) flags0 & 0xf) != swrObjTest_FLAG0_RACING) {
             return;
         }
-        player->turnRateTarget = *(float*) (player->remoteState + 0x10);
+        player->turnRateTarget = player->remoteSteerTarget;
     } else if ((flags0 & swrObjTest_FLAG0_AI) != 0) {
         swrRace_UpdateAutopilotControl(player);
         if ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0) {

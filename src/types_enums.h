@@ -1293,14 +1293,20 @@ typedef enum swrUI_FLAG
     swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
     swrUI_CHECK_SPRITE_UNK = 0x400, // set on the auto-created check-sprite child element (swrUI_SetChecked)
     swrUI_SELECTED = 0x800,
+    swrUI_SLIDER_SELECTED = 0x1000, // slider drawn with its _selected sprites (swrUI_SetNumberValue -> BuildSliderSprites state)
     swrUI_VERTICAL = 0x10000,
     swrUI_LEFT_RIGHT_UNK = 0x20000, // LEFT_TO_RIGHT or RIGHT_TO_LEFT ?
     swrUI_CHECKED = 0x20000, // same bit: checked state on checkable class-0xa items (swrUI_SetChecked)
     swrUI_CHECK_CIRCLE_UNK = 0x40000, // draw the check as the axis_check_circ art (swrUI_SetChecked)
+    swrUI_SLIDER_THUMB = 0x40000, // same bit on sliders: draw the point marker at the fill end (swrUI_BuildSliderSprites)
+    swrUI_SLIDER_SHOW_VALUE = 0x80000, // slider: draw the fill bar (or the centered markers)
+    swrUI_SLIDER_CENTERED = 0x100000, // slider: centered marker + brackets instead of a fill bar
+    swrUI_SLIDER_NO_CAPS = 0x200000, // slider: no +/- end-cap sprites
 } swrUI_FLAG;
 
 typedef enum swrUI_ITEM_FLAG
 {
+    swrUI_ITEM_WRAPPED_UNK = 0x10000, // set on the lines swrUI_DrawWrappedText adds when its flag is nonzero
     swrUI_ITEM_SELECTED = 0x80000, // list item is the current selection (swrUI_GetSelectedItem)
 } swrUI_ITEM_FLAG;
 
@@ -1350,7 +1356,11 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
+    swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
+    swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
+    swrUI_MSG_SLIDER_DECREASED = 2000, // fired to the parent by swrUI_HandleSliderKey; param = slider id
+    swrUI_MSG_SLIDER_INCREASED = 2001,
     swrUI_MSG_CHECKED_CHANGED = 5000, // fired to the parent by swrUI_SetChecked; param = new state
 } swrUI_MSG;
 

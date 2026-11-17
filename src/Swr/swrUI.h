@@ -58,7 +58,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_PopMenuPage_ADDR (0x004118b0)
 #define swrUI_ReparentElement_ADDR (0x00411910) // move an element under a new parent
 #define swrUI_BuildAuxPages_ADDR (0x004121f0) // build aux/overlay windows 0x81-0x89
-#define swrUI_InitAuxPageScale_Maybe_ADDR (0x00412630)
+#define swrUI_ResetAttractDemoTimer_ADDR (0x00412630)
 #define swrUI_Shutdown_ADDR (0x00412e40) // UI teardown (free tree + sprite materials + hash table)
 #define swrUI_AddSprite_ADDR (0x00412fb0)
 #define swrUI_SetSpriteColor_ADDR (0x00413090)
@@ -288,7 +288,7 @@ void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element);
 void swrUI_BuildAuxPages(void);
 
 // Initializes a UI layout or scale constant global (best guess).
-void swrUI_InitAuxPageScale_Maybe(void);
+void swrUI_ResetAttractDemoTimer(void);
 int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag, int flag2);
 swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2);
 swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8);
@@ -550,7 +550,7 @@ void swrUI_ProcessPendingClose(void);
 
 void swrUI_Shutdown(void);
 swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind);
-void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int param3);
+void swrUI_BuildPanelFrame(swrUI_unk* ui, int kind, int selected);
 void swrUI_SetSpriteRect(swrUI_unk* ui, int slot, int* rect);
 void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key);
 void swrUI_ClearListSelection(swrUI_unk* list);

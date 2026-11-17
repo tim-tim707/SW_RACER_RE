@@ -6778,11 +6778,273 @@ void swrRace_HandleDeathExplosion(swrRace* player)
     }
 }
 
+// Botm/KPow/T201 impact sound + rumble; nonzero when the pod is local (caller may add a grunt)
+static int swrObjTest_PlayHitImpactSound(swrRace* player, swrForceEffect effect, int direction)
+{
+    int r;
+    float gain;
+    float pitch;
+    unsigned int flags;
+
+    if (!(player->lodDistance < SWR_POD_HIT_SOUND_MAX_LOD))
+        return 0;
+
+    r = swrUtils_Rand();
+    gain = player->speedValue * 0.002f - 0.75f;
+    pitch = (float)r * SWR_CTL_RAND_NORM * 0.3f - (-0.1f);
+    if (gain > 1.0f)
+        gain = 1.0f;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        swrControl_PlayForceEffect(effect, -1, direction, -1);
+        flags = Main_sound_3dimpact;
+    } else {
+        flags = 0;
+    }
+    swrSound_PlaySpatialRange(0x37, 6, pitch, gain, (rdVector3*)&player->transform.vD, 0, flags, 10.0f, 200.0f);
+    return (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
+}
+
 // 0x00474d80
 int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 {
-    HANG("TODO");
-    return 0;
+    int kind;
+    float amount;
+    float share;
+    int count;
+    int engines[6];
+    int forceDirection;
+    int* query;
+    float* lodTable;
+    int i;
+
+    forceDirection = -1;
+    switch (*subEvent) {
+    case 'Free':
+    case 'Aloc':
+        return 1;
+
+    case 'Go!!':
+        player->flags0 = (player->flags0 & ~swrObjTest_FLAG0_STATE_MASK) | swrObjTest_FLAG0_RACING;
+        return 1;
+
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&player->obj);
+        return 1;
+
+    case 'Qery':
+        for (query = subEvent + 1; query[0] != 'Qery'; query += 2) {
+            if (query[0] == '1st?' && (short)player->score_ptr->results_P1_Position == 1)
+                *(swrRace**)query[1] = player;
+            if (query[0] == '2nd?' && (short)player->score_ptr->results_P1_Position == 2)
+                *(swrRace**)query[1] = player;
+            if (query[0] == '3rd?' && (short)player->score_ptr->results_P1_Position == 3)
+                *(swrRace**)query[1] = player;
+            if (query[0] == 'CamP')
+                swrRace_GetSplineLookahead((rdVector3*)query[1], player);
+        }
+        return 1;
+
+    case 'RmCn':
+        if ((player->flags0 & swrObjTest_FLAG0_REMOTE) && player->remoteId == subEvent[1]) {
+            player->remoteControls[0] = *(int*)((char*)ghost + 8);
+            player->remoteControls[1] = *(int*)((char*)ghost + 0xc);
+            player->remoteControls[2] = subEvent[4];
+        }
+        return 1;
+
+    case 'RmHi':
+        if ((player->flags0 & swrObjTest_FLAG0_REMOTE) == 0 || player->remoteId >= 0)
+            return 1;
+        player->remoteId = subEvent[1];
+        player->remoteControls[1] = 0;
+        player->remoteControls[0] = 0;
+        player->remoteControls[2] = 0;
+        player->remotePose = player->spawn_pos_rot;
+        return 2;
+
+    case 'RmLc':
+        if ((player->flags0 & swrObjTest_FLAG0_REMOTE) && player->remoteId == subEvent[1])
+            memcpy(&player->remotePose, (char*)ghost + 8, sizeof(player->remotePose));
+        return 1;
+
+    case 'RmTh':
+        if ((player->flags0 & swrObjTest_FLAG0_REMOTE) && player->remoteId == subEvent[1])
+            memcpy(&player->remoteSteerTarget, (char*)ghost + 0xc, sizeof(player->remoteSteerTarget));
+        return 1;
+
+    case 'Snap':
+        if (subEvent[1] < 0) {
+            swrRace_ResetToSpline(player, -0.1f);
+        } else if (subEvent[1] > 1) {
+            swrRace_ResetToSpline(player, 0.01f);
+        } else if (subEvent[1] == 1) {
+            swrRace_ResetToSpline(player, 0.1f);
+        } else {
+            swrRace_ResetToSpline(player, 0.0f);
+        }
+        return 1;
+
+    case 'sLOD':
+        if (player->partNodes == NULL)
+            return 1;
+        if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+            lodTable = &swrObjTest_lodDistancesLocal[subEvent[1] * 8];
+        } else {
+            lodTable = &swrObjTest_lodDistancesAI[subEvent[1] * 8];
+        }
+        swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)player->partNodes[5], lodTable);
+        for (i = 1; i <= 4; i++)
+            swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)player->partNodes[i], lodTable + 1);
+        return 1;
+
+    case 'Hitt':
+        break;
+
+    default:
+        return 0;
+    }
+
+    if (player->score_ptr == NULL)
+        return 1;
+
+    kind = subEvent[1];
+    amount = *(float*)((char*)ghost + 8);
+    if (player->flags0 & swrObjTest_FLAG0_WAS_BOOSTING)
+        amount *= 4.0f;
+    amount *= 0.0005f;
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        swrObjTest_hitKindLog[swrObjTest_hitLogIndex] = (char)kind;
+        swrObjTest_hitAmountLog[swrObjTest_hitLogIndex] = amount;
+        swrObjTest_hitLogIndex++;
+        if (swrObjTest_hitLogIndex >= SWR_OBJTEST_HIT_LOG_SIZE)
+            swrObjTest_hitLogIndex = 0;
+    }
+
+    switch (kind) {
+    case 'Bits':
+        player->fireballEngineSlot = -1;
+        return 1;
+
+    case 'Botm':
+        count = (int)amount;
+        if (count > 6)
+            count = 6;
+        if (count < 1)
+            count = 1;
+        player->vibrationMagnitude = 1.0f;
+        share = amount / (float)count;
+        for (i = 0; i < count; i++)
+            swrRace_TakeDamage((int)player, (unsigned int)swrUtils_Rand() % 6, share);
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+            swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 7, 7, 7, 8, 8, (rdVector3*)&player->transform.vD);
+        }
+        return 1;
+
+    case 'KPow':
+        player->vibrationMagnitude = 1.0f;
+        count = 1;
+        engines[0] = 3;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+            count = 2;
+            engines[1] = 0;
+        }
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 4;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 1;
+        share = amount / (float)count;
+        for (i = 0; i < count; i++)
+            swrRace_TakeDamage((int)player, engines[i], share);
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_OBJ_COLLISION, 0) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+            swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 5, 6, 5, 6, 7, (rdVector3*)&player->transform.vD);
+        }
+        return 1;
+
+    case 'T201':
+        share = amount * 0.33333334f;
+        player->vibrationMagnitude = 1.0f;
+        for (i = 0; i < 3; i++)
+            swrRace_TakeDamage((int)player, (unsigned int)swrUtils_Rand() % 6, share);
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+            swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 5, 6, 5, 6, 7, (rdVector3*)&player->transform.vD);
+        }
+        return 1;
+
+    case 'RtFt':
+    case 'LtFt':
+    case 'RtSd':
+    case 'LtSd':
+    case 'VhLt':
+        break;
+
+    default:
+        return 1;
+    }
+
+    player->vibrationMagnitude = 1.0f;
+    if (kind == 'RtFt') {
+        count = 1;
+        engines[0] = 3;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+            count = 2;
+            engines[1] = 0;
+        }
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 4;
+        forceDirection = 45;
+    } else if (kind == 'LtFt') {
+        count = 1;
+        engines[0] = 0;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+            count = 2;
+            engines[1] = 3;
+        }
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 1;
+        forceDirection = 315;
+    } else if (kind == 'RtSd') {
+        count = 1;
+        engines[0] = 3;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+            count = 2;
+            engines[1] = 4;
+        }
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 5;
+        forceDirection = 90;
+    } else if (kind == 'LtSd') {
+        count = 1;
+        engines[0] = 0;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+            engines[1] = 1;
+            count = 2;
+        }
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+            engines[count++] = 2;
+        forceDirection = 270;
+    } else {
+        count = 4;
+        for (i = 0; i < 4; i++)
+            engines[i] = (unsigned int)swrUtils_Rand() % 6;
+        player->vehicleBumpTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - (-2.0f);
+    }
+
+    share = amount / (float)count;
+    for (i = 0; i < count; i++)
+        swrRace_TakeDamage((int)player, engines[i], share);
+
+    if (!(player->lodDistance < SWR_POD_HIT_SOUND_MAX_LOD) || (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0)
+        return 1;
+    swrControl_PlayForceEffect(swrForceEffect_OBJ_COLLISION, -1, forceDirection, -1);
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || !((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f))
+        return 1;
+    if (kind == 'VhLt') {
+        swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 1, 6, 5, 6, 5, (rdVector3*)&player->transform.vD);
+    } else {
+        swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 5, 6, 5, 6, 7, (rdVector3*)&player->transform.vD);
+    }
+    return 1;
 }
 
 // 0x0047ab40
