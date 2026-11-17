@@ -1204,7 +1204,11 @@ int swrControl_FormatBinding(int device, int action, int flagsMask, unsigned cha
         axisMask = 0;
         table = swrControl_bindingsKeyboard;
     } else {
-        // faithful: a custom table comes in through flagsMask, whose low byte is then also the mask
+        // faithful: a custom table comes in through flagsMask, whose low byte is then also the mask.
+        // The original leaves the limits uninitialized here; zero them.
+        numButtons = 0;
+        numPOVs = 0;
+        axisMask = 0;
         table = (swrControlBinding*)flagsMask;
     }
     mask = (unsigned char)flagsMask;
