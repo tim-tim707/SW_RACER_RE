@@ -1220,6 +1220,7 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
     swrUI_WINDOW_HANGAR_WATTO = 0x85,
     swrUI_WINDOW_HANGAR_JUNKYARD = 0x87,
     swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE = 0x88,
+    swrUI_WINDOW_MP_RACE_BUTTON = 0x186b5, // "Race" button built by swrMultiplayer_BuildRaceSetupUI
     swrUI_WINDOW_MP_RACE_SETUP = 0x186b8, // swrMultiplayer_BuildRaceSetupUI
     swrUI_WINDOW_MP_RACER_LIST = 0x30d41, // swrMultiplayer_BuildRacerListUI
 } swrUI_WINDOW;
@@ -4008,6 +4009,7 @@ typedef enum SoundPlayFlag
 typedef enum swrSoundDescriptor_FLAG
 {
     swrSoundDescriptor_LOADED = 0x1, // an A3D source is currently allocated for this entry
+    swrSoundDescriptor_DUPLICATE = 0x2, // bank slot copied from an existing entry by swrSound_RegisterSound
     swrSoundDescriptor_ALIAS = 0x4, // entry aliases an existing bank entry
     swrSoundDescriptor_STREAMED = 0x8, // large sound streamed from disk
 } swrSoundDescriptor_FLAG;

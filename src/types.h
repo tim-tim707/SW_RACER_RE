@@ -1268,6 +1268,14 @@ extern "C"
         IA3dSource* source; // 0x48
     } swrSoundDescriptor; // sizeof(0x4c)
 
+    // swrSound_defaultBankFiles entry: the built-in sound list swrSound_LoadDefaultBank
+    // registers when data/sounds.map is missing. NULL filename terminates.
+    typedef struct swrSoundDefaultBankEntry
+    {
+        char* filename; // 0x00
+        int unk4; // 0x04 1 on the later voice/music entries; no reader found
+    } swrSoundDefaultBankEntry; // sizeof(0x8)
+
     // One per-track ambient-SFX cue (0xc bytes). swrSfxPreloadSets[planet*3 + subtrack] points
     // to a list of these, terminated by an entry with startProgress < 0. swrSound_UpdateEngineAudio
     // plays soundId on channel 6 while the racer's lap progress is inside [startProgress,
