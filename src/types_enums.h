@@ -94,6 +94,38 @@ typedef enum swrUI_INPUTBIT
     swrUI_INPUT_MENU_RIGHT = 0x20000, // increase the focused option
 } swrUI_INPUTBIT;
 
+typedef enum swrForceEffect
+{
+    swrForceEffect_GFORCE = 0, // names from the .fcr effect-name table at 0x004b4940
+    swrForceEffect_ENGINE_PULL_LEFT = 1,
+    swrForceEffect_HEAVY_SLIDE_SLIP = 2,
+    swrForceEffect_PIT_BOB = 3,
+    swrForceEffect_ACCELERATION3 = 4, // ids 4 and 5 share the "Acceleration3" .fcr effect
+    swrForceEffect_ACCELERATION3_B = 5,
+    swrForceEffect_TURBO_START = 6,
+    swrForceEffect_START_BOOST = 7,
+    swrForceEffect_END_BOOST = 8,
+    swrForceEffect_SWAMP_MUCK = 9,
+    swrForceEffect_ROLL_LEFT = 10,
+    swrForceEffect_REPAIR = 11,
+    swrForceEffect_ICE_SLIDE = 12,
+    swrForceEffect_AIR_SLIDE = 13,
+    swrForceEffect_SECONDARY_WEAPON = 14,
+    swrForceEffect_ACTIVATE_TOW = 15,
+    swrForceEffect_RELEASE_TOW = 16,
+    swrForceEffect_AUTO_CENTER = 17,
+    swrForceEffect_ENEMY_FIRE2 = 18,
+    swrForceEffect_HARD_LANDING = 19,
+    swrForceEffect_OBJ_COLLISION = 20,
+    swrForceEffect_ENGINE_BLOWOUT_LEFT = 21,
+    swrForceEffect_CRASHING = 22,
+    swrForceEffect_ENGINE_RUMBLE = 23,
+    swrForceEffect_POD_WAKE = 24,
+    swrForceEffect_SHOCKWAVE = 25,
+    swrForceEffect_ENGINE_FIRE_LEFT = 26,
+    swrForceEffect_EXPLODING = 27,
+} swrForceEffect;
+
 // swrRace_resultsStateFlags: one-shot latches while the results screen is up,
 // cleared when leaving it (swrRace_ResultsMenu).
 typedef enum swrRace_RESULTSFLAG

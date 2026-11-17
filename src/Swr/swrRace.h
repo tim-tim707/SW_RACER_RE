@@ -356,7 +356,7 @@ void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos);
 void swrRace_ReplaceMarsGuoWithJinnReeso(void);
 void swrRace_ReplaceBullseyeWithCyYunga(void);
 
-void swrRace_VehicleStatisticsSubMenu(void* param_1, float param_2, float param_3);
+void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y);
 
 void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge);
 
@@ -429,7 +429,7 @@ void swrRace_ResetModelNodeFlags(swrRace* player);
 void swrRace_ExtrapolateTransform(swrRace* player, rdMatrix44* out, rdMatrix44* in, float dt);
 // Updates the engine exhaust flames (engineExhaustSizeL/R, node transforms,
 // terrain-dependent jitter and color).
-void swrRace_UpdateEngineExhaust(swrRace* player, int param_2, float param_3, float param_4);
+void swrRace_UpdateEngineExhaust(swrRace* player, swrModel_Node** partNodes, float sizeLeft, float sizeRight);
 // Positions the engine/cockpit sub-models with a smoothing ring buffer and tilt.
 void swrRace_PoddAnimateEngines(swrRace* player);
 // Updates the scrape-spark effect nodes (ScrapeSparkXf) and plays the scrape sound.
