@@ -139,7 +139,9 @@
 // swrObjHang_LoadScreenAssets (0x004586e0): swr_sceneModels / puppet slots of the hangar scenes
 #define SWR_SCENE_SLOT_POD_MODELS (0xf) // pod models, one per local player; header entry 0x3c holds the pilot id
 #define SWR_SCENE_POD_PILOT_ENTRY (0x3c)
-#define SWR_SCENE_SLOT_PILOT_PUPPETS (0x1c) // pilot puppets, one per local player / podium place
+#define SWR_SCENE_SLOT_PILOT_PUPPETS (0x1c) // pilot puppets, one per local player / podium place; also their elmo ids
+#define SWR_SCENE_SLOT_HANGAR_DROIDS (0x38) // .. 0x3a: the three hangar pit droids (elmo ids match)
+#define SWR_HANGAR_DROID_COUNT (3)
 #define SWR_SCENE_SLOT_PIT_DROIDS (0x34)
 #define SWR_SCENE_SLOT_SHADOW_CIRCLES (0x7)
 #define SWR_SCENE_SLOT_SHADOW_SQUARES (0xb)

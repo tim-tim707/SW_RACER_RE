@@ -4155,6 +4155,80 @@ void swrObjHang_UpdateHoloBillboardMatrix(void)
     rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &eye);
 }
 
+// 0x0043e620
+void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang)
+{
+    rdVector3 origin;
+
+    rdVector_Set3(&origin, 0.0f, 0.0f, 0.0f);
+    swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS, 0x1b, &origin, &origin, 0.0f, 0.0f);
+    swrObjElmo_SetAnimStateById(4, 0x43);
+    swrObjElmo_SetAnimStateById(0x16, 0x2a);
+    swrObjElmo_SetAnimStateById(0x17, 0x2e);
+    hang->elmoEntityIndex = hang->isTournamentMode != 0 ? SWR_SCENE_SLOT_HANGAR_DROIDS + 1 : SWR_SCENE_SLOT_HANGAR_DROIDS;
+    for (int index = SWR_SCENE_SLOT_HANGAR_DROIDS; index < SWR_SCENE_SLOT_HANGAR_DROIDS + SWR_HANGAR_DROID_COUNT; index++) {
+        swrObjElmo* elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', index);
+        if (elmo == NULL || swr_sceneModels[index] == NULL)
+            continue;
+        if (index == hang->elmoEntityIndex || elmo->unk8 == 1)
+            swrObjElmo_SetAnimStateById(index, 0);
+        else
+            swrObjElmo_SetAnimStateById(index, 0x11);
+    }
+    hang->elmoEntityIndex = -1;
+}
+
+// 0x00457350
+void swrObjHang_AnimateTransitionNode(void)
+{
+    swrModel_NodeTransformed* node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_flag2_part]->entries[0].node;
+    rdMatrix44 m;
+    rdVector3 pos;
+    float scale;
+
+    if (node == NULL)
+        return;
+    swrModel_NodeModifyFlags((swrModel_Node*)node, 2, -4, 0x10, 3);
+    swrObjHang_UpdateHoloBillboardMatrix();
+    rdMatrix_SetRotation44(&m, 10.080002f, 0.0f, 180.0f);
+    rdVector_Copy3(&pos, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+    rdVector_Copy3((rdVector3*)&m.vD, &pos);
+    scale = swrRace_Transition * 0.05f;
+    rdMatrix_ScaleBasis44(&m, scale, scale, scale, &m);
+    swrModel_NodeSetTransform(node, &m);
+    swrModel_NodeModifyFlags((swrModel_Node*)node, 2, 3, 0x10, 2);
+}
+
+// 0x0045bf20
+void swrObjHang_PositionPlayerPuppets(swrObjHang* hang)
+{
+    rdVector3 eye;
+    rdVector3 lookAt;
+    rdVector3 puppetPos;
+
+    rdVector_Copy3(&eye, &maybeUICameraPlacements[hang->cameraState].position1); // unused, as in the original
+    rdVector_Copy3(&lookAt, &maybeUICameraPlacements[hang->cameraState].position2);
+    for (int player = 0; player < hang->num_local_players; player++) {
+        swrObjElmo* elmo;
+        swrObjHang_ComputeCameraEye(hang, player);
+        elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PILOT_PUPPETS + player);
+        if (elmo != NULL) {
+            swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS + player], &puppetPos);
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + player, 0x14, &puppetPos, &swrObjHang_sceneCameraEye, elmo->yaw, stdMath_ArcTan2(swrObjHang_sceneCameraEye.x - lookAt.x, lookAt.y - swrObjHang_sceneCameraEye.y));
+        }
+    }
+}
+
+// 0x00462cf0
+void swrObjJdge_OnCycleHudButton(void)
+{
+    swrObjJdge* jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+
+    playASound(0x8f, 6, 0.25f, 0.2f, 1);
+    swrObjJdge_CycleHudMode(jdge);
+    swrObjJdge_F3(jdge);
+}
+
 // 0x0045c010
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset)
 {
@@ -4595,7 +4669,7 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
                                 swrRace_ComputeUpgradePrices();
                             }
                         } else {
-                            // buy (affordable) or decline; 0x1c is the shop-counter elmo
+                            // buy (affordable) or decline; elmo 0x1c is player 1's pilot puppet
                             if (swrRace_upgradeUnaffordable == 0) {
                                 swrObjElmo_SetAnimStateById(0x1c, 0x19);
                                 swrObjHang_SwapSelectedPart(hang);
