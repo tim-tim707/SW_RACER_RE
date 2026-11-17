@@ -28,7 +28,10 @@ int swrControl_MappingsMenu(swrUI_unk* param_1, unsigned int param_2, unsigned i
 // 0x00404da0
 int swrControl_Shutdown(void)
 {
-    HANG("TODO");
+    swrControl_StopAllForceEffects(0);
+    swrControl_LoadForceEffects(-1);
+    stdControl_Close();
+    stdControl_Shutdown();
     return 0;
 }
 
@@ -39,21 +42,103 @@ void swrControl_ProcessInputs(void)
 }
 
 // 0x00407500
-int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk)
+int swrControl_RemoveMapping(void* cid, char* mondo_text, int bAnalog, int whichone, int bRemove)
 {
-    HANG("TODO");
+    swrControlBinding* table;
+    swrControlBinding wanted;
+    int matches;
+    int found;
+    int i;
+
+    matches = 0;
+    found = -1;
+    memset(&wanted, 0, sizeof(wanted));
+    // cid is a swrConfig_DEVICE, or a binding table pointer
+    if (cid == (void*)swrConfig_DEVICE_JOYSTICK) {
+        table = swrControl_bindingsJoystick;
+    } else if (cid == (void*)swrConfig_DEVICE_MOUSE) {
+        table = swrControl_bindingsMouse;
+    } else if (cid == (void*)swrConfig_DEVICE_KEYBOARD) {
+        table = swrControl_bindingsKeyboard;
+    } else {
+        table = (swrControlBinding*)cid;
+    }
+    if (swrControl_ParseFunctionName(&wanted, mondo_text, 1) == 0) {
+        return -1;
+    }
+    wanted.flags |= bAnalog == 0 ? swrControlBinding_FLAG_BUTTON : swrControlBinding_FLAG_AXIS;
+    for (i = 0; table[i].flags != SWR_CONTROL_BINDING_END; i++) {
+        if (table[i].action == wanted.action && (wanted.flags & table[i].flags) == wanted.flags) {
+            matches++;
+            if (matches == whichone) {
+                found = i;
+                break;
+            }
+        }
+    }
+    if (found < 0) {
+        return -1;
+    }
+    if (bRemove != 0) {
+        // faithful: the count is indexed by cid even when cid is a table pointer
+        for (i = found; i <= swrControl_bindingCounts[(int)cid] - 1; i++) {
+            table[i] = table[i + 1];
+        }
+        swrControl_bindingCounts[(int)cid]--;
+    }
+    return found;
 }
 
 // 0x004078e0
-int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int unk, int unk2)
+int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int direction, int slot)
 {
-    HANG("TODO");
+    swrControlBinding* table;
+    swrControlBinding binding;
+    int count;
+
+    memset(&binding, 0, sizeof(binding));
+    if (cid == (void*)swrConfig_DEVICE_JOYSTICK) {
+        table = swrControl_bindingsJoystick;
+    } else if (cid == (void*)swrConfig_DEVICE_MOUSE) {
+        table = swrControl_bindingsMouse;
+    } else if (cid == (void*)swrConfig_DEVICE_KEYBOARD) {
+        table = swrControl_bindingsKeyboard;
+    } else {
+        table = (swrControlBinding*)cid;
+    }
+    binding.input = controllerBinding;
+    if (swrControl_ParseFunctionName(&binding, fnStr, 1) == 0) {
+        return 0;
+    }
+    if (bAnalogCapture == 0) {
+        binding.flags |= swrControlBinding_FLAG_BUTTON;
+    } else {
+        binding.flags |= swrControlBinding_FLAG_AXIS;
+        if (direction > 0) {
+            binding.flags |= swrControlBinding_FLAG_POSITIVE;
+        } else if (direction < 0) {
+            binding.flags |= swrControlBinding_FLAG_NEGATIVE;
+        }
+    }
+    if (slot < 0) {
+        // faithful: the count is indexed by cid even when cid is a table pointer
+        count = swrControl_bindingCounts[(int)cid];
+        table[count] = binding;
+        swrControl_bindingCounts[(int)cid] = count + 1;
+        table[count + 1].flags = SWR_CONTROL_BINDING_END;
+        return 1;
+    }
+    table[slot] = binding;
+    return 1;
 }
 
 // 0x004078a0
-void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int unk, int controllerBinding)
+void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int direction, int controllerBinding)
 {
-    HANG("TODO");
+    int slot;
+
+    slot = swrControl_RemoveMapping(cid, fnStr, bAnalogCapture, whichOne, 0);
+    swrControl_AddMapping(cid, fnStr, controllerBinding, bAnalogCapture, direction, slot);
 }
 
 // 0x00423efd

@@ -80,7 +80,7 @@ void swrControl_SetDefaultMappings(int device);
 // FLIP_AXIS/SENSITIVITY/DEADZONE/ENABLED). deviceFilter -1 = all devices.
 int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir);
 
-int swrControl_RemoveMapping(void* cid, char* mondo_text, int param_3, int whichone, int bool_unk);
+int swrControl_RemoveMapping(void* cid, char* mondo_text, int bAnalog, int whichone, int bRemove);
 
 // Push the parsed sensitivity/deadzone for an axis into its stdControl registration.
 void swrControl_ApplyAxisConfig(int axis);
@@ -88,9 +88,9 @@ void swrControl_ApplyAxisConfig(int axis);
 // Clear binding tables + action outputs (deviceFilter -1 = all, 0/1/2 = device).
 void swrControl_ClearBindings(int deviceFilter);
 
-void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int unk, int controllerBinding);
+void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int direction, int controllerBinding);
 
-int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int unk, int unk2);
+int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAnalogCapture, int direction, int slot);
 
 // Parse a key/button name (via keyMapping tables) to its input code.
 int stdConfig_getKeymap_id(char* name, void* keyTable);
