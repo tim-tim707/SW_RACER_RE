@@ -552,7 +552,7 @@ extern "C"
         float surfaceSpeedFactor; // 0x244
         float surfaceGripFactor; // 0x248
         float slide2; // 0x24c
-        int unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
+        float unk11_1; // 0x250. vertical Z offset applied per-frame to the engine/cockpit part transforms (swrRace_ApplyPartSinkOffset), binder endpoints and cMan camera targets; no non-zero writer exists in the retail binary (vestigial sink mechanism)
         struct swrModel_Node* guideArrowNode; // 0x254. HUD spline guide arrow node (written by swrObjJdge_UpdatePlayerHUD while FLAG0_GUIDE_ARROW; drawn by swrObjcMan_UpdateSplineGuideMarker)
         rdVector3 guideArrowTarget; // 0x258. spline point 0.5 ahead that the guide arrow points at
         float wallHitCooldown; // 0x264. set 0.1 on a hard wall impact (ApplyWallCollision, clearing FLAG0_THROTTLE_SETTLED); counts down in F0; expiry re-sets the flag
@@ -1016,8 +1016,8 @@ extern "C"
         int camStateIndex;
         int mode_type;
         int mode_respawn;
-        rdMatrix34 unk84_mat;
-        rdMatrix44 unkb4_mat;
+        swrSplineCursor splineCamCursor; // 0x84 copy of the pod's spline cursor for the spline camera
+        rdMatrix44 unkb4_mat; // 0xb4 splineCamCursor's evaluated frame
         swrRace* unkf4_objTest;
         int unkf8;
         rdVector3 unkfc;
@@ -1036,16 +1036,16 @@ extern "C"
         int unk1a8;
         int unk1ac;
         int unk1b0;
-        rdMatrix44 unk1b4_mat; // LapCompletionStruct
-        rdMatrix44 unk1e4_mat;
-        rdMatrix44 stagingTransform;
-        rdMatrix44 stagingTransformFocus;
-        int unk2a4;
-        int fog_flag;
-        unsigned int visual_flag;
-        float zoom;
-        float render_depth;
-        float unk2b8;
+        swrSplineCursor deathCamCursor; // 0x1b4 copy of the pod's spline cursor, stepped back by the death camera
+        rdMatrix44 unk1e4_mat; // 0x1e4 deathCamCursor's evaluated frame
+        rdMatrix44 stagingTransform; // 0x224
+        rdMatrix44 stagingTransformFocus; // 0x264
+        struct swrModel_Behavior* surfaceBehavior; // 0x2a4 mesh behavior of the surface under the camera
+        unsigned int fog_flag; // 0x2a8 swrObjcMan_VIEWFLAGS
+        unsigned int visual_flag; // 0x2ac viewport node flags 3/4 value (swrViewport_SetNodeFlags)
+        float fov; // 0x2b0 vertical FOV in degrees, restaged by each camera mode
+        float nearClip; // 0x2b4 restaged to 0.5 by swrObjcMan_UpdateCamera
+        float unk2b8; // 0x2b8 restaged to 100.0 by swrObjcMan_UpdateCamera; last swrViewport_SetCameraParameters arg
         unsigned int fog_r;
         unsigned int fog_g;
         unsigned int fog_b;
@@ -1092,6 +1092,12 @@ extern "C"
         float unk3a0;
         float unk3a4;
     } swrObjcMan; // sizeof(0x3a8)
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, splineCamCursor) == 0x84, "swrObjcMan.splineCamCursor moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, deathCamCursor) == 0x1b4, "swrObjcMan.deathCamCursor moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, stagingTransform) == 0x224, "swrObjcMan.stagingTransform moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, fov) == 0x2b0, "swrObjcMan.fov moved");
+    SWR_ASSERT_LAYOUT(offsetof(swrObjcMan, camShake) == 0x38c, "swrObjcMan.camShake moved");
+    SWR_ASSERT_LAYOUT(sizeof(swrObjcMan) == 0x3a8, "swrObjcMan size changed");
 
     typedef struct swrEventManager
     {
@@ -1691,12 +1697,7 @@ extern "C"
         float size_z;
         swrModel_Node* affected_node;
         uint16_t type; // what the trigger does; values are swrModel_TriggerType
-        uint16_t flags; // 0x1: enabled
-                        // 0x2: player must have > 150 speed
-                        // 0x4: skip trigger on lap 1
-                        // 0x8: skip trigger on lap 2
-                        // 0x10: skip trigger on lap 3
-                        // 0x20: not triggered by AI
+        uint16_t flags; // swrModel_TRIGGERFLAG
         struct swrModel_TriggerDescription* next;
     } swrModel_TriggerDescription;
 

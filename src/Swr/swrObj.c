@@ -25,6 +25,7 @@
 #include <macros.h>
 #include <General/utils.h>
 #include <Win95/Window.h>
+#include <string.h>
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)
@@ -230,8 +231,8 @@ void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue)
     }
     if (swrObjcMan_preRaceSweepTimer == -1.0f)
         return;
-    // binder ignition; Neva Kee (pilot 0xe) has no binder
-    if (swrObjcMan_preRaceSweepTimer >= 6.0f && prev < 6.0f && targetValue < 100.0f && pod != NULL && *pod->score_ptr->pilotId != 0xe)
+    // binder ignition; Neva Kee has no binder
+    if (swrObjcMan_preRaceSweepTimer >= 6.0f && prev < 6.0f && targetValue < 100.0f && pod != NULL && *pod->score_ptr->pilotId != SWR_PILOT_NEVA_KEE)
         playASound(0x74, 6, 0.25f, 0.5f, 0);
     if (swrObjcMan_preRaceSweepTimer < 6.0f) {
         swrRace_energyBinderTime = 0.0f;
@@ -269,29 +270,372 @@ void swrObjcMan_F2(swrObjcMan* cman)
 // 0x00451d60
 void swrObjcMan_CommitStagedCamera(swrObjcMan* cman, int mode)
 {
-    // the original copies unk20_mat + focusTransform_mat into the block starting at
-    // unk1e4_mat.vD, i.e. one row past the start of unk1e4_mat
     cman->mode_type = mode;
-    cman->unk1e4_mat.vD = cman->unk20_mat.vA;
-    cman->stagingTransform.vA = cman->unk20_mat.vB;
-    cman->stagingTransform.vB = cman->unk20_mat.vC;
-    cman->stagingTransform.vC = cman->unk20_mat.vD;
-    cman->stagingTransform.vD = cman->focusTransform_mat.vA;
-    cman->stagingTransformFocus.vA = cman->focusTransform_mat.vB;
-    cman->stagingTransformFocus.vB = cman->focusTransform_mat.vC;
-    cman->stagingTransformFocus.vC = cman->focusTransform_mat.vD;
+    cman->stagingTransform = cman->unk20_mat;
+    cman->stagingTransformFocus = cman->focusTransform_mat;
+}
+
+// 0x00451ec0
+void swrObjcMan_RestoreMode(swrObjcMan* cman)
+{
+    int mode = cman->mode_respawn;
+    if (mode != 2 && mode != 1) {
+        cman->mode_type = mode;
+        return;
+    }
+    swrObjcMan_CommitStagedCamera(cman, mode);
+}
+
+// 0x00451ef0
+void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+static void swrObjcMan_SetTranslationMatrix(rdMatrix44* m, const rdVector3* t)
+{
+    m->vA.x = 1.0f, m->vA.y = 0.0f, m->vA.z = 0.0f, m->vA.w = 0.0f;
+    m->vB.x = 0.0f, m->vB.y = 1.0f, m->vB.z = 0.0f, m->vB.w = 0.0f;
+    m->vC.x = 0.0f, m->vC.y = 0.0f, m->vC.z = 1.0f, m->vC.w = 0.0f;
+    m->vD.x = t->x, m->vD.y = t->y, m->vD.z = t->z, m->vD.w = 1.0f;
+}
+
+// 0x00452600
+void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman)
+{
+    swrSplineCursor* cursor = &cman->deathCamCursor;
+    rdMatrix44* frame = &cman->unk1e4_mat;
+    rdVector3* deathPos = (rdVector3*)&cman->unk15c[0];
+    rdVector3* deathLookAt = (rdVector3*)&cman->unk15c[3];
+    swrRace* pod = cman->unkf4_objTest;
+    // faithful: any other stage leaves these uninitialized in the original
+    rdVector3 eye = { 0 };
+    rdVector3 focus = { 0 };
+    rdVector3 dir;
+    double timer;
+    float blend;
+
+    if (pod == NULL) {
+        swrObjcMan_RestoreMode(cman);
+        return;
+    }
+
+    timer = cman->animTimer_ms - swrRace_deltaTimeSecs;
+    cman->animTimer_ms = timer;
+    if (cman->animStage == 0) {
+        if (timer < 0.0f) {
+            cman->animTimer_ms = 1.5f;
+            cman->animStage = 2;
+            *cursor = pod->splineCursor;
+            cursor->segmentT -= 0.8500000007450581;
+            cursor->velocity = 0.0f;
+            swrSpline_EvaluateToMatrix(cursor, frame);
+            cursor->velocity = 0.53333336f;
+            blend = 1.0f;
+        } else {
+            blend = 1.0 - timer;
+        }
+        rdVector_Sub3(&dir, deathLookAt, deathPos);
+        rdVector_Normalize3Acc(&dir);
+        rdVector_Scale3Add3(&eye, deathPos, blend * 30.0f, &dir);
+        memcpy(cman->unk0_0, &eye, sizeof(eye));
+        rdVector_Copy3(&focus, deathPos);
+    } else if (cman->animStage == 2) {
+        if (timer < 0.0f) {
+            cman->animTimer_ms = 0.0f;
+            cman->animStage = 3;
+        }
+        swrSpline_EvaluateToMatrix(cursor, frame);
+        rdVector_Copy3(&focus, (rdVector3*)&pod->transform.vD);
+        eye.x = frame->vD.x;
+        eye.y = frame->vD.y;
+        eye.z = frame->vD.z;
+    } else if (cman->animStage == 3) {
+        pod->respawnInvincibilityTimer = 3.0f;
+        pod->flags0 = (pod->flags0 & ~swrObjTest_FLAG0_DEAD) | swrObjTest_FLAG0_RESPAWN_INVINC;
+        swrObjcMan_RestoreMode(cman);
+        eye.x = cman->unk20_mat.vD.x;
+        eye.y = cman->unk20_mat.vD.y;
+        eye.z = cman->unk20_mat.vD.z;
+        focus.x = cman->focusTransform_mat.vD.x;
+        focus.y = cman->focusTransform_mat.vD.y;
+        focus.z = cman->focusTransform_mat.vD.z;
+    }
+
+    swrObjcMan_SetTranslationMatrix(&cman->unk20_mat, &eye);
+    swrObjcMan_SetTranslationMatrix(&cman->focusTransform_mat, &focus);
+}
+
+// 0x004528b0
+void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman)
+{
+    swrRace* pod = cman->unkf4_objTest;
+    swrTranslationRotation cockpit;
+    rdMatrix44 view;
+    float height;
+    int zeroG;
+
+    if (pod == NULL)
+        return;
+
+    zeroG = (pod->flags0 & (swrObjTest_FLAG0_ZON | swrObjTest_FLAG0_ZOFF)) != 0;
+    cman->fov = 100.0f;
+    if (cman->mode_type == 5)
+        cman->fov = 120.0f;
+
+    rdMatrix_Copy44(&view, &pod->transform);
+    view.vD.z = pod->unk11_1 + view.vD.z;
+    height = (pod->collisionWidth - 3.0f) * 0.5f;
+    if (cman->mode_type != 5) {
+        height = height * 1.9f;
+        if (*pod->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+            height = height * 0.3f;
+    }
+    if (*pod->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+        rdVector_Scale3Add3((rdVector3*)&view.vD, (rdVector3*)&view.vD, height, (rdVector3*)&view.vC);
+    else if (!zeroG)
+        view.vD.z = pod->transform.vC.z * height + view.vD.z;
+    if (*pod->score_ptr->pilotId == SWR_PILOT_DUD_BOLT)
+        rdVector_Scale3Add3((rdVector3*)&view.vD, (rdVector3*)&view.vD, 3.0f, (rdVector3*)&view.vB);
+
+    if (pod->flags1 & (swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT)) {
+        rdMatrix_ExtractTransform(&pod->cockpitXf, &cockpit);
+        rdMatrix_AddRotationFromVectorAngle44Before(&view, cockpit.yaw_roll_pitch.z, 0.0f, 1.0f, 0.0f, &view);
+    }
+
+    rdMatrix_Copy44(&cman->unk20_mat, &view);
+    rdMatrix_Copy44(&cman->focusTransform_mat, &view);
+    if (pod->flags0 & swrObjTest_FLAG0_LOOK_BACK) {
+        rdVector_Scale3Add3((rdVector3*)&cman->focusTransform_mat.vD, (rdVector3*)&view.vD, -1.0f, (rdVector3*)&view.vB);
+        rdVector_Scale3((rdVector3*)&cman->unk20_mat.vB, -1.0f, (rdVector3*)&cman->unk20_mat.vB);
+        rdVector_Scale3((rdVector3*)&cman->unk20_mat.vA, -1.0f, (rdVector3*)&cman->unk20_mat.vA);
+        return;
+    }
+    rdVector_Scale3Add3((rdVector3*)&cman->focusTransform_mat.vD, (rdVector3*)&view.vD, 1.0f, (rdVector3*)&view.vB);
+}
+
+// 0x00452aa0
+void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
+// 0x004533a0
+void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman)
+{
+    swrSplineCursor* cursor = &cman->splineCamCursor;
+    swrRace* pod = cman->unkf4_objTest;
+    rdMatrix44 podXf;
+    rdMatrix44 behind;
+    rdMatrix44 eye;
+    float dx, dy, dz;
+    float lenSq, dotPod, dotSpline, t;
+
+    if (pod == NULL) {
+        cman->unkf4_objTest = swrEvent_FindObjectById(0x54657374, 0); // 'Test'
+        return;
+    }
+
+    rdMatrix_Copy44(&podXf, &pod->transform);
+    podXf.vD.z = pod->unk11_1 + podXf.vD.z;
+    *cursor = pod->splineCursor;
+    cursor->velocity = 0.0f;
+    swrSpline_EvaluateToMatrix(cursor, &cman->unkb4_mat);
+
+    // project the pod onto the spline tangent and step the cursor back to match
+    swrSpline_EvaluateAtOffset(cursor, &behind, -0.01f);
+    dx = behind.vD.x - cman->unkb4_mat.vD.x;
+    dy = behind.vD.y - cman->unkb4_mat.vD.y;
+    dz = behind.vD.z - cman->unkb4_mat.vD.z;
+    dotPod = dx * podXf.vD.x + dy * podXf.vD.y + dz * podXf.vD.z;
+    lenSq = dx * dx + dy * dy + dz * dz;
+    dotSpline = dy * cman->unkb4_mat.vD.y + (dz * cman->unkb4_mat.vD.z + dx * cman->unkb4_mat.vD.x);
+    if (lenSq > 0.001) {
+        t = (dotPod - dotSpline) / lenSq;
+        if (t > 1.0f)
+            t = 1.0f;
+    } else {
+        t = 0.0f;
+    }
+    cursor->segmentT = cursor->segmentT - t * 0.01f;
+    swrSpline_EvaluateToMatrix(cursor, &cman->unkb4_mat);
+
+    rdMatrix_Copy44(&eye, &cman->unkb4_mat);
+    eye.vD.z = podXf.vD.z - -5.0;
+    eye.vD.x = eye.vD.x - -7.0;
+    rdMatrix_Copy44(&cman->unk20_mat, &eye);
+    rdMatrix_Copy44(&eye, &cman->unkf4_objTest->transform);
+    rdMatrix_Copy44(&cman->focusTransform_mat, &eye);
+    cman->fov = 60.0f;
+}
+
+// 0x004535c0
+void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman)
+{
+    swrRace* pod;
+    rdMatrix44 view;
+    rdMatrix44 arrow;
+    float sideOffset;
+    float pulse;
+
+    // pulse phase runs -1..1, then wraps
+    if (NumLocalPlayers() == 1) {
+        swrObjcMan_guideArrowPhase = swrObjcMan_guideArrowPhase - swrRace_deltaTimeSecs * -3.0;
+        sideOffset = 2.0f;
+    } else {
+        sideOffset = 1.5f;
+        swrObjcMan_guideArrowPhase = 3.0f / NumLocalPlayers() * swrRace_deltaTimeSecs + swrObjcMan_guideArrowPhase;
+    }
+    if (swrObjcMan_guideArrowPhase > 1.0f)
+        swrObjcMan_guideArrowPhase = -1.0f;
+
+    pod = cman->unkf4_objTest;
+    if (pod == NULL || !(pod->flags0 & swrObjTest_FLAG0_GUIDE_ARROW) || pod->guideArrowNode == NULL)
+        return;
+
+    // camera basis: vA right, vB forward, vC up
+    rdMatrix_SetIdentity44(&view);
+    rdVector_Sub3((rdVector3*)&view.vB, (rdVector3*)&cman->focusTransform_mat.vD, (rdVector3*)&cman->unk20_mat.vD);
+    rdVector_Copy3((rdVector3*)&view.vC, (rdVector3*)&cman->unk20_mat.vC);
+    rdVector_Cross3((rdVector3*)&view.vA, (rdVector3*)&view.vB, (rdVector3*)&view.vC);
+    rdVector_Cross3((rdVector3*)&view.vC, (rdVector3*)&view.vA, (rdVector3*)&view.vB);
+    rdVector_Normalize3Acc((rdVector3*)&view.vA);
+    rdVector_Normalize3Acc((rdVector3*)&view.vB);
+    rdVector_Normalize3Acc((rdVector3*)&view.vC);
+    rdVector_Copy3((rdVector3*)&view.vD, (rdVector3*)&cman->unk20_mat.vD);
+
+    if (pod->guideArrowNode != NULL)
+        swrModel_NodeModifyFlags(pod->guideArrowNode, 2, 3, 0x10, 2);
+    pulse = swrObjcMan_guideArrowPhase;
+    if (pulse < 0.0f)
+        pulse = -pulse;
+    swrModel_NodeSetColorsOnAllMaterials(pod->guideArrowNode, 0, 0, 0x59, 0x8c, 0x36, (int)((1.0f - pulse) * 255.0f));
+
+    // arrow basis: forward toward the guide target, flattened to the ground plane
+    rdMatrix_SetIdentity44(&arrow);
+    rdVector_Sub3((rdVector3*)&arrow.vB, &pod->guideArrowTarget, (rdVector3*)&pod->transform.vD);
+    arrow.vB.z = 0.0f;
+    rdVector_Normalize3Acc((rdVector3*)&arrow.vB);
+    rdVector_Cross3((rdVector3*)&arrow.vA, (rdVector3*)&arrow.vB, (rdVector3*)&arrow.vC);
+    rdVector_Cross3((rdVector3*)&arrow.vC, (rdVector3*)&arrow.vA, (rdVector3*)&arrow.vB);
+    rdVector_Normalize3Acc((rdVector3*)&arrow.vA);
+    rdVector_Normalize3Acc((rdVector3*)&arrow.vC);
+    rdMatrix_ScaleBasis44(&arrow, -0.015f, 0.015f, -0.0075f, &arrow);
+
+    // in front of the camera, bobbing along the arrow's forward axis
+    rdVector_Copy3((rdVector3*)&arrow.vD, (rdVector3*)&view.vD);
+    rdVector_Scale3Add3((rdVector3*)&arrow.vD, (rdVector3*)&arrow.vD, 5.0f, (rdVector3*)&view.vB);
+    rdVector_Scale3Add3((rdVector3*)&arrow.vD, (rdVector3*)&arrow.vD, sideOffset, (rdVector3*)&view.vC);
+    rdVector_Scale3Add3((rdVector3*)&arrow.vD, (rdVector3*)&arrow.vD, 0.0f, (rdVector3*)&view.vA);
+    rdVector_Scale3Add3((rdVector3*)&arrow.vD, (rdVector3*)&arrow.vD, swrObjcMan_guideArrowPhase * 100.0, (rdVector3*)&arrow.vB);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)pod->guideArrowNode, &arrow);
+}
+
+// 0x004538d0
+void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
+{
+    HANG("TODO");
 }
 
 // 0x00453e00
 void swrObjcMan_UpdateCamera(swrObjcMan* cman)
 {
-    HANG("TODO");
+    swrRace* pod;
+    swrTranslationRotation current;
+    swrTranslationRotation lookAt;
+    rdMatrix44 view;
+    int value;
+
+    if (cman->mode_type == 0 || cman->metaCamIndex_count < 0)
+        return;
+
+    pod = cman->unkf4_objTest;
+    if (pod != NULL) {
+        if (swrRace_creditsMode != 0) {
+            cman->mode_type = 4;
+            pod->flags0 &= ~swrObjTest_FLAG0_LOOK_BACK;
+        } else if (!(pod->flags0 & swrObjTest_FLAG0_LOCAL)) {
+            // auto-cycling spectator cam: hold each mode 3..10 s
+            swrObjcMan_spectatorCamTimer -= swrRace_deltaTimeSecs;
+            if (swrObjcMan_spectatorCamTimer <= 0.0f) {
+                swrObjcMan_spectatorCamTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 3.0f;
+                // summed unrounded on the x87 stack before __ftol
+                swrObjcMan_spectatorCamIndex = (int)((double)swrObjcMan_spectatorCamIndex + (double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f) % 7;
+                cman->mode_type = swrObjcMan_SpectatorCamModes[swrObjcMan_spectatorCamIndex];
+                pod->flags0 &= ~swrObjTest_FLAG0_LOOK_BACK;
+                if (swrObjcMan_spectatorCamIndex == 6)
+                    pod->flags0 |= swrObjTest_FLAG0_LOOK_BACK;
+            }
+        }
+    }
+
+    cman->unk2b8 = 100.0f;
+    cman->nearClip = 0.5f;
+    switch (cman->mode_type) {
+    case 1:
+    case 2:
+        swrObjcMan_UpdateChaseCamera(cman);
+        break;
+    case 4:
+    case 5:
+        swrObjcMan_UpdateFirstPersonCamera(cman);
+        break;
+    case 6:
+        swrObjcMan_UpdateSplineCamera(cman);
+        break;
+    case 7:
+        swrObjcMan_UpdatePreRaceSweep(cman);
+        break;
+    case 8:
+    case 9:
+        swrObjcMan_UpdateDeathCamera(cman);
+        break;
+    }
+
+    rdMatrix_ExtractTransform(&cman->unk20_mat, &current);
+    BuildLookAtTransform(&current.translation, (rdVector3*)&cman->focusTransform_mat.vD, &view, &lookAt, current.yaw_roll_pitch.z);
+    rdMatrix_Copy44(&cman->unk20_mat, &view);
+
+    // camStateIndex holds the camera's mesh behavior, not an index
+    if (!swrCam_IsBehaviorActiveViewportCamera_Maybe((swrModel_Behavior*)cman->camStateIndex))
+        return;
+
+    value = swrRace_creditsMode != 0 ? (int)0xffffff00 : (int)cman->visual_flag;
+    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 4, value);
+    swrViewport_SetNodeFlags(swrViewport_Get(cman->metaCamIndex_count), 3, cman->visual_flag);
+    swrObjcMan_UpdateFogAndViewport(cman);
+    if (cman->fog_flag & swrObjcMan_VIEWFLAGS_NO_WEATHER)
+        swrWeather_Disable();
+    else
+        swrWeather_Enable();
+    swrObjcMan_UpdateSplineGuideMarker(cman);
 }
 
 // 0x00454060
 void DrawTerrainTypeDebugText(void* meshBehavior)
 {
-    HANG("TODO");
+    static const struct
+    {
+        unsigned int flag;
+        const char* name;
+    } reactions[] = {
+        { swrVehicleReaction_ZOn, "ZOn  " }, { swrVehicleReaction_ZOff, "ZOff " }, { swrVehicleReaction_Fast, "Fast " }, { swrVehicleReaction_Slow, "Slow " }, { swrVehicleReaction_Swst, "Swst " }, { swrVehicleReaction_Slip, "Slip " }, { swrVehicleReaction_Dust, "Dust " }, { swrVehicleReaction_Snow, "Snow " }, { swrVehicleReaction_Wet, "Wet  " }, { swrVehicleReaction_Ruff, "Ruff " }, { swrVehicleReaction_Swmp, "Swmp " }, { swrVehicleReaction_NSnw, "NSnw " }, { swrVehicleReaction_Mirr, "Mirr " }, { swrVehicleReaction_Lava, "Lava " }, { swrVehicleReaction_Fall, "Fall " }, { swrVehicleReaction_Soft, "Soft " }, { swrVehicleReaction_NRSp, "NRSp " }, { swrVehicleReaction_Flat, "Flat " }, { swrVehicleReaction_Side, "Side " },
+    };
+    swrModel_Behavior* behavior = (swrModel_Behavior*)meshBehavior;
+    char text[64];
+    int len = 0;
+
+    if (behavior == NULL)
+        return;
+
+    // the original appends with sprintf(text, "%sZOn  ", text) per set flag
+    text[0] = '\0';
+    for (int i = 0; i < (int)(sizeof(reactions) / sizeof(reactions[0])); i++) {
+        if (behavior->vehicle_reaction & reactions[i].flag)
+            len += sprintf(text + len, "%s", reactions[i].name);
+    }
+    if (text[0] != '\0')
+        swrText_CreateColorlessEntry1(20, 200, text);
 }
 
 // 0x004542e0
@@ -311,9 +655,8 @@ void swrObjcMan_F3(swrObjcMan* cman)
         playASound(7, 7, 0.25f, 1.0f, 1);
     }
 
-    // stagingTransformFocus.vD.x holds the mesh behavior of the surface under the camera
     if (cman->mode_type != 0 && cman->metaCamIndex_count >= 0 && debug_showSurfaceFlags != 0)
-        DrawTerrainTypeDebugText(*(void**)&cman->stagingTransformFocus.vD.x);
+        DrawTerrainTypeDebugText(cman->surfaceBehavior);
 }
 
 // 0x004543f0
@@ -6735,6 +7078,18 @@ void swrCam_CamState_InitMainMat4(uint16_t index, uint16_t val1, rdMatrix44* mat
     unkCameraArray[entry].sourceType = val2;
     unkCameraArray[entry].behaviorType = val1;
     unkCameraArray[entry].matrixSource = mat;
+}
+
+// 0x004294e0
+int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior)
+{
+    int count = swrViewport_GetNumViewports();
+    for (int i = 0; i < count; i++) {
+        swrViewport* viewport = swrViewport_Get(i);
+        if (viewport != NULL && (swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID) && swrModel_MeshGetBehavior((swrModel_Mesh*)viewport) == behavior)
+            return 1;
+    }
+    return 0;
 }
 
 // 0x00428a40

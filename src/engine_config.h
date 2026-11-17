@@ -116,6 +116,8 @@
 #define SWR_MAX_RACERS (20)
 // selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
 #define SWR_PILOT_COUNT (23)
+#define SWR_PILOT_DUD_BOLT (10) // first-person camera pushed 3 units forward
+#define SWR_PILOT_NEVA_KEE (14) // fused engines; low first-person camera, no binder
 
 // swrRace_DrawScrollbar (0x0043fe90): arrow glow fade rate (alpha/sec) and its ceiling
 #define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)

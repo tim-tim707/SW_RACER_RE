@@ -27,6 +27,19 @@ void swrWeather_SetStretchFactor(float factor)
     swrWeather_stretchFactor = factor;
 }
 
+// 0x0042d440
+void swrWeather_Disable(void)
+{
+    swrWeather_enabled = 0;
+    swrWeather_HideAllParticles();
+}
+
+// 0x0042d450
+void swrWeather_Enable(void)
+{
+    swrWeather_enabled = 1;
+}
+
 // 0x0042d470
 void swrWeather_ResetParticles(void)
 {

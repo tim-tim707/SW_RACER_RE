@@ -680,6 +680,8 @@ swrText_bboxMinX 0x0050c0a0 int16_t
 swrText_bboxMaxY 0x0050c0a4 int16_t
 swrText_bboxMaxX 0x0050c0a8 int16_t
 swrText_clipEnabled 0x0050c0b0 uint8_t # 1 = scissor glyphs against swrText_clip{Left,Top,Right,Bottom}; set by swrText_RenderEntries1
+swrText_fontCount 0x0050c0c0 int # number of loaded fonts, set by swrText_InitFonts; clamps swrText_SetCurrentFont
+swrText_currentFont 0x0050c0c4 swrFont* # font used by swrText_DrawString/RenderString, set by swrText_SetCurrentFont
 swrText_orientation 0x0050c0c8 int # 0xbf = diagonal UV flip in rdProcEntry_Add2DQuad2; set by swrText_DrawString
 swrText_fontsByIndex 0x00e99720 swrFont*[7] # UI font-slot -> swrFont* table (indexes into swrText_fonts), populated by swrText_InitFonts
 
@@ -915,6 +917,9 @@ lowMemoryRacerCount 0x0050ca2c int
 swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
 swrRace_creditsMode 0x0050ca3c int
+swrObjcMan_spectatorCamTimer 0x0050c8a0 float # seconds until the auto-cycling spectator cam picks a new mode (3..10 s)
+swrObjcMan_spectatorCamIndex 0x0050c8a4 int # current index into swrObjcMan_SpectatorCamModes
+swrObjcMan_guideArrowPhase 0x0050c8a8 float # guide-arrow pulse phase, -1..1: drives its alpha and forward bob (swrObjcMan_UpdateSplineGuideMarker)
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
@@ -1768,7 +1773,7 @@ VertexBuffer1 0x00ecc48c rdVector3*
 VertexBuffer1_projected 0x00ecc49c rdVector3*
 
 # swrWeather particle effect (rain/snow/dust) -- see src/Swr/swrWeather.h
-swrWeather_enabled 0x004b9520 int
+swrWeather_enabled 0x004b9520 uint8_t
 swrWeather_particleColor 0x004b9524 uint8_t[4]
 swrWeather_velocityX 0x004b9528 float
 swrWeather_velocityY 0x004b952c float

@@ -22,7 +22,7 @@
 // GLOBAL STATE
 //
 //   Per-run configuration (set by swrPlayerHUD_SetupTrackOverlay through the setters):
-//     swrWeather_enabled         0x004b9520  int         master on/off (swrWeather_Enable/
+//     swrWeather_enabled         0x004b9520  uint8_t     master on/off (swrWeather_Enable/
 //                                                         _Disable + SNW/NSNW track tags)
 //     swrWeather_particleColor   0x004b9524  uint8_t[4]  RGBA tint (swrWeather_SetColor)
 //     swrWeather_velocityX       0x004b9528  float       drift/fall velocity X (swrWeather_SetVelocity)

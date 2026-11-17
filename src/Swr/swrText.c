@@ -4,6 +4,7 @@
 #include "globals.h"
 
 #include <macros.h>
+#include <Engine/rdMaterial.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -279,6 +280,25 @@ void swrText_ShowTimedMessage(char* text, float duration)
         swrText_timedMessageTimer = duration;
         swrText_timedMessageAlpha = 1.0f;
     }
+}
+
+// 0x0042d8d0
+void swrText_SetCurrentFont(int fontIndex)
+{
+    short index = (short)fontIndex;
+    if (index >= swrText_fontCount)
+        index = (short)(swrText_fontCount - 1);
+    if (index < 0)
+        index = 0;
+    swrText_currentFont = swrText_fontsByIndex[index];
+}
+
+// 0x0042ddf0
+void swrText_BindFontPage(void* font, int page)
+{
+    swrFont* f = (swrFont*)font;
+    if (page < f->pageCount)
+        rdModel_SetCurrentMaterial((RdMaterial*)f->pages[page]); // faithful: the call pushes two extra ignored 1s
 }
 
 // 0x0042de10

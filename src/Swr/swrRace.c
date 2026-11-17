@@ -4465,7 +4465,91 @@ void swrRace_TakeDamage(int player, int engineIndex, float amount)
 // 0x00476AC0
 void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2)
 {
-    HANG("TODO");
+    for (swrModel_TriggerDescription* trigger = a2; trigger != NULL; trigger = trigger->next) {
+        unsigned short flags = trigger->flags;
+        int skip = 0;
+        if (flags != 0) {
+            int lap;
+            if (flags & swrModel_TRIGGERFLAG_DISABLED)
+                skip = 1;
+            if ((flags & swrModel_TRIGGERFLAG_MIN_SPEED) && a->speedValue < 150.0f)
+                skip = 1;
+            if (!(a->flags0 & swrObjTest_FLAG0_LOCAL) && (flags & swrModel_TRIGGERFLAG_LOCAL_ONLY))
+                skip = 1;
+            lap = a->score_ptr->results_P1_Lap;
+            if (lap == 0 && (flags & swrModel_TRIGGERFLAG_SKIP_LAP1))
+                skip = 1;
+            if (lap == 1 && (flags & swrModel_TRIGGERFLAG_SKIP_LAP2))
+                skip = 1;
+            if (lap == 2 && (flags & swrModel_TRIGGERFLAG_SKIP_LAP3))
+                skip = 1;
+        }
+        if (skip)
+            continue;
+
+        swrObjTrig* trig = swrObjTrig_FindOrCreate(trigger);
+        if (trig == NULL)
+            continue;
+
+        // The volume is a vertical box: a horizontal segment A-B of length size_xy across the
+        // trigger's facing (direction rotated 90 deg), extruded +-size_z/2 around center.z.
+        float halfWidth = trigger->size_xy * 0.5f;
+        float halfHeight = trigger->size_z * 0.5f;
+        float cx = trigger->center.x;
+        float cy = trigger->center.y;
+        float cz = trigger->center.z;
+        float px = a->transform.vD.x;
+        float py = a->transform.vD.y;
+        float pz = a->transform.vD.z;
+        float ax = cx - halfWidth * trigger->direction.y;
+        float ay = cy + halfWidth * trigger->direction.x;
+        float bx = cx + halfWidth * trigger->direction.y;
+        float by = cy - halfWidth * trigger->direction.x;
+        float dx = ax - bx;
+        float dy = ay - by;
+        float dz = 0.0f;
+        float lenSq = dx * dx + dy * dy + dz * dz;
+        float dotPos = dx * px + dy * py + dz * pz;
+        // faithful: the segment's z term reuses the racer's z
+        float dotB = dx * bx + dy * by + dz * pz;
+        float t;
+        float closestX = bx;
+        float closestY = by;
+        if (lenSq > 0.001) {
+            // compared unrounded on the x87 stack, then reloaded from its float slot
+            double tExact = (dotPos - dotB) / lenSq;
+            t = (float)tExact;
+            if (tExact > 0.0f) {
+                if (t < 1.0f) {
+                    closestX = dx * t + bx;
+                    closestY = dy * t + by;
+                } else {
+                    closestX = ax;
+                    closestY = ay;
+                }
+            }
+        } else {
+            t = 0.0f;
+        }
+
+        int hit = 0;
+        if (trigger->type == swrModel_TriggerType_BreakDestructable_102 || trigger->type == swrModel_TriggerType_KillPlayer) {
+            // plane crossing between last and current position, within the segment's span
+            if (t > 0.0f && t < 1.0f && pz < cz + halfHeight && cz - halfHeight < pz) {
+                float plane = cz * trigger->direction.z + cy * trigger->direction.y + cx * trigger->direction.x;
+                float prev = a->positionPrev.z * trigger->direction.z + a->positionPrev.y * trigger->direction.y + a->positionPrev.x * trigger->direction.x;
+                float cur = pz * trigger->direction.z + px * trigger->direction.x + py * trigger->direction.y;
+                // faithful: also fires when both samples sit on/behind the plane
+                hit = (prev > plane) == (cur < plane);
+            }
+        } else {
+            float ex = closestX - px;
+            float ey = closestY - py;
+            hit = ex * ex + ey * ey < halfWidth * halfWidth && pz < cz + halfHeight && cz - halfHeight < pz;
+        }
+        if (hit)
+            swrRace_TriggerHandler((int)trig, (int)a, 0);
+    }
 }
 
 // Eases *value toward target at `rate` units/sec (used for the traction/skid multipliers below).
