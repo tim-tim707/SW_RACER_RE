@@ -99,4 +99,35 @@
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
 
+// swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
+#define SWR_CREDITS_TRACK_COUNT (5)
+
+// swrRace_DrawScrollbar (0x0043fe90): arrow glow fade rate (alpha/sec) and its ceiling
+#define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)
+#define SWR_SCROLLBAR_ARROW_ALPHA_MAX (254.0f)
+
+// swrRace_UpdateFireEffects (0x0047e450): number of track flames (swrRace_FireTimer / FireLocation)
+#define SWR_FIRE_EFFECT_COUNT (8)
+
+// swrModel_clearSceneModelsAndChildren (0x00454cc0): swr_sceneModels slots below this survive a scene clear
+#define SWR_SCENE_PERSISTENT_MODEL_SLOTS (5)
+#define SWR_SCENE_MODEL_SLOT_COUNT (151)
+
+// swrObjHang_CullElmoAssets (0x0045ce90): size of the 'Elmo' event pool
+#define SWR_ELMO_POOL_SIZE (60)
+
+// swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
+#define SWR_ASSET_BUFFER_MAX_INDEX (9)
+
+// swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
+#define SWR_DISPLAY_POD_RESET_FRAMES (5)
+
+// swrRace_ComputeUpgradePrices (0x0043eb50): float32 at 0x004ac9d8, -1/255 rounded toward zero
+#define SWR_UPGRADE_PRICE_HEALTH_SCALE (-0.0039215684f)
+
+// swrRace.partNodes layout used by swrRace_ResetModelNodeFlags (0x0046d4c0)
+#define SWR_POD_PART_NODE_COUNT (75)
+#define SWR_POD_PART_SHADOW_FIRST (0x3d)
+#define SWR_POD_PART_SHADOW_LAST (0x40)
+
 #endif // ENGINE_CONFIG_H

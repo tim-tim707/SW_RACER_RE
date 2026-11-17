@@ -502,7 +502,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
                     swrRace_UpdatePartsHealth();
                 }
                 if ((int)swrObjHang_trackInCircuitIdx == g_aTracksInCircuits[(int)hang->circuitIdx] - 1 && hang->circuitIdx == 2)
-                    swrObjHang_SelectDemoTracks_Maybe(hang);
+                    swrObjHang_SelectCreditsTracks(hang);
                 // best finishing place per track, 2 bits each (stored as 4 - place)
                 if (storedPlaceBits < 4 - swrRace_resultsPlaceP1) {
                     swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] &= (uint16_t)~(3 << (swrObjHang_trackInCircuitIdx * 2));
@@ -1105,6 +1105,22 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
         profile->unk4f = 0;
 }
 
+// 0x0043eb50
+void swrRace_ComputeUpgradePrices(void)
+{
+    int selected = swrRace_MenuSelectedItem;
+    char offered = (char)uiUpgradeInfos2[selected].index;
+    char type = (char)upgradeInfos[offered].type;
+    char installed = (char)uiUpgradeInfos[type].index;
+    int tradeIn;
+
+    // faithful: 1 - (int)(price * health * -1/255)
+    tradeIn = 1 - (int)((float)(int)(upgradeInfos[installed].price * (uint8_t)(&swrRace_traction_upgrade_health)[type]) * SWR_UPGRADE_PRICE_HEALTH_SCALE);
+    swrRace_upgradeTradeInValue = tradeIn;
+    swrRace_upgradePrice = 1 - (int)((float)(int)(upgradeInfos[offered].price * uiUpgradeInfos2[selected].health) * SWR_UPGRADE_PRICE_HEALTH_SCALE);
+    swrRace_upgradeUnaffordable = (uint16_t)(tradeIn + swrRace_truguts < swrRace_upgradePrice);
+}
+
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
@@ -1114,7 +1130,49 @@ void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 // 0x0043fe90
 void swrRace_DrawScrollbar(short x, short y, int height)
 {
-    HANG("TODO");
+    float rate = swrUI_menuScrolled != 0 ? SWR_SCROLLBAR_ARROW_FADE_RATE : -SWR_SCROLLBAR_ARROW_FADE_RATE;
+    swrRace_scrollbarUpArrowAlpha = rate * swrRace_fdeltaTimeSecs + swrRace_scrollbarUpArrowAlpha;
+    if (SWR_SCROLLBAR_ARROW_ALPHA_MAX < swrRace_scrollbarUpArrowAlpha)
+        swrRace_scrollbarUpArrowAlpha = SWR_SCROLLBAR_ARROW_ALPHA_MAX;
+    if (swrRace_scrollbarUpArrowAlpha < 0.0f)
+        swrRace_scrollbarUpArrowAlpha = 0.0f;
+
+    rate = g_bCircuitIdxInRange != 0 ? SWR_SCROLLBAR_ARROW_FADE_RATE : -SWR_SCROLLBAR_ARROW_FADE_RATE;
+    swrRace_scrollbarDownArrowAlpha = rate * swrRace_fdeltaTimeSecs + swrRace_scrollbarDownArrowAlpha;
+    if (SWR_SCROLLBAR_ARROW_ALPHA_MAX < swrRace_scrollbarDownArrowAlpha)
+        swrRace_scrollbarDownArrowAlpha = SWR_SCROLLBAR_ARROW_ALPHA_MAX;
+    if (swrRace_scrollbarDownArrowAlpha < 0.0f)
+        swrRace_scrollbarDownArrowAlpha = 0.0f;
+
+    swrSprite_SetVisible(swrUISprite_select_circle_v_rgb_0, 1);
+    swrSprite_SetPos(swrUISprite_select_circle_v_rgb_0, x - 0x1b, y - 0xb);
+    swrSprite_SetColor(swrUISprite_select_circle_v_rgb_0, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(swrUISprite_select_arrow_v_rgb_0, 1);
+    swrSprite_SetPos(swrUISprite_select_arrow_v_rgb_0, x - 0x14, y - 7);
+    swrSprite_SetColor(swrUISprite_select_arrow_v_rgb_0, 0x32, 0xff, 0xff, (uint8_t)(int)swrRace_scrollbarUpArrowAlpha);
+
+    swrSprite_SetVisible(swrUISprite_select_circle_v_rgb_1, 1);
+    swrSprite_SetPos(swrUISprite_select_circle_v_rgb_1, x - 0x1b, (short)height + 0xf + y);
+    swrSprite_SetColor(swrUISprite_select_circle_v_rgb_1, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(swrUISprite_select_arrow_v_rgb_1, 1);
+    swrSprite_SetPos(swrUISprite_select_arrow_v_rgb_1, x - 0x14, (short)height + 0x17 + y);
+    swrSprite_SetColor(swrUISprite_select_arrow_v_rgb_1, 0x32, 0xff, 0xff, (uint8_t)(int)swrRace_scrollbarDownArrowAlpha);
+
+    swrSprite_SetVisible(swrUISprite_select_bars_v_rgb, 1);
+    swrSprite_SetPos(swrUISprite_select_bars_v_rgb, x - 0x11, y + 0x12);
+    swrSprite_SetColor(swrUISprite_select_bars_v_rgb, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetDim(swrUISprite_select_bars_v_rgb, 1.0f, (float)height * 0.3333f);
+
+    if (g_bCircuitIdxInRange != 0 && (swrUI_localPlayersInputDownBitset[0] & swrUI_INPUT_MENU_DOWN) != 0) {
+        swrSprite_SetVisible(swrUISprite_select_arrow_lit_v_rgb_1, 1);
+        swrSprite_SetPos(swrUISprite_select_arrow_lit_v_rgb_1, x - 0x20, (short)height - 0x13 + y);
+        swrSprite_SetColor(swrUISprite_select_arrow_lit_v_rgb_1, 0x32, 0xff, 0xff, 0xfe);
+    }
+    if (swrUI_menuScrolled != 0 && (swrUI_localPlayersInputDownBitset[0] & swrUI_INPUT_MENU_UP) != 0) {
+        swrSprite_SetVisible(swrUISprite_select_arrow_lit_v_rgb_0, 1);
+        swrSprite_SetPos(swrUISprite_select_arrow_lit_v_rgb_0, x - 0x20, y - 0x11);
+        swrSprite_SetColor(swrUISprite_select_arrow_lit_v_rgb_0, 0x32, 0xff, 0xff, 0xfe);
+    }
 }
 
 // Sets up the global ray-collision query state from `ray` (= {origin.xyz, dir.xyz, maxDist}),
@@ -1786,6 +1844,35 @@ void swrRace_GetEngineNodeOffsetPos(void** nodePair, rdVector3* outPos)
         // offset the node position along the node's own second axis by the offset node's height
         rdVector_Scale3Add3(outPos, outPos, offsetMat.vD.y, (rdVector3*) &nodeMat.vB);
     }
+}
+
+// 0x0044b180
+void swrRace_SetEngineNodeRotScale(void** nodePair, float scale, float angle)
+{
+    rdMatrix44 rotScale;
+    rdMatrix44 current;
+    rdMatrix44 partner;
+    rdVector3 pos;
+    swrModel_NodeTransformed* node;
+    swrModel_NodeTransformed* partnerNode;
+
+    if (nodePair == NULL)
+        return;
+    node = (swrModel_NodeTransformed*)nodePair[0];
+    partnerNode = (swrModel_NodeTransformed*)nodePair[1];
+    if (node == NULL)
+        return;
+    rdMatrix_SetRotation44(&rotScale, angle, 0.0f, 0.0f);
+    rdMatrix_ScaleBasis44(&rotScale, scale, scale, scale, &rotScale);
+    swrModel_NodeGetTransform(node, &current);
+    // the original computes this offset position and never uses it
+    rdVector_Copy3(&pos, (rdVector3*)&current.vD);
+    if (partnerNode != NULL) {
+        swrModel_NodeGetTransform(partnerNode, &partner);
+        rdVector_Scale3Add3(&pos, &pos, partner.vD.y, (rdVector3*)&current.vB);
+        rdVector_Scale3Add3(&pos, &pos, -partner.vD.y, (rdVector3*)&rotScale.vB);
+    }
+    swrModel_NodeSetTransform(node, &rotScale);
 }
 
 // 0x0044b270
@@ -2684,14 +2771,14 @@ void swrRace_AI(int player)
     }
 }
 
-// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In demo
+// Per-frame control entry for an AI pod (dispatched by swrRace_CalcTargetTurnRate). In credits
 // mode it fires a 'Snap' sub-event each frame; with the AI debug flag set (0x100 + debug
 // level), keyboard inputs fire manual 'Snap's. While racing it runs the steering autopilot,
 // cuts the throttle when dead, and tilts into Side-tagged surfaces.
 // 0x0046bb70
 void swrRace_UpdateAutopilotControl(swrRace* player)
 {
-    if (swrRace_demoMode != 0) {
+    if (swrRace_creditsMode != 0) {
         int subEvents[2];
         subEvents[0] = 0x536e6170; // 'Snap'
         subEvents[1] = 2;
@@ -3984,6 +4071,31 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 
 // Walk a model-node tree gathering up to 10 distinct mesh-group entries (deduped by
 // their data pointer) into the swrRace_meshNodeCollection scratch list.
+// 0x0046d4c0
+void swrRace_ResetModelNodeFlags(swrRace* player)
+{
+    if (player->partNodes == NULL)
+        return;
+    swrRace_nodeFlagsResetLatch = 0;
+    for (int i = 0; i < SWR_POD_PART_NODE_COUNT; i++) {
+        if (player->partNodes[i] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[i], 2, 3, 0x10, 2);
+    }
+    if (player->partNodes[SWR_POD_PART_SHADOW_FIRST] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[SWR_POD_PART_SHADOW_FIRST], 2, -4, 0x10, 3);
+    for (int i = SWR_POD_PART_SHADOW_FIRST + 1; i <= SWR_POD_PART_SHADOW_LAST; i++) {
+        if (player->partNodes[i] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[i], 2, 3, 0x10, 2);
+    }
+    // parts 0x10, 0xe, 0xf (in this order) are hidden; their roles are unidentified
+    if (player->partNodes[0x10] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x10], 2, -4, 0x10, 3);
+    if (player->partNodes[0xe] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0xe], 2, -4, 0x10, 3);
+    if (player->partNodes[0xf] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0xf], 2, -4, 0x10, 3);
+}
+
 // 0x0046e750
 void swrRace_CollectMeshNodes(swrModel_Node* node)
 {
@@ -4669,6 +4781,28 @@ void swrRace_TriggerHandler(int player, int a, char b)
     // TODO
 }
 
+// 0x0047e450
+void swrRace_UpdateFireEffects(swrRace* player)
+{
+    rdMatrix44 splineFrame;
+    rdMatrix44 podTransform;
+
+    swrUtils_Rand();
+    swrUtils_Rand();
+    for (int i = 0; i < SWR_FIRE_EFFECT_COUNT; i++) {
+        if (swrRace_FireTimer[i] <= 0.0f) {
+            swrRace_FireTimer[i] = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - 2.0f;
+            rdMatrix_Copy44(&podTransform, &player->transform);
+            swrSpline_EvaluateAtOffset(&player->splineCursor, &splineFrame, player->speedValue * 0.0033333334f * (swrRace_FireTimer[i] * 0.2857143f) * 1.2f);
+            swrRace_FireLocation[i].x = splineFrame.vD.x;
+            swrRace_FireLocation[i].y = splineFrame.vD.y;
+            swrRace_FireLocation[i].z = splineFrame.vD.z - 8.0f;
+            swrRace_FireLocation[i].x = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].x;
+            swrRace_FireLocation[i].y = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].y;
+        }
+    }
+}
+
 // 0x0047e580
 void swrRace_InitFireEffects(int racer, float reset)
 {
@@ -4841,13 +4975,59 @@ void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outF
 // 0x0047fbb0
 int swrRace_UpdateSplineBinding(swrRace* player)
 {
-    HANG("TODO");
+    swrModel_Mesh* stoodOn = (swrModel_Mesh*)player->terrainModel;
+    swrModel_Behavior* behavior;
+    float crossTime;
+    int crossed;
+
+    if ((swrModel_Mesh*)player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
+        return 0;
+
+    behavior = swrModel_MeshGetBehavior(stoodOn);
+    if (behavior != NULL && (behavior->unk1 & swrModel_BEHAVIOR_SPLINE_AMBIGUOUS) != 0)
+        return -1;
+
+    stoodOn = (swrModel_Mesh*)player->terrainModel;
+    if (stoodOn->splineSampleIndex != 0) {
+        swrSpline_CursorSeekToProgress(&player->splineCursor, (short)stoodOn->splineSampleIndex);
+        swrRace_AdvanceSplineCursor(player, &crossTime, &crossed, &crossed);
+    }
+    player->splineTrackMesh = swrRace_GetTrackMeshAtCursor(&player->splineCursor);
+    player->splineSampleSpacing = swrSpline_GetSampleSpacing();
+    player->splineProjResult1 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut1);
+    player->splineProjResult2 = swrSpline_ProjectPointStub(&player->splineCursor, &player->splineProjOut2);
+    return 1;
 }
 
 // 0x0047fca0
 void swrRace_ComputeTrackOffset(swrRace* player)
 {
-    HANG("TODO");
+    rdMatrix44 frame;
+    rdVector3 closest;
+    rdVector3 delta;
+    float dist;
+    float invDist;
+    float along;
+
+    swrSpline_EvaluateToMatrix(&player->splineCursor, &frame);
+    // project the pod onto the spline frame's forward axis (vB) through its origin (vD)
+    along = (frame.vB.x * player->transform.vD.x + frame.vB.y * player->transform.vD.y + frame.vB.z * player->transform.vD.z) - (frame.vD.z * frame.vB.z + frame.vD.y * frame.vB.y + frame.vD.x * frame.vB.x);
+    rdVector_Scale3Add3(&closest, (rdVector3*)&frame.vD, along, (rdVector3*)&frame.vB);
+    delta.x = player->transform.vD.x - closest.x;
+    delta.y = player->transform.vD.y - closest.y;
+    delta.z = player->transform.vD.z - closest.z;
+    dist = rdVector_Len3(&delta);
+    player->trackOffset.w = dist;
+    if (0.1f < dist) {
+        invDist = 1.0f / dist;
+        player->trackOffset.x = delta.x * invDist;
+        player->trackOffset.y = delta.y * invDist;
+        player->trackOffset.z = delta.z * invDist;
+        return;
+    }
+    player->trackOffset.z = 1.0f;
+    player->trackOffset.x = 0.0f;
+    player->trackOffset.y = 0.0f;
 }
 
 // Per-racer progress update, called from swrObjJdge_F2. Nonzero when the pod completed a lap this

@@ -79,7 +79,7 @@ typedef enum swrObjJdge_HUDMODE
     swrObjJdge_HUDMODE_PROGRESS_RING = 1, // lap progress around a rectangular track outline
     swrObjJdge_HUDMODE_MINIMAP_FAR = 2, // rotated radar minimap, wide zoom (default)
     swrObjJdge_HUDMODE_MINIMAP_NEAR = 3, // rotated radar minimap, close zoom
-    swrObjJdge_HUDMODE_OFF = 4, // no position indicator (also forced in attract-demo mode)
+    swrObjJdge_HUDMODE_OFF = 4, // no position indicator (also forced during the end credits)
     swrObjJdge_HUDMODE_SPLIT_COLUMN = 5, // splitscreen: vertical progress column
     swrObjJdge_HUDMODE_SPLIT_OFF = 6, // splitscreen: no column, running total time only
     swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME = 7, // splitscreen: progress column + running total time
@@ -104,12 +104,19 @@ typedef enum swrRace_RESULTSFLAG
     swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
 } swrRace_RESULTSFLAG;
 
+// swrModel_Behavior.unk1 bits (see the field comment in types.h).
+typedef enum swrModel_BEHAVIOR_FLAG
+{
+    swrModel_BEHAVIOR_SPLINE_AMBIGUOUS = 0x8, // mesh shared between spline branches; blocks swrRace_UpdateSplineBinding
+} swrModel_BEHAVIOR_FLAG;
+
 // swrSaveData.unlockFlags (tgfd.dat +0x8) bits.
 typedef enum swrSaveData_UNLOCKFLAGS
 {
     swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // present in a fresh save image; meaning not yet identified
     swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
                                                      // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
+    swrSaveData_UNLOCK_RACE_STARTED = 0x40, // set by swrObjHang_StartRace and swrObjHang_SelectCreditsTracks; no reader found
 } swrSaveData_UNLOCKFLAGS;
 
 // Per-racer SFX guard bits (swrSound_SetSfxFlag / TestSfxFlag / ClearSfxFlag on
@@ -1188,7 +1195,7 @@ typedef enum swrObjHang_FLAG // swrObjHang.flag
 {
     swrObjHang_FLAG_ACTIVE = 0x1, // F0/F2/SetMenuState only run while set; F4 sets it on 'Fini'/'Strt', clears on 'Stop'
     swrObjHang_FLAG_SCREEN_SET_UP = 0x4, // screen assets + scene built (SetMenuState, F4 init)
-    swrObjHang_FLAG_DEMO_PLAYLIST = 0x8, // StartRace takes the track from the attract-demo playlist
+    swrObjHang_FLAG_CREDITS_PLAYLIST = 0x8, // StartRace takes the track from the end-credits playlist
 } swrObjHang_FLAG;
 
 typedef enum swrConfig_DEVICE

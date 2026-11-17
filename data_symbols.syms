@@ -258,7 +258,7 @@ g_pTxtBuyParts 0x004c09d0 char[1] # "/SCREENTEXT_102/~f4~sBuy Parts"
 g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
-DAT_004c0948 0x004c0948 char[1]
+swrObjHang_creditsCheatInitials 0x004c0948 char[4] # "CRD": profile-name initials; with menu input bit 0x4 held, Start Race jumps straight to the end credits (swrObjHang_SelectCreditsTracks)
 g_pTxtOptions 0x004c094c char[1] # "/SCREENTEXT_73/~f4~sOptions"
 g_pTxtCutscene 0x004c0fb4 char[1] # "~f4~sCutscene:"
 
@@ -373,7 +373,8 @@ Sound_A3Dinitted 0x004c7d80 int = 1
 swrRace_DeathSpeedMin 0x004c7bb8 float = 325.00
 swrRace_DeathSpeedDrop 0x004c7bbc float = 140.0
 
-swrRace_FireTimer 0x004c7bc0 float = -1.0
+swrRace_nodeFlagsResetLatch 0x004c7a50 int # cleared by swrRace_ResetModelNodeFlags; no reader found
+swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 } # per-flame respawn timers; <= 0 re-rolls the flame (swrRace_UpdateFireEffects)
 
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
@@ -657,6 +658,9 @@ nb_AI_racers 0x0050c558 int # g_uNumRacers
 swrObjHang_splitscreenRacerCount 0x0050c55c char # racer count for 2-local-player races (2..6, step 2)
 swrObjHang_courseInfoItemCount 0x0050c560 char
 swrRace_cheatUnlockAllDone 0x0050c568 int # one-shot latch for swrRace_CheatUnlockAll
+swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_FRAMES on every scene model load; swrRace_AnimateDisplayPod counts it down and takes its reset path while > 0
+swrRace_scrollbarUpArrowAlpha 0x0050c57c float # menu scrollbar up-arrow glow alpha, ramps 0..254 while swrUI_menuScrolled (swrRace_DrawScrollbar)
+swrRace_scrollbarDownArrowAlpha 0x0050c580 float # menu scrollbar down-arrow glow alpha, ramps while g_bCircuitIdxInRange
 swrUI_menuArrowAlphaLeft 0x0050c584 float # front-end menu left selector-arrow glow alpha (swrUI_Front_MenuAxisHorizontal)
 swrUI_menuArrowAlphaRight 0x0050c588 float # front-end menu right selector-arrow glow alpha
 
@@ -780,9 +784,9 @@ lowMemoryRacerCount 0x0050ca2c int
 
 swrObjJdge_localRacerId 0x0050ca30 int
 swrJdge_Cleared 0x0050ca34 int
-swrRace_demoMode 0x0050ca3c int
-swrObjJdge_demoHudCycleIndex 0x0050ca40 int
-swrObjJdge_demoHudCycled 0x0050ca44 int
+swrRace_creditsMode 0x0050ca3c int
+swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
+swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 int
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
@@ -1111,7 +1115,7 @@ rdMatrix44_00e25960 0x00e25960 rdMatrix44
 swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
 swrObjTrig_TriggerDescriptionArray 0x00E25AC0 swrModel_TriggerDescription*[200]
 swrObjTrig_RootNode 0x00E25DE0 swrModel_Node
-swrRace_FireLocation 0x00e25e00 float
+swrRace_FireLocation 0x00e25e00 rdVector3[8] # per-flame world position ahead of the pod on the track spline
 
 swrObjTrig_AnimationArray 0x00E25E60 swrModel_Animation**[6]
 swrObjTrig_NodePerTriggerArray 0x00E25E80 swrModel_NodeTransformedWithPivot[50]
@@ -1167,6 +1171,10 @@ swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu st
 
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
+swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
+swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
+swrRace_upgradeUnaffordable 0x00e99400 uint16_t # 1 when truguts + trade-in < price
+swrObjHang_creditsTracks 0x00e29890 char[5] # end-credits playlist of track ids, raced by AI behind the scrolling credits (swrObjHang_SelectCreditsTracks)
 swrObjHang_sceneCameraEye 0x00e298a0 rdVector3 # eye position swrObjHang_ComputeCameraEye resolves for the scene
 swrObjHang_cameraMatrix 0x00e298c0 rdMatrix44 # front-end camera; .vD is the current eye position
 

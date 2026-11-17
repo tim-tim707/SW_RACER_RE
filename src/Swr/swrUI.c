@@ -2,6 +2,7 @@
 
 #include "globals.h"
 #include "swrModel.h"
+#include "swrObj.h"
 #include "swrRace.h"
 #include "swrSprite.h"
 #include "swrText.h"
@@ -1147,9 +1148,39 @@ void playUISound(int soundId)
 }
 
 // 0x00440c10
-void swrObjHang_SelectDemoTracks_Maybe(swrObjHang* hang)
+void swrObjHang_SelectCreditsTracks(swrObjHang* hang)
 {
-    HANG("TODO");
+    char count = 0;
+    int useBeatTracks = 0;
+
+    swrRace_saveData.unlockFlags |= swrSaveData_UNLOCK_RACE_STARTED;
+    swrRace_creditsMode = 1;
+    hang->flag |= swrObjHang_FLAG_CREDITS_PLAYLIST;
+    // Menu input bit 0x4 is unidentified; held with the CRD profile it seeds the playlist with the current track.
+    if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0) {
+        swrObjHang_creditsTracks[0] = hang->track_index;
+        count = 1;
+        useBeatTracks = 1;
+    }
+    while (count < SWR_CREDITS_TRACK_COUNT) {
+        int circuit = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_CIRCUIT_COUNT);
+        int track = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)(int)g_aTracksInCircuits[circuit]);
+        uint8_t unlocked = useBeatTracks ? g_aBeatTracksGlobal[circuit] : (uint8_t)swrRace_UnlockDataBase[circuit + 1];
+        if ((unlocked & (uint8_t)(1 << (track & 0x1f))) != 0) {
+            int trackId = g_aTrackIDs[circuit * SWR_TRACKS_PER_CIRCUIT + track];
+            int duplicate = 0;
+            for (int i = 0; i < count; i++) {
+                if (trackId == swrObjHang_creditsTracks[i]) {
+                    duplicate = 1;
+                    break;
+                }
+            }
+            if (!duplicate) {
+                swrObjHang_creditsTracks[(int)count] = (char)trackId;
+                count++;
+            }
+        }
+    }
 }
 
 // One track-record entry: heading, the time from the save image (or a placeholder while the

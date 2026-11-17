@@ -548,9 +548,9 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
 // already tearing down, and not paused. The judge is slept ('Slep' sets obj.flags bit 0x1000) in
 // the hangar/menus, where its pods are freed. The swrJdge_Cleared guard skips the teardown window
 // after any Clear. The pauseState guard keeps the restart from firing while the pause menu is open,
-// so Enter still confirms menu selections there. Multiplayer and demo playback are excluded.
+// so Enter still confirms menu selections there. Multiplayer and the end credits are excluded.
 static bool fast_restart_available() {
-    if (swrMultiplayer_IsMultiplayerEnabled() != 0 || swrRace_demoMode != 0)
+    if (swrMultiplayer_IsMultiplayerEnabled() != 0 || swrRace_creditsMode != 0)
         return false;
     if (pauseState != 0)
         return false;// paused: let Enter drive the pause menu instead
