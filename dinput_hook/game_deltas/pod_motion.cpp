@@ -75,8 +75,72 @@ namespace {
         Spring sway, bob, engine[4];
         float moving = 0.0f;// 0 = stopped (stock behaviour) .. 1 = moving (full effect)
         float time = 0.0f;  // drives the damaged-engine wobble
+        // 4-engine pods: each bottom engine's resting pose in the pod's frame (slow average),
+        // used to hand its lag motion on to the top engine above it.
+        rdMatrix44 bottom_rest[2]{};
+        bool has_rest = false;
     };
     std::unordered_map<const swrRace*, PodState> g_pods;
+
+    // ---- affine 4x4 helpers (row-vector convention: world = local * M, rows vA..vD) ----
+    rdMatrix44 mat_mul(const rdMatrix44& a, const rdMatrix44& b) {
+        const float* A = &a.vA.x;
+        const float* B = &b.vA.x;
+        rdMatrix44 o;
+        float* O = &o.vA.x;
+        for (int i = 0; i < 4; i++)
+            for (int j = 0; j < 4; j++)
+                O[i * 4 + j] = A[i * 4 + 0] * B[0 * 4 + j] + A[i * 4 + 1] * B[1 * 4 + j] +
+                               A[i * 4 + 2] * B[2 * 4 + j] + A[i * 4 + 3] * B[3 * 4 + j];
+        return o;
+    }
+    bool mat_inv_affine(const rdMatrix44& m, rdMatrix44& out) {
+        const float a = m.vA.x, b = m.vA.y, c = m.vA.z;
+        const float d = m.vB.x, e = m.vB.y, f = m.vB.z;
+        const float g = m.vC.x, h = m.vC.y, i = m.vC.z;
+        const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+        if (std::fabs(det) < 1e-12f)
+            return false;
+        const float k = 1.0f / det;
+        out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
+        out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
+        out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
+        const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
+        out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
+                  -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
+        return true;
+    }
+
+    // Ben Quadinaros (4 engines): the game replays the pod's motion with a lag onto the bottom
+    // pair only (engineXfR/L), which is what makes engines bob and pitch; the top pair
+    // (engineXfR2/L2) is held rigid to the pod. Give each top engine the same lag motion as the
+    // bottom engine on its side: how far that bottom engine is from its resting pose on the pod
+    // right now, applied on top of the top engine's own pose.
+    void follow_bottom_engines(swrRace* p, PodState& st) {
+        rdMatrix44 inv_pod;
+        if (!mat_inv_affine(p->transform, inv_pod))
+            return;
+        for (int side = 0; side < 2; side++) {
+            const rdMatrix44& bottom = side == 0 ? p->engineXfR : p->engineXfL;
+            rdMatrix44& top = side == 0 ? p->engineXfR2 : p->engineXfL2;
+            const rdMatrix44 local = mat_mul(bottom, inv_pod);
+            rdMatrix44& rest = st.bottom_rest[side];
+            if (!st.has_rest) {
+                rest = local;
+            } else {
+                float* R = &rest.vA.x;
+                const float* L = &local.vA.x;
+                for (int k = 0; k < 16; k++)
+                    R[k] += (L[k] - R[k]) * 0.01f;// ~2 s average at 50 Hz
+            }
+            rdMatrix44 inv_rest_world;
+            if (!mat_inv_affine(mat_mul(rest, p->transform), inv_rest_world))
+                continue;
+            const rdMatrix44 dev = mat_mul(inv_rest_world, bottom);// rest pose -> current pose
+            top = mat_mul(top, dev);
+        }
+        st.has_rest = true;
+    }
 
     constexpr float kTeleportDist = 200.0f;// position jump in one tick = respawn/reset, not motion
     constexpr float kMaxAccel = 8000.0f;   // ignore collision spikes beyond this
@@ -422,6 +486,8 @@ void __cdecl swrRace_PoddAnimateEngines_delta(swrRace* player) {
         g_pods.erase(player);
         return;
     }
+    if (player->partNodes[3] && player->partNodes[4])
+        follow_bottom_engines(player, g_pods[player]);
     animate(player);
 }
 
