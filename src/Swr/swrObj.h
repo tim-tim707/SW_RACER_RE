@@ -79,6 +79,8 @@
 #define DrawTerrainTypeDebugText_ADDR (0x00454060)
 #define swrObjcMan_F3_ADDR (0x004542e0)
 #define swrObjcMan_F4_ADDR (0x004543f0)
+#define swrObjScene_ResetViewports_ADDR (0x00454920)
+#define swrObjScene_Exit_ADDR (0x00454990)
 #define swrObjScene_F0_ADDR (0x00454a10)
 #define swrObjScene_F4_ADDR (0x00454a30)
 #define swrModel_clearSceneModelsAndChildren_ADDR (0x00454cc0)
@@ -454,6 +456,8 @@ void swrObjcMan_F3(swrObjcMan* cman);
 
 int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3);
 
+void swrObjScene_ResetViewports(void);
+void swrObjScene_Exit(swrObjScen* scene, int event); // tear the scene down and broadcast event ('Abrt' from F0) to every object
 void swrObjScene_F0(swrObjScen* scene);
 int swrObjScene_F4(swrObjScen* scene, int* subEvents);
 
@@ -679,7 +683,7 @@ void swrObjElmo_F3(swrObjElmo* elmo);
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
 
 // Initializes a fresh Elmo object, setting node pointers, zeroing vectors, and seeding random phase (best guess).
-void swrObjElmo_Init_Maybe(swrObjElmo* elmo, void* node, void* param_3, int type);
+void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind);
 
 // swrObjElmo behavior/animation (pit-droid / hangar character AI):
 // Sets the current animation state (maps a state command to an anim id, plays sounds).
@@ -698,7 +702,7 @@ void swrObjHang_TickHolotableSpin_Maybe(void);
 // Rotates an object's facing vector toward the camera until it faces it, then reapplies its transform (best guess).
 void swrObjHang_TurnIconToCamera_Maybe(int obj);
 // Looks up the playback rate and duration for the current animation (per character type).
-void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outRate, float* outDuration);
+void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outLoopEnd);
 // Sets the arrived flag when within range of the walk target.
 void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
 // Turns toward the target and, once aligned, starts the type-specific walk animation.

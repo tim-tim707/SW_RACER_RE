@@ -140,6 +140,24 @@ typedef enum swrSound_HANGSFXFLAG
 } swrSound_HANGSFXFLAG;
 
 // swrObj flags @ +0x6 (the header every event-pool entity starts with).
+// swrObjElmo.kind: which puppet an elmo drives, passed to swrModel_LoadPuppet. Selects the
+// anim frame table in swrObjElmo_GetAnimTiming; every pilot shares PILOT's table.
+typedef enum swrObjElmo_KIND
+{
+    swrObjElmo_KIND_PIT_DROID = 1,
+    swrObjElmo_KIND_PILOT = 2,
+    swrObjElmo_KIND_WATTO = 3,
+    swrObjElmo_KIND_DEWBACK = 4,
+    swrObjElmo_KIND_RONTO = 5,
+    swrObjElmo_KIND_UNUSED_6 = 6, // never loaded in retail; SetAnimState and UpdateMovement skip it
+    swrObjElmo_KIND_BARTENDER = 7,
+    swrObjElmo_KIND_C3PO = 8,
+    swrObjElmo_KIND_JARJAR = 9,
+    swrObjElmo_KIND_JAWA = 10,
+    swrObjElmo_KIND_QUIGON = 11,
+    swrObjElmo_KIND_R2D2 = 12,
+} swrObjElmo_KIND;
+
 typedef enum swrObj_FLAG
 {
     swrObj_FLAG_FREED = 0x100, // set by swrObj_Free; the slot stays in the event pool (count is
@@ -1220,6 +1238,7 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
     swrUI_WINDOW_HANGAR_WATTO = 0x85,
     swrUI_WINDOW_HANGAR_JUNKYARD = 0x87,
     swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE = 0x88,
+    swrUI_WINDOW_MP_RACE_BUTTON = 0x186b5, // "Race" button built by swrMultiplayer_BuildRaceSetupUI
     swrUI_WINDOW_MP_RACE_SETUP = 0x186b8, // swrMultiplayer_BuildRaceSetupUI
     swrUI_WINDOW_MP_RACER_LIST = 0x30d41, // swrMultiplayer_BuildRacerListUI
 } swrUI_WINDOW;
@@ -4008,6 +4027,7 @@ typedef enum SoundPlayFlag
 typedef enum swrSoundDescriptor_FLAG
 {
     swrSoundDescriptor_LOADED = 0x1, // an A3D source is currently allocated for this entry
+    swrSoundDescriptor_DUPLICATE = 0x2, // bank slot copied from an existing entry by swrSound_RegisterSound
     swrSoundDescriptor_ALIAS = 0x4, // entry aliases an existing bank entry
     swrSoundDescriptor_STREAMED = 0x8, // large sound streamed from disk
 } swrSoundDescriptor_FLAG;

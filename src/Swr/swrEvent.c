@@ -4,6 +4,7 @@
 #include "globals.h"
 
 #include "swrAssetBuffer.h"
+#include "swr.h"
 
 #include <macros.h>
 
@@ -300,10 +301,22 @@ void swrEvent_FreeObjs(int event)
     }
 }
 
+// 0x00450b90
+void swrEvent_BroadcastFiltered(int event, int filter, int* data)
+{
+    int msg[16];
+
+    msg[0] = event;
+    msg[1] = filter;
+    for (int i = 2; i < 16; i++)
+        msg[i] = data[i - 2];
+    swr_noop2(); // EXE passes (0xee06, msg)
+}
+
 // 0x00450be0
 void swrEvent_Broadcast(int event, int* subEvents)
 {
-    HANG("TODO");
+    swrEvent_BroadcastFiltered(event, 'All!', subEvents);
 }
 
 // Collects up to maxResults objects of the given event type (0x416c6c21 'All!' = any type)

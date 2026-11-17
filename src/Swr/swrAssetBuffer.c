@@ -96,5 +96,8 @@ int swrAssetBuffer_RemainingSize(void)
 // 0x004475d0
 void swrAssetBuffer_InvalidateTexturesBelow(char* ptr)
 {
-    HANG("TODO");
+    for (int i = 0; i < SWR_TEXTURE_BUFFER_SIZE; i++) {
+        if ((char*)texture_buffer[i] > ptr)
+            texture_buffer[i] = NULL;
+    }
 }

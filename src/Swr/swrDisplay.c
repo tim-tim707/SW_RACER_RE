@@ -1,6 +1,8 @@
 #include "swrDisplay.h"
 
 #include "globals.h"
+#include "engine_config.h"
+#include "swrModel.h"
 
 #include <macros.h>
 #include <Engine/rdThing.h>
@@ -19,7 +21,8 @@ BOOL swrDisplay_Open(swrMainDisplaySettings* a1)
 // 0x00409d00
 void swrDisplay_Shutdown(void)
 {
-    HANG("TODO");
+    for (int slot = SWR_ASSET_BUFFER_MAX_INDEX; slot >= 0; slot--)
+        swrModel_FreeSlotMaterials(slot);
     if (swr_rootModel_ptr != NULL)
     {
         swr_rootModel_ptr->aGeos[0].numMeshes = 0;
@@ -27,7 +30,7 @@ void swrDisplay_Shutdown(void)
         swr_rootModel_ptr->apMaterials = NULL;
         rdModel3_Free(swr_rootModel_ptr);
     }
-    rdThing_Free((RdThing*)swr_rootThing_ptr);
+    rdThing_Free(swr_rootModelThing_ptr);
     rdClose();
     std3D_Close();
     stdDisplay_ClearMode();

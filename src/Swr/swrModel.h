@@ -451,7 +451,7 @@ void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir,
 // Advances per-frame buffer parity, stepping a ring counter and flipping a toggle (best guess).
 void swrViewport_AdvanceFrameParity_Maybe(void);
 
-void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int a3, float a4);
+void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int kind, float a4); // kind = swrObjElmo_KIND
 
 void swrModel_SwapSceneModels(int index, int index2);
 

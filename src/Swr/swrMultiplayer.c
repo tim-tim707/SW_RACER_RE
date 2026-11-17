@@ -8,6 +8,9 @@
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
 #include <Swr/swrEvent.h>
+#include <Swr/swrUI.h>
+
+#include <string.h>
 
 // Stride in wchar_t between consecutive players in the swrMultiplayer_playerNames table;
 // 0x58 wchar_t == the 0xb0 sizeof(SithPlayer) that table is a view into.
@@ -157,6 +160,37 @@ void swrMultiplayer_Shutdown(void)
     }
 }
 
+// 0x00420a90
+void swrMultiplayer_FillLastPlayerName(swrUI_unk* field)
+{
+    char computerName[256];
+    char name[256];
+    DWORD size;
+
+    memset(computerName, 0, sizeof(computerName));
+    size = sizeof(computerName);
+    GetComputerNameA(computerName, &size);
+    wuRegistry_GetString("Last Player", name, sizeof(name), computerName);
+    swrUI_RunCallbacksScreenText(field, name, 0);
+}
+
+// 0x00420b00
+void swrMultiplayer_SaveLastPlayerName(swrUI_unk* field)
+{
+    char name[256];
+    DWORD size;
+
+    memset(name, 0, sizeof(name));
+    size = sizeof(name);
+    if (field == NULL) {
+        memset(name, 0, sizeof(name));
+        GetComputerNameA(name, &size);
+    } else {
+        swrUI_GetAllocatedString(field, name, sizeof(name));
+    }
+    wuRegistry_SetString("Last Player", name);
+}
+
 // 0x00420c20
 void swrMultiplayer_SetLastGame(char* str)
 {
@@ -185,6 +219,25 @@ DPID swrMultiplayer_GetPlayerDpid(unsigned int playerNum)
     if (playerNum < sithPlayer_g_numPlayers)
         return sithPlayer_g_aPlayers[playerNum].playerNetId;
     return -1;
+}
+
+// 0x00420c60
+void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
+{
+    int ready = 0;
+    swrUI_unk* button;
+
+    // Scans every slot, not just sithPlayer_g_numPlayers
+    for (int i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
+        if ((sithPlayer_g_aPlayers[i].flags & SITH_PLAYER_JOINEDGAME) != 0 && multiplayer_race_button_toggle[i] != 0)
+            ready++;
+    }
+    button = swrUI_GetById(page, swrUI_WINDOW_MP_RACE_BUTTON);
+    if (ready == swrMultiplayer_GetActivePlayerCount()) {
+        swrUI_EnableElement(button);
+        return;
+    }
+    swrUI_DisableElement(button);
 }
 
 // 0x00420f70

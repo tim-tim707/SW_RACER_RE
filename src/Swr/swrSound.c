@@ -5,10 +5,15 @@
 #include "swr.h"      // swr_noop2, playASound
 #include "swrEvent.h" // swrEvent_GetEventCount
 #include "swrObj.h"   // NumLocalPlayers
+#include "swrConfig.h"
+#include "swrUI.h"
 
+#include <engine_config.h>
 #include <macros.h>
 
+#include <General/stdConffile.h>
 #include <General/stdHashTable.h>
+#include <General/stdString.h>
 #include <General/utils.h> // swrUtils_Rand
 #include <Platform/a3d.h>
 #include <Win95/Window.h>
@@ -18,10 +23,112 @@
 #include <stdlib.h> // malloc, free
 #include <string.h>
 
-// 0x00421D90
+// 0x00421d90
 int swrSound_Startup()
 {
-    HANG("TODO");
+    if (Main_sound == 0)
+        return 0;
+
+    swrUI_UpdateProgressBar(2);
+    if (swrSound_Playing == 0 && swrSound_Init() == 0)
+        return 0;
+    swrUI_UpdateProgressBar(4);
+    swrSoundHashTable = stdHashtbl_New(SWR_SOUND_HASHTABLE_SIZE);
+    if (swrSoundHashTable == NULL)
+        return 0;
+    swrUI_UpdateProgressBar(6);
+    swrSound_Ready = 1;
+    swrSound_Initted = 1;
+    if (swrSound_Playing == 0) {
+        swrSound_CreateThread();
+    } else {
+        ResumeThread(ia3dSourceThreadHandle);
+    }
+    swrUI_UpdateProgressBar(8);
+    if (swrConfig_ReadAudioConfig("current") < 0) {
+        swrSound_SetDefaultConfig();
+        swrConfig_WriteAudioConfig("current");
+    }
+    if (Main_sound == 0)
+        return swrSound_Teardown(0);
+    swrUI_UpdateProgressBar(10);
+    if (stdConffile_Open(".\\data\\sounds.map") == 0) {
+        swrSound_LoadDefaultBank();
+    } else {
+        swrSound_LoadSoundMap();
+    }
+    stdConffile_Close();
+    swrUI_UpdateProgressBar(15);
+    swrSound_SetOutputGain(1.0f);
+    swrSound_ResetChannels();
+    swrUI_UpdateProgressBar(20);
+    return 1;
+}
+
+// 0x00421eb0
+int swrSound_Teardown(int fullShutdown)
+{
+    if (swrSound_Initted == 0)
+        return 0;
+
+    swrSound_FreeBank();
+    if (fullShutdown == 0) {
+        swrSound_Rewind(iA3DSource_ptr);
+        SuspendThread(ia3dSourceThreadHandle);
+    } else {
+        swrSound_TerminateThread();
+    }
+    if (swrSoundHashTable != NULL) {
+        stdHashtbl_Free(swrSoundHashTable);
+        swrSoundHashTable = NULL;
+    }
+    if (fullShutdown != 0)
+        swrSound_Shutdown();
+    swrSound_Initted = 0;
+    swrSound_Playing = fullShutdown == 0;
+    return 1;
+}
+
+// 0x00421f30
+int swrSound_LoadSoundMap(void)
+{
+    // Uninitialised in the EXE (a spare stack slot); only read if swrSound_Initted is 0
+    void* sound = NULL;
+
+    if (stdConffile_ReadArgs() == 0 || _strcmpi(stdConffile_g_entry.aArgs[0].argName, "NUMSOUNDS") != 0) {
+        if (*(void**)((char*)swrSound_bank + 0x28) != NULL)
+            swrSound_FreeBank();
+        return 1;
+    }
+    swrSound_mapSoundCount = atoi(stdConffile_g_entry.aArgs[0].argValue);
+    if (swrSound_mapSoundCount == 0)
+        return 0;
+
+    swrSound_AllocBank(swrSound_mapSoundCount);
+    while (stdConffile_ReadArgs() != 0) {
+        if (strcmp(stdConffile_g_entry.aArgs[0].argName, "end.") == 0)
+            return 0;
+        if (_strcmpi(stdConffile_g_entry.aArgs[0].argName, "NUMVOICES") == 0) {
+            swrSound_mapSoundCount -= atoi(stdConffile_g_entry.aArgs[0].argValue);
+        } else {
+            if (swrSound_Initted != 0)
+                sound = swrSound_RegisterSound(stdConffile_g_entry.aArgs[0].argName, 1);
+            if (sound == NULL)
+                sound = swrSound_RegisterSound("sfx_crash_wood.wav", 1);
+        }
+    }
+    return 0;
+}
+
+// 0x00422060
+int swrSound_LoadDefaultBank(void)
+{
+    swrSound_AllocBank(SWR_SOUND_DEFAULT_BANK_SIZE);
+    for (swrSoundDefaultBankEntry* entry = swrSound_defaultBankFiles; entry->filename != NULL; entry++) {
+        if (swrSound_RegisterSound(entry->filename, 1) == NULL)
+            swrSound_RegisterSound("sfx_crash_wood.wav", 1);
+    }
+    return 0;
 }
 
 // Load a sound effect: open data\wavs\{22K|11K}\<wave_filename>, parse its WAVE
@@ -1021,6 +1128,86 @@ int swrSound_AllocBank(int count)
     return 1;
 }
 
+// 0x004227e0
+void* swrSound_RegisterSound(char* name, int load)
+{
+    char* bank = (char*)swrSound_bank;
+    char searchPath[512];
+    char path[128];
+    char filePath[128];
+    stdFile_t file = 0;
+    swrSoundDescriptor* found;
+    swrSoundDescriptor* entry;
+    char* next;
+    int opened = 0;
+
+    if (swrSound_Initted == 0)
+        return NULL;
+    if (strcmp(name, "none") == 0)
+        return NULL;
+
+    found = (swrSoundDescriptor*)swrSound_Find(name);
+    if (found != NULL) {
+        if (Main_sound_unk == 0 && load != 0 && (found->flags & (swrSoundDescriptor_LOADED | swrSoundDescriptor_STREAMED)) == 0)
+            swrSound_LoadSound(found);
+        if (*(uint32_t*)(bank + 0x20) >= *(uint32_t*)(bank + 0x24))
+            return NULL;
+        entry = (swrSoundDescriptor*)(*(char**)(bank + 0x28) + *(uint32_t*)(bank + 0x20) * sizeof(swrSoundDescriptor));
+        *entry = *found;
+        if ((found->flags & swrSoundDescriptor_STREAMED) == 0) {
+            found->flags |= swrSoundDescriptor_ALIAS;
+            entry->flags |= swrSoundDescriptor_DUPLICATE;
+        }
+        entry->index = *(uint32_t*)(bank + 0x20);
+        *(uint32_t*)(bank + 0x20) += 1;
+        return entry;
+    }
+
+    sprintf(searchPath, "%s;%s%s;%s%s", Main_hiRes_sound ? ".\\data\\wavs\\22K;.\\data\\wavs\\22K\\Voice" : ".\\data\\wavs\\11K;.\\data\\wavs\\11K\\Voice;.\\data\\wavs\\22K\\Voice", rootPathName, ".\\data\\wavs\\Music", wuRegistry_lpClass, ".\\data\\wavs\\Voice");
+    next = searchPath;
+    do {
+        next = stdString_CopyBetweenDelimiter(next, path, sizeof(path), ";");
+        if (path[0] != '\0') {
+            // the EXE formats path into itself; a second buffer avoids the overlapping-sprintf UB
+            sprintf(filePath, "%s%c%s", path, '\\', name);
+            file = stdPlatform_hostServices_ptr->fileOpen(filePath, "rb");
+            if (file != 0) {
+                opened = 1;
+                break;
+            }
+        }
+    } while (next != NULL);
+    if (!opened)
+        return NULL;
+
+    if (*(uint32_t*)(bank + 0x20) < *(uint32_t*)(bank + 0x24)) {
+        uint32_t index = *(uint32_t*)(bank + 0x20);
+        entry = (swrSoundDescriptor*)(*(char**)(bank + 0x28) + index * sizeof(swrSoundDescriptor));
+        entry->index = index;
+        strncpy(entry->name, name, sizeof(entry->name) - 1);
+        entry->name[sizeof(entry->name) - 1] = '\0';
+        entry->dataSize = swrSound_ParseWave(file, (int*)&entry->sampleRate, (int*)&entry->bits, &entry->channels, (char*)&entry->dataOffset);
+        if (entry->dataSize != 0) {
+            entry->durationMs = entry->dataSize / (entry->sampleRate / 1000);
+            if (entry->bits == 16)
+                entry->durationMs >>= 1;
+            if (entry->channels != 0)
+                entry->durationMs >>= 1;
+            entry->flags = 0;
+            entry->unk44 = 1;
+            if (entry->dataSize > SWR_SOUND_STREAM_THRESHOLD)
+                entry->flags = swrSoundDescriptor_STREAMED;
+            swrSound_Add((char*)entry);
+            *(uint32_t*)(bank + 0x20) += 1;
+            stdPlatform_hostServices_ptr->fileClose(file);
+            return entry;
+        }
+    }
+    if (file != 0)
+        stdPlatform_hostServices_ptr->fileClose(file);
+    return NULL;
+}
+
 // 0x00422a90
 void* swrSound_GetEntry(int index)
 {
@@ -1028,6 +1215,13 @@ void* swrSound_GetEntry(int index)
     if (-1 < index && index < *(int*) (bank + 0x20))
         return (void*) (*(int*) (bank + 0x28) + index * 0x4c);
     return NULL;
+}
+
+// 0x00422ac0
+int swrSound_LoadSound(void* entry)
+{
+    HANG("TODO");
+    return 0;
 }
 
 // 0x00422d10

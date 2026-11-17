@@ -916,7 +916,7 @@ extern "C"
     typedef struct swrObjElmo
     {
         swrObj obj;
-        int unk8;
+        swrObjElmo_KIND kind; // 0x08 set by swrModel_LoadPuppet
         int unkc_index;
         int unk10;
         void* unk14;
@@ -953,6 +953,14 @@ extern "C"
         int unkb8;
         float unkbc;
     } swrObjElmo; // sizeof(0xc0)
+
+    // Per-kind clip frame ranges read by swrObjElmo_GetAnimTiming, indexed by swrObjElmo.unk88.
+    // Each kind's clips sit back to back on one animation timeline.
+    typedef struct swrObjElmo_AnimFrames
+    {
+        short start; // 0x0
+        short end; // 0x2
+    } swrObjElmo_AnimFrames; // sizeof(0x4)
 
     // Generic particle entity ('Smok'): engine smoke, track fire, explosion bursts,
     // Sebulba's flame attack. Up to 5 billboards, aged by F0 and drawn by F3. Every
@@ -1267,6 +1275,14 @@ extern "C"
         uint32_t unk44; // 0x44 initialized to 1
         IA3dSource* source; // 0x48
     } swrSoundDescriptor; // sizeof(0x4c)
+
+    // swrSound_defaultBankFiles entry: the built-in sound list swrSound_LoadDefaultBank
+    // registers when data/sounds.map is missing. NULL filename terminates.
+    typedef struct swrSoundDefaultBankEntry
+    {
+        char* filename; // 0x00
+        int unk4; // 0x04 1 on the later voice/music entries; no reader found
+    } swrSoundDefaultBankEntry; // sizeof(0x8)
 
     // One per-track ambient-SFX cue (0xc bytes). swrSfxPreloadSets[planet*3 + subtrack] points
     // to a list of these, terminated by an entry with startProgress < 0. swrSound_UpdateEngineAudio

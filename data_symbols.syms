@@ -119,6 +119,7 @@ Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
 swrSound_bank 0x004b6d34 void* # ptr to the sound-bank descriptor (+0x20 = entry count, +0x28 = entries base, 0x4c bytes each); swrSound_GetEntry
+swrSound_defaultBankFiles 0x004b6d38 swrSoundDefaultBankEntry[88] # NULL-terminated; swrSound_LoadDefaultBank
 
 unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
@@ -184,6 +185,7 @@ swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitT
 InRaceSpritesEnabled 0x004B94C0 int
 
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
+sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
 lensFlareSpriteIds 0x004B94E0 int[16]
 
 # The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
@@ -312,6 +314,14 @@ upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
 
+swrObjElmo_animFramesPitDroid 0x004c25a8 swrObjElmo_AnimFrames[30] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 1
+swrObjElmo_animFramesPilot 0x004c2620 swrObjElmo_AnimFrames[14] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 2
+swrObjElmo_animFramesWatto 0x004c2658 swrObjElmo_AnimFrames[16] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 3
+swrObjElmo_animFramesJawa 0x004c2698 swrObjElmo_AnimFrames[4] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 10
+swrObjElmo_animFramesR2d2 0x004c26a8 swrObjElmo_AnimFrames[4] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 12
+swrObjElmo_animFramesQuiGon 0x004c26b8 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 11
+swrObjElmo_animFramesC3po 0x004c26d0 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 8
+swrObjElmo_animFramesJarJar 0x004c26e8 swrObjElmo_AnimFrames[6] # swrObjElmo_GetAnimTiming, swrObjElmo_KIND 9
 swrRacer_PodData 0x004c2700 swrRacerData[23]
 swrRacer_PodHandlingData 0x004c2bb0 PodHandlingData[23]
 swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
@@ -517,7 +527,7 @@ g_objHang1 0x004eb21c swrObjHang*
 
 multiplayer_sync_timer_ms 0x004eb230 int
 
-multiplayer_race_button_toggle 0x004eb238 int
+multiplayer_race_button_toggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
 
 multiplayer_track_change_permission 0x004eb388 int
 
@@ -750,6 +760,7 @@ IA3dSource2_ptr 0x0050c6a0 IA3dSource*
 IA3dSource3_ptr 0x0050c6a4 IA3dSource*
 
 swr_rootModel_ptr 0x0050c6b0 RdModel3*
+swr_rootModelThing_ptr 0x0050c6b4 RdThing* # wraps swr_rootModel_ptr; created by rdModel_BuildAndDrawScene, freed by swrDisplay_Shutdown
 rdMatrix44_ringBufferIndex 0x0050c6b8 int
 swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
 
@@ -1484,6 +1495,7 @@ swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 stdPlatform_hostServices 0x00e9f280 HostServices
 
 rootPathName 0x00e9f300 char[80]
+swrSound_mapSoundCount 0x00e9f360 int # sounds.map NUMSOUNDS minus NUMVOICES; swrSound_LoadSoundMap
 swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayers[].awName (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
