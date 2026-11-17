@@ -4415,6 +4415,76 @@ void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang)
         swrModel_LoadModelIntoScene(upgradeInfos[(char)uiUpgradeInfos[i].index].model, -1, SWR_SCENE_SLOT_INSTALLED_PARTS + i, false);
 }
 
+static void aimAtPodPart(int entry, rdVector3* out)
+{
+    rdMatrix44 xf;
+
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[entry].node, &xf);
+    rdVector_Copy3(out, (rdVector3*)&xf.vD);
+}
+
+// 0x0043f8e0
+void swrObjHang_AimHoloCamera(swrObjHang* hang, int target, int fromCurrentEye)
+{
+    rdVector3 lookAt; // left unset for target ids outside 0x14..0x1e, as in the original
+    rdVector3 eye;
+    float spreadY;
+    float spreadX;
+
+    switch (target) {
+    case swrObjHang_HOLOAIM_ORIGIN:
+        rdVector_Set3(&lookAt, 0.0f, 0.0f, 0.0f);
+        break;
+    case swrObjHang_HOLOAIM_POD_PART_5:
+        aimAtPodPart(5, &lookAt);
+        break;
+    case swrObjHang_HOLOAIM_POD_PART_1:
+        aimAtPodPart(1, &lookAt);
+        break;
+    case swrObjHang_HOLOAIM_POD_PART_2:
+        aimAtPodPart(2, &lookAt);
+        break;
+    case swrObjHang_HOLOAIM_POD_PART_3:
+        aimAtPodPart(3, &lookAt);
+        break;
+    case swrObjHang_HOLOAIM_POD_PART_4:
+        aimAtPodPart(4, &lookAt);
+        break;
+    case swrObjHang_HOLOAIM_PIT_DROID_0:
+    case swrObjHang_HOLOAIM_PIT_DROID_0 + 1:
+    case swrObjHang_HOLOAIM_PIT_DROID_0 + 2:
+    case swrObjHang_HOLOAIM_PIT_DROID_3:
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + target - swrObjHang_HOLOAIM_PIT_DROID_0], &lookAt);
+        if (lookAt.z == -157.0f)
+            lookAt.z = lookAt.z - -60.0f;
+        else
+            lookAt.z = lookAt.z - -30.0f;
+        break;
+    case swrObjHang_HOLOAIM_PILOT:
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PILOT_PUPPETS], &lookAt);
+        lookAt.z = (float)((double)swrRacer_PodData[(int)hang->vehiclePlayer].float20 * 0.6667 - 157.0);
+        break;
+    }
+
+    if (fromCurrentEye != 0) {
+        swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &lookAt, 3, 1, 0);
+        return;
+    }
+
+    // jittered one-shot framing above the target
+    spreadY = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.y;
+    rdVector_Set3(&eye, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.x, spreadY, lookAt.z - -400.0f);
+    if (target >= swrObjHang_HOLOAIM_PIT_DROID_0 && target <= swrObjHang_HOLOAIM_PILOT) {
+        float scaleY = swrUtils_RandFloat();
+        spreadY = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleY + lookAt.y;
+        float scaleX = swrUtils_RandFloat();
+        spreadX = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleX + lookAt.x;
+        rdVector_Set3(&eye, spreadX, spreadY, lookAt.z);
+        eye.z = eye.z - (lookAt.z == -97.0f ? 30.0f : -400.0f);
+    }
+    swrObjHang_SetHoloCameraTarget(&eye, &lookAt, 1, 0, 0);
+}
+
 // 0x0043fbc0
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex)
 {

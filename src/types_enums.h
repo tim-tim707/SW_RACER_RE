@@ -104,6 +104,20 @@ typedef enum swrRace_RESULTSFLAG
     swrRace_RESULTSFLAG_PILOT_UNLOCK_SHOWN = 0x8, // tournament pilot-unlock cutaway triggered
 } swrRace_RESULTSFLAG;
 
+// swrObjHang_AimHoloCamera targets.
+typedef enum swrObjHang_HOLOAIM
+{
+    swrObjHang_HOLOAIM_ORIGIN = 0x14,
+    swrObjHang_HOLOAIM_POD_PART_5 = 0x15, // pod model (scene slot 0xf) header entries 5, 1, 2, 3, 4
+    swrObjHang_HOLOAIM_POD_PART_1 = 0x16,
+    swrObjHang_HOLOAIM_POD_PART_2 = 0x17,
+    swrObjHang_HOLOAIM_POD_PART_3 = 0x18,
+    swrObjHang_HOLOAIM_POD_PART_4 = 0x19,
+    swrObjHang_HOLOAIM_PIT_DROID_0 = 0x1a, // .. 0x1d: pit-droid puppets (scene slots 0x34..0x37)
+    swrObjHang_HOLOAIM_PIT_DROID_3 = 0x1d,
+    swrObjHang_HOLOAIM_PILOT = 0x1e, // pilot puppet (scene slot 0x1c)
+} swrObjHang_HOLOAIM;
+
 // swrModel_Behavior.unk1 bits (see the field comment in types.h).
 typedef enum swrModel_BEHAVIOR_FLAG
 {
