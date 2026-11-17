@@ -2833,6 +2833,67 @@ float swrObjHang_StepTransition(float rate)
     return swrRace_Transition;
 }
 
+// 0x00469c30
+void swrObjHang_NavigateVehicleSelect(int player, float speed, int slideInWhenSettled)
+{
+    int stepped = 0;
+
+    swrRace_MenuNavLeftActive = 0;
+    swrRace_MenuNavRightActive = 0;
+    swrRace_MenuCanScrollLeft = 0 < swrRace_MenuSelectedItem;
+    swrRace_MenuCanScrollRight = swrRace_MenuSelectedItem < swrRace_MenuMaxSelection - 1;
+    if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_RIGHT) != 0) {
+        if (swrRace_MenuSelectedItem < swrRace_MenuMaxSelection - 1) {
+            swrRace_MenuNavRightActive = 1;
+            if (swrObjHang_menuRepeatTimer == 0.0f || (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_RIGHT) != 0) {
+                stepped = 1;
+                swrObjHang_menuRepeatDir = 1;
+                swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_DELAY;
+                if (0 < swrObjHang_menuRepeatCount)
+                    swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_INTERVAL / speed;
+            }
+        } else if (swrRace_Transition == 1.0f) {
+            playUISound(0x4b);
+        }
+    }
+    if ((swrUI_localPlayersInputDownBitset[player] & swrUI_INPUT_MENU_LEFT) != 0) {
+        if (swrRace_MenuSelectedItem < 1) {
+            if (swrRace_Transition == 1.0f)
+                playUISound(0x4b);
+        } else {
+            swrRace_MenuNavLeftActive = 1;
+            if (swrObjHang_menuRepeatTimer == 0.0f || (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_LEFT) != 0) {
+                stepped = 1;
+                swrObjHang_menuRepeatDir = -1;
+                swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_DELAY;
+                if (swrObjHang_menuRepeatCount < 0)
+                    swrObjHang_menuRepeatTimer = SWR_MENU_REPEAT_INTERVAL / speed;
+            }
+        }
+    }
+    // consume the low two pressed bits (meaning unidentified) while navigating
+    if (swrRace_MenuNavLeftActive != 0 || swrRace_MenuNavRightActive != 0)
+        swrUI_localPlayersInputPressedBitset[player] &= ~0x3;
+    if (stepped) {
+        if (swrObjHang_menuRepeatCount * swrObjHang_menuRepeatDir < 0)
+            swrObjHang_menuRepeatCount = 0;
+        swrRace_MenuSelectedItem += swrObjHang_menuRepeatDir;
+        swrObjHang_menuRepeatCount += swrObjHang_menuRepeatDir;
+        playUISound(0x58);
+    }
+    if (swrRace_MenuNavRightActive == 0 && swrRace_MenuNavLeftActive == 0)
+        swrObjHang_menuRepeatCount = 0;
+
+    if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem && swrRace_MenuNavLeftActive == 0 && swrRace_MenuNavRightActive == 0) {
+        if (slideInWhenSettled != 0)
+            swrObjHang_StepTransition(speed * SWR_MENU_SLIDE_RATE);
+    } else {
+        swrObjHang_StepTransition(speed * -SWR_MENU_SLIDE_RATE);
+        if (swrRace_Transition == 0.0f)
+            swrObjHang_settledMenuItem = swrRace_MenuSelectedItem;
+    }
+}
+
 // 0x00469e70
 void swrObjSmok_Free(swrObj* obj)
 {

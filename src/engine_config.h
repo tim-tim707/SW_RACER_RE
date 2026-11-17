@@ -149,4 +149,9 @@
 #define SWR_MAX_PIT_DROIDS (4)
 #define SWR_CANTINA_PILOT_POOL (0x7ffff) // pilots 0..18; the cantina guest is a pit droid once any is unlocked
 
+// swrObjHang_NavigateVehicleSelect (0x00469c30): held left/right auto-repeat
+#define SWR_MENU_REPEAT_DELAY (0.6f) // seconds before the first repeat
+#define SWR_MENU_REPEAT_INTERVAL (0.1f) // repeat interval once repeating, divided by the speed arg
+#define SWR_MENU_SLIDE_RATE (3.3f) // swrRace_Transition rate (x speed) for the left/right slide
+
 #endif // ENGINE_CONFIG_H

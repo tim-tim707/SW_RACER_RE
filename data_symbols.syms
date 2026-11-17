@@ -1182,7 +1182,7 @@ g_bCircuitIdxInRange 0x00e295c4 int
 g_CircuitIdxMax 0x00e295c8 int
 swrRace_MenuMaxSelection 0x00e295cc int # g_aTracksInCurrentCircuits
 swrRace_MenuSelectedItem 0x00e295d0 int
-DAT_00e295d4 0x00e295d4 int
+swrObjHang_settledMenuItem 0x00e295d4 int # selection the left/right slide transition last settled on (swrObjHang_NavigateVehicleSelect)
 swrObjHang_menuRepeatTimer 0x00e295d8 float # seconds until held left/right auto-repeats in swrObjHang_NavigateVehicleSelect
 swrObjHang_menuRepeatCount 0x00e295dc int # signed run length of consecutive auto-repeat steps; shortens the repeat delay
 swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu step
