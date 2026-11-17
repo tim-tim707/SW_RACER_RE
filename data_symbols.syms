@@ -209,6 +209,10 @@ swrObjHang_unused_state 0x004bfec8 swrObjHang_STATE = -1
 swrObjHang_unused_unk 0x004bfecc int = -1
 
 swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
+swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by swrObjHang_F0; idle elmo anim speed
+swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
+swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
+swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
 g_aTrackInfos 0x004bfee8 TrackInfo[25]
@@ -699,7 +703,7 @@ gamma_unk 0x0050c2ec float
 DAT_0050c308 0x0050c308 char[12]
 
 g_objHang2 0x0050c454 swrObjHang*
-DAT_0050c458 0x0050c458 int
+swrObjHang_skipTournamentIntro 0x0050c458 int # swrObjHang_F0 sets it in multiplayer; suppresses the tournament planet-intro cutscene (state 15)
 swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzero while a screen slide animates; sign is the slide direction
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
@@ -737,6 +741,7 @@ swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music
 swrRace_audioVideoMenuLastRow 0x004c0208 int # .data 5: last A/V settings row, the cursor wraps past it
 swrRace_menuSpriteCount 0x0050c928 int # next free garage menu sprite (id 0x82 + n); swrObjHang_F0 resets it, the stats panel and A/V settings page take from it
 swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
+swrObjHang_ambientAnimPhase 0x0050cad8 float # seconds, wraps at 6.26666 (swrObjHang_TickHolotableSpin_Maybe)
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
 swrObjHang_partLerpActive 0x0050c46c int # part icons are gliding vector2 -> vector3 (swrRace_UpdatePartMenuLayout)
@@ -844,6 +849,8 @@ swrObjHang_fadeState 0x0050c944 int # -1 = none; also read by swrObjHang_UpdateH
 
 swrObjHang_lookAtMenuFade 0x0050c958 float # look-at-vehicle menu fade, ramps 0 <-> 0.4 s with activeMenu (swrObjHang_UpdateLookAtVehicle); x2.5 = panel alpha
 swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicle camera step
+swrObjHang_inspectIdleTimer 0x0050c574 float # seconds on the current idle look-at-vehicle camera (swrObjHang_CycleInspectCamera)
+swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
 swrObjHang_cameraStepEyeSpeed 0x0050c990 float # swrObjHang_StepCameraToward carry for the eye
 swrObjHang_cameraStepLookAtSpeed 0x0050c994 float # ... and for the look-at
 swrObjHang_cameraLookAtTargetCached 0x0050c998 rdVector3 # last look-at target, to detect a retarget
@@ -884,8 +891,10 @@ swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
 
+swrObjTrig_regionGridLayout 0x0050CB40 int # 0 = off; 1/2 pick the swrObjTrig_regionBounds* layout for two tracks (swrObjJdge_InitTrack)
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int
+swrObjTrig_regionGridSuppressed 0x0050CB50 int # set while scanning a NODE_IS_TRANSFORMED subtree (moving nodes get no region bits)
 
 swrObjTrig_NumTriggerDescriptions 0x0050CB54 int
 
@@ -1221,6 +1230,8 @@ swrObjTrig_ModelArray1 0x00E26FC0 swrModel_Node*[6]
 swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
 swrObjTrig_TriggerDescriptionArray2 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
+swrObjTrig_regionBoundsX 0x00E270D0 float[4] # 3 region columns (swrObjTrig_InitColorBands_Maybe)
+swrObjTrig_regionBoundsY 0x00E27100 float[9] # 8 region rows
 dustKickChildNodeArray 0x00E27260 swrModel_NodeTransformedWithPivot[16] # d065 wrappers built by swrObjToss_AddDustKickModelsToScene
 
 fireballChildNodesPtr 0x00E27168 swrModel_Node**
@@ -1346,6 +1357,7 @@ translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
 
 GameSettingFlags 0x00e996dc int
+swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every access is 8/16-bit
 
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color

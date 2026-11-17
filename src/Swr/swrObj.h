@@ -35,6 +35,7 @@
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
 #define ComputeModelViewBounds_ADDR (0x0043e6f0)
 #define LoadUpgradeModelsIntoScene_Maybe_ADDR (0x0043e840)
+#define swrObjHang_CycleInspectCamera_ADDR (0x0043f770)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
@@ -347,7 +348,7 @@ void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE 
 
 // hangar transition/cutscene state handlers (swrObjHang_STATE 14-18) + screen loader (best-effort):
 // Reloads the current hangar screen scene; plays the planet cinematic on first visit.
-void swrObjHang_LoadScreen(swrObjHang* hang, int param_2, int param_3);
+void swrObjHang_LoadScreen(swrObjHang* hang, int param2, int param3);
 // State 14: (re)loads the screen via swrObjHang_LoadScreen.
 void swrObjHang_UpdateLoadScreen(swrObjHang* hang);
 // State 15: opponent taunt scene (pilot voice lines).
@@ -525,6 +526,7 @@ void swrModel_clearSceneModelsAndChildren(void);
 void swrObjHang_SetHoloCameraTarget(rdVector3* pos, rdVector3* lookAt, short mode, int keepEyeOffset, int reset);
 // Compute a holo-scene camera target for a scene element (jittered one-shot framing, or a direct
 // snap) and feed it to swrObjHang_SetHoloCameraTarget.
+void swrObjHang_CycleInspectCamera(swrObjHang* hang);
 void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrentEye); // cameraState: a HangCameraState_Inspect* value
 // Per-frame variant: recompute and apply the holo-scene camera target for the focused element.
 void swrObjHang_UpdateHoloCameraTarget(swrObjHang* hang, int itemIndex);
@@ -717,7 +719,7 @@ int swrObjElmo_TryTransition(swrObjElmo* elmo);
 void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
 
 // Animates the vehicle and track select holotable: lerps lighting, scales the projector and beam, and drives the holo light (best guess).
-void swrObjHang_UpdateCantinaHolotable(int param_1);
+void swrObjHang_UpdateCantinaHolotable(int menuScreen);
 
 // Copies the translation of an entity's indexed child node into the output (best guess).
 void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex);
@@ -775,7 +777,7 @@ void swrRace_GetSplineLookahead(rdVector3* out, swrRace* racer);
 // and zero its momentum/physics state (respawn / reset primitive).
 void swrRace_ResetToSpline(swrRace* racer, float t);
 
-void swrRace_Explode(swrRace*, char);
+void swrRace_Explode(swrRace* player, char side);
 
 // Per-frame: advance the racer's spline cursor along the track (by speed, or
 // re-sync from position when mode != 0), validating the track surface.
@@ -827,7 +829,7 @@ void swrObjTrig_InitColorBands_Maybe(void);
 // Maps a node's position to a region color and applies it to the node (best guess).
 unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node);
 
-void swrObjTrig_FindAndInitializeTriggersInNode(swrModel_NodeTransformed* node);
+unsigned int swrObjTrig_FindAndInitializeTriggersInNode(swrModel_Node* node);
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
 swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3);
 

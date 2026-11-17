@@ -122,6 +122,7 @@
 // swrModel_clearSceneModelsAndChildren (0x00454cc0): swr_sceneModels slots below this survive a scene clear
 #define SWR_SCENE_PERSISTENT_MODEL_SLOTS (5)
 #define SWR_SCENE_MODEL_SLOT_COUNT (151)
+#define SWROBJHANG_MENU_SPRITE_COUNT (0xb8) // front-end sprite ids 0..0xb7, hidden by swrObjHang_F0 every frame
 
 // swrObjHang_CullElmoAssets (0x0045ce90): size of the 'Elmo' event pool
 #define SWR_ELMO_POOL_SIZE (60)

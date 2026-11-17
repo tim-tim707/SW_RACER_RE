@@ -2009,6 +2009,12 @@ void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float fill, float a
     swrSprite_SetColor(id, (uint8_t)(int)(empty * 255.0f), (uint8_t)(int)(fill * 255.0f), 0, a);
 }
 
+// 0x00455930
+void swrRace_DrawUpgradesPanel(swrObjHang* hang)
+{
+    HANG("TODO");
+}
+
 // 0x00455dc0
 void swrRace_UpdateStatPartModels(void)
 {
