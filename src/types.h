@@ -3352,6 +3352,30 @@ extern "C"
         float unk8; // 0x8
     } swrForceEffectSetting; // sizeof(0xc)
 
+    // One downloaded force-feedback effect (cifr_InitEffectSlot_Maybe / cifr_CreateEffect).
+    // params' axis/direction/envelope pointers aim into this slot.
+    typedef struct cifr_Effect
+    {
+        int numInterfaces; // 0x0
+        IDirectInputEffect** interfaces; // 0x4. NULL until created
+        DIEFFECT_DX5 params; // 0x8. dwSize 0x34
+        LONG directions[0x20]; // 0x3c
+        DWORD axes[0x20]; // 0xbc
+        DIENVELOPE envelope; // 0x13c
+        int* typeSpecificBuffer; // 0x150. owned copy of the type-specific params (cifr_SetCustomForceData_Maybe)
+        int effectId; // 0x154. swrForceEffect currently created in this slot, -1 = none
+        char name[0x18]; // 0x158. .fcr effect name of effectId
+        unsigned int lastEffectId; // 0x170. highest swrForceEffect this slot serves
+    } cifr_Effect; // sizeof(0x174)
+
+    typedef struct cifr_EffectSet
+    {
+        char unk0[0x40];
+        void* device; // 0x40. force-feedback DirectInput device
+        int unk44;
+        cifr_Effect slots[6]; // 0x48
+    } cifr_EffectSet; // sizeof(0x900)
+
     // swrUI_timers slot (swrUI_AddTimer / swrUI_RemoveTimer / swrUI_UpdateTimers); free while target == NULL
     typedef struct swrUITimer
     {

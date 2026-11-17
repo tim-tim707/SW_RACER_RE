@@ -138,13 +138,13 @@ int swrControl_StopForceEffect(int effectId);
 void swrControl_StopAllForceEffects(int reInit);
 
 // Bind a force-feedback effect to a DirectInput effect slot before playing.
-int swrControl_PrepareForceEffect(int effectId, int param2);
+int swrControl_PrepareForceEffect(int effectId, int force);
 
 // Force-feedback effect-table helpers:
 int swrControl_FindForceEffectSlot(unsigned int effectId);        // effect id -> effect-table slot (-1 if none)
 int swrControl_CheckForceEffectType(int slot, unsigned int type);
-int swrControl_ConfigureForceEffect(int a1, int a2);
-int swrControl_UpdateForceEffect(int a1, int a2);
+int swrControl_ConfigureForceEffect(int effectId, int value); // GForce spring coefficient
+int swrControl_UpdateForceEffect(int effectId, int period); // periodic effect period
 
 // Force-feedback runtime: per-frame rumble drivers from the player's pod state.
 void swrControl_SetForceFeedbackPlayer(swrRace* player); // cache the player + baseline for FF
