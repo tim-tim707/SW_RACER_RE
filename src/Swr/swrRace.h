@@ -451,7 +451,7 @@ void swrRace_UpdateEngineDamageFX(swrRace* player);
 void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float offset, int tossFlag);
 
 // Smooths a per-side engine exhaust size toward a target over time (best guess).
-void swrRace_SmoothEngineExhaustSize(int player, float side, float a, float b, float c, float rate, int param_7, int param_8);
+float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max);
 
 // pod state + engine secondary-motion helpers:
 // Counts down the death timer; on expiry dispatches the 'Snap' event and resets engine health/flags.

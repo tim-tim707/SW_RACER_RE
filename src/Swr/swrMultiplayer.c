@@ -644,3 +644,9 @@ int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3
     }
     return 1;
 }
+
+// 0x0041d930
+void swrMultiplayer_PublishPodState(swrRace* player)
+{
+    HANG("TODO");
+}

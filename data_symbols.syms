@@ -1009,6 +1009,7 @@ swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
 swrModel_Node4 0x0050cd04 swrModel_Node* # shown/hidden alongside swrModel_Node1..3 in swrViewport_Render
 
+swrRace_scrapeSparkSoundTime 0x0050cb14 float # timetotal at which the next scrape-spark sound may play (swrRace_UpdateScrapeSparks only)
 swrSprite_dirtyRectCount 0x0050cd10 short
 
 debug_buffer 0x0050cd18 char[2048]
@@ -1632,6 +1633,8 @@ swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayer
 sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
 
 swrMain_raceActiveForUi 0x00ea0180 int
+swrMultiplayer_aRemoteFlags1 0x00ea01a0 int[20] # remote pod flags1 from 'pods' state packets (ApplyPlayerStates), merged by swrObjTest_F3
+swrMultiplayer_aRemoteStateTime 0x00ea0200 int[20] # timeGetTime() when the slot's last state packet arrived; F3 extrapolates from it
 swrMultiplayer_chatInputOpen 0x00ea0250 int # chat input line is open and capturing keys
 
 multiplayer_racer1_id 0x00ea0260 int
@@ -1666,6 +1669,9 @@ multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's '
 swrMultiplayer_aRemoteLapComp 0x00ea0360 float[20] # lap progress 0..1
 swrMultiplayer_aRemoteLapCompMax 0x00ea0420 float[20]
 swrMultiplayer_aRemoteLap 0x00ea0480 int[20] # remote score->results_P1_Lap (current lap counter)
+swrMultiplayer_aRemoteFlags0 0x00ea03c0 int[20] # remote pod flags0 from state packets, merged by swrObjTest_F3
+swrMultiplayer_remotePodTransform 0x00ea0720 rdMatrix44 # slot n at + n * sizeof(swrRace); written by ApplyPlayerStates
+swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from state packets
 
 multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 

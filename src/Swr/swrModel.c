@@ -397,9 +397,9 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
                 FLOAT_SWAP32_INPLACE(&behavior->light_vector[1]);
                 FLOAT_SWAP32_INPLACE(&behavior->light_vector[2]);
 
-                behavior->unk14_node = (swrModel_Node*)SWAP32(behavior->unk14_node);
-                behavior->unk15 = SWAP32(behavior->unk15);
-                behavior->unk16 = SWAP32(behavior->unk16);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector2[0]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector2[1]);
+                FLOAT_SWAP32_INPLACE(&behavior->light_vector2[2]);
 
                 behavior->vehicle_reaction = SWAP32(behavior->vehicle_reaction);
 
@@ -3198,4 +3198,20 @@ float DistanceToNearestViewportCamera(rdVector3* point)
             nearest = distSq;
     }
     return stdMath_Sqrt(nearest);
+}
+
+// 0x0046d730
+float swrMath_StepTowardClamped(float value, float current, float min, float max, float upper, float lower)
+{
+    float result = value;
+
+    if (current + upper < result)
+        result = current + upper;
+    if (result < current - lower)
+        result = current - lower;
+    if (result < min)
+        result = min;
+    if (max < result)
+        result = max;
+    return result;
 }

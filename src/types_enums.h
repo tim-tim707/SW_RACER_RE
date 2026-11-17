@@ -280,8 +280,8 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_STATE_POSTRACE = 0x1, // post-race / finished coast (set per pod by swrObjJdge_StartPostRaceSequence)
     swrObjTest_FLAG0_RACING = 0x2, // actively racing (low nibble == 2, set on the 'Go!!' event)
     swrObjTest_FLAG0_THROTTLE_SETTLED = 0x10, // wallHitCooldown expired since the last hard wall impact
-    // (ApplyWallCollision clears it and arms the 0.1s cooldown); autopilot picks full throttle on it and
-    // it gates the engine-damage steering pull in swrRace_UpdatePlayerControl.
+                                              // (ApplyWallCollision clears it and arms the 0.1s cooldown); autopilot picks full throttle on it and
+                                              // it gates the engine-damage steering pull in swrRace_UpdatePlayerControl.
     swrObjTest_FLAG0_LOCAL = 0x20, // 'Locl' racer (local human)
     swrObjTest_FLAG0_REMOTE = 0x40, // 'REMO' racer (remote/network)
     swrObjTest_FLAG0_AI = 0x80, // 'AAII' racer (computer)
@@ -296,17 +296,17 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_RESPAWN_INVINC = 0x2000, // respawn invincibility
     swrObjTest_FLAG0_DEAD = 0x4000, // dead / spun out
     swrObjTest_FLAG0_AI_TETHER_LOCAL1 = 0x8000, // one of the 1-2 AI nearest to local player 1: swrRace_AI
-    // paces it directly on gapToLocalPlayer1 (the rubberband tether). Retagged every frame in
-    // swrObjJdge_UpdateStandings.
+                                                // paces it directly on gapToLocalPlayer1 (the rubberband tether). Retagged every frame in
+                                                // swrObjJdge_UpdateStandings.
     swrObjTest_FLAG0_AI_TETHER_LOCAL2 = 0x10000, // same, tethered to local player 2 (splitscreen only)
     swrObjTest_FLAG0_TP_TO_SPLINE = 0x20000, // teleport to spline point requested
     swrObjTest_FLAG0_WALL_IMPACT_CLAMP = 0x40000, // one-shot from a strong wall impact (ApplyWallCollision); UpdatePhysicsContact consumes it to clamp accelThrust
     swrObjTest_FLAG0_POD_HIDDEN = 0x80000, // hide the pod in its OWN camera view (first-person /
-    // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
-    // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
-    // swrViewport_Render. Cleared each frame in swrObjTest_F0.
+                                           // bumper cam, and demo mode). swrRace_PoddAnimateEngines clears the pod root node's visible
+                                           // flag when this is set (and DEAD is clear); vanilla re-shows the pod to the OTHER viewport in
+                                           // swrViewport_Render. Cleared each frame in swrObjTest_F0.
     swrObjTest_FLAG0_LOOK_BACK = 0x100000, // rear-view / look-back input held (in-race input bitset3 bit 0x8);
-    // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
+                                           // the camera manager reads it to flip the chase/first-person camera basis, then clears it.
     swrObjTest_FLAG0_CAN_CHARGE_BOOST = 0x200000, // eligible to charge boost (speed > 0.75 * maxSpeed, alive)
     swrObjTest_FLAG0_BOOST_OVERDRIVE = 0x400000, // overdrive throttle floor (1.2): while set, throttle can't drop
                                                  // below 120%. Read by swrRace_UpdatePlayerControl, cleared by
@@ -320,6 +320,8 @@ typedef enum swrObjTest_FLAG0
     swrObjTest_FLAG0_SCRAPE_SPARK_R = 0x10000000, // scrape-spark emitter active on partNodes[0x41] (SetupScrapeSpray side 1; self-clears in UpdateScrapeSparks)
     swrObjTest_FLAG0_SCRAPE_SPARK_L = 0x20000000, // scrape-spark emitter active on partNodes[0x42]
     swrObjTest_FLAG0_WAS_BOOSTING = 0x40000000, // was boosting last frame
+                                                // flags0 bits a 'REMO' pod takes from its state packets (swrObjTest_F3)
+    swrObjTest_FLAG0_REMOTE_SYNCED = swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD | swrObjTest_FLAG0_POD_HIDDEN,
     // 0x80000000 is cleared every frame by UpdatePlayerControl but never set or read (vestigial).
 } swrObjTest_FLAG0;
 
@@ -354,6 +356,8 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_GROUNDED = 0x8000000, // grounded
     swrObjTest_FLAG1_IMMUNITY = 0x10000000, // post-teleport collision immunity
     swrObjTest_FLAG1_GROUND_CACHED = 0x20000000, // using cached / spline ground
+    // flags1 bits a 'REMO' pod takes from its state packets (swrObjTest_F3)
+    swrObjTest_FLAG1_REMOTE_SYNCED = swrObjTest_FLAG1_ON_LAVA | swrObjTest_FLAG1_ON_FLAT | swrObjTest_FLAG1_FINISHED | swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_GROUNDED,
 } swrObjTest_FLAG1;
 
 typedef enum rdCameraProjectType
@@ -483,6 +487,21 @@ typedef enum swrModel_Behavior_FOGFLAG
     swrModel_Behavior_FOGFLAG_COLOR = 0x1, // fog_color and fog_start are valid
     swrModel_Behavior_FOGFLAG_DISTANCE = 0x2, // fog_end is valid
 } swrModel_Behavior_FOGFLAG;
+
+// swrModel_Behavior.light_flags (swrObjcMan_LoadLightingFromBehavior)
+typedef enum swrModel_Behavior_LIGHTFLAG
+{
+    swrModel_Behavior_LIGHTFLAG_RAW_VECTOR = 0x4, // light_vector is used as-is (not normalized); sets swrObjcMan_LIGHTFLAG_RAW_VECTOR
+    swrModel_Behavior_LIGHTFLAG_UNK8 = 0x8, // sets swrObjcMan_LIGHTFLAG_UNK4
+    swrModel_Behavior_LIGHTFLAG_SET_DEFAULT = 0x10, // write swrObjcMan.lightDefault, then make it active
+} swrModel_Behavior_LIGHTFLAG;
+
+// swrObjcMan_Light.flags, merged into swrObjcMan.unk2e4_flag
+typedef enum swrObjcMan_LIGHTFLAG
+{
+    swrObjcMan_LIGHTFLAG_UNK4 = 0x4,
+    swrObjcMan_LIGHTFLAG_RAW_VECTOR = 0x8,
+} swrObjcMan_LIGHTFLAG;
 
 // swrModel_TriggerDescription.flags
 typedef enum swrModel_TriggerDescription_FLAG

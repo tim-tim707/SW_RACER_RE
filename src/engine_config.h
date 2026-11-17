@@ -268,4 +268,9 @@
 #define SWR_FF_EFFECT_SLOTS (6) // cifr_EffectSet.slots
 #define SWR_FF_DEVICE_NONE (9) // swrControl_forceEffectsDeviceType: no bundle loaded; valid device types are 0..8
 
+// swrSprite_AddDirtyRect (0x00484020)
+#define SWR_SPRITE_MAX_DIRTY_RECTS (31) // swrSprite_dirtyRects holds 31 x {x1,y1,x2,y2}
+#define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
+#define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)
+
 #endif // ENGINE_CONFIG_H

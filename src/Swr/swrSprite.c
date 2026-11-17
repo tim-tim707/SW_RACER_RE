@@ -979,5 +979,35 @@ void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5,
 // 0x00484020
 void swrSprite_AddDirtyRect(short x1, short y1, short x2, short y2)
 {
-    HANG("TODO");
+    double scaleX;
+    double scaleY;
+    short* rect;
+
+    if (swrSprite_dirtyRectCount >= SWR_SPRITE_MAX_DIRTY_RECTS)
+        return;
+
+    x1--;
+    y1--;
+    x2++;
+    y2++;
+    if (x1 < 0)
+        x1 = 0;
+    if (y1 < 0)
+        y1 = 0;
+    if (x2 > swrDisplay_screenWidth - 1)
+        x2 = swrDisplay_screenWidth - 1;
+    if (y2 > swrDisplay_screenHeight - 1)
+        y2 = swrDisplay_screenHeight - 1;
+    if (x2 <= x1 || y2 <= y1)
+        return;
+
+    // doubles at 0x004ae0a8 / 0x004ae0b0
+    scaleX = swrDisplay_screenWidth * (1.0 / SWR_SPRITE_DIRTY_RECT_REF_WIDTH);
+    scaleY = swrDisplay_screenHeight * (1.0 / SWR_SPRITE_DIRTY_RECT_REF_HEIGHT);
+    rect = &swrSprite_dirtyRects[swrSprite_dirtyRectCount * 4];
+    rect[0] = (short)(x1 * scaleX);
+    rect[1] = (short)(y1 * scaleY);
+    rect[2] = (short)(x2 * scaleX);
+    swrSprite_dirtyRectCount++;
+    rect[3] = (short)(y2 * scaleY);
 }
