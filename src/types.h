@@ -3353,17 +3353,15 @@ extern "C"
     } swrForceEffectSetting; // sizeof(0xc)
 
     // One downloaded force-feedback effect (cifr_InitEffectSlot_Maybe / cifr_CreateEffect).
-    // +0x8..+0x3c is a DIEFFECT whose axis/direction/envelope pointers aim into this slot.
+    // params' axis/direction/envelope pointers aim into this slot.
     typedef struct cifr_Effect
     {
         int numInterfaces; // 0x0
-        void** interfaces; // 0x4. IDirectInputEffect* per interface; NULL until created
-        unsigned int diEffectHeader[11]; // 0x8. DIEFFECT dwSize (0x34) .. lpEnvelope
-        unsigned int typeSpecificSize; // 0x34. DIEFFECT cbTypeSpecificParams
-        void* typeSpecificParams; // 0x38. DIEFFECT lpvTypeSpecificParams
-        int directions[0x20]; // 0x3c
-        unsigned int axes[0x20]; // 0xbc
-        unsigned int envelope[5]; // 0x13c. DIENVELOPE
+        IDirectInputEffect** interfaces; // 0x4. NULL until created
+        DIEFFECT_DX5 params; // 0x8. dwSize 0x34
+        LONG directions[0x20]; // 0x3c
+        DWORD axes[0x20]; // 0xbc
+        DIENVELOPE envelope; // 0x13c
         int* typeSpecificBuffer; // 0x150. owned copy of the type-specific params (cifr_SetCustomForceData_Maybe)
         int effectId; // 0x154. swrForceEffect currently created in this slot, -1 = none
         char name[0x18]; // 0x158. .fcr effect name of effectId

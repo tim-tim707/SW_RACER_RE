@@ -126,6 +126,12 @@ typedef enum swrForceEffect
     swrForceEffect_EXPLODING = 27,
 } swrForceEffect;
 
+// swrRace.engineStatus[6] bits (one word per engine part).
+typedef enum swrRace_ENGINESTATUS
+{
+    swrRace_ENGINESTATUS_ON_FIRE = 0x8, // engine burning: fireball spawned, ENGINE_FIRE force effect
+} swrRace_ENGINESTATUS;
+
 // swrRace_resultsStateFlags: one-shot latches while the results screen is up,
 // cleared when leaving it (swrRace_ResultsMenu).
 typedef enum swrRace_RESULTSFLAG

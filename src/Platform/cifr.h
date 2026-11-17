@@ -52,26 +52,27 @@ int cifr_CreateEffect(void* effect, void* params, void* device);
 // Release one effect's downloaded DirectInput interfaces.
 int cifr_ReleaseEffect(void* effect, void* device);
 
-// Start playing an effect (checkPlaying != 0 skips if already playing).
-int cifr_StartEffect(void* effect, int checkPlaying);
+// Start playing an effect (restart == 0 leaves an already-playing effect alone).
+int cifr_StartEffect(cifr_Effect* effect, int restart);
 
 // Stop an effect.
-int cifr_StopEffect(void* effect);
+int cifr_StopEffect(cifr_Effect* effect);
 
 // Return 1 if the effect is currently playing.
-int cifr_IsPlaying(void* effect);
+int cifr_IsPlaying(cifr_Effect* effect);
 
 // Get / set the effect direction in degrees (0..360).
-int cifr_GetDirection(void* effect);
-int cifr_SetDirection(void* effect, int degrees, int deferred);
+// start != 0 downloads with DIEP_START, else DIEP_NORESTART.
+int cifr_GetDirection(cifr_Effect* effect);
+int cifr_SetDirection(cifr_Effect* effect, int degrees, int start);
 
 // Get / set the effect magnitude as a percent (0..100).
-unsigned int cifr_GetMagnitude(void* effect);
-int cifr_SetMagnitude(void* effect, int percent, int deferred);
+unsigned int cifr_GetMagnitude(cifr_Effect* effect);
+int cifr_SetMagnitude(cifr_Effect* effect, int percent, int start);
 
 // Get / set the effect duration in milliseconds (-1 = infinite).
-int cifr_GetDuration(void* effect);
-int cifr_SetDuration(void* effect, int durationMs, int deferred);
+int cifr_GetDuration(cifr_Effect* effect);
+int cifr_SetDuration(cifr_Effect* effect, int durationMs, int start);
 
 // Reallocates and copies a per-effect custom force buffer, then downloads it via SetParameters (best guess).
 int cifr_SetCustomForceData_Maybe(void* effect, unsigned int size, void* data, int deferred);

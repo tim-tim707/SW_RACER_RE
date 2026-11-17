@@ -3,6 +3,7 @@
 #include "Win95/Window.h"
 #include "Platform/cifr.h"
 #include "globals.h"
+#include "engine_config.h"
 #include "Swr/swrModel.h"
 
 #include <stdlib.h>
@@ -71,17 +72,17 @@ int swrControl_LoadForceEffects(int deviceType)
     if ((swrControl_forceEffectsDeviceType & 0xff) == deviceType) {
         return 1;
     }
-    if (deviceType > 8) {
+    if (deviceType >= SWR_FF_DEVICE_NONE) {
         return 0;
     }
-    if ((unsigned char)swrControl_forceEffectsDeviceType < 9) {
+    if ((unsigned char)swrControl_forceEffectsDeviceType < SWR_FF_DEVICE_NONE) {
         cifr_ReinitEffects_Maybe(&swrControl_forceEffects);
     }
     memset(swrControl_forceEffectValue, 0, sizeof(swrControl_forceEffectValue));
     memset(swrControl_forceEffectPlaying, 0, sizeof(swrControl_forceEffectPlaying));
     // the EXE only ever writes the low byte of swrControl_forceEffectsDeviceType
     if (deviceType < 0) {
-        *(unsigned char*)&swrControl_forceEffectsDeviceType = 9;
+        *(unsigned char*)&swrControl_forceEffectsDeviceType = SWR_FF_DEVICE_NONE;
         return 1;
     }
     cifr_Init(&swrControl_forceEffects);
@@ -180,7 +181,7 @@ void swrControl_StopAllForceEffects(int reInit)
 {
     int i;
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < SWR_FF_EFFECT_SLOTS; i++) {
         swrControl_StopForceEffect(swrControl_forceEffects.slots[i].effectId);
     }
     if (reInit != 0) {
@@ -193,12 +194,12 @@ int swrControl_FindForceEffectSlot(unsigned int effectId)
 {
     int slot;
 
-    for (slot = 0; slot < 6; slot++) {
+    for (slot = 0; slot < SWR_FF_EFFECT_SLOTS; slot++) {
         if (effectId <= swrControl_forceEffects.slots[slot].lastEffectId) {
             break;
         }
     }
-    if (slot > 5) {
+    if (slot >= SWR_FF_EFFECT_SLOTS) {
         slot = -1;
     }
     return slot;
@@ -297,7 +298,7 @@ int swrControl_ConfigureForceEffect(int effectId, int value)
     if (cifr_GetForceFeedbackState_Maybe(effect, &state) == 0) {
         return 0;
     }
-    size = effect->typeSpecificSize;
+    size = effect->params.cbTypeSpecificParams;
     params = (*stdPlatform_hostServices_ptr->alloc)(size);
     memcpy(params, effect->typeSpecificBuffer, size);
     scale = 1.0f;
@@ -355,7 +356,7 @@ int swrControl_UpdateForceEffect(int effectId, int period)
     if (cifr_GetForceFeedbackState_Maybe(effect, &state) == 0) {
         return 0;
     }
-    size = effect->typeSpecificSize;
+    size = effect->params.cbTypeSpecificParams;
     params = (*stdPlatform_hostServices_ptr->alloc)(size);
     memcpy(params, effect->typeSpecificBuffer, size);
     params[3] = period; // DIPERIODIC dwPeriod
@@ -456,7 +457,7 @@ void swrControl_UpdateTractionForceEffect(void)
             }
         }
     }
-    if ((status & 8) != 0) {
+    if ((status & swrRace_ENGINESTATUS_ON_FIRE) != 0) {
         swrControl_PlayForceEffect(swrForceEffect_ENGINE_FIRE_LEFT, -1, (rightCount > leftCount) * 180 + 90, -1);
         return;
     }

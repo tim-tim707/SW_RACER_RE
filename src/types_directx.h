@@ -821,6 +821,72 @@ typedef struct DIJOYSTATE2
     LONG rglFSlider[2]; /* extra axes forces            */
 } DIJOYSTATE2, *LPDIJOYSTATE2;
 
+typedef struct DIENVELOPE
+{
+    DWORD dwSize;
+    DWORD dwAttackLevel;
+    DWORD dwAttackTime;
+    DWORD dwFadeLevel;
+    DWORD dwFadeTime;
+} DIENVELOPE, *LPDIENVELOPE;
+
+typedef struct DIEFFECT_DX5
+{
+    DWORD dwSize;
+    DWORD dwFlags;
+    DWORD dwDuration;
+    DWORD dwSamplePeriod;
+    DWORD dwGain;
+    DWORD dwTriggerButton;
+    DWORD dwTriggerRepeatInterval;
+    DWORD cAxes;
+    LPDWORD rgdwAxes;
+    LPLONG rglDirection;
+    LPDIENVELOPE lpEnvelope;
+    DWORD cbTypeSpecificParams;
+    LPVOID lpvTypeSpecificParams;
+} DIEFFECT_DX5, *LPDIEFFECT_DX5;
+typedef DIEFFECT_DX5 DIEFFECT;
+typedef DIEFFECT* LPDIEFFECT;
+typedef const DIEFFECT* LPCDIEFFECT;
+
+typedef enum DIEP // IDirectInputEffect::SetParameters dwFlags
+{
+    DIEP_DURATION = 0x00000001,
+    DIEP_GAIN = 0x00000004,
+    DIEP_DIRECTION = 0x00000040,
+    DIEP_TYPESPECIFICPARAMS = 0x00000100,
+    DIEP_START = 0x20000000,
+    DIEP_NORESTART = 0x40000000,
+    DIEP_NODOWNLOAD = 0x80000000,
+} DIEP;
+
+typedef enum DIEGES // IDirectInputEffect::GetEffectStatus
+{
+    DIEGES_PLAYING = 0x00000001,
+} DIEGES;
+
+typedef struct IDirectInputEffect
+{
+    struct IDirectInputEffectVtbl* lpVtbl;
+} IDirectInputEffect;
+typedef struct IDirectInputEffectVtbl
+{
+    HRESULT(__stdcall* QueryInterface)(IDirectInputEffect* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall* AddRef)(IDirectInputEffect* This);
+    ULONG(__stdcall* Release)(IDirectInputEffect* This);
+    HRESULT(__stdcall* Initialize)(IDirectInputEffect* This, HINSTANCE hinst, DWORD dwVersion, GUID* rguid);
+    HRESULT(__stdcall* GetEffectGuid)(IDirectInputEffect* This, GUID* pguid);
+    HRESULT(__stdcall* GetParameters)(IDirectInputEffect* This, LPDIEFFECT peff, DWORD dwFlags);
+    HRESULT(__stdcall* SetParameters)(IDirectInputEffect* This, LPCDIEFFECT peff, DWORD dwFlags);
+    HRESULT(__stdcall* Start)(IDirectInputEffect* This, DWORD dwIterations, DWORD dwFlags);
+    HRESULT(__stdcall* Stop)(IDirectInputEffect* This);
+    HRESULT(__stdcall* GetEffectStatus)(IDirectInputEffect* This, LPDWORD pdwFlags);
+    HRESULT(__stdcall* Download)(IDirectInputEffect* This);
+    HRESULT(__stdcall* Unload)(IDirectInputEffect* This);
+    HRESULT(__stdcall* Escape)(IDirectInputEffect* This, void* pesc);
+} IDirectInputEffectVtbl;
+
 //
 // Direct3D3
 // https://github.com/apitrace/dxsdk/blob/master/Include/d3dcaps.h

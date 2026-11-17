@@ -1750,6 +1750,7 @@ swrControl_forceEffectsLoaded 0x004d765c int # set once swrControl_LoadForceEffe
 swrControl_forceEffectNames 0x004b4940 char*[28] # .fcr effect name per swrForceEffect
 swrControl_forceEffectSlotLastIds 0x004b49b0 int[6] # highest swrForceEffect each effect slot serves
 swrControl_forceEffectsDeviceType 0x004b4b08 int = 9 # device type the bundle was loaded for (low byte; 9 = none)
+cifr_device 0x004d55d0 void* # selected joystick DirectInput device (cifr_Init); no device = effects never start
 cifr_deviceIsWheel 0x004d55d4 int # FF device is a wheel (type 6 or name contains "wheel"): bundle2.fcr, no 2nd-axis GForce scaling
 swrControl_ffScore 0x004d78a4 swrScore* # score of the force-feedback player
 swrControl_ffMaxSpeed 0x004d7898 float # force-feedback player maxSpeed (speed-ratio denominator)
