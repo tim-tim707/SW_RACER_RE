@@ -1341,6 +1341,17 @@ void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int 
     player_sprite_positions_on_map[player_id].z = position->z;
 }
 
+// 0x0042c3e0
+void ResetSunAndLensFlareSprites(void)
+{
+    int i;
+
+    for (i = 0; i < 16; i++)
+        lensFlareSpriteIds[i] = -1;
+    sunSpriteIds[0] = -1;
+    sunSpriteIds[1] = -1;
+}
+
 // 0x0042C460
 void ResetLightStreakSprites()
 {

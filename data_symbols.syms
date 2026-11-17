@@ -180,6 +180,7 @@ swrSprite_unk_x 0x004b91bc float = 16.0
 swrSprite_unk_y 0x004b91c0 float = 155.0
 
 unkCameraArray 0x004B91C4 swrCamera_unk*
+swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitTrack sees 2+ local players; read by swrRace_UpdateInRaceMenu
 InRaceSpritesEnabled 0x004B94C0 int
 
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
@@ -262,6 +263,7 @@ g_pTxtJunkyard 0x004c09b0 char[1] # "/SCREENTEXT_103/~f4~sJunkyard"
 g_pTxtBuyPitDroids 0x004c098c char[1] # "/SCREENTEXT_587/~f4~sBuy Pit Droids"
 g_pTxtChangeVehicle 0x004c0968 char[1] # "/SCREENTEXT_473/~f4~sChange Vehicle"
 swrAssetBuffer_slotDebugFormat 0x004c17ec char[12] # "   DP: %d   "
+swrObjHang_nameEntrySelection 0x004c0204 int = -1 # reset to -1 by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_shopLastSelectedItem 0x004c020c int = -1 # last swrRace_MenuSelectedItem the Watto shop computed stats/prices for
 g_pTxtPartNameFormat 0x004c0bc0 char[1] # "~c~s%s"
 swrObjHang_rontoCheatInitials 0x004c4848 char[4] # "DJJ": profile initials that put a ronto puppet in the shop/junkyard scene
@@ -305,6 +307,7 @@ g_pTxtTrackID_22 0x004c1430 char[1] # "/SCREENTEXT_519/~~Malastare 100"
 g_pTxtTrackID_23 0x004c1414 char[1] # "/SCREENTEXT_520/~~Dug Derby"
 g_pTxtTrackID_24 0x004c13f0 char[1] # "/SCREENTEXT_521/~~Sebulba's Legacy"
 
+swrScene_textureScrollState 0x004c1cb4 int* # -> scroll-anim record (0x4c1c90); [1] cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
 upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 rdVector_negZ 0x004c2598 rdVector3 = {0.0, 0.0, -1.0}
@@ -337,6 +340,7 @@ swrText_timedMessageTimer 0x004c3e40 float
 
 swrText_timedMessageAlpha 0x004c3e44 float
 
+swrObjcMan_preRaceSweepTimer 0x004c3ee8 float = -1.0 # -1 idle; pre-race camera sweep clock (swrObjcMan_UpdatePreRaceSweepTimer), binder ignition sfx at 6s
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
 numEnabledLights 0x00004C3BA0 int[12]
@@ -371,6 +375,11 @@ nearClipDistance 0x004c4a60 float # per-track near clip, set by swrObjJdge_Setup
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
 swrObjJdge_tauntSoundIds 0x004c4a98 short[24]
+swrObjJdge_creditsPage1 0x004c4ac8 char*[74] # end-credits text, NULL-terminated; entry "" = header, leading '\\' = gap
+swrObjJdge_creditsPage2 0x004c4bf0 char*[112]
+swrObjJdge_creditsPage3 0x004c4db0 char*[60]
+swrObjJdge_creditsPage4 0x004c4ea0 char*[178]
+swrObjJdge_creditsPage5 0x004c5168 char*[75]
 swrObjJdge_finishTriggered 0x004c5294 int
 
 miniMapAlpha 0x004C5298 float
@@ -666,6 +675,9 @@ swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzer
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
 DAT_0050c480 0x0050c480 int
+swrObjHang_nameEntryStateB 0x0050c4b4 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
+swrObjHang_nameEntryStateA 0x0050c4b8 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
+swrObjHang_nameEntryBuffer 0x0050c4c0 int[8] # 32 bytes zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_partDetailActive 0x0050c470 int # a part detail/purchase view is open; suppresses the idle camera
 
 DAT_0050c524 0x0050c524 char
@@ -730,6 +742,7 @@ swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
+swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
 
@@ -805,6 +818,8 @@ swrObjHang_idleCameraSeeded 0x0050c9cc char # sentinel 5 once the sway has been 
 
 someUI 0x0050c968 swrUI_unk*
 
+swrObjJdge_prevRacePositions 0x0050c9d0 short[20] # per-score place last frame (swrObjJdge_PlayPassingVoiceLines); reset by swrObjJdge_InitTrack
+swrObjJdge_teardownFlags 0x0050c9f8 int # bit 2 = TeardownRace restarts the track in place on 'Fini'; no writer in the retail binary
 swrSpriteTexture_dial_gradient_rgb 0x0050C9FC swrSpriteTexture*
 swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
@@ -830,7 +845,7 @@ swrJdge_Cleared 0x0050ca34 int
 swrRace_creditsMode 0x0050ca3c int
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
-swrObjJdge_creditsScrollState 0x0050ca48 int
+swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
 
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int
@@ -862,9 +877,11 @@ cman_unk_mat44 0x0050cb88 rdMatrix44
 poddConnectionMesh_sinLookupTable 0x0050CBC8 float[64]
 poddConnectionMesh_sinLookupTableInitialized 0x0050CCC8 BOOL
 
+swrObjJdge_splitscreenActive 0x0050ccf0 int # 1 when InitTrack sees 2+ local players; read by HUD/fog/viewport/engine-anim code
 swrModel_Node1 0x0050ccf8 swrModel_Node*
 swrModel_Node2 0x0050ccfc swrModel_Node*
 swrModel_Node3 0x0050cd00 swrModel_Node*
+swrModel_Node4 0x0050cd04 swrModel_Node* # shown/hidden alongside swrModel_Node1..3 in swrViewport_Render
 
 swrSprite_dirtyRectCount 0x0050cd10 short
 
@@ -1200,6 +1217,7 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrObjHang_screenTransitionActive 0x00e295a8 int # set by swrObjHang_Init / SetupScreenScene; while set, swrObjElmo_F3 and the cantina holotable key off swrRace_Transition
 swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
 swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)
 swrRace_MenuCanScrollLeft 0x00e295b8 int # selection > 0 (left selector-arrow glow enabled)
@@ -1236,6 +1254,7 @@ swrScores 0x00E29BC0 swrScore[20]
 swrRace_meshNodeCount 0x00e27130 int
 swrRace_meshNodeAssignCount 0x00e27134 int
 swrRace_meshNodeCollection 0x00e27140 swrModel_NodeType[10]
+swrRace_energyBinderTime 0x0050caf8 float # seconds since swrObjcMan_preRaceSweepTimer passed 6 (local pod); grows the energy binder in swrRace_UpdateEnergyBinder (forced 1000 for flags0 state 2)
 swrRace_meshNodeRoundRobin 0x0050cb10 int
 swrRace_fireballTransform 0x00e289c0 rdMatrix44
 

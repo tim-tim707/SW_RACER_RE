@@ -15,6 +15,7 @@
 #include "swrRace.h"
 #include "swrSpline.h"
 #include "swrWeather.h"
+#include "swrPlayerHUD.h"
 #include "Primitives/rdVector.h"
 #include "Primitives/rdMatrix.h"
 #include "General/stdMath.h"
@@ -211,16 +212,56 @@ void swrObj_Free(swrObj* obj)
     }
 }
 
+// 0x00451020
+void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue)
+{
+    float prev = swrObjcMan_preRaceSweepTimer;
+    swrRace* pod = cman->unkf4_objTest;
+
+    if (targetValue == -1.0f)
+        swrObjcMan_preRaceSweepTimer = targetValue;
+    if (targetValue == -2.0f) {
+        if (swrObjcMan_preRaceSweepTimer != -1.0f)
+            swrObjcMan_preRaceSweepTimer = (float)(swrObjcMan_preRaceSweepTimer + swrRace_deltaTimeSecs);
+    } else if (swrObjcMan_preRaceSweepTimer < targetValue) {
+        swrObjcMan_preRaceSweepTimer = targetValue;
+    }
+    if (swrObjcMan_preRaceSweepTimer == -1.0f)
+        return;
+    // binder ignition; Neva Kee (pilot 0xe) has no binder
+    if (swrObjcMan_preRaceSweepTimer >= 6.0f && prev < 6.0f && targetValue < 100.0f && pod != NULL && *pod->score_ptr->pilotId != 0xe)
+        playASound(0x74, 6, 0.25f, 0.5f, 0);
+    if (swrObjcMan_preRaceSweepTimer < 6.0f) {
+        swrRace_energyBinderTime = 0.0f;
+        return;
+    }
+    if (pod != NULL && (pod->flags0 & swrObjTest_FLAG0_LOCAL) != 0)
+        swrRace_energyBinderTime = (float)(swrRace_energyBinderTime + swrRace_deltaTimeSecs);
+}
+
+// 0x00451a80
+void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
+{
+    HANG("TODO");
+}
+
 // 0x00451cd0
 void swrObjcMan_F0(swrObjcMan* cman)
 {
-    HANG("TODO");
+    if (cman->mode_type == 0 || cman->metaCamIndex_count < 0)
+        return;
+    swrObjcMan_UpdatePreRaceSweepTimer(cman, -2.0f);
+    if (cman->mode_type != 1 && cman->mode_type == 5 && cman->unkf4_objTest != NULL)
+        cman->unkf4_objTest->flags0 |= swrObjTest_FLAG0_POD_HIDDEN;
+    if (multiplayer_enabled != 0 && &swrScoresPtr[playerNumber] != NULL)
+        cman->unkf4_objTest = swrScoresPtr[playerNumber].obj_test_ptr;
 }
 
 // 0x00451d40
 void swrObjcMan_F2(swrObjcMan* cman)
 {
-    HANG("TODO");
+    if (cman->mode_type != 0 && cman->metaCamIndex_count >= 0)
+        swrObjcMan_UpdateTerrainVisuals(cman);
 }
 
 // 0x00451d60
@@ -482,6 +523,27 @@ void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
     swrObjHang_lastMenuScreen = hang->menuScreen;
     if (swrObjHang_unused_unk != -1)
         hang->activeMenu = swrObjHang_unused_unk;
+}
+
+// Leaves the name-entry screen: commit the profile and return to the previous menu.
+// 0x004367c0
+void swrObjHang_UpdateEnterName(swrObjHang* hang)
+{
+    swrSaveProfile* profile;
+    int i;
+
+    if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE)
+        swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotId = 0;
+    profile = &swrRace_aProfiles[hang->current_player_for_vehicle_selection];
+    if (profile->linkedToSave == 1)
+        swrRace_CopyProfileToSave((char)profile->saveSlot, hang->current_player_for_vehicle_selection);
+    swrRace_SaveCurrentProfile();
+    swrObjHang_nameEntrySelection = -1;
+    for (i = 0; i < 8; i++)
+        swrObjHang_nameEntryBuffer[i] = 0;
+    swrObjHang_nameEntryStateA = 0;
+    swrObjHang_nameEntryStateB = 0;
+    swrObjHang_SetMenuState(hang, hang->menuScreenPrev);
 }
 
 // 0x00456800
@@ -1197,7 +1259,79 @@ void swrObjJdge_Clear(swrObjJdge* jdge, int event)
 // 0x0045d130
 void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll)
 {
-    HANG("TODO");
+    char text[256];
+    char** page;
+    int lineCount;
+    float scroll;
+    int y;
+    int i;
+    int color;
+
+    scroll = restartScroll != 0 ? 0.0f : swrObjJdge_creditsScrollState;
+    y = (int)(240.0f - scroll * 24.0f);
+    swrObjJdge_creditsScrollState = (float)(scroll + swrRace_deltaTimeSecs);
+
+    switch (swrObjJdge_creditsHudCycleIndex) {
+    case 1:
+        page = swrObjJdge_creditsPage1;
+        lineCount = SWR_CREDITS_PAGE1_LINES;
+        break;
+    case 2:
+        page = swrObjJdge_creditsPage2;
+        lineCount = SWR_CREDITS_PAGE2_LINES;
+        break;
+    case 3:
+        page = swrObjJdge_creditsPage3;
+        lineCount = SWR_CREDITS_PAGE3_LINES;
+        break;
+    case 4:
+        page = swrObjJdge_creditsPage4;
+        lineCount = SWR_CREDITS_PAGE4_LINES;
+        break;
+    case 5:
+        page = swrObjJdge_creditsPage5;
+        lineCount = SWR_CREDITS_PAGE5_LINES;
+        break;
+    default:
+        page = NULL; // EXE walks garbage pointers here; no caller passes another index
+        lineCount = 0;
+        break;
+    }
+
+    // Each line's spacing and style come from the PREVIOUS entry: "" = section header,
+    // a leading '\\' = gap line, anything else = a regular name.
+    for (i = 0; i + 1 < lineCount; i++) {
+        char lead = page[i][0];
+        if (lead == '\0') {
+            y += 40;
+        } else if (lead == '\\') {
+            y += 24;
+        } else {
+            y += 12;
+        }
+        if (y <= -10 || y >= 250)
+            continue;
+        if (lead == '\0') {
+            sprintf(text, "~f4~o~c%s", page[i + 1]);
+            color = 0xbe;
+        } else {
+            sprintf(text, "~k~c%s", page[i + 1]);
+            color = 0xff;
+        }
+        for (char* c = text; *c != '\0'; c++) {
+            if (*c == '\\')
+                *c = ' ';
+        }
+        swrText_CreateTextEntry1(0xa0, y, color, color, -1, -1, text);
+    }
+
+    if (y > 0)
+        return;
+    if (swrObjJdge_creditsHudCycleIndex != 5 && swrObjJdge_creditsHudCycled == 0) {
+        swrObjJdge_Clear(jdge, 'Fini');
+        return;
+    }
+    swrObjJdge_Clear(jdge, 'Abrt');
 }
 
 // 0x0045D350
@@ -1439,7 +1573,69 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 // 0x0045dd80
 void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
 {
-    HANG("TODO");
+    int ev[16];
+    int i;
+
+    swrUI_ResetProgressBar();
+    swrPlayerHUD_lightStreakParam = 1500.0f;
+    swrSound_ResetMusic();
+    for (i = 0; i < 20; i++)
+        swrSound_ClearSfxFlag(i, 0xff0000);
+    swrUI_UpdateProgressBar(10);
+    swrObjJdge_singleLocalViewport = 1;
+    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+    for (i = 0; i < jdge->num_players; i++) {
+        if (swrScoresPtr[i].obj_test_ptr != NULL)
+            swrScoresPtr[i].lastRaceDamage = swrScoresPtr[i].obj_test_ptr->totalDamage;
+        swrScoresPtr[i].obj_test_ptr = NULL;
+    }
+    swrUI_UpdateProgressBar(20);
+    swrEvent_ClearObjs('Test');
+    swrEvent_ClearObjs('Toss');
+    swrEvent_ClearObjs('Smok');
+    swrEvent_ClearObjs('Trig');
+    swrEvent_ClearObjs('Chsr');
+    swrUI_UpdateProgressBar(30);
+    swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 1
+    swrObjJdge_UpdateViewportLayout(jdge, 1);
+    swrUI_UpdateProgressBar(40);
+    swrSound_SetUpdateFlag_Maybe(0);
+    swrModel_Node1 = NULL;
+    swrModel_Node3 = NULL;
+    swrModel_Node2 = NULL;
+    swrModel_Node4 = NULL;
+    swrObjJdge_splitscreenActive = 0;
+    swrUI_UpdateProgressBar(50);
+    swrPlayerHUD_Enable();
+    ResetLightStreakSprites();
+    swrWeather_ResetParticles();
+    swrUI_UpdateProgressBar(60);
+    ResetSunAndLensFlareSprites();
+    ResetPlayerSpriteValues();
+    swrUI_UpdateProgressBar(70);
+    swrSprite_ResetAllSprites();
+    swrScene_ClearTextureAnim_Maybe();
+    GameSettingFlags &= ~GAME_SETTING_MIRROR;
+    swrViewport_SetRootNodeForAllViewports(NULL);
+    swrUI_UpdateProgressBar(80);
+    swrCam_CamState_InitMainMat4(1, 0, NULL, 0);
+    swrCam_CamState_InitMainMat4(5, 0, NULL, 0);
+    if ((swrObjJdge_teardownFlags & 2) != 0 && event == 'Fini') {
+        // restart the track in place; nothing in the retail binary sets this bit
+        swrObjJdge_InitTrack(jdge, swrScoresPtr);
+        swrScene_SetObjectsLoaded();
+        jdge->flag = (jdge->flag & ~swrObjJdge_STATE_MASK) | 3; // EXE: & ~0xc | 3
+        return;
+    }
+    swrUI_UpdateProgressBar(90);
+    *((unsigned char*)&jdge->obj.flags + 1) |= 0x10;
+    ev[0] = 'RSet';
+    swrEvent_CallF4('cMan', ev);
+    swrUI_UpdateProgressBar(98);
+    if (lowMemoryRacerCount != 0)
+        event = 'Abrt';
+    ev[0] = event;
+    swrEvent_CallF4('All!', ev);
 }
 
 // 0x0045dfe0
@@ -1737,7 +1933,21 @@ void swrObjJdge_F0(swrObjJdge* jdge)
 // 0x0045e970
 void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score)
 {
-    HANG("TODO");
+    swrModel_Node** markers = ((swrObjJdge*)nodeOwner)->splineMarkers;
+    rdMatrix44 mats[7]; // the EXE evaluates 7 points but only places 6 markers
+    float offset = -0.01f;
+    int i;
+
+    for (i = 0; i < 7; i++) {
+        swrSpline_EvaluateAtOffset(&score->obj_test_ptr->splineCursor, &mats[i], offset);
+        offset -= (i < 2) ? -0.01f : -0.03f;
+    }
+    for (i = 0; i < 6; i++) {
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)markers[i], &mats[i]);
+        if (markers[i] != NULL)
+            swrModel_NodeModifyFlags(markers[i], 2, 3, 0x10, 2);
+        swrModel_NodeSetColorsOnAllMaterials(markers[i], -1, -1, 0, 0xff, 0, -1);
+    }
 }
 
 // Race-tick judge update. Lap times are sub-frame accurate: swrRace_UpdateRaceProgress reports the
@@ -1874,7 +2084,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
             }
         }
         swrObjJdge_UpdateStandings(jdge);
-        swrObjJdge_UpdateOvertakeSounds(jdge);
+        swrObjJdge_PlayPassingVoiceLines(jdge);
         if ((jdge->flag & 0xf) == 2) {
             // every local racer just finished: freeze the race timer and extrapolate
             // unfinished racers' totals from their lap progress
@@ -1898,10 +2108,55 @@ void swrObjJdge_F2(swrObjJdge* jdge)
     }
 }
 
+// When a local racer's place changes, the pod it swapped with (if close and AI-driven) taunts:
+// losing a place plays the passer's gloat, gaining one plays the passed racer's complaint.
 // 0x0045ef70
-void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge)
+void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
 {
-    HANG("TODO");
+    swrScore* score;
+    swrScore* other;
+    swrRace* otherPod;
+    short pos;
+    short prev;
+    int variant;
+    int i;
+    int j;
+
+    for (i = 0; i < jdge->num_players; i++) {
+        score = &swrScoresPtr[i];
+        pos = (short)score->results_P1_Position;
+        prev = swrObjJdge_prevRacePositions[i];
+        if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && pos > 0 && prev != pos) {
+            int lost = prev < pos;
+            if ((lost && (pos == 2 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)) || (!lost && (pos == 1 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f))) {
+                variant = -1;
+                other = NULL;
+                for (j = 0; j < jdge->num_players; j++) {
+                    other = &swrScoresPtr[j];
+                    short otherPos = (short)other->results_P1_Position;
+                    if (otherPos > 0 && other != score && otherPos == pos + (lost ? -1 : 1)) {
+                        variant = *other->pilotId;
+                        break;
+                    }
+                }
+                if (variant != -1) {
+                    otherPod = other->obj_test_ptr;
+                    if ((otherPod->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (otherPod->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0 && otherPod->lodDistance < 500.0 && multiplayer_enabled == 0) {
+                        rdVector3* at = (rdVector3*)&otherPod->transform.vD;
+                        if (!lost) {
+                            swrSound_PlayRandomSfx(1, variant, 0x15, 0x01, 0x17, 0x03, 0x14, at);
+                        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+                            // 0x11 is skipped for variant 14 (its first slot is 0x12 too)
+                            swrSound_PlayRandomSfx(1, variant, variant == 0xe ? 0x12 : 0x11, 0x12, 0x13, 0x14, 0x15, at);
+                        } else {
+                            swrSound_PlayRandomSfx(1, variant, 0x17, 0x17, 0x18, 0x19, 0x03, at);
+                        }
+                    }
+                }
+            }
+        }
+        swrObjJdge_prevRacePositions[i] = pos;
+    }
 }
 
 // 0x0045fe70
@@ -2886,7 +3141,21 @@ void swrObjSmok_AddFireballModelsToScene()
 // 0x004653F0
 void AddFireballToModelScene()
 {
-    HANG("TODO");
+    swrModel_Header* header;
+
+    someRootNodeChildNodes[11] = NULL;
+    header = swrModel_LoadFromId(MODELID_fireball_1_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    header = swrModel_LoadFromId(MODELID_fx_podasx_part);
+    if (header == NULL)
+        return;
+    fx_podasx_anim = swrModel_LoadAllAnimationsOfModel(header);
+    fireballNodePtr = header->entries[0].node;
+    swrModel_AnimationsResetToZero(fx_podasx_anim);
+    someRootNodeChildNodes[11] = fireballNodePtr;
+    if (fireballNodePtr != NULL)
+        swrModel_NodeModifyFlags(fireballNodePtr, 2, -4, 0x10, 3);
+    rdMatrix_SetIdentity44(&swrRace_fireballTransform);
 }
 
 // 0x00465500
@@ -3006,14 +3275,51 @@ void swrObjElmo_F0(swrObjElmo* elmo)
 // 0x00468570
 void swrObjElmo_F3(swrObjElmo* elmo)
 {
-    HANG("TODO");
+    swrModel_Node* node;
+    int yawStep;
+
+    if (elmo->unk8 == 6)
+        return;
+    if (swrObjHang_screenTransitionActive != 0 && swrRace_Transition == 0.0f && elmo->unk14 == (void*)0x1b)
+        return;
+    node = elmo->unk30_nodes[0];
+    if (node == NULL)
+        return;
+    swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    if (elmo->unk14 == NULL)
+        return;
+    yawStep = elmo->unkb4;
+    if (yawStep == 0 || elmo->unk8 == 1) {
+        if (yawStep != 0) {
+            elmo->unkb4 = 0;
+            elmo->yaw = (float)yawStep + elmo->yaw;
+            elmo->unk70 = elmo->yaw;
+        }
+        if (elmo->unk8 == 1) {
+            if (elmo->unk30_nodes[3] != NULL)
+                swrModel_NodeModifyFlags(elmo->unk30_nodes[3], 2, -4, 0x10, 3);
+            if (elmo->unk14 != (void*)7 && elmo->unk14 != (void*)8 && elmo->unk14 != (void*)9 && elmo->unk30_nodes[4] != NULL)
+                swrModel_NodeModifyFlags(elmo->unk30_nodes[4], 2, -4, 0x10, 3);
+        }
+    }
+    swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
 }
 
 // 0x00468660
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Aloc':
+    case 'Modl':
+    case 'Free':
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&elmo->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x00468800
@@ -3610,20 +3916,87 @@ void swrObjTest_UpdatePhysicsContact(swrRace* player)
 // 0x0047b9e0
 void swrObjToss_F2(swrObjToss* toss)
 {
-    HANG("TODO");
+    if (toss->animTimer_ms > 0.0f) {
+        toss->animTimer_ms = (float)(toss->animTimer_ms - swrRace_deltaTimeSecs);
+        return;
+    }
+    if (toss->model != NULL)
+        swrModel_NodeModifyFlags(toss->model, 2, -4, 0x10, 3);
+    swrObj_Free(&toss->obj);
 }
 
-//  0x0047ba30
+// Dust puff grows and fades over its lifetime; color channels are clamped to [1, 254].
+// 0x0047ba30
 void swrObjToss_F3(swrObjToss* toss)
 {
-    HANG("TODO");
+    rdMatrix44 mat;
+    float t;
+    float scale;
+    int r;
+    int g;
+    int b;
+    int a;
+
+    if (toss->model == NULL || toss->animDuration == 0.0f)
+        return;
+    t = toss->animTimer_ms / toss->animDuration;
+    scale = (1.0f - t) * 6.0f + 0.5f;
+    if (toss->meshMaterial != NULL) {
+        r = (uint8_t)toss->r;
+        g = (uint8_t)toss->g;
+        b = (uint8_t)toss->b;
+        a = (uint8_t)toss->a;
+        if (t < 0.25f)
+            a = (int)((float)a * t * 4.0f);
+        if (r == 0) {
+            r = 1;
+        } else if (r > 254) {
+            r = 254;
+        }
+        if (g == 0) {
+            g = 1;
+        } else if (g > 254) {
+            g = 254;
+        }
+        if (b == 0) {
+            b = 1;
+        } else if (b > 254) {
+            b = 254;
+        }
+        if (a < 1) {
+            a = 1;
+        } else if (a > 254) {
+            a = 254;
+        }
+        swrModel_MeshMaterialSetColors((swrModel_MeshMaterial*)toss->meshMaterial, 0, 0, r, g, b, a);
+        swrModel_MeshMaterialSetTextureUVOffset((swrModel_MeshMaterial*)toss->meshMaterial, 0.0f, (float)(swrRace_deltaTimeSecs * 7.5f));
+    }
+    rdMatrix_ScaleBasis44(&mat, 2.0f, scale, scale, &toss->transform);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)toss->model, &mat);
 }
 
 // 0x0047bba0
-int swrObjToss_F4(swrObjToss* toss)
+int swrObjToss_F4(swrObjToss* toss, int* subEvents)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 'Free':
+        toss->model = NULL;
+        return 1;
+    case 'Aloc':
+        toss->unk60 = 0;
+        toss->unk64 = 0;
+        toss->animTimer_ms = 0.0f;
+        toss->model = dustWhirlChildNodesPtr[toss->obj.id];
+        if (toss->model != NULL)
+            swrModel_NodeModifyFlags(toss->model, 2, -4, 0x10, 3);
+        return 1;
+    case 'Load':
+    case 'RSet':
+        swrObj_Free(&toss->obj);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x0047BC40
@@ -4247,6 +4620,12 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, 
 void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger_description, swrRace* player)
 {
     HANG("TODO");
+}
+
+// 0x00449260
+void swrScene_ClearTextureAnim_Maybe(void)
+{
+    swrScene_textureScrollState[1] = 0;
 }
 
 // 0x004804a0

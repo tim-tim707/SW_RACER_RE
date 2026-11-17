@@ -1228,6 +1228,12 @@ void swrSound_ResetChannel(void* channel)
 }
 
 // Zeroes the computed gain of every requested-voice slot (the per-frame voice mixer rebuilds them).
+// 0x004269f0
+void swrSound_SetUpdateFlag_Maybe(unsigned char flag)
+{
+    swrSound_updateFlag = flag;
+}
+
 // 0x00449e30
 void swrSound_ResetRequestedVoices(void)
 {

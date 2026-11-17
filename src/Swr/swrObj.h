@@ -60,6 +60,7 @@
 #define updatePauseMenu_ADDR (0x00445860)
 #define enablePauseOverlay_Maybe_ADDR (0x00445960)
 #define swrObj_Free_ADDR (0x00450e30)
+#define swrObjcMan_UpdatePreRaceSweepTimer_ADDR (0x00451020)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
 #define swrObjcMan_LoadLightingFromBehavior_ADDR (0x00451800)
 #define swrObjcMan_UpdateTerrainVisuals_ADDR (0x00451a80)
@@ -136,7 +137,7 @@
 #define swrObjJdge_F0_ADDR (0x0045e200)
 #define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
 #define swrObjJdge_F2_ADDR (0x0045ea30)
-#define swrObjJdge_UpdateOvertakeSounds_ADDR (0x0045ef70)
+#define swrObjJdge_PlayPassingVoiceLines_ADDR (0x0045ef70)
 #define swrObjJdge_DrawRaceHUD_ADDR (0x0045f230)
 #define swrObjJdge_DrawHudBar_ADDR (0x00460320)
 #define swrObjJdge_DrawSplitDivider_ADDR (0x004610f0)
@@ -393,6 +394,10 @@ void enablePauseOverlay_Maybe(void);
 float GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
 
 void swrObj_Free(swrObj* obj);
+
+// -1 arms, -2 ticks, any other value jumps forward (EndPreRaceSweep passes 1000 to skip).
+// Crossing 6s plays the binder ignition sfx, then the energy-binder clock runs.
+void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue);
 
 void swrObjcMan_F0(swrObjcMan* cman);
 
@@ -665,7 +670,7 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge);
 // Places the 7 fading guide nodes that trail along the spline behind a racer.
 void swrObjJdge_UpdateSplineGuideNodes(int nodeOwner, swrScore* score);
 // On a position change, finds the adjacent racer and plays the positional overtake/taunt SFX.
-void swrObjJdge_UpdateOvertakeSounds(swrObjJdge* jdge);
+void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge);
 
 void swrObjElmo_F0(swrObjElmo* elmo);
 
@@ -786,7 +791,7 @@ float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* 
 void swrObjTest_UpdatePhysicsContact(swrRace* player);
 void swrObjToss_F2(swrObjToss* toss);
 void swrObjToss_F3(swrObjToss* toss);
-int swrObjToss_F4(swrObjToss* toss);
+int swrObjToss_F4(swrObjToss* toss, int* subEvents);
 void swrRace_SpawnDustKickObject(rdMatrix44* in, uint8_t r, uint8_t g, uint8_t b, int a, float life_time, int unk64);
 void swrObjToss_SetDustKickChildNodesPtr(swrModel_Node** nodes);
 void swrObjTrig_EnableFXAnimation(int index);

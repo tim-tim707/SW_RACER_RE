@@ -1452,10 +1452,74 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
     }
 }
 
+// Post-race: spend the race's damage as random 25..76-point hits on installed parts, then
+// let the pit droids (255 points each) repair random parts the same way.
 // 0x0043d720
 void swrRace_UpdatePartsHealth(void)
 {
-    HANG("TODO");
+    swrSaveProfile* profile = &swrRace_aProfiles[0];
+    int damage;
+    int repair;
+    int missing;
+    int installed;
+    int part;
+    uint8_t wear;
+    uint8_t health;
+    int i;
+
+    damage = (int)(swrScores[0].lastRaceDamage * 255.0f);
+    if (damage > SWR_PART_DAMAGE_MAX)
+        damage = SWR_PART_DAMAGE_MAX;
+    installed = 0;
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        if (profile->upgradeLevels[i] != 0)
+            installed++;
+    }
+    if (installed == 0)
+        return;
+
+    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    while (wear <= damage) {
+        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        if (profile->upgradeLevels[part] != 0) {
+            health = (uint8_t)profile->upgradeHealths[part];
+            profile->upgradeHealths[part] = (health > wear) ? (char)(health - wear) : 0;
+        }
+        damage -= wear;
+        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    }
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
+        if (profile->upgradeLevels[i] == 0)
+            profile->upgradeHealths[i] = (char)0xff;
+    }
+
+    missing = 0;
+    for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+        missing += 0xff - (uint8_t)profile->upgradeHealths[i];
+    repair = (uint8_t)profile->nbPitDroids * 0xff;
+    if (repair >= missing) {
+        for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++)
+            profile->upgradeHealths[i] = (char)0xff;
+        swrRace_SaveCurrentProfile();
+        return;
+    }
+
+    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    while (wear <= repair) {
+        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        health = (uint8_t)profile->upgradeHealths[part];
+        if (health != 0xff) {
+            if (0xff - health < wear) {
+                profile->upgradeHealths[part] = (char)0xff;
+                wear = (uint8_t)(wear + health + 1); // EXE charges wear + health + 1 (byte), not 255 - health
+            } else {
+                profile->upgradeHealths[part] = (char)(wear + health);
+            }
+            repair -= wear;
+        }
+        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    }
+    swrRace_SaveCurrentProfile();
 }
 
 // 0x0043d970
@@ -3515,7 +3579,25 @@ void swrRace_CheckResetInput(swrRace* player, int playerIndex)
 // 0x0046aa30
 void swrRace_ApplyEngineDamage(swrRace* player)
 {
-    HANG("TODO");
+    int lastBurning = -1;
+    int i;
+
+    for (i = 0; i < 6; i++) {
+        if ((player->engineStatus[i] & 8) != 0) {
+            swrRace_TakeDamage((int)player, i, (float)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1f + 0.1f) * swrRace_deltaTimeSecs));
+            lastBurning = i;
+        }
+    }
+    if (lastBurning < 0) {
+        swrSound_ClearSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE);
+        return;
+    }
+    if (swrSound_TestSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE) != 0)
+        return;
+    swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 0xc, 0xc, 0xc, 0xc, 0xc, (rdVector3*)&player->transform.vD);
+    swrSound_SetSfxFlag(0, swrSound_SFXFLAG_ENGINE_FIRE);
+    // EXE tests the loop counter (always 6 here), so the direction is always 90
+    swrControl_PlayForceEffect(0x15, -1, (i >= 3 && i <= 5) * 180 + 90, -1);
 }
 
 // 0x0046ba30
@@ -5496,10 +5578,44 @@ void swrRace_UpdateFireEffects(swrRace* player)
     }
 }
 
+// Ticks the 8 flame timers: a crackle sfx as each passes 0.8s, then a positional burst + smoke at 0.
 // 0x0047e580
 void swrRace_InitFireEffects(int racer, float reset)
 {
-    HANG("TODO");
+    float volume;
+    float pitch;
+    int sfx;
+    int i;
+    rdVector3 pos;
+
+    if (reset != 0.0f) {
+        for (i = 0; i < 8; i++)
+            swrRace_FireTimer[i] = -1.0f;
+        return;
+    }
+    for (i = 0; i < 8; i++) {
+        float prev = swrRace_FireTimer[i];
+        if (prev <= 0.0f)
+            continue;
+        swrRace_FireTimer[i] = (float)(prev - swrRace_deltaTimeSecs);
+        if (prev > 0.8f && swrRace_FireTimer[i] <= 0.8f) {
+            sfx = 0x43;
+            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000009f + 0.2f;
+            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.5f;
+            if (racer == 6) {
+                sfx = 0x6e;
+                pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+            }
+            playASound(sfx, 7, volume, pitch, 0);
+        }
+        if (swrRace_FireTimer[i] <= 0.0f) {
+            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.0800000057f + 0.1f;
+            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+            swrSound_PlaySpatialRange(0x43, 6, volume, pitch, &swrRace_FireLocation[i], 0, 0, 1000.0f, 2000.0f);
+            pos = swrRace_FireLocation[i];
+            swrObjSmok_Spawn(2, 0, 5.0f, &pos, 5.0f);
+        }
+    }
 }
 
 // Lap progress in [0..1): the control point's baked progress base plus segmentT scaled by the
