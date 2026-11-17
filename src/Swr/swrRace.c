@@ -7611,6 +7611,44 @@ void swrRace_UpdateSpinoutNodes(swrRace* player)
     }
 }
 
+// 0x0046f0e0
+void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float mirrorX, float mirrorZ, int pilot, rdMatrix44* out)
+{
+    const swrRacerVisualData* visual = &swrRacer_PodVisualData[pilot];
+    rdVector3 start;
+    rdVector3 end;
+    rdVector3 startOffset;
+    rdVector3 endOffset;
+    rdVector3 dir;
+    rdMatrix44 m;
+    float length;
+
+    rdVector_Copy3(&start, (rdVector3*)&a->vD);
+    rdVector_Copy3(&end, (rdVector3*)&b->vD);
+    startOffset.x = visual->cableCockpitAnchor.x * mirrorX;
+    startOffset.y = visual->cableCockpitAnchor.y;
+    startOffset.z = visual->cableCockpitAnchor.z;
+    endOffset.y = visual->cableEngineAnchor.y;
+    endOffset.x = visual->cableEngineAnchor.x * mirrorX;
+    endOffset.z = visual->cableEngineAnchor.z * mirrorZ;
+    rdMatrix_Multiply3(&startOffset, &startOffset, a);
+    rdVector_Add3(&start, &startOffset, &start);
+    rdMatrix_Multiply3(&endOffset, &endOffset, b);
+    rdVector_Add3(&end, &endOffset, &end);
+
+    // unit quad along +Y from start to end, scaled to the cable length
+    rdVector_Sub3(&dir, &start, &end);
+    length = rdVector_Len3(&dir);
+    rdVector_Normalize3Acc(&dir);
+    rdMatrix_SetTranslation44(&m, start.x, start.y, start.z);
+    rdVector_Copy3((rdVector3*)&m.vB, &dir);
+    rdVector_Set3((rdVector3*)&m.vC, 0.0f, 0.0f, 1.0f);
+    rdVector_Cross3((rdVector3*)&m.vA, (rdVector3*)&m.vB, (rdVector3*)&m.vC);
+    rdVector_Cross3((rdVector3*)&m.vC, (rdVector3*)&m.vA, (rdVector3*)&m.vB);
+    rdMatrix_ScaleBasis44(&m, 0.004f, length * 0.01f, 0.004f, &m);
+    rdMatrix_Copy44(out, &m);
+}
+
 // 0x00470510
 float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
 {

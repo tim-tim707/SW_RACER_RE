@@ -243,6 +243,18 @@ void swrUI_PopMenuPage(void)
         swrUI_RunCallbacks((swrUI_unk*)(&swrUI_pageStack)[swrUI_pageStackDepth], 0x46, swrUI_pageStackDepth, 0);
 }
 
+// 0x00411910
+void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element)
+{
+    if (parent == NULL || element == NULL)
+        return;
+    swrUI_UnlinkElement(element);
+    element->fun2 = NULL;
+    swrUI_RunCallbacks2(element, 1);
+    element->fun2 = parent->fun2;
+    swrUI_Enqueue(parent, element);
+}
+
 // 0x00412630
 void swrUI_ResetAttractDemoTimer(void)
 {
@@ -484,6 +496,28 @@ int swrUI_CountSelectableItems(swrUI_unk* ui)
             count++;
     }
     return count;
+}
+
+// 0x00413800
+void swrUI_RefreshListSelection(swrUI_unk* list)
+{
+    swrUI_unk* element = list->next;
+    swrUI_unk* next;
+    int index = 0;
+
+    // remember the selected item's index and text, then free every list item
+    list->first_visible = 0;
+    while (element != NULL) {
+        next = element->next2;
+        if (element->item_flags & swrUI_ITEM_SELECTED) {
+            list->selected_index = index;
+            list->selected_text = swrUI_replaceAllocatedStr(list->selected_text, element->str_allocated);
+        }
+        if (((uint8_t)element->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM)
+            swrUI_FreeElement(element);
+        index++;
+        element = next;
+    }
 }
 
 // 0x004138b0
@@ -2945,6 +2979,20 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
     swrUI_SetCaretRect(swrText_GetStringWidth(" ", swrText_fontsByIndex[ui->font_index]) * 5 + textWidth + ui->x, ((ui->height - ui->y + 1) >> 1) - (caretHeight >> 1) + ui->y, 1, caretHeight);
 }
 
+// 0x00413a30
+swrUI_unk* swrUI_AddListElement(swrUI_unk* list, swrUI_unk* element)
+{
+    if (list == NULL || element == NULL)
+        return NULL;
+    element->widget_class |= swrUI_CLASS_LIST_ITEM;
+    swrUI_UnlinkElement(element);
+    swrUI_Enqueue(list, element);
+    if (swrUI_GetSelectedItem(list) == NULL)
+        swrUI_SelectListItem(element, 1);
+    swrUI_RefreshListLayout(list);
+    return element;
+}
+
 // 0x00413a90
 swrUI_unk* swrUI_NewNumberField(swrUI_unk* parent, int id, int x, int y, int param_5, int flag, int size_unk2)
 {
@@ -2999,6 +3047,13 @@ int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int para
         break;
     }
     return swrUI_DefaultElementProc(ui, msg, param, param2);
+}
+
+// 0x004172a0
+int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y)
+{
+    // x/y/width/height are laid out as a swrSprite_BBox
+    return swrSprite_IsInsideBBox((swrSprite_BBox*)&ui->x, x, y);
 }
 
 // 0x004173c0
