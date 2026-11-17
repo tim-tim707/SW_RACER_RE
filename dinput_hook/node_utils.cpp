@@ -76,9 +76,9 @@ MaterialMember node_material_members[9]{
     {
         "tex_flags",
         [](const swrModel_MeshMaterial &m) {
-            return m.material_texture && m.material_texture->specs[0]
-                       ? m.material_texture->specs[0]->flags
-                       : 0;
+            const swrModel_MaterialTextureChild *spec =
+                m.material_texture ? material_texture_spec(m.material_texture, 0) : nullptr;
+            return spec ? spec->flags : 0;
         },
     },
 };
