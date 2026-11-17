@@ -1,40 +1,190 @@
 #include "cifr.h"
 
 #include "globals.h"
+#include "engine_config.h"
 
-#include "macros.h"
+#include <string.h>
 
 // 0x00403e10
-void cifr_Init(void* effects)
+void cifr_Init(cifr_EffectSet* effects)
 {
-    HANG("TODO");
+    int i;
+    int device;
+    cifr_Effect* effect;
+
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return;
+    }
+    effects->unk0[0] = 0;
+    effects->project = NULL;
+    effects->unk44 = 0;
+    for (i = 0; i < SWR_FF_EFFECT_SLOTS; i++) {
+        effect = &effects->slots[i];
+        effect->effectId = -1;
+        effect->name[0] = '\0';
+        effect->lastEffectId = 0xffffffff;
+        effect->numInterfaces = 0;
+        effect->interfaces = NULL;
+        effect->typeSpecificBuffer = NULL;
+        cifr_InitEffectSlot_Maybe(effect);
+    }
+    device = stdControl_joystickDeviceIndex;
+    cifr_device = (&stdControlJoystickDevice)[device * STDCONTROL_JOYSTICK_RECORD_DWORDS];
+    // cifr_deviceIsWheel is only ever set, never cleared; faithful
+    if ((&stdControlJoystickSubType)[device * STDCONTROL_JOYSTICK_RECORD_SIZE] == DIDEVTYPEJOYSTICK_WHEEL) {
+        cifr_deviceIsWheel = 1;
+    } else if (strstr(strlwr(stdControlJoystickProductName + device * STDCONTROL_JOYSTICK_RECORD_SIZE), "wheel") != NULL) {
+        cifr_deviceIsWheel = 1;
+    }
+    if (((&stdControlJoystickCapsFlags)[stdControl_joystickDeviceIndex * STDCONTROL_JOYSTICK_RECORD_DWORDS] & DIDC_FORCEFEEDBACK) == 0) {
+        swrControl_forceFeedbackAvailable = 0;
+        swrConfig_FORCE_ENABLED = 0;
+    }
 }
 
 // 0x00403f00
-void cifr_ReinitEffects_Maybe(void* controller)
+void cifr_ReinitEffects_Maybe(cifr_EffectSet* effects)
 {
-    HANG("TODO");
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return;
+    }
+    cifr_ReleaseAllEffects(effects);
+    if (effects->project != NULL) {
+        cifr_IFReleaseProject(effects->project);
+    }
+    cifr_Init(effects);
 }
 
 // 0x00403f30
-int cifr_LoadProjectFile(void* effects, char* projectFile, void* nameIndices, void* nameTable)
+int cifr_LoadProjectFile(cifr_EffectSet* effects, char* projectFile, int* slotLastIds, char** names)
 {
-    HANG("TODO");
-    return 0;
+    int i;
+    int effectId;
+    char* name;
+    cifr_Effect* effect;
+
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    effects->project = cifr_IFLoadProjectFile(projectFile, (LPDIRECTINPUTDEVICE2A)cifr_device);
+    if (effects->project == NULL) {
+        return -1;
+    }
+    for (i = 0; i < SWR_FF_EFFECT_SLOTS; i++) {
+        effect = &effects->slots[i];
+        effectId = 0;
+        if (i > 0) {
+            effectId = slotLastIds[i - 1] + 1;
+        }
+        effect->effectId = effectId;
+        name = names[effectId];
+        memcpy(effect->name, name, strlen(name) + 1);
+        effect->lastEffectId = slotLastIds[i];
+    }
+    return SWR_FF_EFFECT_SLOTS;
 }
 
 // 0x00403fd0
-int cifr_LoadAllEffects(void* controller)
+int cifr_LoadAllEffects(cifr_EffectSet* effects)
 {
-    HANG("TODO");
-    return 0;
+    int i;
+    int created;
+    cifr_Effect* effect;
+
+    created = 0;
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    if (cifr_device == NULL || effects->project == NULL) {
+        return -1;
+    }
+    for (i = 0; i < SWR_FF_EFFECT_SLOTS; i++) {
+        effect = &effects->slots[i];
+        if (cifr_CreateEffect(effect, effect->name, effects->project) != 0) {
+            created++;
+        }
+    }
+    if (created == 0) {
+        return -1;
+    }
+    return created;
+}
+
+// 0x00404040
+int cifr_ReleaseAllEffects(cifr_EffectSet* effects)
+{
+    int i;
+    int released;
+
+    released = 0;
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    if (cifr_device == NULL || effects->project == NULL) {
+        return -1;
+    }
+    for (i = 0; i < SWR_FF_EFFECT_SLOTS; i++) {
+        if (cifr_ReleaseEffect(&effects->slots[i], effects->project) != 0) {
+            released++;
+        }
+    }
+    return released;
 }
 
 // 0x004040a0
-int cifr_CreateEffect(void* effect, void* params, void* device)
+int cifr_CreateEffect(cifr_Effect* effect, char* name, HIFORCEPROJECT project)
 {
-    HANG("TODO");
-    return 0;
+    int i;
+    DWORD size;
+    HRESULT result;
+    IDirectInputEffect* iface;
+
+    if (swrConfig_FORCE_ENABLED == 0 || effect == NULL) {
+        return 0;
+    }
+    if (effect->interfaces != NULL) {
+        cifr_ReleaseEffect(effect, project);
+    }
+    effect->interfaces = cifr_IFCreateEffects(project, name, &effect->numInterfaces);
+    if (effect->interfaces == NULL) {
+        return 0;
+    }
+    for (i = 0; i < effect->numInterfaces; i++) {
+        cifr_InitEffectSlot_Maybe(effect);
+        iface = effect->interfaces[i];
+        result = iface->lpVtbl->GetParameters(iface, (LPDIEFFECT)&effect->params, DIEP_ALLPARAMS_DX5);
+        if (result == DIERR_MOREDATA) {
+            size = effect->params.cbTypeSpecificParams;
+            cifr_InitEffectSlot_Maybe(effect);
+            effect->typeSpecificBuffer = (*stdPlatform_hostServices_ptr->alloc)(size);
+            effect->params.lpvTypeSpecificParams = effect->typeSpecificBuffer;
+            effect->params.cbTypeSpecificParams = size;
+            iface = effect->interfaces[i];
+            result = iface->lpVtbl->GetParameters(iface, (LPDIEFFECT)&effect->params, DIEP_ALLPARAMS_DX5);
+        }
+        if (result != 0) {
+            cifr_IFReleaseEffects(project, effect->interfaces);
+            effect->interfaces = NULL;
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// 0x00404190
+int cifr_ReleaseEffect(cifr_Effect* effect, HIFORCEPROJECT project)
+{
+    int result;
+
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    if (effect->interfaces == NULL) {
+        return 0;
+    }
+    result = cifr_IFReleaseEffects(project, effect->interfaces);
+    effect->interfaces = NULL;
+    return result;
 }
 
 // 0x004041c0
@@ -208,15 +358,74 @@ int cifr_SetDuration(cifr_Effect* effect, int durationMs, int start)
 }
 
 // 0x00404590
-int cifr_SetCustomForceData_Maybe(void* effect, unsigned int size, void* data, int deferred)
+int cifr_SetCustomForceData_Maybe(cifr_Effect* effect, unsigned int size, void* data, int start)
 {
-    HANG("TODO");
-    return 0;
+    IDirectInputEffect* iface;
+
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    if (effect->interfaces == NULL) {
+        return 0;
+    }
+    (*stdPlatform_hostServices_ptr->free)(effect->typeSpecificBuffer);
+    effect->typeSpecificBuffer = (*stdPlatform_hostServices_ptr->alloc)(size);
+    memcpy(effect->typeSpecificBuffer, data, size);
+    effect->params.cbTypeSpecificParams = size;
+    effect->params.lpvTypeSpecificParams = effect->typeSpecificBuffer;
+    // only the first interface is updated; faithful
+    iface = effect->interfaces[0];
+    return iface->lpVtbl->SetParameters(iface, (LPCDIEFFECT)&effect->params, (start ? DIEP_START : DIEP_NORESTART) | DIEP_TYPESPECIFICPARAMS) >= 0;
+}
+
+// 0x00404640
+int cifr_QueryEffectStatus_Maybe(cifr_Effect* effect, GUID* outGuid)
+{
+    IDirectInputEffect* iface;
+
+    if (swrConfig_FORCE_ENABLED == 0) {
+        return 0;
+    }
+    if (effect->interfaces == NULL) {
+        return 0;
+    }
+    iface = effect->interfaces[0];
+    return iface->lpVtbl->GetEffectGuid(iface, outGuid) >= 0;
 }
 
 // 0x00404670
-int cifr_GetForceFeedbackState_Maybe(void* effect, char* outState)
+int cifr_GetForceFeedbackState_Maybe(cifr_Effect* effect, char* outEffType)
 {
-    HANG("TODO");
-    return 0;
+    GUID guid;
+    DIEFFECTINFOA info;
+    LPDIRECTINPUTDEVICE2A device;
+
+    if (cifr_QueryEffectStatus_Maybe(effect, &guid) == 0) {
+        return 0;
+    }
+    device = (LPDIRECTINPUTDEVICE2A)cifr_device;
+    info.dwSize = sizeof(DIEFFECTINFOA);
+    if (device->lpVtbl->GetEffectInfo(device, &info, &guid) < 0) {
+        return 0;
+    }
+    *outEffType = (char)info.dwEffType;
+    return 1;
+}
+
+// 0x004046e0
+void cifr_InitEffectSlot_Maybe(cifr_Effect* effect)
+{
+    memset(&effect->params, 0, sizeof(effect->params));
+    effect->params.lpEnvelope = &effect->envelope;
+    effect->params.rglDirection = effect->directions;
+    effect->params.rgdwAxes = effect->axes;
+    effect->params.dwSize = sizeof(DIEFFECT_DX5);
+    effect->params.dwFlags = DIEFF_SPHERICAL | DIEFF_POLAR | DIEFF_CARTESIAN | DIEFF_OBJECTIDS;
+    effect->params.cAxes = sizeof(effect->axes) / sizeof(effect->axes[0]);
+    memset(&effect->envelope, 0, sizeof(effect->envelope));
+    effect->envelope.dwSize = sizeof(DIENVELOPE);
+    if (effect->typeSpecificBuffer != NULL) {
+        (*stdPlatform_hostServices_ptr->free)(effect->typeSpecificBuffer);
+        effect->typeSpecificBuffer = NULL;
+    }
 }

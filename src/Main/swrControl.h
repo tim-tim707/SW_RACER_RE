@@ -121,7 +121,7 @@ int swrControl_FormatBinding(char* out, int a2, unsigned char* a3, unsigned char
 unsigned char swrControl_CaptureBinding(int a1, void* a2, swrUI_unk* a3, char* a4, int a5); // capture a new key/axis for a mapping row
 int swrControl_FindMovedAxis(int device, void* param_2);          // which analog axis moved past the deadzone
 int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char* a4); // look up a binding in a device table
-int swrControl_FindKeyName(int id, char otherId);                 // key/button name string by (id, otherId)
+char* swrControl_FindKeyName(int id, char otherId); // key/button name string by (id, otherId)
 void swrControl_SelectSavedJoystick(void);                        // select the joystick device from the saved registry GUID
 int swrControl_IsKeyStringControl(int controlId);                 // is this control in the key-string table
 

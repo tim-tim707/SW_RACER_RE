@@ -81,7 +81,13 @@ swrConfig_joystick_enabled 0x004b2944 int = 1
 swrConfig_keyboard_enabled 0x004b2948 int = 1
 joystick_detected 0x004b294c int = 1
 
-keyMapping2_0 0x004b29e8 keyMapping2[22]
+swrControl_defaultJoystickFlipAxis 0x004b2958 int[6]
+swrControl_defaultMouseFlipAxis 0x004b2970 int[3]
+swrControl_defaultDeadzone 0x004b297c float # 0.15
+keyMapping2_0 0x004b29e8 keyMappingEx[22]
+swrControl_defaultBindingsJoystick 0x004b2f80 swrControlBinding[65]
+swrControl_defaultBindingsMouse 0x004b3290 swrControlBinding[65]
+swrControl_defaultBindingsKeyboard 0x004b35a0 swrControlBinding[65]
 keyMapping0 0x004b2af0 keyMapping[7]
 keyMapping1 0x004b2b28 keyMapping[21]
 keyMapping2 0x004b2bd0 keyMapping[118]
@@ -452,6 +458,7 @@ sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
 sithMessage_totalNetSent 0x004d5e10 int
 
+swrControl_bindingCounts 0x004d5e20 int[3] # bindings in use per swrConfig_DEVICE
 JoystickAxisInput 0x004d5e30 float[4]
 MouseAxisInput 0x004d5e40 float[4]
 KeyboardAxisInput 0x004d5e50 float[4]
@@ -460,6 +467,10 @@ WindowsInputCritSection 0x004D5E68 CRITICAL_SECTION
 JoystickButtonPressedInput 0x4d5e80 float[15]
 MouseButtonPressedInput 0x4d5ebc float[15]
 KeyboardButtonPressedInput 0x4d5ef8 float[15]
+swrControl_bindingsJoystick 0x004d5fc0 swrControlBinding[65]
+swrControl_bindingsMouse 0x004d6518 swrControlBinding[65]
+swrControl_bindingsKeyboard 0x004d6828 swrControlBinding[65]
+swrControl_mouseAxesAccum 0x004d6b60 float[3] # mouse axes integrated and clamped to [-1, 1] while UI input is active
 
 swrText_keyNameText 0x004d5f38 char[128]
 
@@ -1718,6 +1729,13 @@ flip_y_axis 0x00ec8794 int
 flip_z_axis 0x00ec8798 int
 swrConfig_joystickNbButtons 0x00ec879c int
 swrConfig_joystickNbAxis 0x00ec87a0 int
+swrControl_joystickAxes 0x00ec87c0 float[6] # this frame's scaled joystick axes (swrControl_ProcessInputs)
+swrControl_mouseAxes 0x00ec87d8 float[3] # this frame's mouse axes, flip applied
+swrControl_keyboardAxes 0x00ec87f0 float[3] # arrow/numpad keys as steer X / Y axes
+swrControl_mouseAxisMask 0x00ec8808 unsigned int # bit N = mouse axis N enabled (swrControl_Initialize)
+swrControl_buttonHeldPrev 0x00ec8810 char[16] # per action: held last frame (swrControl_ProcessInputs edge detect)
+swrConfig_joystickNbPOVs 0x00ec8824 int # DIDEVCAPS.dwPOVs of the selected joystick
+swrControl_axisSensitivity 0x00ec8780 float[3] # per swrConfig_DEVICE; reset to 1.0 by swrControl_SetDefaultMappings
 
 swrRace_ThrottleInput 0x00ec8830 float
 swrRace_UnkInput 0x00ec8834 float
@@ -1742,6 +1760,9 @@ swrControl_thrustHoldTime 0x00ec88ac float # hold-time[3] seconds: thrust; in (0
 swrControl_boostHoldTime 0x00ec88b0 float # hold-time[4] seconds: boost tap-detect
 swrControl_repairHoldTime 0x00ec88c4 float # hold-time[9] seconds: repair; > 0.5 fires repair
 swrRace_pendingCameraEvent 0x00ec83d0 int # pending 'cMan' sub-event fourcc queued by debug camera keys F1-F4; consumed+cleared in swrRace_UpdatePlayerControl
+swrControl_joystickAxisMask 0x00ec887c unsigned int # bit N = joystick axis N enabled (swrControl_Initialize)
+swrControl_joystickFlipAxis 0x00ec8880 int[6] # per joystick axis: invert
+swrControl_viewHoldTime 0x00ec88a0 float # hold-time[0] seconds; base of the hold-time array
 swrControl_damageForceEffectPreempted 0x004d78a0 int # a one-shot damage FF effect preempted the continuous speed effect; swrControl_UpdateSpeedForceEffect restarts it
 swrControl_forceEffectValue 0x004d6c78 int[28] # last value pushed by Configure/UpdateForceEffect per swrForceEffect (0 = not configured)
 swrControl_forceEffectPlaying 0x004d6ce8 int[28] # per swrForceEffect: started and not yet stopped
@@ -1752,6 +1773,10 @@ swrControl_forceEffectSlotLastIds 0x004b49b0 int[6] # highest swrForceEffect eac
 swrControl_forceEffectsDeviceType 0x004b4b08 int = 9 # device type the bundle was loaded for (low byte; 9 = none)
 cifr_device 0x004d55d0 void* # selected joystick DirectInput device (cifr_Init); no device = effects never start
 cifr_deviceIsWheel 0x004d55d4 int # FF device is a wheel (type 6 or name contains "wheel"): bundle2.fcr, no 2nd-axis GForce scaling
+cifr_IFReleaseProject 0x004ac054 cifr_IFReleaseProjectFn # IFORCE2.DLL import slot (_IFReleaseProject@4)
+cifr_IFReleaseEffects 0x004ac058 cifr_IFReleaseEffectsFn # IFORCE2.DLL import slot (_IFReleaseEffects@8)
+cifr_IFCreateEffects 0x004ac05c cifr_IFCreateEffectsFn # IFORCE2.DLL import slot (_IFCreateEffects@12)
+cifr_IFLoadProjectFile 0x004ac060 cifr_IFLoadProjectFileFn # IFORCE2.DLL import slot (_IFLoadProjectFile@8)
 swrControl_ffScore 0x004d78a4 swrScore* # score of the force-feedback player
 swrControl_ffMaxSpeed 0x004d7898 float # force-feedback player maxSpeed (speed-ratio denominator)
 swrControl_ffRestSpeedRatio 0x004d7770 float # 0; a speed ratio equal to it settles the GForce effect
@@ -1796,7 +1821,13 @@ DirectInputJoysticks 0x00ec9ea0 void*
 
 DirectInputJoystickGUID 0x00ec9ea4 GUID
 
+stdControlJoystickSubType 0x00ec9ec5 unsigned char # byte 1 of the record's DIDEVICEINSTANCEA.dwDevType (DIDEVTYPEJOYSTICK_*); stride STDCONTROL_JOYSTICK_RECORD_SIZE
+
+stdControlJoystickProductName 0x00ec9fcc char[260] # record's DIDEVICEINSTANCEA.tszProductName; stride STDCONTROL_JOYSTICK_RECORD_SIZE
+
 stdControlJoystickDevice 0x00eca0e4 LPDIRECTINPUTDEVICEA
+
+stdControlJoystickCapsFlags 0x00eca0ec DWORD # record's DIDEVCAPS.dwFlags (DIDC_*); stride STDCONTROL_JOYSTICK_RECORD_SIZE
 
 DirectInputMouses 0x00ecb240 void*
 

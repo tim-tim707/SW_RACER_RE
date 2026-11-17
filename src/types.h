@@ -3191,12 +3191,21 @@ extern "C"
         char* name;
     } keyMapping; // sizeof(0x8)
 
-    typedef struct keyMapping2
+    typedef struct keyMappingEx
     {
         int id;
-        char name[4];
+        char* name;
         int otherId;
-    } keyMapping2; // sizeof(0xc)
+    } keyMappingEx; // sizeof(0xc). renamed from keyMapping2: clashed with the keyMapping2 global
+
+    // One control binding (swrControl_SetDefaultMappings / stdConfFile_readAndApplyConf).
+    typedef struct swrControlBinding
+    {
+        unsigned char flags; // swrControlBinding_FLAG; SWR_CONTROL_BINDING_END terminates a table
+        char unk1[3];
+        int input; // 0x4. axis index, or button/key code
+        int action; // 0x8. index into the *AxisInput / *ButtonPressedInput arrays
+    } swrControlBinding; // sizeof(0xc)
 
     // TODO: joystick device sizeof(0x9d). see stdControlJoystickDevice[]
 
@@ -3352,6 +3361,13 @@ extern "C"
         float unk8; // 0x8
     } swrForceEffectSetting; // sizeof(0xc)
 
+    // Immersion IFORCE2.DLL project handle and the imports cifr calls through the EXE's import table.
+    typedef void* HIFORCEPROJECT;
+    typedef HIFORCEPROJECT(__stdcall* cifr_IFLoadProjectFileFn)(LPCSTR projectFile, LPDIRECTINPUTDEVICE2A device);
+    typedef IDirectInputEffect**(__stdcall* cifr_IFCreateEffectsFn)(HIFORCEPROJECT project, LPCSTR objectName, int* numEffects);
+    typedef BOOL(__stdcall* cifr_IFReleaseEffectsFn)(HIFORCEPROJECT project, IDirectInputEffect** effects);
+    typedef BOOL(__stdcall* cifr_IFReleaseProjectFn)(HIFORCEPROJECT project);
+
     // One downloaded force-feedback effect (cifr_InitEffectSlot_Maybe / cifr_CreateEffect).
     // params' axis/direction/envelope pointers aim into this slot.
     typedef struct cifr_Effect
@@ -3371,7 +3387,7 @@ extern "C"
     typedef struct cifr_EffectSet
     {
         char unk0[0x40];
-        void* device; // 0x40. force-feedback DirectInput device
+        HIFORCEPROJECT project; // 0x40. loaded .fcr project (cifr_LoadProjectFile)
         int unk44;
         cifr_Effect slots[6]; // 0x48
     } cifr_EffectSet; // sizeof(0x900)

@@ -15,10 +15,27 @@
 // Stride of the joystick device records starting at stdControlJoystickDevice (0x9d dwords);
 // the record's first field is the LPDIRECTINPUTDEVICEA.
 #define STDCONTROL_JOYSTICK_RECORD_DWORDS (0x9d)
+#define STDCONTROL_JOYSTICK_RECORD_SIZE (STDCONTROL_JOYSTICK_RECORD_DWORDS * 4)
 // Joystick N's buttons (then hat directions) occupy stdControl_aKeyInfos
 // [STDCONTROL_JOYSTICK_KEY_BASE + N * STDCONTROL_KEYS_PER_JOYSTICK, +STDCONTROL_KEYS_PER_JOYSTICK).
 #define STDCONTROL_JOYSTICK_KEY_BASE (0x100)
 #define STDCONTROL_KEYS_PER_JOYSTICK (0x20)
+// Within a joystick's key band, hat directions follow the buttons, four per POV.
+#define STDCONTROL_JOYSTICK_POV_KEY_BASE (0x10)
+#define STDCONTROL_KEYS_PER_POV (4)
+// Mouse buttons occupy stdControl_aKeyInfos[STDCONTROL_MOUSE_KEY_BASE + N].
+#define STDCONTROL_MOUSE_KEY_BASE (0x200)
+// Keyboard keys (DIK_* scancodes) occupy stdControl_aKeyInfos[0, STDCONTROL_NUM_KEYBOARD_KEYS).
+#define STDCONTROL_NUM_KEYBOARD_KEYS (0x100)
+
+// swrControl binding tables (swrControl_bindingsJoystick/Mouse/Keyboard): 64 bindings + terminator.
+#define SWR_CONTROL_BINDINGS_PER_DEVICE (65)
+#define SWR_CONTROL_BINDING_END (0xff)
+// Per-action arrays (*ButtonPressedInput, the button-state array at swrControl_viewButton, hold times).
+#define SWR_CONTROL_NUM_ACTIONS (15)
+#define SWR_CONTROL_ACTION_BRAKE (2) // action index of swrControl_brakeButton
+// swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
+#define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)
 
 // daAlloc arena allocator (stdMemory.c).
 #define DAALLOC_PAGE_SIZE (0x7c00)       // bytes per arena page, malloc'd on demand

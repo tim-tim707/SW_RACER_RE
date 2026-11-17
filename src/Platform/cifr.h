@@ -32,25 +32,25 @@
 #define cifr_InitEffectSlot_Maybe_ADDR (0x004046e0)
 
 // Initialize the 6 effect slots and select the force-feedback device.
-void cifr_Init(void* effects);
+void cifr_Init(cifr_EffectSet* effects);
 
 // Tears down and reinitializes the controller's force-feedback effect slots when enabled (best guess).
-void cifr_ReinitEffects_Maybe(void* controller);
+void cifr_ReinitEffects_Maybe(cifr_EffectSet* effects);
 
-// Load an Immersion .fcr project file and record each effect's name per slot.
-int cifr_LoadProjectFile(void* effects, char* projectFile, void* nameIndices, void* nameTable);
+// Load an Immersion .fcr project file and give slot i the first effect after slotLastIds[i - 1].
+int cifr_LoadProjectFile(cifr_EffectSet* effects, char* projectFile, int* slotLastIds, char** names);
 
 // Create and download all of a controller's effects to the device.
-int cifr_LoadAllEffects(void* controller);
+int cifr_LoadAllEffects(cifr_EffectSet* effects);
 
 // Releases every downloaded DirectInput effect across the six slots and counts the successes.
-int cifr_ReleaseAllEffects(void* controller);
+int cifr_ReleaseAllEffects(cifr_EffectSet* effects);
 
-// Create + download one effect (its DirectInput effect interfaces) to device.
-int cifr_CreateEffect(void* effect, void* params, void* device);
+// Create the named project effect's DirectInput interfaces and read back their parameters.
+int cifr_CreateEffect(cifr_Effect* effect, char* name, HIFORCEPROJECT project);
 
 // Release one effect's downloaded DirectInput interfaces.
-int cifr_ReleaseEffect(void* effect, void* device);
+int cifr_ReleaseEffect(cifr_Effect* effect, HIFORCEPROJECT project);
 
 // Start playing an effect (restart == 0 leaves an already-playing effect alone).
 int cifr_StartEffect(cifr_Effect* effect, int restart);
@@ -74,16 +74,16 @@ int cifr_SetMagnitude(cifr_Effect* effect, int percent, int start);
 int cifr_GetDuration(cifr_Effect* effect);
 int cifr_SetDuration(cifr_Effect* effect, int durationMs, int start);
 
-// Reallocates and copies a per-effect custom force buffer, then downloads it via SetParameters (best guess).
-int cifr_SetCustomForceData_Maybe(void* effect, unsigned int size, void* data, int deferred);
+// Replace the effect's type-specific parameters and download them to its first interface.
+int cifr_SetCustomForceData_Maybe(cifr_Effect* effect, unsigned int size, void* data, int start);
 
-// Queries one effect's DirectInput status (best guess).
-int cifr_QueryEffectStatus_Maybe(void* effect, void* outStatus);
+// Get the effect GUID of the effect's first interface.
+int cifr_QueryEffectStatus_Maybe(cifr_Effect* effect, GUID* outGuid);
 
-// Queries an effect's status and issues a device-level force-feedback command, copying back a status byte (best guess).
-int cifr_GetForceFeedbackState_Maybe(void* effect, char* outState);
+// Get the low byte of the effect's DIEFFECTINFOA.dwEffType (DIEFT_*).
+int cifr_GetForceFeedbackState_Maybe(cifr_Effect* effect, char* outEffType);
 
-// Initializes one effect slot to its default fields and frees its custom-force buffer (best guess).
-void cifr_InitEffectSlot_Maybe(void* effect);
+// Reset an effect's DIEFFECT/envelope to defaults and free its type-specific buffer.
+void cifr_InitEffectSlot_Maybe(cifr_Effect* effect);
 
 #endif // CIFR_H

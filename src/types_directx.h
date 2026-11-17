@@ -856,6 +856,7 @@ typedef enum DIEP // IDirectInputEffect::SetParameters dwFlags
     DIEP_GAIN = 0x00000004,
     DIEP_DIRECTION = 0x00000040,
     DIEP_TYPESPECIFICPARAMS = 0x00000100,
+    DIEP_ALLPARAMS_DX5 = 0x000001ff,
     DIEP_START = 0x20000000,
     DIEP_NORESTART = 0x40000000,
     DIEP_NODOWNLOAD = 0x80000000,
@@ -886,6 +887,76 @@ typedef struct IDirectInputEffectVtbl
     HRESULT(__stdcall* Unload)(IDirectInputEffect* This);
     HRESULT(__stdcall* Escape)(IDirectInputEffect* This, void* pesc);
 } IDirectInputEffectVtbl;
+
+typedef enum DIEFF // DIEFFECT.dwFlags
+{
+    DIEFF_OBJECTIDS = 0x00000001,
+    DIEFF_OBJECTOFFSETS = 0x00000002,
+    DIEFF_CARTESIAN = 0x00000010,
+    DIEFF_POLAR = 0x00000020,
+    DIEFF_SPHERICAL = 0x00000040,
+} DIEFF;
+
+typedef enum DIDC // DIDEVCAPS.dwFlags
+{
+    DIDC_FORCEFEEDBACK = 0x00000100,
+} DIDC;
+
+typedef enum DIDEVTYPEJOYSTICK // DIDEVICEINSTANCE.dwDevType subtype (byte 1) of a DIDEVTYPE_JOYSTICK
+{
+    DIDEVTYPEJOYSTICK_WHEEL = 6,
+} DIDEVTYPEJOYSTICK;
+
+#define DIERR_MOREDATA ((HRESULT)0x80040202L)
+
+typedef struct DIEFFECTINFOA
+{
+    DWORD dwSize;
+    GUID guid;
+    DWORD dwEffType;
+    DWORD dwStaticParams;
+    DWORD dwDynamicParams;
+    CHAR tszName[MAX_PATH];
+} DIEFFECTINFOA, *LPDIEFFECTINFOA; // sizeof(0x124)
+
+typedef struct IDirectInputDevice2A
+{
+    struct IDirectInputDevice2AVtbl* lpVtbl;
+} IDirectInputDevice2A;
+typedef struct IDirectInputDevice2A* LPDIRECTINPUTDEVICE2A;
+typedef struct IDirectInputDevice2AVtbl
+{
+    /*** IUnknown methods ***/
+    HRESULT(__stdcall* QueryInterface)(IDirectInputDevice2A* This, IID* riid, void** ppvObject);
+    ULONG(__stdcall* AddRef)(IDirectInputDevice2A* This);
+    ULONG(__stdcall* Release)(IDirectInputDevice2A* This);
+    /*** IDirectInputDeviceA methods ***/
+    HRESULT(__stdcall* GetCapabilities)(IDirectInputDevice2A* This, LPDIDEVCAPS lpDIDevCaps);
+    HRESULT(__stdcall* EnumObjects)(IDirectInputDevice2A* This, LPDIENUMDEVICEOBJECTSCALLBACKA lpCallback, LPVOID pvRef, DWORD dwFlags);
+    HRESULT(__stdcall* GetProperty)(IDirectInputDevice2A* This, GUID* rguidProp, LPDIPROPHEADER pdiph);
+    HRESULT(__stdcall* SetProperty)(IDirectInputDevice2A* This, GUID* rguidProp, LPCDIPROPHEADER pdiph);
+    HRESULT(__stdcall* Acquire)(IDirectInputDevice2A* This);
+    HRESULT(__stdcall* Unacquire)(IDirectInputDevice2A* This);
+    HRESULT(__stdcall* GetDeviceState)(IDirectInputDevice2A* This, DWORD cbData, LPVOID lpvData);
+    HRESULT(__stdcall* GetDeviceData)(IDirectInputDevice2A* This, DWORD cbObjectData, LPDIDEVICEOBJECTDATA rgdod, LPDWORD pdwInOut, DWORD dwFlags);
+    HRESULT(__stdcall* SetDataFormat)(IDirectInputDevice2A* This, LPCDIDATAFORMAT lpdf);
+    HRESULT(__stdcall* SetEventNotification)(IDirectInputDevice2A* This, HANDLE hEvent);
+    HRESULT(__stdcall* SetCooperativeLevel)(IDirectInputDevice2A* This, HWND hwnd, DWORD dwFlags);
+    HRESULT(__stdcall* GetObjectInfo)(IDirectInputDevice2A* This, LPDIDEVICEOBJECTINSTANCEA pdidoi, DWORD dwObj, DWORD dwHow);
+    HRESULT(__stdcall* GetDeviceInfo)(IDirectInputDevice2A* This, LPDIDEVICEINSTANCEA pdidi);
+    HRESULT(__stdcall* RunControlPanel)(IDirectInputDevice2A* This, HWND hwndOwner, DWORD dwFlags);
+    HRESULT(__stdcall* Initialize)(IDirectInputDevice2A* This, HINSTANCE hinst, DWORD dwVersion, GUID* rguid);
+    /*** IDirectInputDevice2A methods ***/
+    HRESULT(__stdcall* CreateEffect)(IDirectInputDevice2A* This, GUID* rguid, LPCDIEFFECT lpeff, IDirectInputEffect** ppdeff, LPUNKNOWN punkOuter);
+    HRESULT(__stdcall* EnumEffects)(IDirectInputDevice2A* This, void* lpCallback, LPVOID pvRef, DWORD dwEffType);
+    HRESULT(__stdcall* GetEffectInfo)(IDirectInputDevice2A* This, LPDIEFFECTINFOA pdei, const GUID* rguid);
+    HRESULT(__stdcall* GetForceFeedbackState)(IDirectInputDevice2A* This, LPDWORD pdwOut);
+    HRESULT(__stdcall* SendForceFeedbackCommand)(IDirectInputDevice2A* This, DWORD dwFlags);
+    HRESULT(__stdcall* EnumCreatedEffectObjects)(IDirectInputDevice2A* This, void* lpCallback, LPVOID pvRef, DWORD fl);
+    HRESULT(__stdcall* Escape)(IDirectInputDevice2A* This, void* pesc);
+    HRESULT(__stdcall* Poll)(IDirectInputDevice2A* This);
+    HRESULT(__stdcall* SendDeviceData)(IDirectInputDevice2A* This, DWORD cbObjectData, void* rgdod, LPDWORD pdwInOut, DWORD fl);
+} IDirectInputDevice2AVtbl;
 
 //
 // Direct3D3
