@@ -1120,7 +1120,6 @@ void swrConfig_BuildForceFeedbackMenu(swrUI_unk* page)
     swrUI_NewFramedText(page, 0x59, 0, swrText_Translate("/MONDOTEXT_H_0316/~sEnable Force Feedback "), 0x1e, headerHeight + 0x2d, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
     swrUI_NewFramedText(page, 0x61, 0, swrText_Translate("/MONDOTEXT_H_0323/~sEnable Engine Rumble "), rightCheckX, headerHeight + 0x32, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
 
-    // two columns of radio groups, each tracking its own running y
     leftY = headerHeight + 0x5a;
     rightY = leftY;
     rightColumnX = checkRowWidth / 16 + 0x1e + checkRowWidth;
@@ -1237,7 +1236,6 @@ static void swrConfig_BuildPointerDeviceMenu(swrUI_unk* page, swrConfig_DEVICE d
         columnWidth = frameWidth;
 
     swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
-    // the wheel adds Nose Up / Nose Down button rows
     listHeight = (isJoystick && cifr_deviceIsWheel != 0 ? 13 : 11) * rowHeight;
     listRect[0] = 0xf;
     listRect[1] = 0xf;
@@ -1288,7 +1286,7 @@ static void swrConfig_BuildPointerDeviceMenu(swrUI_unk* page, swrConfig_DEVICE d
     y += rowHeight * 2;
 
     // Z flip only when the device reports a third axis
-    count = ((isJoystick ? swrControl_joystickAxisMask : swrControl_mouseAxisMask) & 4) != 0 ? 3 : 2;
+    count = ((isJoystick ? swrControl_joystickAxisMask : swrControl_mouseAxisMask) & (1u << SWR_CONTROL_AXIS_Z)) != 0 ? 3 : 2;
     radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0507/~sFlip Axis", 0x16d, &y, count, radioX);
     y += radioHeight;
     swrUI_NewFramedText(page, 0x55, 0, swrText_Translate("/MONDOTEXT_H_0283/~sX"), radioX[0], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0283/~sX"), 0), radioHeight, swrUI_CHECK_CIRCLE_UNK, 0);
@@ -1373,7 +1371,6 @@ void swrConfig_BuildKeyboardMenu(swrUI_unk* page)
     keyValueX = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0283/~sX"), 0) * 2;
     keyWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0256/Numpad Enter"), 0);
 
-    // ten bindings, each with a secondary key column
     swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
     listHeight = rowHeight * 11;
     panelRect[0] = 0xf;
@@ -1390,7 +1387,6 @@ void swrConfig_BuildKeyboardMenu(swrUI_unk* page)
         y += rowHeight;
     }
 
-    // pitch/turn axes: two key columns each
     y = (bbox[1] >> 1) + bbox[1] + 0xf + listHeight;
     panelRect[0] = 0xf;
     panelRect[1] = y;
