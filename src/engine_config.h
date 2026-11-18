@@ -293,6 +293,26 @@
 #define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
+// multiplayer menu elements (swrMultiplayer_Build*UI)
+#define SWR_UI_ID_MP_HOST_BUTTON (0x186a6)
+#define SWR_UI_ID_MP_JOIN_BUTTON (0x186a7)
+#define SWR_UI_ID_MP_CREATE_PLAYER_NAME (0x186ac)
+#define SWR_UI_ID_MP_CREATE_GAME_NAME (0x186ad)
+#define SWR_UI_ID_MP_CREATE_PASSWORD (0x186ae)
+#define SWR_UI_ID_MP_JOIN_PLAYER_NAME (0x186af)
+#define SWR_UI_ID_MP_JOIN_PASSWORD (0x186b1)
+#define SWR_UI_ID_MP_GAME_LIST (0x186b2) // join page: sessions found
+#define SWR_UI_ID_MP_PLAYER_LIST (0x186b3) // race setup: connected players
+#define SWR_UI_ID_MP_RETIRE (0x186b6)
+#define SWR_UI_ID_MP_RACER_NAME (0x186b9) // race setup: selected player's pod name
+#define SWR_UI_ID_MP_TRACK_NAME (0x186ba)
+#define SWR_UI_ID_MP_CHAT_ENTRY (0x186bb)
+#define SWR_UI_ID_MP_TRACKS (0x7d)
+#define SWR_UI_ID_MP_PODRACER (0x7e)
+#define SWR_UI_ID_MP_BOOT (0x80)
+#define SWR_UI_ID_MP_LAPS (0x8b)
+#define SWR_UI_ID_MP_RESULTS_LIST (0x30d42) // racer-list page
+#define SWR_UI_ID_MP_SETUP_TAB (0x30d54) // race setup: 3-patch title tab
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
 #define SWR_UI_ID_BACK_BUTTON (4)
 // main menu (swrUI_Menu_Main)

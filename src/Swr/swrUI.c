@@ -21,6 +21,7 @@
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
 #include <Platform/wuRegistry.h>
+#include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 
 #include <macros.h>
@@ -87,6 +88,14 @@ void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
     swrUI_UpdateProgressBar(0);
+}
+
+// 0x00411140
+int swrUI_IsPrevPage(int id, int flag)
+{
+    if (flag != 0 && swrUI_prevPage != NULL && swrUI_prevPage->id == id)
+        return 1;
+    return 0;
 }
 
 // 0x00411170
@@ -3873,6 +3882,54 @@ void swrUI_ProcessPendingClose(void)
         swrUI_confirmDialogParent = NULL;
         swrUI_confirmDialogDone = 0;
     }
+}
+
+// 0x0041ead0
+int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param_3 != NULL)
+            stdComm_Shutdown();
+        if (swrUI_IsPrevPage(swrUI_WINDOW_SPLASH, (int)param_3) != 0)
+            swrMultiplayer_SetInMultiplayer(1);
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrUI_PopMenuPage();
+        } else if ((int)param_3 == SWR_UI_ID_MP_HOST_BUTTON) {
+            stdComm_Startup();
+            multiplayer_track_change_permission = 1;
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_CREATE_GAME);
+        } else if ((int)param_3 == SWR_UI_ID_MP_JOIN_BUTTON) {
+            stdComm_Startup();
+            multiplayer_track_change_permission = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_JOIN_GAME);
+        }
+    }
+    return 0;
+}
+
+// 0x0041ede0
+int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
+}
+
+// 0x0041f330
+int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
+}
+
+// 0x0041fc70
+int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
+}
+
+// 0x004206b0
+int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
 }
 
 // 0x00420930
