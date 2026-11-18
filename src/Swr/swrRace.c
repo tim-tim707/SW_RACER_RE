@@ -136,10 +136,42 @@ void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
     swrUI_NewButton(page, SWR_UI_ID_FILE_SAVE, -1, swrText_Translate("/MONDOTEXT_H_0342/~sSave"), listRect[0] - 0x96, listRect[1] + 100, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
 }
 
-// 0x00411950
-int swrRace_SettingsMenu(void)
+// 0x00410230
+void swrRace_BuildProfileSelectMenu(swrUI_unk* page)
 {
-    HANG("TODO");
+    swrUI_unk* element;
+    int listRect[4];
+    int entryRect[4];
+    unsigned int buttonWidth;
+    int textHeight;
+    int buttonHeight;
+
+    buttonWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0343/~sREMOVE RACER"), swrText_fontsByIndex[0]);
+    buttonWidth += buttonWidth >> 1;
+    textHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0343/~sREMOVE RACER"), swrText_fontsByIndex[0]);
+    buttonHeight = textHeight * 3;
+    listRect[0] = 0xc3;
+    listRect[1] = 0x8c;
+    listRect[2] = 0x1bc;
+    listRect[3] = 0x153;
+    element = swrUI_NewList(page, SWR_UI_ID_FILE_LIST, listRect, 0, 0, 0);
+    swrUI_SetListHighlightColor(element, 0xff, 100, 0, 0xff);
+
+    entryRect[0] = listRect[0];
+    entryRect[1] = listRect[3] + 0x14;
+    entryRect[2] = listRect[2];
+    entryRect[3] = listRect[3] + 0x13 + textHeight * 6;
+    element = swrUI_NewTextEntry(page, SWR_UI_ID_FILE_NAME_ENTRY, entryRect, 0, swrUI_TEXT_ENTRY_CARET_TO_END, 0);
+    swrUI_SetMaxLength(element, SWR_UI_CONFIG_NAME_MAX_LENGTH);
+    swrUI_SetColorUnk2(element, 0xff, 100, 0, 0xff);
+    swrUI_RunCallbacks2(element, 0);
+
+    element = swrUI_NewLabel(page, SWR_UI_ID_CURRENT_PLAYER_LABEL, 6, swrText_Translate("/MONDOTEXT_H_0345/Current Player:  -none-"), listRect[0], listRect[3] + 0x19, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xe1, 0, 0xfa);
+    swrUI_NewButton(page, SWR_UI_ID_PROFILE_CREATE, -1, swrText_Translate("/MONDOTEXT_H_0347/~sCREATE RACER"), listRect[0] - 0x96, listRect[1] + 0x28, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, SWR_UI_ID_FILE_REMOVE, -1, swrText_Translate("/MONDOTEXT_H_0343/~sREMOVE RACER"), listRect[0] - 0x96, listRect[1] + 0x46, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_AddNavButton(page, SWR_UI_ID_PROFILE_NAV, 0, 0x1a4, 2);
+    swrUI_AddOkButton(page, 0x208, 0x17c);
 }
 
 // 0x0041c4e0

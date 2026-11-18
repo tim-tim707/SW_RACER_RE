@@ -308,6 +308,132 @@ void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element)
     swrUI_Enqueue(parent, element);
 }
 
+static const struct
+{
+    char* name;
+    short x;
+    short y;
+} swrUI_devPhotoNames[] = {
+    { "~c~sMark H.H.", 0x2e, 0x8a },
+    { "~c~sJon", 0x55, 200 },
+    { "~c~sJustin", 0x77, 0x81 },
+    { "~c~sPaul T.", 0x8d, 0x59 },
+    { "~c~sEric", 0x91, 0xd8 },
+    { "~c~sBrett", 0xba, 0xbf },
+    { "~c~sPaul Z.", 200, 0x5f },
+    { "~c~sJacob", 0xdd, 0xcd },
+    { "~c~sLisa", 0xee, 0x68 },
+    { "~c~sSun-Inn", 0x10c, 0x91 },
+    { "~c~sArmando", 0x10f, 0x5d },
+    { "~c~sDuncan", 0x122, 0xd9 },
+    { "~c~sChristina", 0x135, 0x6b },
+    { "~c~sCamela", 0x15b, 199 },
+    { "~c~sMark B.", 0x167, 0x55 },
+    { "~c~sJapeth", 0x17c, 0xb2 },
+    { "~c~sDino", 0x18a, 0xcb },
+    { "~c~sLivia", 0x19c, 0x5d },
+    { "~c~sDarren", 0x1b9, 0x77 },
+    { "~c~sClint", 0x1c6, 0xc2 },
+    { "~c~sAmit", 0x1d2, 0x5c },
+    { "~c~sJim", 0x1fe, 0xb7 },
+    { "~c~sBrad", 0x207, 0x5a },
+    { "~c~sBill", 0x234, 0xd5 },
+    { "~c~sNathan", 0x23c, 0x55 },
+};
+
+// 0x00411950
+int swrUI_BuildMenuPages(void)
+{
+    swrUI_unk* page;
+    int i;
+
+    swrSprite_LoadAllSprites();
+    // window 5: lone Settings + Back page
+    page = swrUI_NewWindow(NULL, NULL, 5, NULL);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_SETTINGS, 6, swrText_Translate("/MONDOTEXT_H_0373/~sSettings"), 0, 0x15e, 200, 0x19, swrUI_FRAME_STYLE_SETTINGS_BUTTON, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x186, 2);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_NAV, NULL);
+    if (page != NULL) {
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a4, 2);
+        swrUI_AddOkButton(page, 0x208, 0x17c);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SPLASH, (swrUI_unk_F2*)swrUI_Menu_Main);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_TOURNAMENT, 6, swrText_Translate("/MONDOTEXT_H_0374/~sSingle Player Tournament"), 0x96, 0x96, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_FREEPLAY, 6, swrText_Translate("/MONDOTEXT_H_0375/~sSingle Player Free Play"), 0x96, 0xbe, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_MULTIPLAYER, 6, swrText_Translate("/MONDOTEXT_H_0376/~sMultiplayer"), 0x96, 0xe6, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_SETTINGS, 6, swrText_Translate("/MONDOTEXT_H_0373/~sSettings"), 0, 0x15e, 0xb4, 0x19, swrUI_FRAME_STYLE_SETTINGS_BUTTON, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_MAIN_QUIT, 0, 0x186, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_MAIN_COPYRIGHT, 4, swrText_Translate("/MONDOTEXT_H_0504/~s$LucasArts Entertainment Company LLC. $Lucasfilm Ltd. and #. All Rights Reserved. Used under authorization."), 0x140, 0x1d6, swrUI_VERTICAL, 0);
+        // developer-photo labels (swrUI_Menu_Main shows them instead of the menu)
+        for (i = 0; i < (int)(sizeof(swrUI_devPhotoNames) / sizeof(swrUI_devPhotoNames[0])); i++)
+            swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i, 4, swrUI_devPhotoNames[i].name, swrUI_devPhotoNames[i].x, swrUI_devPhotoNames[i].y, 0, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i, 6, swrText_Translate("/MONDOTEXT_H_0524/~sThe Team"), 0x140, 0x3c, swrUI_VERTICAL, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 1, 4, swrText_Translate("/MONDOTEXT_H_0544/~s%"), 0x12a, 0x12, 0, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 2, 4, swrText_Translate("/MONDOTEXT_H_0545/~s#"), 0x127, 0x46, 0, 0);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrRace_SelectProfileMenu);
+    if (page != NULL)
+        swrRace_BuildProfileSelectMenu(page);
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_SettingsHub);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_VIDEO, 6, swrText_Translate("/MONDOTEXT_H_0292/~sVIDEO SETTINGS"), 0x96, 100, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_AUDIO, 6, swrText_Translate("/MONDOTEXT_H_0305/~sAUDIO SETTINGS"), 0x96, 0x8c, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_JOYSTICK, 6, swrText_Translate("/MONDOTEXT_H_0249/~sJOYSTICK SETTINGS"), 0x96, 0xbe, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_MOUSE, 6, swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"), 0x96, 0xe6, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_KEYBOARD, 6, swrText_Translate("/MONDOTEXT_H_0251/~sKEYBOARD SETTINGS"), 0x96, 0x10e, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_FORCE_FEEDBACK, 6, swrText_Translate("/MONDOTEXT_H_0314/~sFORCE FEEDBACK SETTINGS"), 0x96, 0x136, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_LOAD_SAVE, 6, swrText_Translate("/MONDOTEXT_H_0340/~sLOAD/SAVE SETTINGS"), 0x96, 0x168, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 400, 2);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_CONFIG_FILES, (swrUI_unk_F2*)swrUI_Menu_SaveLoadConfig);
+    if (page != NULL)
+        swrRace_LoadSaveConfigMenu(page);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_JOYSTICK_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildJoystickMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_MOUSE_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildMouseMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_MOUSE, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_KEYBOARD_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildKeyboardMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_KEYBOARD, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_VIDEO_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_VideoSettings);
+    if (page != NULL) {
+        swrConfig_BuildVideoMenu(page);
+        swrConfig_RefreshVideoMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_AUDIO_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_AudioSettings);
+    if (page != NULL) {
+        swrConfig_BuildAudioMenu(page);
+        swrConfig_RefreshAudioMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_ForceFeedback);
+    if (page != NULL) {
+        swrConfig_BuildForceFeedbackMenu(page);
+        swrConfig_RefreshForceFeedbackMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_RESERVED_KEYS, (swrUI_unk_F2*)swrUI_Menu_ReservedSettings);
+    if (page != NULL)
+        swrRace_ReservedSettingsMenu(page);
+
+    swrMultiplayer_BuildAllMenuScreens();
+    swrUI_BuildAuxPages();
+    return 1;
+}
+
 // 0x004121f0
 void swrUI_BuildAuxPages(void)
 {
@@ -5392,6 +5518,22 @@ int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swr
         swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
         swrUI_settingsDirty = 1;
         return 1;
+    }
+    return 0;
+}
+
+// 0x00403d70
+int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
+{
+    swrUI_unk* label;
+
+    if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((unsigned int)param == 3) // nav button (swrRace_ReservedSettingsMenu)
+            swrUI_PopMenuPage();
+    } else if (swrMain_moneyHintUnlocked != 0 && msg != swrUI_MSG_DESTROY && swrUI_moneyHintShown == 0) {
+        label = swrUI_NewLabel(swrUI_GetById(NULL, swrUI_WINDOW_RESERVED_KEYS), 1, 0, swrText_Translate("/MONDOTEXT_H_0334/~s  SHIFT, 4 and F4 shows you the money!, where?  You figure it out!"), 0x28, 400, 0, 0);
+        swrUI_SetColorUnk(label, 0xb4, 0xb4, 0, 0xff);
+        swrUI_moneyHintShown++;
     }
     return 0;
 }

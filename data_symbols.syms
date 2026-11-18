@@ -2094,3 +2094,5 @@ swrUI_configSelectedFile 0x004d5594 swrUI_unk* # selected list item, refreshed o
 swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written, never read
 swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
+swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
+swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain_ProcessDebugKeys); reserved-keys page then shows the SHIFT+4+F4 money hint

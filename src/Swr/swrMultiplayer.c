@@ -630,6 +630,46 @@ void swrMultiplayer_TickRacerListOverlay(void)
     swrMultiplayer_chatLastTickMs = now;
 }
 
+// 0x0041e9b0
+void swrMultiplayer_BuildAllMenuScreens(void)
+{
+    swrMultiplayer_BuildSessionTypeUI();
+    swrMultiplayer_BuildCreateGameUI();
+    swrMultiplayer_BuildJoinGameUI();
+    swrMultiplayer_BuildRaceSetupUI();
+    swrMultiplayer_BuildRacerListUI();
+}
+
+// 0x0041ea20
+int swrMultiplayer_BuildSessionTypeUI(void)
+{
+    HANG("TODO");
+}
+
+// 0x0041eb80
+int swrMultiplayer_BuildCreateGameUI(void)
+{
+    HANG("TODO");
+}
+
+// 0x0041f0e0
+int swrMultiplayer_BuildJoinGameUI(void)
+{
+    HANG("TODO");
+}
+
+// 0x0041f940
+int swrMultiplayer_BuildRaceSetupUI(void)
+{
+    HANG("TODO");
+}
+
+// 0x00420600
+int swrMultiplayer_BuildRacerListUI(void)
+{
+    HANG("TODO");
+}
+
 // 0x0041e9d0
 int swrMultiplayer_IsAvailable(void)
 {

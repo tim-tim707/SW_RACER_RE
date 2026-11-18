@@ -11,8 +11,6 @@
 #define swrRace_BuildProfileSelectMenu_ADDR (0x00410230)
 #define swrRace_PollScreenshotKey_ADDR (0x00410430)
 
-#define swrRace_SettingsMenu_ADDR (0x00411950)
-
 #define swrRace_GetSelectedTrack_ADDR (0x0041c4e0)
 
 #define swrRace_PushDebugMenuState_ADDR (0x00429cd0)
@@ -253,12 +251,10 @@ void swrRace_ReservedSettingsMenu(swrUI_unk* page);
 void swrRace_LoadSaveConfigMenu(swrUI_unk* page);
 
 // Builds the profile-select menu list with Create/Remove-Racer and Current-Player entries.
-void swrRace_BuildProfileSelectMenu(swrUI_unk* param_1);
+void swrRace_BuildProfileSelectMenu(swrUI_unk* page);
 
 // Polls the screenshot key and, when pressed, plays a UI sound and captures a screenshot.
 void swrRace_PollScreenshotKey(void);
-
-int swrRace_SettingsMenu(void);
 
 swrRace_TRACK swrRace_GetSelectedTrack(void);
 
