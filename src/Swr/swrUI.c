@@ -4267,6 +4267,55 @@ void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len
     snprintf(buffer, len, "%s", str);
 }
 
+// 0x00410fd0
+int swrUI_Initialize(void)
+{
+    volatile float score;
+    volatile int rounded;
+    uint32_t start;
+    uint32_t tick;
+
+    swrUI_elementHashtable_Maybe = stdHashtbl_New(SWR_UI_ELEMENT_HASH_BUCKETS);
+    if (swrUI_elementHashtable_Maybe == NULL)
+        return 0;
+
+    memset(swrUI_rootElementStorage, 0, sizeof(swrUI_rootElementStorage));
+    memset(swrSpriteTexItems, 0, sizeof(swrSpriteTexItems));
+    swrUI_unk_ptr = (swrUI_unk*)swrUI_rootElementStorage;
+    memset(swrUI_timers, 0, sizeof(swrUI_timers));
+    swrUI_ResetPageStack();
+    swrUI_initJoyAxisX = swrControl_joystickAxes[0];
+    swrUI_initJoyAxisY = swrControl_joystickAxes[1];
+    swrUI_QuantizeNavAxis(swrControl_joystickAxes[0], swrControl_joystickAxes[1], &swrUI_navAxisXPrev, &swrUI_navAxisYPrev);
+    for (int id = SWR_SPRITE_DYNAMIC_FIRST; id < SWR_SPRITE_DYNAMIC_END; id++)
+        swrSprite_array[id].texture = NULL;
+    swrUI_unk_ptr->fun = (swrUI_unk_F1)swrUI_DefaultElementProc;
+    swrUI_RunCallbacks2(swrUI_unk_ptr, 1);
+
+    score = 0.0f;
+    start = stdPlatform_hostServices_ptr->getTimerTick();
+    do {
+        tick = stdPlatform_hostServices_ptr->getTimerTick();
+    } while (tick == start);
+    start = stdPlatform_hostServices_ptr->getTimerTick();
+    do {
+        for (int i = 0; i < SWR_UI_BENCH_INNER_LOOPS; i++) {
+            rounded = (int)score; // the original FRNDINT/FISTPs into a dead local each pass
+            score = score - -1.0f;
+        }
+    } while (stdPlatform_hostServices_ptr->getTimerTick() - start <= SWR_UI_BENCH_TICKS);
+    if (score * SWR_UI_BENCH_SCALE < SWR_UI_BENCH_MIN_SCORE)
+        swrUI_pageTransitionsEnabled = 0;
+    return 1;
+}
+
+// 0x00420960
+void swrUI_Menu_MpForwardKeyToChat(swrUI_unk* page, int key)
+{
+    swrUI_unk* chat = swrUI_GetById(page, SWR_UI_ID_MP_CHAT_ENTRY);
+    swrUI_RunCallbacks(chat, swrUI_MSG_KEY_DOWN, key, 0);
+}
+
 // 0x0043b0b0
 void swrUI_Front_HandleCircuits(swrObjHang* hang)
 {

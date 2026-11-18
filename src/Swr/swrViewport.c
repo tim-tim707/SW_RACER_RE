@@ -519,3 +519,12 @@ void swrViewport_Activate(int viewportIndex)
     swrViewport_Setup(viewportIndex);
     swr_noop3();
 }
+
+// 0x00482e20
+void swrViewport_AdvanceFrameParity_Maybe(void)
+{
+    swrViewport_frameTriple++;
+    if (swrViewport_frameTriple > 2)
+        swrViewport_frameTriple = 0;
+    swrViewport_frameParity = 1 - swrViewport_frameParity;
+}

@@ -884,3 +884,9 @@ void swrSpline_Build(swrSpline* spline, struct swrModel_Node* trackModel)
     if (swrSpline_validateSampleMeshes != 0)
         swrSpline_ForEachSample(spline, 10.0f, NULL, NULL, swrSpline_ValidateSampleTrackMesh);
 }
+
+// 0x00480480
+void swr_SetFixedDeltaTime(double seconds)
+{
+    swr_fixedDeltaTimeSecs = seconds;
+}

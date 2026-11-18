@@ -1804,6 +1804,13 @@ void swrSound_PlaySfxThenDelayed(int category, int variant, int id, int delayedC
 }
 
 // Reset the runtime voice mixer (clear every channel) and re-arm it on the next update.
+// 0x00449d70
+void swrSound_SetMasterGain(float gain)
+{
+    if (swrSound_unk_init != 0 && swrSound_Initted != 0)
+        swrSound_masterGainScaled = (int)(gain * SWR_SOUND_MASTER_GAIN_SCALE);
+}
+
 // 0x00449d60
 void swrSound_Reset(void)
 {

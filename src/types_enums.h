@@ -69,6 +69,8 @@ typedef enum GameSettingFlag
     GAME_SETTING_UNK_1 = 0x1, // set by swrScene_LoadObjects; part of the swrViewport_ResetCameraState_Maybe default (9)
     GAME_SETTING_STEREO_PAN = 0x8, // swrSound_PlaySpatial pans sfx by their side of the listener
     GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
+    GAME_SETTING_UNK_200 = 0x200, // swrScene_Init skips latching its first argument when set
+    GAME_SETTING_UNK_400 = 0x400, // swrScene_ResetRenderState also enables viewport 1
     GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
@@ -421,6 +423,12 @@ typedef enum swrModel_NodeType
     NODE_HAS_CHILDREN = 0x4000, // 0x50.., 0xD0..
     NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
 } swrModel_NodeType;
+
+// swrModel_Node.flags_3
+typedef enum swrModel_NODEFLAGS3
+{
+    swrModel_NODEFLAGS3_USE_PIVOT = 0x10, // NODE_TRANSFORMED_WITH_PIVOT: transform is applied about the pivot
+} swrModel_NODEFLAGS3;
 
 // swrModel_Node.flags_5, applied per node by rdModel_ApplyNodeSettings (and undone by RevertNodeSettings)
 typedef enum swrModel_NODEFLAGS5

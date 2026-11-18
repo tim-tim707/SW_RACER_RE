@@ -849,7 +849,7 @@ void swrScene_Startup(void);
 void swrScene_LoadPreviewModel(void);
 void swrScene_LoadObjects(void);
 void swrScene_InitFog(void);
-void swrScene_InitWorld(int param_1, int param_2);
+void swrScene_InitWorld(void);
 
 // An empty placeholder scene routine (best guess).
 void swrScene_Stub_Maybe(void);

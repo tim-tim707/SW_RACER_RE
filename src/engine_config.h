@@ -146,6 +146,7 @@
 
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
+#define SWR_SOUND_MASTER_GAIN_SCALE (32000.0f) // swrSound_SetMasterGain (0x004acb90)
 #define SWR_SOUND_EVICT_HEADROOM (0x19000) // swrSound_LoadSound: extra bytes freed beyond the new sample
 #define SWR_SOUND_EVICT_RECHECK_FRAMES (2) // swrSound_EvictSounds -> swrSound_evictRecheckFrames
 #define SWR_SOUND_EVICT_MAX_WRAPS (2) // swrSound_EvictSounds restarts the bank scan at most this many times
@@ -198,6 +199,10 @@
 #define SWR_SCENE_CMAN_COUNT (6) // 'cMan' objects swrScene_LoadObjects allocates
 #define SWR_SCENE_FOG_START (996) // swrScene_LoadObjects front-end fog range
 #define SWR_SCENE_FOG_END (1000)
+#define SWR_SCENE_FIXED_CAMERA_COUNT (10) // swrScene_InitCameras: camera states fed by swrCam_fixedCameraMatrices
+#define SWR_SCENE_CMAN_CAMERA_BASE (7) // first camera state taken over by a 'cMan' object
+#define SWR_CAM_STATE_COUNT (32) // unkCameraArray entries
+#define SWR_VIEWPORT_COUNT (4) // swrViewport_array entries
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
@@ -318,6 +323,12 @@
 #define SWR_UI_ID_MP_RESULTS_LIST (0x30d42) // racer-list page
 #define SWR_UI_ID_MP_SETUP_TAB (0x30d54) // race setup: 3-patch title tab
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
+#define SWR_UI_ELEMENT_HASH_BUCKETS (0x100) // swrUI_elementHashtable_Maybe
+// swrUI_Initialize (0x00410fd0): CPU benchmark that disables page transitions on slow machines
+#define SWR_UI_BENCH_INNER_LOOPS (2500)
+#define SWR_UI_BENCH_TICKS (30) // runs until more than this many timer ticks pass
+#define SWR_UI_BENCH_SCALE (0.0004f) // 0x004ac3d8
+#define SWR_UI_BENCH_MIN_SCORE (20.0f) // 0x004ac3dc
 #define SWR_UI_ID_BACK_BUTTON (4)
 // main menu (swrUI_Menu_Main)
 #define SWR_UI_ID_MAIN_FREEPLAY (0xc)
@@ -396,6 +407,8 @@
 #define SWR_FF_DEVICE_NONE (9) // swrControl_forceEffectsDeviceType: no bundle loaded; valid device types are 0..8
 
 // swrSprite_AddDirtyRect (0x00484020)
+#define SWR_SPRITE_DYNAMIC_FIRST (251) // swrSprite_FindFreeId: dynamic ids sit above the named/static sprites
+#define SWR_SPRITE_DYNAMIC_END (399)
 #define SWR_SPRITE_MAX_DIRTY_RECTS (31) // swrSprite_dirtyRects holds 31 x {x1,y1,x2,y2}
 #define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
 #define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)
@@ -403,5 +416,12 @@
 // swrMultiplayer_PublishPodState (0x0041d930)
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
+
+// swrModel_NodeSelectLOD (0x004827b0): LOD picked as if viewed from this fixed distance (0x004ae078)
+#define SWR_MODEL_LOD_SELECT_DISTANCE (20.0f)
+#define SWR_MODEL_LOD_MAX (8) // swrModel_NodeLODSelector.lod_distances length
+// swrModel_PointInTriangle2 (0x00480a70): degenerate-cross thresholds on |x|+|y|+|z|
+#define SWR_MODEL_TRI_CROSS_EPS (1e-4f) // 0x004adfbc
+#define SWR_MODEL_TRI_ON_EDGE_EPS (0.001f) // 0x004adfc8
 
 #endif // ENGINE_CONFIG_H

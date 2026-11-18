@@ -219,7 +219,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_MpRaceSetup_ADDR (0x0041fc70)
 #define swrUI_Menu_MpRacerList_ADDR (0x004206b0)
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
-#define swrUI_Menu_MpRacerListRefresh_Maybe_ADDR (0x00420960)
+#define swrUI_Menu_MpForwardKeyToChat_ADDR (0x00420960)
 #define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
 #define swrUI_Front_SeekToCurrentTrack_Maybe_ADDR (0x0043b1d0)
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
@@ -453,7 +453,7 @@ swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value);
 void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len);
 
 // Fires the multiplayer racer-list page callbacks (best guess).
-void swrUI_Menu_MpRacerListRefresh_Maybe(swrUI_unk* page, int param_2);
+void swrUI_Menu_MpForwardKeyToChat(swrUI_unk* page, int key);
 
 void swrUI_Front_HandleCircuits(swrObjHang* hang);
 

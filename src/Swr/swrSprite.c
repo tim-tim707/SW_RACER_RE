@@ -189,8 +189,7 @@ int swrSprite_FindFreeId(void)
 {
     int id;
 
-    // the dynamic id range sits above the 251 named/static sprites
-    for (id = 251; id < 399; id++) {
+    for (id = SWR_SPRITE_DYNAMIC_FIRST; id < SWR_SPRITE_DYNAMIC_END; id++) {
         if (swrSprite_array[id].texture == NULL) {
             return id;
         }
@@ -452,6 +451,15 @@ void swrSprite_SetPos(short id, short x, short y)
     {
         swrSprite_array[id].x = x;
         swrSprite_array[id].y = y;
+    }
+}
+
+// 0x004286c0
+void swrSprite_SetUVOffset_Maybe(short id, short u, short v)
+{
+    if (id > -1) {
+        swrSprite_array[id].unk0x4 = u;
+        swrSprite_array[id].unk0x6 = v;
     }
 }
 
@@ -1052,6 +1060,12 @@ void RenderMiniMapDotsAndCrosses()
 void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5, float angle, short a7, short a8, int a9, float a10, unsigned __int8 a11, float a12, unsigned __int8 a13)
 {
     HANG("TODO");
+}
+
+// 0x00484130
+void swrSprite_ResetDirtyRects(void)
+{
+    swrSprite_dirtyRectCount = 0;
 }
 
 // 0x00484020
