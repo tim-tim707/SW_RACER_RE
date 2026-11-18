@@ -247,8 +247,9 @@ unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet);
 // Zeroes the gain of every requested-voice slot; called by swrSound_ResetMusic.
 void swrSound_ResetRequestedVoices(void);
 
-// Per-frame engine/surface SFX: select and play loop sounds keyed by speed.
-void swrSound_UpdateEngineAudio(int param1, int param2, float* param3);
+// Per-frame track ambient SFX: plays the swrSfxCue whose lap-progress range contains lapProgress.
+// speed is pushed by swrRace_PlayEngineSounds but never read.
+void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress, float speed);
 
 // Play a sound 3D-positionally: attenuate gain by distance from the listener,
 // cull if out of range, then dispatch to playASoundImpl.

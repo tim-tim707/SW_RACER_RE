@@ -924,7 +924,7 @@ extern "C"
         swrObjElmo_KIND kind; // 0x08 set by swrModel_LoadPuppet
         int unkc_index;
         int unk10;
-        void* unk14;
+        int animCmd; // 0x14. last swrObjElmo_SetAnimState command, 0 = idle
         float unk18_ms;
         float unk1c_ms;
         rdVector3 unk20;
@@ -937,8 +937,8 @@ extern "C"
         rdVector3 moveStart; // 0x5c
         float yaw; // 0x68. degrees
         float yawTarget; // 0x6c. degrees
-        float unk70;
-        int unk74;
+        float turnStartYaw; // 0x70. degrees, yaw when the current turn began
+        float turnDelta; // 0x74. degrees left to turn when the turn began
         float animSpeed; // 0x78. swrModel_SetAnimListSpeed factor
         float unk7c;
         float unk80;
@@ -947,15 +947,15 @@ extern "C"
         int unk8c;
         int unk90;
         float scale; // 0x94. model scale (swrRace_SetEngineNodeRotScale)
-        int unk98;
-        int unk9c;
-        int unka0;
+        float turnDuration; // 0x98. seconds, |turnDelta| / 90 deg/s
+        float turnElapsed; // 0x9c. seconds
+        int reachedTarget; // 0xa0. set by swrObjElmo_CheckReachedTarget
         int unka4;
         float unka8_ms;
         float unkac_ms;
         int unkb0;
         int unkb4;
-        int unkb8;
+        int lastWaypoint; // 0xb8. swrObjElmo_waypoints index last arrived at, -1 = none
         float unkbc;
     } swrObjElmo; // sizeof(0xc0)
 
@@ -1778,11 +1778,13 @@ extern "C"
             rdVector3* key_frame_translations; // type 0x9
             float* key_frame_uv_x_offsets; // type 0xB
             float* key_frame_uv_y_offsets; // type 0xC
+            struct swrModel_MaterialTexture** key_frame_textures; // type 0x2 (texture flipbook)
         };
         union
         {
             swrModel_NodeTransformed* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
             swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
+            swrModel_MeshMaterial** flipbook_materials; // type 0x2: NULL-terminated list retextured each frame
         };
         uint32_t unk11;
     } swrModel_Animation;

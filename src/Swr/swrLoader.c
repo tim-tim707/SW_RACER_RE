@@ -6,11 +6,50 @@
 #include "globals.h"
 
 #include <macros.h>
+#include <engine_config.h>
 
 // 0x0042D520
 void swrLoader_DecompressLZSS(char* compressed, char* decompressed)
 {
-    HANG("TODO");
+    // the 4 KiB ring buffer is the caller's scratch space just before the input
+    char* window = compressed - SWR_LZSS_WINDOW_SIZE;
+    int windowPos = 1;
+    int done = 0;
+    int flags;
+    int bit;
+    int hi;
+    int offset;
+    int length;
+    int i;
+    char c;
+
+    do {
+        flags = (signed char)*compressed++;
+        for (bit = 0; bit < 8; bit++) {
+            if (flags & (1 << bit)) {
+                c = *compressed++;
+                *decompressed++ = c;
+                window[windowPos] = c;
+                windowPos = (windowPos + 1) & (SWR_LZSS_WINDOW_SIZE - 1);
+                continue;
+            }
+            // both bytes are sign-extended in the original
+            hi = (signed char)compressed[0];
+            offset = (signed char)compressed[1] + ((hi & 0xf) << 8);
+            compressed += 2;
+            length = hi >> 4;
+            if (offset == 0) {
+                done = 1;
+                break;
+            }
+            for (i = 0; i <= length + 1; i++) {
+                c = window[(offset + i) & (SWR_LZSS_WINDOW_SIZE - 1)];
+                *decompressed++ = c;
+                window[windowPos] = c;
+                windowPos = (windowPos + 1) & (SWR_LZSS_WINDOW_SIZE - 1);
+            }
+        }
+    } while (!done);
 }
 
 // 0x0042d600

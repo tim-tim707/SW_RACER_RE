@@ -78,7 +78,7 @@
 #define swrModel_MeshGetCollisionData_ADDR (0x004317E0)
 #define swrModel_MeshGetAABB_ADDR (0x00431820)
 #define swrModel_NodeGetMesh_ADDR (0x00431850)
-#define swrModel_MeshSetCollisionData_Maybe_ADDR (0x00431860)
+#define swrModel_MeshMaterialSetTexture_ADDR (0x00431860)
 #define swrModel_ClassifyMaterialFacing_ADDR (0x00431880)
 
 #define swrModel_MeshGetBehavior_ADDR (0x004318b0)
@@ -288,8 +288,8 @@ void swrModel_MeshGetCollisionData(swrModel_Mesh* mesh, int disable, swrModel_Co
 void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb);
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2);
 
-// Stores collision data on a mesh when the type matches (best guess).
-void swrModel_MeshSetCollisionData_Maybe(int mesh, int type, void* data);
+// Sets material->material_texture when property == SWR_MESH_MATERIAL_PROP_TEXTURE (the only one used).
+void swrModel_MeshMaterialSetTexture(swrModel_MeshMaterial* material, int property, swrModel_MaterialTexture* texture);
 // Classifies a mesh material's collision facing (front/back/double-sided) for the ray test.
 int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable);
 

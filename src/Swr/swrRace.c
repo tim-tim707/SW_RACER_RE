@@ -13,6 +13,7 @@
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
 #include "macros.h"
+#include "swrRender.h"
 #include "engine_config.h"
 #include "globals.h"
 #include "engine_config.h"
@@ -1699,14 +1700,14 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
         profile->unk4f = 0;
 }
 
-// swrObjHang_cameraMatrix.vD + swrObjHang_partDetailCameraOffset along the camera's axes
+// swrObjHang_cameraMatrix.vD + swrObjElmo_waypoints[7] along the camera's axes
 static void partDetailPosition(rdVector3* out)
 {
     swrObjHang_UpdateHoloBillboardMatrix();
     rdVector_Copy3(out, (rdVector3*)&swrObjHang_cameraMatrix.vD);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
 }
 
 static void pullTowardEye(rdVector3* v)
@@ -1774,9 +1775,9 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
                         rdVector_Copy3(&icon->vector3, &detailPos);
                         pullTowardEye(&icon->vector1);
                     } else {
-                        rdVector_Copy3(&icon->vector3, &swrObjHang_wattoCounterEyePos);
+                        rdVector_Copy3(&icon->vector3, &swrObjElmo_waypoints[6]);
                         icon->tiltDegrees = 0.0f;
-                        icon->yawDegrees = stdMath_ArcTan2(swrObjHang_wattoCounterEyePos.x - 12.0f, -116.0f - swrObjHang_wattoCounterEyePos.y) - 90.0f;
+                        icon->yawDegrees = stdMath_ArcTan2(swrObjElmo_waypoints[6].x - 12.0f, -116.0f - swrObjElmo_waypoints[6].y) - 90.0f;
                         if (swrObjHang_partDetailClosing != 0)
                             pullTowardEye(&icon->vector3);
                     }
@@ -1827,7 +1828,7 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
     }
     if (swrObjHang_partLerpActive == 0 && swrObjHang_partDetailClosing != 0) {
         swrObjHang_partDetailClosing = 0;
-        rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, hang->room == Shop ? &swrObjHang_wattoCounterEyePos : (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, hang->room == Shop ? &swrObjElmo_waypoints[6] : (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
         uiUpgradeInfos2[swrRace_MenuSelectedItem].tiltDegrees = 0.0f;
     }
 }
@@ -2072,6 +2073,86 @@ void swrRace_UpdateStatPartModels(void)
     rdVector_Copy3((rdVector3*)&m.vD, &previewPos);
     swrModel_NodeSetTransform(node, &m);
     swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+}
+
+// 0x00456200
+void swrRace_UpdatePitDroidModels_Maybe(void)
+{
+    swrModel_NodeTransformed* node;
+    swrObjElmo* droid;
+    rdVector3 ambient;
+    rdVector3 lightColor;
+    rdVector3 lightPos;
+    rdVector3 droidPos;
+    rdMatrix44 m;
+    float camYaw;
+    float sparkScale;
+    float animTime;
+    int i;
+
+    camYaw = stdMath_ArcTan2(swrObjHang_cameraMatrix.vD.x - swrObjHang_holoCameraMatrix.vD.x, swrObjHang_holoCameraMatrix.vD.y - swrObjHang_cameraMatrix.vD.y);
+    ambient.x = 80.0f;
+    ambient.y = 75.0f;
+    ambient.z = 50.0f;
+    for (i = 0; i < swrRace_nbPitDroids; i++) {
+        sparkScale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.5 - -2.0;
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + i], &droidPos);
+        if (droidPos.z <= -157.0f)
+            continue;
+        if (swr_sceneModels[INGAME_MODELID_sparky_part_0 + i] == NULL)
+            return; // skips the light update below too
+        node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_sparky_part_0 + i]->entries[0].node;
+        if (node != NULL) {
+            swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+            swrModel_NodeSetColorsOnAllMaterials(&node->node, 0, 0, 200, 200, 0xff, 0xff);
+            droid = (swrObjElmo*)swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PIT_DROIDS + i);
+            // the spark shows only during the welding animation; the ambient light flickers with it
+            animTime = swrModel_GetAnimListTime((swrModel_Animation**)droid->unk34);
+            if ((float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].start * 0.0666f <= animTime && swrModel_GetAnimListTime((swrModel_Animation**)droid->unk34) <= (float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].end * 0.0666f) {
+                ambient.x = 80.0f;
+                ambient.y = 75.0f;
+                ambient.z = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 120.0 - 30.0 - -50.0f;
+                rdMatrix_SetRotation44(&m, camYaw, 0.0f, -90.0f);
+                rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+                if (m.vD.x < 0.0f)
+                    m.vD.x -= -30.0f;
+                else
+                    m.vD.x -= 30.0f;
+                m.vD.z -= -13.0f;
+                rdMatrix_ScaleBasis44(&m, sparkScale, sparkScale, sparkScale, &m);
+                swrModel_NodeSetTransform(node, &m);
+                swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+            }
+        }
+        node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_hovcart_part_0 + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+        rdMatrix_ScaleBasis44(&m, 0.3f, 0.3f, 0.3f, &m);
+        m.vD.z -= 30.000002f;
+        swrModel_NodeSetTransform(node, &m);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+
+        node = (swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_SHADOW_SQUARES + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+        rdMatrix_ScaleBasis44(&m, 0.3f, 0.3f, 0.3f, &m);
+        m.vD.z = -157.0f;
+        swrModel_NodeSetTransform(node, &m);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
+    lightColor.x = 255.0f;
+    lightColor.y = 255.0f;
+    lightColor.z = 200.0f;
+    lightPos.x = 0.0f;
+    lightPos.y = 0.0f;
+    lightPos.z = -40000.0f;
+    SetLightColorsAndDirection2(-1, &ambient, &lightColor, &lightPos);
 }
 
 // 0x0043f380
@@ -7516,9 +7597,125 @@ void swrRace_ApplyPartSinkOffset(swrRace* player)
 }
 
 // 0x0046d7a0
-void swrRace_PlayEngineSounds(swrRace* player, float param_2)
+void swrRace_PlayEngineSounds(swrRace* player, float gain)
 {
-    HANG("TODO");
+    swrScore* score;
+    float pitchScale;
+    float speedRatio;
+    float downThreshold;
+    float upThreshold;
+    float pitch;
+    float volume;
+    int muted;
+    int numLocal;
+    int local;
+    int gear;
+    short oldGear;
+    short newGear;
+    int sfx;
+
+    muted = 0;
+    // heavier pods get a lower engine pitch
+    pitchScale = (1.0f - (swrRacer_PodHandlingData[*player->score_ptr->pilotId].bumpMass - 50.0f) * 0.04347826f) * 0.5f - -0.75f;
+    swrSound_UpdateEngineAudio(PlanetID, PlanetTrackNumber, swrRace_LapProgress(&player->splineCursor), player->speedValue);
+    if (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD))
+        muted = 1;
+    score = player->score_ptr;
+    numLocal = NumLocalPlayers();
+    if (numLocal == 0) {
+        local = 0;
+    } else {
+        local = GetLocalPlayerNumberFromScore(score);
+        if (local < 0)
+            return;
+    }
+    speedRatio = player->speedValue / score->podStats.maxSpeed;
+    if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) != swrObjTest_FLAG0_RACING) {
+        swrRace_engineGear[local] = 0;
+        swrRace_brakeSfxTimer[local] = 1.0f;
+        swrRace_boostStartSfxPlayed = 0;
+    }
+
+    // engine "gear" 0..3 follows speed / max speed with a 0.1 hysteresis
+    gear = swrRace_engineGear[local];
+    downThreshold = swrRace_engineGearThresholds[gear] - 0.1f;
+    if (downThreshold < 0.0f)
+        downThreshold = 0.0f;
+    oldGear = (short)swrRace_engineGear[local];
+    upThreshold = swrRace_engineGearThresholds[gear + 1] - -0.1f;
+    if (speedRatio < downThreshold)
+        swrRace_engineGear[local] = gear - 1;
+    if (speedRatio > upThreshold)
+        swrRace_engineGear[local]++;
+    if (swrRace_engineGear[local] < 0)
+        swrRace_engineGear[local] = 0;
+    if (swrRace_engineGear[local] > SWR_ENGINE_SFX_MAX_GEAR)
+        swrRace_engineGear[local] = SWR_ENGINE_SFX_MAX_GEAR;
+    newGear = (short)swrRace_engineGear[local];
+    sfx = (short)(swrRace_engineGear[local] + (local == 0 ? 0xaa : 0xb0));
+
+    if (sfx >= 0) {
+        pitch = (swrRace_engineGearPitch[newGear][0] + swrRace_engineGearPitch[newGear][1]) * 0.5f;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f)
+            swrUtils_Rand(); // result unused
+        pitch = pitchScale * pitch;
+        if (player->flags1 & swrObjTest_FLAG1_EXPLODING) {
+            pitch = pitch * 1.5f;
+        } else if (player->flags1 & swrObjTest_FLAG1_AIRBORNE) {
+            pitch = 0.25f;
+            sfx = local != 0 ? 0xb5 : 0xaf;
+        }
+        if (!muted)
+            swrSound_PlaySpatialRange(sfx, 6, pitch, gain, (rdVector3*)&player->transform.vD, 1, 0, 20.0f, 500.0f);
+    }
+
+    if ((player->flags1 & swrObjTest_FLAG1_BOOST_START) && swrRace_boostStartSfxPlayed == 0) {
+        swrRace_boostStartSfxPlayed = 1;
+        swrUtils_Rand(); // result unused
+        if (!muted)
+            swrSound_PlaySpatialRange(0x72, 7, 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+    }
+
+    // throttle above half: extra engine layer, single local player only
+    if (player->throttle > 0.5f && numLocal == 1) {
+        pitch = pitchScale * 0.2f;
+        sfx = local != 0 ? 0xb4 : 0xae;
+        volume = gain * 1.3f;
+        if (volume > 1.0f)
+            volume = 1.0f;
+        if (player->flags1 & swrObjTest_FLAG1_AIRBORNE)
+            volume = volume * 0.3f;
+        if (!muted)
+            swrSound_PlaySpatialRange(sfx, 6, pitch, volume, (rdVector3*)&player->transform.vD, 1, 0, 10.0f, 500.0f);
+    }
+
+    // brake on/off one-shots, rate-limited by a 1 s ramp
+    if (player->flags0 & swrObjTest_FLAG0_BRAKING) {
+        if (swrRace_brakeSfxTimer[local] == 1.0f && !muted)
+            swrSound_PlaySpatialRange(0x80, 6, pitchScale * 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+        swrRace_brakeSfxTimer[local] = swrRace_brakeSfxTimer[local] - swrRace_deltaTimeSecs;
+        if (swrRace_brakeSfxTimer[local] < 0.0f)
+            swrRace_brakeSfxTimer[local] = 0.0f;
+    } else {
+        if (swrRace_brakeSfxTimer[local] == 0.0f && !muted)
+            swrSound_PlaySpatialRange(0x7f, 6, pitchScale * 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+        swrRace_brakeSfxTimer[local] = swrRace_brakeSfxTimer[local] + swrRace_deltaTimeSecs;
+        if (swrRace_brakeSfxTimer[local] > 1.0f)
+            swrRace_brakeSfxTimer[local] = 1.0f;
+    }
+
+    if (oldGear > newGear) {
+        swrUtils_Rand(); // results unused
+        swrUtils_Rand();
+        return;
+    }
+    if (oldGear < newGear) {
+        // gear-up whoosh with a random pitch (0.1..0.25) and gain (0.3..0.6)
+        pitch = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1 - -0.15) * pitchScale;
+        volume = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.30000000000000004 - -0.5) * gain;
+        if (!muted)
+            swrSound_PlaySpatialRange(0x7a, 6, pitch, volume, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+    }
 }
 
 // 0x0046dea0

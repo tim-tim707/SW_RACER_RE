@@ -183,6 +183,10 @@ swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared t
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[12] # 8 planets, then 4 x -1 (swrSound_SelectPlanetIntroMusic indexes it % 12)
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrSound_ambientCallTimer 0x004b8798 float # seconds to the next random Baroonda ambient call (sound 0x24, tracks 0..2); 10 at boot
+swrSound_cueRetriggerTimer 0x004b879c float # seconds to the next replay of a swrSfxCue_FLAG_PERIODIC cue; 5 at boot
+swrSfxCuesAndoPrimeTrack3 0x004b8928 swrSfxCue[8] # 7 cues + terminator; swrSound_UpdateEngineAudio list for planet 1 track 3
+swrSfxCuesBaroondaTrack3 0x004b8cc8 swrSfxCue[4] # 3 cues + terminator; planet 4 track 3
 swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int
@@ -396,8 +400,6 @@ swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCam
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
-swrObjHang_partDetailCameraOffset 0x004c4564 rdVector3 # (-8, 40, 4) in front-end camera space: where the selected part floats while its detail view is open
-swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
 drawDistance 0x004c4a5c float
 swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; requestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
@@ -441,6 +443,7 @@ swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1
 
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
+swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
@@ -907,8 +910,8 @@ swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camer
 swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
 swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
 swrObjHang_vehicleIntroPlanet 0x0050c428 char # random holo planet (0..7) drawn behind the vehicle-select intro
-swrObjHang_droidWalkTarget 0x004c451c rdVector3 # (-516, -467, -60); entry 1 of the 16-entry swrObjElmo_GetWaypointIndex table at 0x004c4510
-swrObjHang_droidHomePos 0x004c457c rdVector3 # (-210, -44, -60); entry 9 of the same table: where the hangar pit droid stands
+swrObjElmo_waypoints 0x004c4510 rdVector3[16] # hangar walk positions matched by swrObjElmo_GetWaypointIndex; [1] = pit-droid walk target, [6] = Watto-counter eye, [7] = part-detail camera offset, [9] = pit-droid home
+swrObjElmo_moveHoldFrames 0x0050cad4 int # swrObjElmo_UpdateMovement skips a frame while > 0 and decrements it; nothing in the retail binary sets it
 swrObjHang_tauntTimer 0x0050c110 float # cantina taunt scene clock, 5 s -> 0 at half speed
 swrObjHang_tauntFavoriteSpoken 0x0050c20c int # the track's favorite pilot already said their taunt
 swrObjHang_tauntReplySpoken 0x0050c120 int # the player's pilot already answered
@@ -1821,6 +1824,11 @@ swrControl_ffBoostActive 0x004d78c8 int # START_BOOST played, END_BOOST pending
 swrControl_ffPrevTilt 0x004d78c4 float # last frame tiltManualMult (ROLL_LEFT fires on sign change)
 swrRace_debugTauntRequest 0x004d79e0 int # debug key F5/F6 force-taunt/flame-attack latch; consumed+cleared in swrRace_UpdatePlayerControl
 swrRace_engineDamageSteeringPenalty 0x0050cae4 float # last engine-damage steering-pull magnitude (telemetry stash)
+swrRace_engineGear 0x0050cae8 int[4] # per local player engine-sound gear 0..3 (swrRace_PlayEngineSounds)
+swrRace_boostStartSfxPlayed 0x0050cb00 int # boost-start sound 0x72 already played this race
+swrRace_brakeSfxTimer 0x004c7a58 float[4] # per local player 0..1 ramp: brake-on sound at 1, brake-off sound at 0
+swrRace_engineGearThresholds 0x004c7a70 float[5] # speed / maxSpeed gear boundaries {0, .25, .5, .75, 1}
+swrRace_engineGearPitch 0x004c7a88 float[4][2] # per gear pitch pair, averaged
 
 stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 
