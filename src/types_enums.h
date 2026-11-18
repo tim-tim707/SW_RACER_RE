@@ -1431,7 +1431,11 @@ typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderE
 
 typedef enum swrSprite_FLAG // swrSprite.flags
 {
+    swrSprite_FLAG_MIRROR_H = 0x4, // from swrUI_SPRITE_SLOT_MIRROR_H
+    swrSprite_FLAG_MIRROR_V = 0x8, // from swrUI_SPRITE_SLOT_MIRROR_V
+    swrSprite_FLAG_ADDITIVE = 0x800, // from swrUI_SPRITE_SLOT_ADDITIVE
     swrSprite_FLAG_UNK_8000 = 0x8000, // set on the hangar track-grid windows; no reader in the draw path yet
+    swrSprite_FLAG_UNK_10000 = 0x10000, // set every frame on swrUI element sprites and the caret
 } swrSprite_FLAG;
 
 typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor

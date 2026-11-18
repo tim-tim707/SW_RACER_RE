@@ -1377,6 +1377,46 @@ int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
     return 0;
 }
 
+// 0x004151f0
+void swrUI_RenderElementSprites(swrUI_unk* ui)
+{
+    swrUI_unk2* slot;
+    int i;
+    uint8_t alpha;
+
+    if (SpritesLoaded == 0 || (ui->flags & swrUI_VISIBLE) == 0)
+        return;
+    for (i = 0; i < ui->sprite_count; i++) {
+        slot = &ui->ui_elements[i];
+        if (slot->texture_id != 0 && slot->sprite_ingameId == 0)
+            slot->sprite_ingameId = swrSprite_CreateFromTextureId(slot->texture_id);
+        swrSprite_NewSprite((short)slot->sprite_ingameId, swrSprite_GetTextureFromId(slot->texture_id));
+        swrSprite_SetPos((short)slot->sprite_ingameId, (short)(slot->pos_x + slot->screen_x1), (short)(slot->pos_y + slot->screen_y1));
+        // the vertical/horizontal centering keeps the element's x/y on the other axis, not the slot's
+        if (slot->flag & swrUI_SPRITE_SLOT_CENTER_V)
+            swrSprite_SetPos((short)slot->sprite_ingameId, (short)ui->x, (short)(((ui->height - slot->screen_y2 + slot->screen_y1 - ui->y) >> 1) + ui->y));
+        if (slot->flag & swrUI_SPRITE_SLOT_CENTER_H)
+            swrSprite_SetPos((short)slot->sprite_ingameId, (short)(((ui->width - slot->screen_x2 + slot->screen_x1 - ui->x) >> 1) + ui->x), (short)ui->y);
+        if (slot->flag & swrUI_SPRITE_SLOT_CENTER_BOTH)
+            swrSprite_SetPos((short)slot->sprite_ingameId, (short)(((ui->width - slot->screen_x2 + slot->screen_x1 - ui->x) >> 1) + ui->x), (short)(((ui->height - slot->screen_y2 + slot->screen_y1 - ui->y) >> 1) + ui->y));
+        if (slot->flag & swrUI_SPRITE_SLOT_MIRROR_V)
+            swrSprite_SetFlag((short)slot->sprite_ingameId, swrSprite_FLAG_MIRROR_V);
+        if (slot->flag & swrUI_SPRITE_SLOT_MIRROR_H)
+            swrSprite_SetFlag((short)slot->sprite_ingameId, swrSprite_FLAG_MIRROR_H);
+        if (slot->flag & swrUI_SPRITE_SLOT_FLAG_8000_UNK)
+            swrSprite_SetFlag((short)slot->sprite_ingameId, swrSprite_FLAG_UNK_8000);
+        if (slot->flag & swrUI_SPRITE_SLOT_ADDITIVE)
+            swrSprite_SetFlag((short)slot->sprite_ingameId, swrSprite_FLAG_ADDITIVE);
+        swrSprite_SetDim((short)slot->sprite_ingameId, slot->width, slot->height);
+        alpha = SWR_UI_DISABLED_TEXT_ALPHA;
+        if ((ui->flags & swrUI_DISABLED) == 0)
+            alpha = slot->a;
+        swrSprite_SetColor((short)slot->sprite_ingameId, slot->r, slot->g, slot->b, alpha);
+        swrSprite_SetVisible((short)slot->sprite_ingameId, 1);
+        swrSprite_SetFlag((short)slot->sprite_ingameId, swrSprite_FLAG_UNK_10000);
+    }
+}
+
 // 0x004156a0
 void swrUI_StartPageTransition(swrUI_unk* page, int mode)
 {
@@ -2129,8 +2169,8 @@ void swrUI_DrawCaret(void)
         swrUI_caretVisible = swrUI_caretVisible == 0;
     }
     swrSprite_SetVisible(SWR_UI_CARET_SPRITE_ID, swrUI_caretVisible);
-    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, 0x800);
-    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, 0x10000);
+    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, swrSprite_FLAG_ADDITIVE);
+    swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, swrSprite_FLAG_UNK_10000);
 }
 
 // 0x00418b70
