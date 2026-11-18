@@ -32,6 +32,12 @@ void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
     multiplayer_in_mp = bInMultiplayer;
 }
 
+// 0x0041b700
+int swrMultiplayer_InitMessaging(void)
+{
+    HANG("TODO");
+}
+
 // 0x0041bc20
 char* swrMultiplayer_FormatTimeString_Maybe(float seconds)
 {
@@ -84,6 +90,12 @@ void swrMultiplayer_SetNetworkTick(int value)
 int swrMultiplayer_GetRacerId(int playerIndex)
 {
     return (&multiplayer_racer1_id)[playerIndex];
+}
+
+// 0x0041c4f0
+int swrMultiplayer_ResetSession(void)
+{
+    HANG("TODO");
 }
 
 // 0x0041c5c0
@@ -194,17 +206,17 @@ void swrMultiplayer_UpdateRacerSelectUI(swrUI_unk* page, swrUI_unk* list)
         return;
     slot = selected->id;
     if (slot == playerNumber) {
-        swrUI_EnableElement(swrUI_GetById(page, 0x7e));
-        swrUI_DisableElement(swrUI_GetById(page, 0x80));
+        swrUI_EnableElement(swrUI_GetById(page, SWR_UI_ID_MP_PODRACER));
+        swrUI_DisableElement(swrUI_GetById(page, SWR_UI_ID_MP_BOOT));
     } else {
-        swrUI_DisableElement(swrUI_GetById(page, 0x7e));
-        element = swrUI_GetById(page, 0x80);
+        swrUI_DisableElement(swrUI_GetById(page, SWR_UI_ID_MP_PODRACER));
+        element = swrUI_GetById(page, SWR_UI_ID_MP_BOOT);
         if (multiplayer_track_change_permission != 0 && multiplayer_race_button_toggle[slot] != 0)
             swrUI_EnableElement(element);
         else
             swrUI_DisableElement(element);
     }
-    element = swrUI_GetById(page, 0x186b9);
+    element = swrUI_GetById(page, SWR_UI_ID_MP_RACER_NAME);
     if (element != NULL) {
         swrText_FormatPodName(swrMultiplayer_GetRacerId(slot), podName, sizeof(podName));
         swrUI_RunCallbacksScreenText(element, podName, 0);
@@ -317,6 +329,12 @@ void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
         return;
     }
     swrUI_DisableElement(button);
+}
+
+// 0x00420cc0
+void swrMultiplayer_PopulateRacerList(void)
+{
+    HANG("TODO");
 }
 
 // 0x00420f70
@@ -510,6 +528,19 @@ void swrMultiplayer_PostChatMessage(char* text)
     }
 }
 
+// 0x0041c260
+void swrMultiplayer_ResetRaceSettings(void)
+{
+    int i;
+
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        (&multiplayer_racer1_id)[i] = i;
+    multiplayer_track_select = swrRace_TRACK_BOONTA_TRAINING_COURSE;
+    multiplayer_numAiRacers = 0;
+    multiplayer_laps = 3;
+    multiplayer_raceSettingsUnk = 10000;
+}
+
 // 0x0041c760
 void swrMultiplayer_ClearHostState(void)
 {
@@ -643,31 +674,164 @@ void swrMultiplayer_BuildAllMenuScreens(void)
 // 0x0041ea20
 int swrMultiplayer_BuildSessionTypeUI(void)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_MP_START, (swrUI_unk_F2*)swrUI_Menu_MpSessionType);
+    // faithful: reports success even when the window could not be created
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_MP_HOST_BUTTON, 6, swrText_Translate("/MONDOTEXT_H_0395/~sHost Multiplayer Race"), 0x96, 0x96, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MP_JOIN_BUTTON, 6, swrText_Translate("/MONDOTEXT_H_0396/~sJoin Multiplayer Race"), 0x96, 0xbe, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a4, 2);
+    }
+    return 1;
+}
+
+// Label at labelY with a centered 16-char text entry under it, left edges aligned.
+static swrUI_unk* swrMultiplayer_AddLabeledEntry(swrUI_unk* page, char* labelKey, int labelY, int entryId, int entryTop)
+{
+    swrUI_unk* label;
+    swrUI_unk* entry;
+    int rect[4];
+
+    label = swrUI_NewLabel(page, 0, 6, swrText_Translate(labelKey), 0xdc, labelY, 0, 0);
+    rect[0] = 0;
+    rect[1] = entryTop;
+    rect[2] = 299;
+    rect[3] = entryTop + 0x27;
+    entry = swrUI_NewTextEntry(page, entryId, rect, 0, 0, 0);
+    swrUI_CenterElement(entry, 1, 0);
+    swrUI_SetMaxLength(entry, 0x10);
+    swrUI_AlignElementTo(label, entry, 1);
+    return entry;
 }
 
 // 0x0041eb80
 int swrMultiplayer_BuildCreateGameUI(void)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+    int rect[4];
+
+    rect[0] = 0x78;
+    rect[1] = 0x5a;
+    rect[2] = 0x207;
+    rect[3] = 0x185;
+    page = swrUI_NewWindow(NULL, rect, swrUI_WINDOW_MP_CREATE_GAME, (swrUI_unk_F2*)swrUI_Menu_MpCreateGame);
+    if (page == NULL)
+        return 0;
+    swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0398/~sCreate A Game"), 0x15e, 0x3c, 0, 0);
+    swrMultiplayer_FillLastPlayerName(swrMultiplayer_AddLabeledEntry(page, "/MONDOTEXT_H_0399/~sEnter your name", 0x82, SWR_UI_ID_MP_CREATE_PLAYER_NAME, 0x9b));
+    swrMultiplayer_AddLabeledEntry(page, "/MONDOTEXT_H_0400/~sEnter the game name", 0xd2, SWR_UI_ID_MP_CREATE_GAME_NAME, 0xeb);
+    swrMultiplayer_AddLabeledEntry(page, "/MONDOTEXT_H_0401/~sEnter a password", 0x122, SWR_UI_ID_MP_CREATE_PASSWORD, 0x13b);
+    swrUI_AddNavButton(page, 3, 0, 0x1ae, 2);
+    swrUI_DisableElement(swrUI_AddOkButton(page, 0x208, 0x17c));
+    return 1;
 }
 
 // 0x0041f0e0
 int swrMultiplayer_BuildJoinGameUI(void)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+    swrUI_unk* label;
+    swrUI_unk* list;
+    int rect[4];
+
+    rect[0] = 0x78;
+    rect[1] = 0x5a;
+    rect[2] = 0x207;
+    rect[3] = 0x185;
+    page = swrUI_NewWindow(NULL, rect, swrUI_WINDOW_MP_JOIN_GAME, (swrUI_unk_F2*)swrUI_Menu_MpJoinGame);
+    if (page == NULL)
+        return 0;
+    swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0402/~sJoin A Game"), 400, 0x28, 0, 0);
+    swrMultiplayer_FillLastPlayerName(swrMultiplayer_AddLabeledEntry(page, "/MONDOTEXT_H_0399/~sEnter your name", 0x78, SWR_UI_ID_MP_JOIN_PLAYER_NAME, 0x91));
+    swrMultiplayer_AddLabeledEntry(page, "/MONDOTEXT_H_0401/~sEnter a password", 200, SWR_UI_ID_MP_JOIN_PASSWORD, 0xe1);
+
+    label = swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0403/~sChoose a game to join"), 0xdc, 0x118, 0, 0);
+    rect[0] = 0;
+    rect[1] = 0x131;
+    rect[2] = 299;
+    rect[3] = 0x1a8;
+    list = swrUI_NewList(page, SWR_UI_ID_MP_GAME_LIST, rect, 0, 0, 0);
+    swrUI_CenterElement(list, 1, 0);
+    swrUI_AlignElementTo(label, list, 1);
+
+    swrUI_AddNavButton(page, 3, 0, 0x1a4, 2);
+    swrUI_DisableElement(swrUI_AddOkButton(page, 0x208, 0x17c));
+    return 1;
 }
 
 // 0x0041f940
 int swrMultiplayer_BuildRaceSetupUI(void)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+    swrUI_unk* element;
+    int rect[4];
+
+    swrMultiplayer_ResetRaceSettings();
+    rect[0] = 0x82;
+    rect[1] = 0x73;
+    rect[2] = 0x26b;
+    rect[3] = 0x1cb;
+    page = swrUI_NewWindow(NULL, rect, swrUI_WINDOW_MP_RACE_SETUP, (swrUI_unk_F2*)swrUI_Menu_MpRaceSetup);
+    if (page == NULL)
+        return 0;
+
+    rect[0] = 0x78;
+    rect[1] = 0x73;
+    rect[2] = 0x141;
+    rect[3] = 0x11c;
+    swrUI_NewList(page, SWR_UI_ID_MP_PLAYER_LIST, rect, 0, 0, 0);
+
+    swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0411/~sRacer"), 0x138, 0x7d, 0, 0);
+    swrUI_NewLabel(page, SWR_UI_ID_MP_RACER_NAME, 0, wuRegistry_lpClass, 0x172, 0x82, 0, 0);
+    swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0412/~sTrack"), 0x138, 0x96, 0, 0);
+    swrUI_NewLabel(page, SWR_UI_ID_MP_TRACK_NAME, 0, wuRegistry_lpClass, 0x172, 0x9b, 0, 0);
+    swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0414/~sLaps"), 0x138, 0xb9, 0, 0);
+    element = swrUI_NewNumberField(page, SWR_UI_ID_MP_LAPS, 0x172, 0xaf, 200, swrUI_SLIDER_SHOW_NUMBER, 0);
+    swrUI_SetNumberValue(element, multiplayer_laps);
+    // 0x40004 kept literal: the 0x40000 bit is unconfirmed on 3-patch boxes
+    swrUI_New3PatchBox(page, SWR_UI_ID_MP_SETUP_TAB, 6, NULL, 0x14a, 0x32, 0xdc, swrUI_3PATCH_LARGE_TAB, 0, 0x40004, 0);
+
+    rect[0] = 0x8c;
+    rect[1] = 0x131;
+    rect[2] = 599;
+    rect[3] = 0x1a8;
+    swrUI_NewList(page, SWR_UI_ID_MP_CHAT_LIST, rect, 0, swrUI_LIST_NO_SELECTION_FRAME, 0);
+
+    swrUI_NewButton(page, SWR_UI_ID_MP_RETIRE, 6, swrText_Translate("/MONDOTEXT_H_0416/~sRetire"), 0, 0x18b, 0x8c, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, swrUI_WINDOW_MP_RACE_BUTTON, 6, swrText_Translate("/MONDOTEXT_H_0417/~sRace"), 0, 0x1ae, 0x8c, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+
+    rect[0] = 0x8c;
+    rect[1] = 0x1ae;
+    rect[2] = 599;
+    rect[3] = 0x1d5;
+    element = swrUI_NewTextEntry(page, SWR_UI_ID_MP_CHAT_ENTRY, rect, 0, swrUI_TEXT_ENTRY_CLEAR_ON_COMMIT, 0);
+    swrUI_SetMaxLength(element, 0x32);
+
+    swrUI_NewButton(page, SWR_UI_ID_MP_PODRACER, 6, swrText_Translate("/MONDOTEXT_H_0418/~sPodracer"), 0, 0x73, 0x8c, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, SWR_UI_ID_MP_TRACKS, 6, swrText_Translate("/MONDOTEXT_H_0419/~sTracks"), 0, 0x91, 0x8c, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, SWR_UI_ID_MP_BOOT, 6, swrText_Translate("/MONDOTEXT_H_0421/~sBoot"), 0, 0xaf, 0x8c, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    return 1;
 }
 
 // 0x00420600
 int swrMultiplayer_BuildRacerListUI(void)
 {
-    HANG("TODO");
+    swrUI_unk* page;
+    swrUI_unk* list;
+    int rect[4];
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_MP_RACER_LIST, (swrUI_unk_F2*)swrUI_Menu_MpRacerList);
+    if (page == NULL)
+        return 0;
+    rect[0] = 0x32;
+    rect[1] = 0x96;
+    rect[2] = 0x24e;
+    rect[3] = 0x17c;
+    list = swrUI_NewList(page, SWR_UI_ID_MP_RESULTS_LIST, rect, -1, swrUI_LIST_NO_SELECTION_FRAME, 0);
+    list->row_spacing = 0;
+    swrUI_NewButton(page, SWR_UI_ID_BACK_BUTTON, 6, swrText_Translate("/MONDOTEXT_H_0510/~sReturn to lobby"), 0xdc, 0x1a4, 200, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    return 1;
 }
 
 // 0x0041e9d0

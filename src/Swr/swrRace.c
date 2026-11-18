@@ -782,6 +782,15 @@ int swrRace_GetInRaceMenuEntry(int index, char* nameOut, char* unk, int* c, floa
     return (int)d; // EAX still holds d on this path in the EXE
 }
 
+// 0x0042acf0
+void swrRace_AdjustDebugValue(unsigned int id, float delta)
+{
+    if (DebugMenuState == swrRace_INRACEMENU_DEBUG_VALUES)
+        swrRace_DebugSetGameValue(id, delta);
+    else if (DebugMenuState == swrRace_INRACEMENU_VEHICLE_STATS)
+        swrRace_DebugSetVehicleStat(id, delta);
+}
+
 // 0x0042ad30
 void swrRace_ActivateInRaceMenuEntry(int index)
 {

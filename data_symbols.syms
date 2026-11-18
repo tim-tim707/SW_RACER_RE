@@ -605,6 +605,7 @@ swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' whe
 
 swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetRacerListDisplay)
 swrMultiplayer_networkTick 0x004eb1e0 int
+swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 
 g_objHang1 0x004eb21c swrObjHang*
@@ -626,6 +627,7 @@ swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setu
 
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
+swrMultiplayer_maxPlayers 0x004eb3bc int # player-slot capacity; set to 20 before creating/joining a session, bounds the slot scans in ApplyPlayerJoin
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -1772,6 +1774,7 @@ multiplayer_track_select 0x00ea02b0 swrRace_TRACK
 multiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
 
 multiplayer_laps 0x00ea02b8 int
+multiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
 
 multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
 

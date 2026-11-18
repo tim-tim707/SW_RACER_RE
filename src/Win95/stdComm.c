@@ -96,6 +96,12 @@ int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings)
     HANG("TODO");
 }
 
+// 0x00486fc0
+int stdComm_SetSessionOpenState(char* nameSuffix, DWORD maxPlayers, int bOpen)
+{
+    HANG("TODO");
+}
+
 // 0x004870d0
 HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password)
 {

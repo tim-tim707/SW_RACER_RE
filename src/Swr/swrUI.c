@@ -16,11 +16,13 @@
 #include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <General/stdMath.h>
+#include <General/stdString.h>
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
 #include <Platform/wuRegistry.h>
+#include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
 
 #include <macros.h>
@@ -87,6 +89,14 @@ void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
     swrUI_UpdateProgressBar(0);
+}
+
+// 0x00411140
+int swrUI_IsPrevPage(int id, int flag)
+{
+    if (flag != 0 && swrUI_prevPage != NULL && swrUI_prevPage->id == id)
+        return 1;
+    return 0;
 }
 
 // 0x00411170
@@ -818,6 +828,21 @@ int swrUI_GetSelectedIndex(swrUI_unk* list)
     return -1;
 }
 
+// 0x00413770
+swrUI_unk* swrUI_GetSelectableItem(swrUI_unk* list, int index)
+{
+    swrUI_unk* item;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
+            if (index == 0)
+                return item;
+            index--;
+        }
+    }
+    return NULL;
+}
+
 // 0x004137a0
 swrUI_unk* swrUI_GetSelectedItem(swrUI_unk* list)
 {
@@ -865,6 +890,22 @@ void swrUI_RefreshListSelection(swrUI_unk* list)
         index++;
         element = next;
     }
+}
+
+// 0x00413870
+void swrUI_RestoreListSelection(swrUI_unk* list)
+{
+    swrUI_unk* item;
+
+    item = swrUI_GetSelectableItem(list, list->selected_index);
+    if (item == NULL) {
+        if (list->selected_text == NULL)
+            return;
+        item = swrUI_FindChildByText(list, list->selected_text);
+        if (item == NULL)
+            return;
+    }
+    swrUI_SelectListItem(item, 1);
 }
 
 // 0x004138b0
@@ -3873,6 +3914,129 @@ void swrUI_ProcessPendingClose(void)
         swrUI_confirmDialogParent = NULL;
         swrUI_confirmDialogDone = 0;
     }
+}
+
+// 0x0041ead0
+int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param_3 != NULL)
+            stdComm_Shutdown();
+        if (swrUI_IsPrevPage(swrUI_WINDOW_SPLASH, (int)param_3) != 0)
+            swrMultiplayer_SetInMultiplayer(1);
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrUI_PopMenuPage();
+        } else if ((int)param_3 == SWR_UI_ID_MP_HOST_BUTTON) {
+            stdComm_Startup();
+            multiplayer_track_change_permission = 1;
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_CREATE_GAME);
+        } else if ((int)param_3 == SWR_UI_ID_MP_JOIN_BUTTON) {
+            stdComm_Startup();
+            multiplayer_track_change_permission = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_JOIN_GAME);
+        }
+    }
+    return 0;
+}
+
+// Widen a text entry's string, clamped to 0x100 chars; dst holds 0x101 wchar_t.
+static void swrUI_EntryTextToWchar(wchar_t* dst, char* text)
+{
+    int len = strlen(text);
+
+    if (len > 0x100)
+        len = 0x100;
+    stdString_CharToWchar(dst, text, len);
+    dst[len] = L'\0';
+}
+
+// 0x0041ede0
+int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    // the EXE's buffers are 0x100 wchar_t, one short of the clamp's terminator
+    wchar_t playerName[0x101];
+    wchar_t gameName[0x101];
+    wchar_t password[0x101];
+    swrUI_unk* element;
+    char* text;
+
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        swrMultiplayer_Initialize();
+        swrMultiplayer_FillLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME));
+        swrMultiplayer_FillDefaultGameName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_GAME_NAME));
+        break;
+    case swrUI_MSG_BACK:
+    case swrUI_MSG_PAGE_POPPED:
+        swrMultiplayer_Shutdown();
+        break;
+    case swrUI_MSG_TEXT_ENTRY_CHANGED:
+        if (swrMultiplayer_ValidateGameFields(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME, SWR_UI_ID_MP_CREATE_GAME_NAME, 0) == 0)
+            swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        else
+            swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == 3) {
+            swrMultiplayer_Shutdown();
+            swrUI_PopMenuPage();
+        } else if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            swrUI_EntryTextToWchar(playerName, swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME)->str_allocated);
+            element = swrUI_GetById(self, SWR_UI_ID_MP_CREATE_GAME_NAME);
+            swrMultiplayer_SetLastGame(element->str_allocated);
+            swrUI_EntryTextToWchar(gameName, element->str_allocated);
+            memset(password, 0, sizeof(password));
+            text = swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PASSWORD)->str_allocated;
+            if (text != NULL)
+                swrUI_EntryTextToWchar(password, text);
+            swrMultiplayer_ClearStateBuffer();
+            swrMultiplayer_maxPlayers = SWR_MAX_RACERS;
+            // the EXE tests DPERR 0x88770118 first, but both failure paths just return
+            if (swrMultiplayer_CreateSession(playerName, gameName, password, wuRegistry_lpClass, 0xb4) != 0)
+                break;
+            swrMultiplayer_ResetSession();
+            swrMultiplayer_InitMessaging();
+            if (stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 1) != 0)
+                break;
+            swrMultiplayer_SaveLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME));
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_RACE_SETUP);
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x0041f330
+int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
+}
+
+// 0x0041fc70
+int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    HANG("TODO");
+}
+
+// 0x004206b0
+int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param_3 != NULL) {
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrMultiplayer_SetRacerListDisplay(1, 10, 0x78);
+            swrMultiplayer_racerListPageActive = 1;
+            swrMultiplayer_PopulateRacerList();
+        } else {
+            swrMultiplayer_SetRacerListDisplay(0, 0, 0);
+            swrMultiplayer_racerListPageActive = 0;
+        }
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED && (int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+        swrUI_PopMenuPage();
+    }
+    return 0;
 }
 
 // 0x00420930

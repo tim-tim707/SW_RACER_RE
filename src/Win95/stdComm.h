@@ -57,7 +57,9 @@ HRESULT stdComm_HostSession(int pSessionDesc);
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
 
 // Toggles a session's open or locked state and capacity host-side, updating its name suffix.
-int stdComm_SetSessionOpenState(int unused, int sessionName, DWORD maxPlayers, int bClosed);
+// Rewrites the session name's text after ':' with nameSuffix (L"%S"), sets dwMaxPlayers, and clears
+// DPSESSION_JOINDISABLED when bOpen != 0 (sets it otherwise).
+int stdComm_SetSessionOpenState(char* nameSuffix, DWORD maxPlayers, int bOpen);
 HRESULT stdComm_JoinSession(int sessionIndex, wchar_t* password);
 
 void stdComm_Close(void);
