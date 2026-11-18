@@ -264,7 +264,7 @@
 #define swrObjElmo_PlayRandomVoiceSfx_Maybe_ADDR (0x00467c80)
 #define swrObjElmo_Init_Maybe_ADDR (0x004686b0)
 #define swrObjHang_TickHolotableSpin_Maybe_ADDR (0x00469010)
-#define swrObjHang_TurnIconToCamera_Maybe_ADDR (0x00469070)
+#define swrObjElmo_WalkIntoView_ADDR (0x00469070)
 #define swrObjHang_UpdateCantinaHolotable_ADDR (0x00469380)
 #define swrModel_GetNodeTranslation_Maybe_ADDR (0x00469b50)
 #define swrObjHang_StepTransition_ADDR (0x00469b90)
@@ -701,12 +701,12 @@ void swrObjElmo_SetAnimStateById(int elmoId, int animCmd);
 // Advances the holotable spin timer and updates its icon-spin value each frame (best guess).
 void swrObjHang_TickHolotableSpin_Maybe(void);
 
-// Rotates an object's facing vector toward the camera until it faces it, then reapplies its transform (best guess).
-void swrObjHang_TurnIconToCamera_Maybe(int obj);
+// Steps the walking pilot along its path until it is in front of the front-end camera.
+void swrObjElmo_WalkIntoView(swrObjElmo* elmo);
 // Looks up the playback rate and duration for the current animation (per character type).
 void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outLoopEnd);
 // Sets the arrived flag when within range of the walk target.
-void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
+int swrObjElmo_CheckReachedTarget(swrObjElmo* elmo);
 // Turns toward the target and, once aligned, starts the type-specific walk animation.
 void swrObjElmo_UpdateMovement(swrObjElmo* elmo);
 // Returns the waypoint index matching the current position, or -1.

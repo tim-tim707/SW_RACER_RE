@@ -1699,14 +1699,14 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot)
         profile->unk4f = 0;
 }
 
-// swrObjHang_cameraMatrix.vD + swrObjHang_partDetailCameraOffset along the camera's axes
+// swrObjHang_cameraMatrix.vD + swrObjElmo_waypoints[7] along the camera's axes
 static void partDetailPosition(rdVector3* out)
 {
     swrObjHang_UpdateHoloBillboardMatrix();
     rdVector_Copy3(out, (rdVector3*)&swrObjHang_cameraMatrix.vD);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
-    rdVector_Scale3Add3(out, out, swrObjHang_partDetailCameraOffset.z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+    rdVector_Scale3Add3(out, out, swrObjElmo_waypoints[7].z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
 }
 
 static void pullTowardEye(rdVector3* v)
@@ -1774,9 +1774,9 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
                         rdVector_Copy3(&icon->vector3, &detailPos);
                         pullTowardEye(&icon->vector1);
                     } else {
-                        rdVector_Copy3(&icon->vector3, &swrObjHang_wattoCounterEyePos);
+                        rdVector_Copy3(&icon->vector3, &swrObjElmo_waypoints[6]);
                         icon->tiltDegrees = 0.0f;
-                        icon->yawDegrees = stdMath_ArcTan2(swrObjHang_wattoCounterEyePos.x - 12.0f, -116.0f - swrObjHang_wattoCounterEyePos.y) - 90.0f;
+                        icon->yawDegrees = stdMath_ArcTan2(swrObjElmo_waypoints[6].x - 12.0f, -116.0f - swrObjElmo_waypoints[6].y) - 90.0f;
                         if (swrObjHang_partDetailClosing != 0)
                             pullTowardEye(&icon->vector3);
                     }
@@ -1827,7 +1827,7 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
     }
     if (swrObjHang_partLerpActive == 0 && swrObjHang_partDetailClosing != 0) {
         swrObjHang_partDetailClosing = 0;
-        rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, hang->room == Shop ? &swrObjHang_wattoCounterEyePos : (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        rdVector_Copy3(&uiUpgradeInfos2[swrRace_MenuSelectedItem].vector1, hang->room == Shop ? &swrObjElmo_waypoints[6] : (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
         uiUpgradeInfos2[swrRace_MenuSelectedItem].tiltDegrees = 0.0f;
     }
 }

@@ -166,6 +166,7 @@
 
 // swrObjHang_CullElmoAssets (0x0045ce90): size of the 'Elmo' event pool
 #define SWR_ELMO_POOL_SIZE (60)
+#define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)

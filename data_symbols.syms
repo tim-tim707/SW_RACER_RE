@@ -396,8 +396,6 @@ swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCam
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
-swrObjHang_partDetailCameraOffset 0x004c4564 rdVector3 # (-8, 40, 4) in front-end camera space: where the selected part floats while its detail view is open
-swrObjHang_wattoCounterEyePos 0x004C4558 rdVector3 # base eye position for the jittered Watto-counter framing
 
 drawDistance 0x004c4a5c float
 swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; requestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
@@ -907,8 +905,8 @@ swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camer
 swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
 swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
 swrObjHang_vehicleIntroPlanet 0x0050c428 char # random holo planet (0..7) drawn behind the vehicle-select intro
-swrObjHang_droidWalkTarget 0x004c451c rdVector3 # (-516, -467, -60); entry 1 of the 16-entry swrObjElmo_GetWaypointIndex table at 0x004c4510
-swrObjHang_droidHomePos 0x004c457c rdVector3 # (-210, -44, -60); entry 9 of the same table: where the hangar pit droid stands
+swrObjElmo_waypoints 0x004c4510 rdVector3[16] # hangar walk positions matched by swrObjElmo_GetWaypointIndex; [1] = pit-droid walk target, [6] = Watto-counter eye, [7] = part-detail camera offset, [9] = pit-droid home
+swrObjElmo_moveHoldFrames 0x0050cad4 int # swrObjElmo_UpdateMovement skips a frame while > 0 and decrements it; nothing in the retail binary sets it
 swrObjHang_tauntTimer 0x0050c110 float # cantina taunt scene clock, 5 s -> 0 at half speed
 swrObjHang_tauntFavoriteSpoken 0x0050c20c int # the track's favorite pilot already said their taunt
 swrObjHang_tauntReplySpoken 0x0050c120 int # the player's pilot already answered

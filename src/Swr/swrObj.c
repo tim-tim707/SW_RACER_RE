@@ -1627,7 +1627,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
     for (int i = 0; i < hang->num_local_players; i++) {
         if (swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) {
             // faithful: elmoEntityIndex is -1 after the first skip, so later players index slot -1
-            swrRace_SetEngineNodeTranslation((void**)swr_sceneModels[hang->elmoEntityIndex], &swrObjHang_droidHomePos);
+            swrRace_SetEngineNodeTranslation((void**)swr_sceneModels[hang->elmoEntityIndex], &swrObjElmo_waypoints[9]);
             swrObjElmo_SetAnimState(elmo, 0);
             hang->elmoEntityIndex = -1;
             swrRace_Transition = 0.0f;
@@ -1650,7 +1650,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
                 swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[hang->elmoEntityIndex], &lookAt);
                 lookAt.z = elmoHeight - 60.0f;
                 swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &lookAt, 1, 0, 0);
-                rdVector_Copy3(&elmo->moveTarget, &swrObjHang_droidWalkTarget);
+                rdVector_Copy3(&elmo->moveTarget, &swrObjElmo_waypoints[1]);
                 elmo->moveTarget.y = -320.0f;
                 swrObjElmo_SetAnimState(elmo, elmo->kind == swrObjElmo_KIND_PIT_DROID ? 6 : 0x14);
                 swrObjHang_vehicleIntroStep = 2;
@@ -5338,8 +5338,8 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
 
     if (elmo->unkc_index == -1)
         return;
-    prevState = (int)elmo->unk14;
-    elmo->unk14 = (void*)animCmd;
+    prevState = elmo->animCmd;
+    elmo->animCmd = animCmd;
     elmo->unk18_ms = 0.0f;
     if (elmo->kind == swrObjElmo_KIND_UNUSED_6)
         return;
@@ -5351,7 +5351,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     for (int i = 0; anims[i] != NULL; i++)
         anims[i]->flags |= ANIMATION_ENABLED;
 
-    switch ((int)elmo->unk14) {
+    switch (elmo->animCmd) {
     case 0:
         elmo->animSpeed = 0.0f;
         for (int i = 0; anims[i] != NULL; i++)
@@ -5505,7 +5505,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     case 0x14:
         rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
         delta.z = 0.0f;
-        if (elmo->unka0 != 0) {
+        if (elmo->reachedTarget != 0) {
             angle = elmo->yawTarget;
         } else {
             angle = stdMath_ArcTan2(-delta.x, delta.y);
@@ -5547,9 +5547,9 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         elmo->unk88 = 9;
         setLoop = false;
         other = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x15);
-        if ((int)other->unk14 == 0x20) {
+        if (other->animCmd == 0x20) {
             swrObjElmo_SetAnimState(other, 0x25);
-        } else if ((int)other->unk14 == 0x1d) {
+        } else if (other->animCmd == 0x1d) {
             swrObjElmo_SetAnimState(other, 0x23);
         }
         break;
@@ -5562,9 +5562,9 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         elmo->unk88 = 10;
         setLoop = false;
         other = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x15);
-        if ((int)other->unk14 == 0x20) {
+        if (other->animCmd == 0x20) {
             swrObjElmo_SetAnimState(other, 0x26);
-        } else if ((int)other->unk14 == 0x1d) {
+        } else if (other->animCmd == 0x1d) {
             swrObjElmo_SetAnimState(other, 0x24);
         }
         break;
@@ -5609,7 +5609,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     case 0x25:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
             swrObjElmo_PlayRandomVoiceSfx_Maybe(0xb, 0xc, 0xd, 0x2d, 0x14);
-        elmo->unk88 = (int)elmo->unk14 == 0x23 ? 3 : 0xd;
+        elmo->unk88 = elmo->animCmd == 0x23 ? 3 : 0xd;
         setLoop = false;
         break;
     case 0x24:
@@ -5694,19 +5694,19 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         loopTransition = 0.0f;
         transition = 0.1f;
     }
-    if (elmo->unk14 != NULL) {
+    if (elmo->animCmd != 0) {
         swrObjElmo_GetAnimTiming(elmo, &loopStart, &loopEnd);
         animTime = loopStart;
     }
-    if ((int)elmo->unk14 == 0x1b && elmo->unk88 != 0xd)
+    if (elmo->animCmd == 0x1b && elmo->unk88 != 0xd)
         loopEnd = loopStart + 0.1f;
     if (speed < 0.0f)
         animTime = loopEnd - 0.1f;
-    if ((int)elmo->unk14 == 5) {
+    if (elmo->animCmd == 5) {
         loopStart = loopEnd - 0.1f;
         animTime = loopStart;
     }
-    if ((int)elmo->unk14 == 0x2a)
+    if (elmo->animCmd == 0x2a)
         loopTransition = 0.0f;
     if (apply != 0)
         swrModel_AnimationsSetSettings(anims, animTime, loopStart, loopEnd, setLoop, transition, loopTransition);
@@ -5726,7 +5726,212 @@ void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4,
 // 0x00467cd0
 void swrObjElmo_F0(swrObjElmo* elmo)
 {
-    HANG("TODO");
+    swrModel_Animation** anims;
+    float loopStart = 0.0f;
+    float loopEnd = 0.0f;
+    float angle;
+    rdVector3 delta;
+
+    elmo->unk18_ms = swrRace_fdeltaTimeSecs + elmo->unk18_ms;
+    swrModel_CompensateRootMotion((swrModel_Node**)elmo->unk30_nodes, (swrModel_Animation**)elmo->unk34, &elmo->unk38, 30.0f);
+    swrRace_GetEngineNodeOffsetPos((void**)elmo->unk30_nodes, &elmo->position);
+    swrObjElmo_GetAnimTiming(elmo, &loopStart, &loopEnd);
+    anims = (swrModel_Animation**)elmo->unk34;
+
+    switch (elmo->animCmd) {
+    case 0:
+        return;
+    case 1:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 6);
+        break;
+    case 3:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 2);
+        break;
+    case 6:
+        if (elmo->unk88 == 0xc) {
+            swrObjElmo_UpdateMovement(elmo);
+            if (elmo->animCmd != 6)
+                return;
+        } else if (swrModel_GetAnimListTime(anims) >= loopEnd) {
+            elmo->unkb4 = -78;
+            elmo->unkb0 = 0;
+            swrObjElmo_SetAnimState(elmo, 10);
+        }
+        break;
+    case 7:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 8);
+        break;
+    case 8:
+        playASound(0x33, 6, 0.25f, 0.5f, 1);
+        if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f) == 0 && loopEnd - 0.1 <= swrModel_GetAnimListTime(anims))
+            swrObjElmo_SetAnimState(elmo, 9);
+        break;
+    case 9:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 7);
+        break;
+    case 0xa:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0xb);
+        break;
+    case 0xb:
+        swrObjElmo_TurnToFaceTarget(elmo);
+        swrObjElmo_CheckReachedTarget(elmo);
+        if (elmo->reachedTarget != 0 && loopEnd - 0.1 <= swrModel_GetAnimListTime(anims) && swrObjElmo_TryTransition(elmo) == 0)
+            return;
+        break;
+    case 0xc:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd && swrObjElmo_TryTransition(elmo) == 0)
+            return;
+        break;
+    case 0xd:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0xe);
+        break;
+    case 0xe:
+        if (loopEnd - 0.1 <= swrModel_GetAnimListTime(anims) && elmo->unk18_ms > elmo->unk1c_ms)
+            swrObjElmo_SetAnimState(elmo, 0xf);
+        break;
+    case 0xf:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0xd);
+        break;
+    case 0x11:
+        swrModel_SetAnimListSpeed(anims, swrObjHang_ambientAnimSpeed);
+        elmo->unka8_ms = swrRace_fdeltaTimeSecs + elmo->unka8_ms;
+        if (elmo->unka8_ms >= elmo->unkac_ms) {
+            swrModel_SetAnimListSpeed((swrModel_Animation**)elmo->unk34, 1.0f);
+            if (swrObjElmo_TryTransition(elmo) != 0)
+                return;
+            swrObjElmo_SetAnimState(elmo, 0x12);
+            return;
+        }
+        // 1-in-101 chance per frame: the first pilot puppet drifts 5% toward its target
+        if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 101.0f) == 0 && elmo->unkc_index == SWR_SCENE_SLOT_PILOT_PUPPETS)
+            rdVector_Scale3Add3_both(&elmo->position, 0.95f, &elmo->position, 0.05f, &elmo->moveTarget);
+        swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
+        break;
+    case 0x12:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd) {
+            int roll;
+
+            elmo->unka8_ms = 0.0f;
+            roll = swrUtils_Rand();
+            elmo->unkac_ms = (float)roll * SWR_CTL_RAND_NORM + (float)roll * SWR_CTL_RAND_NORM - -3.0f;
+            swrObjElmo_SetAnimState(elmo, 0x11);
+            return;
+        }
+        break;
+    case 0x13:
+        rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
+        delta.z = 0.0f;
+        elmo->yaw = stdMath_ArcTan2(-delta.x, delta.y);
+        if (swrObjElmo_CheckReachedTarget(elmo) != 0) {
+            if (swrObjElmo_TryTransition(elmo) != 0)
+                return;
+            swrObjElmo_SetAnimState(elmo, 0x14);
+            return;
+        }
+        if (swrObjHang_lastMenuScreen == swrObjHang_STATE_JUNKYARD)
+            swrObjElmo_WalkIntoView(elmo);
+        break;
+    case 0x14:
+        swrObjElmo_UpdateMovement(elmo);
+        if (elmo->animCmd != 0x14)
+            return;
+        if (swrModel_GetAnimListTime(anims) < loopEnd || elmo->unk88 == 1)
+            swrModel_GetAnimListTime(anims); // result unused
+        break;
+    case 0x19:
+    case 0x1a:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0x11);
+        break;
+    case 0x1d:
+        if (loopEnd - 0.1 <= swrModel_GetAnimListTime(anims) && elmo->unk18_ms > elmo->unk1c_ms) {
+            if (swrObjElmo_GetWaypointIndex(elmo) == 4) {
+                if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f) == 0) {
+                    rdVector_Copy3(&elmo->moveTarget, &swrObjElmo_waypoints[3]);
+                    swrObjElmo_SetAnimState(elmo, 0x22);
+                    break;
+                }
+            } else if (swrObjElmo_GetWaypointIndex(elmo) != 5) {
+                break;
+            }
+            swrObjElmo_SetAnimState(elmo, 0x27);
+        }
+        break;
+    case 0x1e:
+        if (swrObjElmo_CheckReachedTarget(elmo) == 0) {
+            // Watto glides toward his target at 130 units/s
+            rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
+            rdVector_Normalize3Acc(&delta);
+            rdVector_Scale3Add3(&elmo->position, &elmo->position, swrRace_fdeltaTimeSecs * 130.0f, &delta);
+            swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
+        } else {
+            // face the shop counter, or the camera when parked at waypoint 5
+            elmo->yawTarget = stdMath_ArcTan2(elmo->position.x - 12.0f, -116.0f - elmo->position.y);
+            if (rdVector_AreSame3(&elmo->moveTarget, &swrObjElmo_waypoints[5]))
+                elmo->yawTarget = stdMath_ArcTan2(elmo->position.x - swrObjHang_cameraMatrix.vD.x, swrObjHang_cameraMatrix.vD.y - elmo->position.y);
+            swrObjElmo_SetAnimState(elmo, 0x22);
+        }
+        break;
+    case 0x1f:
+    case 0x25:
+    case 0x26:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0x20);
+        break;
+    case 0x20:
+        if (loopEnd - 0.1 <= swrModel_GetAnimListTime(anims) && elmo->unk18_ms > elmo->unk1c_ms)
+            swrObjElmo_SetAnimState(elmo, 0x21);
+        break;
+    case 0x21:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd) {
+            rdVector_Copy3(&elmo->moveTarget, &swrObjElmo_waypoints[4]);
+            swrObjElmo_SetAnimState(elmo, 0x22);
+        }
+        break;
+    case 0x22:
+        swrObjElmo_UpdateMovement(elmo);
+        if (elmo->animCmd != 0x22)
+            return;
+        break;
+    case 0x23:
+    case 0x24:
+    case 0x27:
+        if (swrModel_GetAnimListTime(anims) >= loopEnd)
+            swrObjElmo_SetAnimState(elmo, 0x1d);
+        break;
+    case 0x28:
+    case 0x29:
+    case 0x2a:
+    case 0x32:
+    case 0x37:
+    case 0x3c:
+    case 0x41:
+        swrModel_SetAnimListSpeed(anims, swrObjHang_ambientAnimSpeed);
+        break;
+    case 0x2e:
+        swrModel_SetAnimListSpeed(anims, swrObjHang_ambientAnimSpeed * 0.5f);
+        break;
+    case 0x43:
+        swrModel_SetAnimListSpeed(anims, 0.0f);
+        break;
+    default:
+        break;
+    }
+
+    if (elmo->animCmd == 0x1b)
+        return;
+    if (elmo->kind == swrObjElmo_KIND_PILOT)
+        angle = elmo->yaw - swrModel_GetNodeYaw((swrModel_Node**)elmo->unk30_nodes, (swrModel_Animation**)elmo->unk34);
+    else
+        angle = elmo->yaw;
+    swrRace_SetEngineNodeRotScale((void**)elmo->unk30_nodes, elmo->scale, angle);
 }
 
 // 0x00468570
@@ -5737,25 +5942,25 @@ void swrObjElmo_F3(swrObjElmo* elmo)
 
     if (elmo->kind == swrObjElmo_KIND_UNUSED_6)
         return;
-    if (swrObjHang_screenTransitionActive != 0 && swrRace_Transition == 0.0f && elmo->unk14 == (void*)0x1b)
+    if (swrObjHang_screenTransitionActive != 0 && swrRace_Transition == 0.0f && elmo->animCmd == 0x1b)
         return;
     node = elmo->unk30_nodes[0];
     if (node == NULL)
         return;
     swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
-    if (elmo->unk14 == NULL)
+    if (elmo->animCmd == 0)
         return;
     yawStep = elmo->unkb4;
     if (yawStep == 0 || elmo->kind == swrObjElmo_KIND_PIT_DROID) {
         if (yawStep != 0) {
             elmo->unkb4 = 0;
             elmo->yaw = (float)yawStep + elmo->yaw;
-            elmo->unk70 = elmo->yaw;
+            elmo->turnStartYaw = elmo->yaw;
         }
         if (elmo->kind == swrObjElmo_KIND_PIT_DROID) {
             if (elmo->unk30_nodes[3] != NULL)
                 swrModel_NodeModifyFlags(elmo->unk30_nodes[3], 2, -4, 0x10, 3);
-            if (elmo->unk14 != (void*)7 && elmo->unk14 != (void*)8 && elmo->unk14 != (void*)9 && elmo->unk30_nodes[4] != NULL)
+            if (elmo->animCmd != 7 && elmo->animCmd != 8 && elmo->animCmd != 9 && elmo->unk30_nodes[4] != NULL)
                 swrModel_NodeModifyFlags(elmo->unk30_nodes[4], 2, -4, 0x10, 3);
         }
     }
@@ -5794,7 +5999,7 @@ void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims,
     elmo->unk88 = -1;
     elmo->kind = kind;
     elmo->unk10 = 0;
-    elmo->unk14 = NULL;
+    elmo->animCmd = 0;
     elmo->unk18_ms = 0.0f;
     elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f + 3.0f;
     rdVector_Set3(&elmo->unk20, 0.0f, 0.0f, 0.0f);
@@ -5802,8 +6007,8 @@ void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims,
     rdVector_Set3(&elmo->unk38, 0.0f, 0.0f, 0.0f);
     elmo->yaw = 90.0f;
     elmo->yawTarget = 90.0f;
-    elmo->unk70 = 90.0f;
-    elmo->unk74 = 0;
+    elmo->turnStartYaw = 90.0f;
+    elmo->turnDelta = 0.0f;
     elmo->animSpeed = 1.0f;
     elmo->unk7c = 0.0f;
     elmo->unk80 = -1.0f;
@@ -5811,14 +6016,14 @@ void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims,
     elmo->unk8c = 0;
     elmo->unk90 = 0;
     elmo->scale = 1.0f;
-    elmo->unk98 = 0;
-    elmo->unk9c = 0;
-    elmo->unka0 = 0;
+    elmo->turnDuration = 0.0f;
+    elmo->turnElapsed = 0.0f;
+    elmo->reachedTarget = 0;
     elmo->unka4 = -1;
     elmo->unka8_ms = 0.0f;
     elmo->unkb0 = 0;
     elmo->unkb4 = 0;
-    elmo->unkb8 = -1;
+    elmo->lastWaypoint = -1;
     elmo->unkac_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
 }
 
@@ -5960,11 +6165,83 @@ void swrObjElmo_GetAnimTiming(swrObjElmo* elmo, float* outLoopStart, float* outL
 }
 
 // 0x00468d00
-void swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
+int swrObjElmo_CheckReachedTarget(swrObjElmo* elmo)
 {
     if (elmo->kind == swrObjElmo_KIND_PILOT)
         elmo->moveTarget.z = elmo->position.z;
-    elmo->unka0 = rdVector_Dist3(&elmo->moveTarget, &elmo->position) <= 10.0f ? 1 : 0;
+    elmo->reachedTarget = rdVector_Dist3(&elmo->moveTarget, &elmo->position) <= 10.0f ? 1 : 0;
+    return elmo->reachedTarget;
+}
+
+// 0x00468d50
+void swrObjElmo_UpdateMovement(swrObjElmo* elmo)
+{
+    rdVector3 delta;
+    float targetYaw;
+    float diff;
+    float turnRate;
+
+    if (swrObjElmo_moveHoldFrames > 0) {
+        swrObjElmo_moveHoldFrames--;
+        return;
+    }
+    rdVector_Sub3(&delta, &elmo->moveTarget, &elmo->position);
+    if (elmo->kind == swrObjElmo_KIND_PILOT)
+        delta.z = 0.0f;
+    // the original compares position.z bit-exactly against -145.0f and -60.0f
+    if (rdVector_Len3(&delta) <= 35.0f && elmo->position.z == -145.0f)
+        elmo->reachedTarget = 1;
+    if (elmo->reachedTarget != 0) {
+        targetYaw = elmo->yawTarget;
+    } else {
+        targetYaw = stdMath_ArcTan2(-delta.x, delta.y);
+        swrObjElmo_CheckReachedTarget(elmo);
+    }
+    diff = targetYaw - elmo->yaw;
+    if (diff < -180.0f)
+        diff -= -360.0f;
+    if (diff > 180.0f)
+        diff -= 360.0f;
+    turnRate = elmo->position.z == -60.0f ? 2.0f : 1.0f;
+    if (diff <= 5.0f && diff >= -5.0f) {
+        elmo->yaw = targetYaw;
+        switch (elmo->kind) {
+        case swrObjElmo_KIND_PILOT:
+            swrObjElmo_SetAnimState(elmo, elmo->reachedTarget != 0 ? 0x11 : 0x13);
+            break;
+        case swrObjElmo_KIND_WATTO:
+            if (elmo->reachedTarget == 0)
+                swrObjElmo_SetAnimState(elmo, 0x1e);
+            else if (elmo->moveTarget.x == swrObjElmo_waypoints[3].x)
+                swrObjElmo_SetAnimState(elmo, 0x1f);
+            else
+                swrObjElmo_SetAnimState(elmo, 0x1d);
+            break;
+        case swrObjElmo_KIND_PIT_DROID:
+            swrObjElmo_SetAnimState(elmo, 10);
+            break;
+        default:
+            break;
+        }
+        return;
+    }
+    // 90 degrees per second, doubled on the hangar floor (z == -60)
+    elmo->turnDuration = turnRate * diff * (1.0f / 90.0f);
+    if (elmo->turnDuration < 0.0f)
+        elmo->turnDuration = -elmo->turnDuration;
+    elmo->turnElapsed = 0.0f;
+    elmo->turnStartYaw = elmo->yaw;
+    elmo->turnDelta = diff;
+    if (elmo->turnDuration > 0.0f) {
+        elmo->turnElapsed = swrRace_fdeltaTimeSecs;
+        if (swrRace_fdeltaTimeSecs > elmo->turnDuration)
+            elmo->turnElapsed = elmo->turnDuration;
+        elmo->yaw = elmo->turnElapsed / elmo->turnDuration * diff + elmo->yaw;
+        if (elmo->yaw < -180.0f)
+            elmo->yaw -= -360.0f;
+        if (elmo->yaw > 180.0f)
+            elmo->yaw -= 360.0f;
+    }
 }
 
 // 0x00469010
@@ -5974,6 +6251,75 @@ void swrObjHang_TickHolotableSpin_Maybe(void)
     if (swrObjHang_ambientAnimPhase > 6.26666f)
         swrObjHang_ambientAnimPhase -= 6.26666f;
     swrObjHang_ambientAnimSpeed = swrObjHang_EaseSine_Maybe(swrObjHang_ambientAnimPhase, 3.13333f) * 0.15957463f + 0.5;
+}
+
+// 0x00469070
+void swrObjElmo_WalkIntoView(swrObjElmo* elmo)
+{
+    rdVector3 lookDir;
+    rdVector3 toElmo;
+    rdVector3 walkDir;
+    int steps = 0;
+
+    rdVector_Sub3(&walkDir, &elmo->moveTarget, &elmo->position);
+    rdVector_Sub3(&lookDir, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Sub3(&toElmo, &elmo->position, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    rdVector_Normalize3Acc(&walkDir);
+    rdVector_Normalize3Acc(&lookDir);
+    rdVector_Normalize3Acc(&toElmo);
+    // step along the walk path (max 40 steps) until within 60 degrees of the camera's view axis
+    while (rdVector_Dot3(&lookDir, &toElmo) < 0.5 && steps < 40) {
+        rdVector_Scale3Add3(&elmo->position, &elmo->position, swrRace_fdeltaTimeSecs * 130.0f, &walkDir);
+        rdVector_Sub3(&lookDir, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        rdVector_Sub3(&toElmo, &elmo->position, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        rdVector_Normalize3Acc(&lookDir);
+        rdVector_Normalize3Acc(&toElmo);
+        steps++;
+    }
+    if (steps > 0)
+        swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
+}
+
+// 0x004691c0
+int swrObjElmo_GetWaypointIndex(swrObjElmo* elmo)
+{
+    int i;
+
+    for (i = 0; i < SWR_ELMO_NUM_WAYPOINTS; i++) {
+        if (elmo->moveTarget.x == swrObjElmo_waypoints[i].x && elmo->moveTarget.y == swrObjElmo_waypoints[i].y)
+            return i;
+    }
+    return -1;
+}
+
+// 0x00469200
+void swrObjElmo_SetTargetWaypoint(swrObjElmo* elmo, int waypoint)
+{
+    rdVector_Copy3(&elmo->moveTarget, &swrObjElmo_waypoints[waypoint]);
+    elmo->reachedTarget = 0;
+}
+
+// 0x00469230
+int swrObjElmo_TryTransition(swrObjElmo* elmo)
+{
+    int waypoint = swrObjElmo_GetWaypointIndex(elmo);
+
+    switch (waypoint) {
+    case 0:
+        swrObjElmo_SetTargetWaypoint(elmo, 1);
+        break;
+    case 1:
+        swrObjElmo_SetTargetWaypoint(elmo, 2);
+        break;
+    case 2:
+        swrObjElmo_SetAnimState(elmo, 0);
+        elmo->lastWaypoint = 2;
+        return 1;
+    default:
+        return 0;
+    }
+    elmo->lastWaypoint = waypoint;
+    return 1;
 }
 
 // 0x004692a0
@@ -8960,12 +9306,12 @@ void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode)
         if (hang->cameraState == HangCameraState_CounterBuyParts) {
             // The buy-parts counter is framed from a jittered eye so the shot differs each visit.
             // swrUtils_Rand returns a positive 31-bit value; 1/2^31 maps it to [0, 1).
-            rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, &swrObjHang_wattoCounterEyePos);
+            rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, &swrObjElmo_waypoints[6]);
             jitterScale = swrUtils_RandFloat();
             swrObjHang_cameraMatrixTarget.vD.x = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 10.0f + 180.0f) * jitterScale + swrObjHang_cameraMatrixTarget.vD.x;
             swrObjHang_cameraMatrixTarget.vD.y = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 125.0f - 375.0f) + swrObjHang_cameraMatrixTarget.vD.y;
             swrObjHang_cameraMatrixTarget.vD.z = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 30.0f + 40.0f;
-            rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &swrObjHang_wattoCounterEyePos);
+            rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &swrObjElmo_waypoints[6]);
             rdVector_Sub3(&delta, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
             rdVector_Add3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &delta);
         }
