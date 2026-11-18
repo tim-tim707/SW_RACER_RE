@@ -977,6 +977,12 @@ swrRace_creditsMode 0x0050ca3c int
 swrObjcMan_spectatorCamTimer 0x0050c8a0 float # seconds until the auto-cycling spectator cam picks a new mode (3..10 s)
 swrObjcMan_spectatorCamIndex 0x0050c8a4 int # current index into swrObjcMan_SpectatorCamModes
 swrObjcMan_guideArrowPhase 0x0050c8a8 float # guide-arrow pulse phase, -1..1: drives its alpha and forward bob (swrObjcMan_UpdateSplineGuideMarker)
+swrObjHang_holoAnchor8 0x0050ca98 rdVector3 # rest translation of cantina hologram node 8 (latched once by swrObjHang_UpdateCantinaHolotable)
+swrObjHang_holoAnchor5 0x0050caa8 rdVector3 # node 5
+swrObjHang_holoAnchor2 0x0050cab8 rdVector3 # node 2
+swrObjHang_holoAnchor4 0x0050cac8 rdVector3 # node 4
+swrObjHang_holoSpinAngle 0x0050cadc float # hologram spin, +9 deg/s, wraps at 360; 0 while swrRace_Transition is 0
+swrObjHang_holotableInitScreen 0x004c7078 int # -1 until swrObjHang_UpdateCantinaHolotable latches its menu screen and the hologram anchors
 swrObjcMan_holdFog 0x0050c890 int # debug: swrObjcMan_UpdateFogAndViewport reuses heldFogEnabled/heldFogStart instead of the camera's
 swrObjcMan_holdClipPlanes 0x0050c894 int # debug: reuse heldNearClip/heldFarClip
 swrObjcMan_holdFov 0x0050c898 int # debug: reuse heldFov
@@ -1394,6 +1400,8 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrObjHang_holotableActive 0x00e295a4 int # set by swrObjHang_SetupScreenScene on holotable screens; gates the cantina holotable light fade and hologram node 2
+swrObjHang_vehicleStatsFade 0x00e295ac float # faded out by swrRace_SelectVehicle; raises cantina hologram node 4 and shows node 7
 swrObjHang_screenTransitionActive 0x00e295a8 int # set by swrObjHang_Init / SetupScreenScene; while set, swrObjElmo_F3 and the cantina holotable key off swrRace_Transition
 swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
 swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)

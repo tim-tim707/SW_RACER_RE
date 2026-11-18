@@ -7817,10 +7817,153 @@ void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo)
         elmo->yaw -= swrRace_fdeltaTimeSecs * -90.0f;
 }
 
+// Random hologram flicker: alpha 8..31 plus a fixed UV scroll.
+static void swrObjHang_FlickerHoloNode(swrModel_Node* node)
+{
+    swrModel_MeshMaterial* material;
+
+    swrModel_NodeSetColorsOnAllMaterials(node, 0, 0, 0, 0xff, 0, (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 24.0f - -8.0f));
+    material = swrModel_NodeFindFirstMeshMaterial(node);
+    if (material != NULL)
+        swrModel_MeshMaterialSetTextureUVOffset(material, 0.11f, 0.11f);
+}
+
+// Spins, scales in and flickers one holotable hologram node.
+static void swrObjHang_UpdateHoloNode(swrModel_Node* node, const rdVector3* anchor, float t)
+{
+    rdMatrix44 xf;
+
+    rdMatrix_SetRotation44(&xf, swrObjHang_holoSpinAngle, 0.0f, 0.0f);
+    rdMatrix_ScaleBasis44(&xf, 1.5f, 1.5f, 1.5f, &xf);
+    // grows tall first, then wide
+    if (t < 0.5f)
+        rdMatrix_ScaleBasis44(&xf, 0.1f, 0.1f, t + t, &xf);
+    else
+        rdMatrix_ScaleBasis44(&xf, (t - 0.5f) + (t - 0.5f), (t - 0.5f) + (t - 0.5f), 1.0f, &xf);
+    rdVector_Copy3((rdVector3*)&xf.vD, anchor);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+    swrObjHang_FlickerHoloNode(node);
+    if (t > 0.0f)
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    else
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+}
+
 // 0x00469380
 void swrObjHang_UpdateCantinaHolotable(int menuScreen)
 {
-    HANG("TODO");
+    rdVector3 ambientFrom = { 80.0f, 75.0f, 50.0f };
+    rdVector3 colorFrom = { 235.0f, 100.0f, 0.0f };
+    rdVector3 directionFrom = { 0.0f, -100.0f, 400.0f };
+    rdVector3 ambientTo = { 20.0f, 65.0f, 40.0f };
+    rdVector3 colorTo = { 255.0f, 255.0f, 200.0f };
+    rdVector3 directionTo;
+    rdVector3 ambient;
+    rdVector3 color;
+    rdVector3 direction;
+    rdMatrix44 xf;
+    rdMatrix44 world;
+    swrObjElmo* holo;
+    swrObjElmo* droid;
+    swrModel_Node* node;
+    float t;
+    float fade;
+    float vehicleFade;
+
+    t = swrObjHang_holotableActive != 0 ? swrRace_Transition : 0.0f;
+    fade = 0.0f;
+    rdVector_Sub3(&directionTo, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    directionTo.z = 400.0f;
+    rdVector_Scale3Add3_both(&ambient, 1.0 - t, &ambientFrom, t, &ambientTo);
+    rdVector_Scale3Add3_both(&color, 1.0 - t, &colorFrom, t, &colorTo);
+    rdVector_Scale3Add3_both(&direction, 1.0 - t, &directionFrom, t, &directionTo);
+    SetLightColorsAndDirection2(-1, &ambient, &color, &direction);
+
+    t = swrRace_Transition;
+    holo = (swrObjElmo*)swrEvent_GetItem('Elmo', 4);
+    if (swrObjHang_holotableInitScreen == -1) {
+        swrObjHang_holotableInitScreen = menuScreen;
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor2, (int)holo, 2);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor8, (int)holo, 8);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor4, (int)holo, 4);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor5, (int)holo, 5);
+    }
+    swrObjHang_holoSpinAngle = swrObjHang_holoSpinAngle - swrRace_fdeltaTimeSecs * -9.0f;
+    if (swrObjHang_holoSpinAngle > 360.0f)
+        swrObjHang_holoSpinAngle = swrObjHang_holoSpinAngle - 360.0f;
+    if (t == 0.0f)
+        swrObjHang_holoSpinAngle = 0.0f;
+
+    node = holo->unk30_nodes[2];
+    if (node != NULL) {
+        if (swrObjHang_holotableActive == 0)
+            t = 0.0f;
+        swrObjHang_UpdateHoloNode(node, &swrObjHang_holoAnchor2, t);
+    }
+    // faithful: t carries over, so node 8 stays hidden whenever node 2 was zeroed
+    node = holo->unk30_nodes[8];
+    if (node != NULL) {
+        if (swrObjHang_screenTransitionActive == 0)
+            t = 0.0f;
+        swrObjHang_UpdateHoloNode(node, &swrObjHang_holoAnchor8, t);
+    }
+
+    if (swrObjHang_screenTransitionActive != 0)
+        fade = swrRace_Transition;
+    node = holo->unk30_nodes[5];
+    if (node != NULL) {
+        rdMatrix_SetIdentity44(&xf);
+        rdVector_Copy3((rdVector3*)&xf.vD, &swrObjHang_holoAnchor5);
+        xf.vD.z = xf.vD.z - (1.0f - fade) * 117.0f;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+        node = holo->unk30_nodes[6];
+        if (node != NULL) {
+            if (fade > 0.0f) {
+                swrObjHang_FlickerHoloNode(node);
+                swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+            } else {
+                swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+            }
+        }
+
+        droid = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x1c);
+        rdMatrix_SetIdentity44(&world);
+        swrModel_ComputeNodeWorldMatrix_Maybe(holo->unk30_nodes[5], (float*)&world, holo->unk30_nodes[0], &world);
+        world.vD.z = world.vD.z - -10.0f;
+        if (fade == 1.0f) {
+            rdVector_Scale3Add3_both((rdVector3*)&world.vD, 0.75f, &maybeUICameraPlacements[0x24].position1, 0.25f, (rdVector3*)&world.vD);
+            fade = fade * 0.25f;
+        }
+        swrRace_SetEngineNodeTranslation((void**)droid->unk30_nodes, (rdVector3*)&world.vD);
+        swrRace_SetEngineNodeRotScale((void**)droid->unk30_nodes, droid->scale * fade, swrObjHang_holoSpinAngle * 4.0f);
+    }
+
+    vehicleFade = swrObjHang_vehicleStatsFade;
+    node = holo->unk30_nodes[4];
+    if (node == NULL)
+        return;
+    rdMatrix_SetIdentity44(&xf);
+    rdVector_Copy3((rdVector3*)&xf.vD, &swrObjHang_holoAnchor4);
+    xf.vD.z = xf.vD.z - (1.0f - vehicleFade) * 117.0f;
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+    node = holo->unk30_nodes[7];
+    if (node == NULL)
+        return;
+    if (vehicleFade > 0.0f) {
+        swrObjHang_FlickerHoloNode(node);
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    } else {
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+}
+
+// 0x00469b50
+void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex)
+{
+    rdMatrix44 xf;
+
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)((swrObjElmo*)entity)->unk30_nodes[childIndex], &xf);
+    rdVector_Copy3(out, (rdVector3*)&xf.vD);
 }
 
 // 0x00469b90
