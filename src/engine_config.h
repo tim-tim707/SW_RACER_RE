@@ -155,6 +155,7 @@
 #define SWR_CAM_HALF_TURN (180.0f) // swrCam_CamState_ApplyToViewport angle unwrapping (0x004ac4fc)
 #define SWR_CAM_FULL_TURN (360.0f) // (0x004ac500)
 #define SWR_NUM_CAMERAS (32) // unkCameraArray entries
+#define SWR_CAM_BLEND_DEFAULT_DURATION (10.0f) // swrCam_blendDuration after swrCam_CamState_InitMatrices
 #define SWR_CAM_LOOKAHEAD_SCALE (40.0) // swrViewport_UpdateCameras behavior 4: look-ahead per |forward.z| (0x004ac510)
 #define SWR_SOUND_VOLUME_SCALE (1.0f / 255.0f) // 0..255 volume byte -> gain (0x004ac474)
 #define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)

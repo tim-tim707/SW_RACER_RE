@@ -559,7 +559,9 @@ stdDisplay_ScreenshotIndex 0x004d79e4 int
 swrRace_screenshotKeyHeld 0x004d79e8 int # F12 held last poll (swrRace_PollScreenshotKey edge detect)
 
 swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
+swrUI_navAxisXPrev 0x004d79f4 int # last swrUI_QuantizeNavAxis x step (swrUI_ProcessNavAxis edge detect)
 swrUI_caretY 0x004d7c4c int
+swrUI_navAxisYPrev 0x004d7c58 int # last swrUI_QuantizeNavAxis y step
 swrUI_caretH 0x004d8780 int
 swrUI_caretW 0x004d8788 int
 swrUI_caretEnabled 0x004d87bc int # caret blink enabled, set by swrUI_SetCaretActive
@@ -1722,6 +1724,7 @@ swrPlayerHUD_worldSpritePixelX 0x00e9a8a0 int[16] # last projected screen x, -10
 swrPlayerHUD_worldSpriteDepth 0x00e9a8e0 float[16] # z-buffer depth sampled by swrPlayerHUD_SampleOcclusion
 swrPlayerHUD_worldSpritePixelY 0x00e9a920 int[16]
 
+swrCam_blendFlags 0x00e9b9c0 int # bit 0 cleared by swrCam_CamState_InitMatrices; no other reader
 swrCam_blendFromIndex 0x00e9b9c4 short # camera blend (swrCam_CamState_ApplyToViewport): unkCameraArray index blended from
 swrCam_blendToIndex 0x00e9b9c6 short # unkCameraArray index blended to; becomes the active camera when the blend ends
 swrCam_blendFromYPR 0x00e9b9c8 rdVector3 # last frame's from-camera yaw/roll/pitch, for +/-180 unwrapping
@@ -1729,6 +1732,7 @@ swrCam_blendToYPR 0x00e9b9d4 rdVector3 # last frame's to-camera yaw/roll/pitch
 swrCam_blendTime 0x00e9b9e0 float # seconds into the blend
 swrCam_blendDuration 0x00e9b9e4 float # blend length in seconds (10 after swrCam_CamState_InitMatrices)
 rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
+swrCam_unusedOffset 0x00e9ba28 rdVector3 # zeroed by swrCam_CamState_InitMatrices; no reader
 swrCam_lookAtMode 0x00e9ba40 short # blend look-at target kind: 0 = rdMatrix44*, 1 = rdVector3*, else swrCam_CamState_GetOffsetTransform mode
 swrCam_lookAtTarget 0x00e9ba44 void* # blend look-at target, NULL = interpolate the cameras' angles
 
@@ -1858,6 +1862,10 @@ g_mouse_x2 0x00ec8750 int
 
 g_mouse_y 0x00ec8754 int
 g_mouse_y2 0x00ec8758 int
+swrUI_joyAxisX 0x00ec875c float # swrControl_joystickAxes[0] latched by swrUI_UpdateMouseState for swrUI_ProcessNavAxis
+swrUI_joyAxisXPrev 0x00ec8760 float # previous frame's axis x, for swrUI_INPUT_AXIS_MOVED
+swrUI_joyAxisY 0x00ec8764 float
+swrUI_joyAxisYPrev 0x00ec8768 float
 
 Deadzone 0x00ec876c float
 swrConfig_mouseNbButtons 0x00ec8770 int

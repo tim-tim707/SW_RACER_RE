@@ -1464,6 +1464,7 @@ typedef enum swrSprite_FLAG // swrSprite.flags
 
 typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 {
+    swrUI_CLASS_WINDOW = 0, // swrUI_NewWindow; swrUI_BroadcastToWindows targets these
     swrUI_CLASS_LABEL = 1, // swrUI_NewLabel
     swrUI_CLASS_BUTTON = 2, // swrUI_NewButton
     swrUI_CLASS_SCREEN_TEXT = 3, // swrUI_NewScreenText
@@ -1476,6 +1477,16 @@ typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
     swrUI_CLASS_3PATCH_BOX = 11, // swrUI_New3PatchBox
     swrUI_CLASS_LIST_ITEM = 12, // swrUI_AddListItem
 } swrUI_CLASS;
+
+typedef enum swrUI_INPUT_CHANGE // swrUI_inputChangeFlags bits (swrUI_UpdateMouseState -> swrUI_ProcessMouse)
+{
+    swrUI_INPUT_MOVED = 0x1, // set together with CURSOR_MOVED / AXIS_MOVED
+    swrUI_INPUT_ACCEPT = 0x2, // accept edge changed; same bit in swrUI_menuButtonState
+    swrUI_INPUT_CANCEL = 0x4, // cancel edge changed; same bit in swrUI_menuButtonState
+    swrUI_INPUT_BUTTONS_CHANGED = 0x10000000,
+    swrUI_INPUT_AXIS_MOVED = 0x20000000, // joystick x/y moved: swrUI_ProcessNavAxis
+    swrUI_INPUT_CURSOR_MOVED = 0x80000000,
+} swrUI_INPUT_CHANGE;
 
 typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (partial)
 {
@@ -1501,6 +1512,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_PAGE_POPPED = 0x47, // swrUI_PopMenuPage: page left the stack; param = depth
     swrUI_MSG_PAGE_TRANSITION = 0x48, // swrUI_StartPageTransition; param2 0 = the page, 1 = each sliding child
     swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
+    swrUI_MSG_MP_UPDATE = 0x4a, // swrUI_BroadcastToWindows: multiplayer session/lobby state changed; sent to every visible window
     swrUI_MSG_DIALOG_RESULT = 100, // fired to the confirm dialog's parent by swrUI_ProcessPendingClose; param = swrUI_confirmDialogResult
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent
     swrUI_MSG_ELEMENT_ACTIVATED = 1000, // same code, sent to a page by swrUI_SetHighlightState (mode 1, else 1001); param = element id
@@ -1568,6 +1580,7 @@ typedef enum swrCamera_FLAG // swrCamera_unk.flags (unkCameraArray)
 {
     swrCamera_FLAG_ACTIVE = 0x1, // the selected camera (swrViewport_SetActiveCamera); cleared on the blend-from camera when a blend ends
     swrCamera_FLAG_IN_VIEWPORT = 0x2, // a valid viewport uses this camera this frame (swrViewport_UpdateCameras)
+    swrCamera_FLAG_UNK_4 = 0x4, // set on camera 1 by swrCam_CamState_InitMatrices; no reader found
 } swrCamera_FLAG;
 
 typedef enum swrControlBinding_FLAG
