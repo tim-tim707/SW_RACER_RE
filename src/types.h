@@ -854,7 +854,7 @@ extern "C"
         swrSplineCursor camSweepCursor; // 0x134. cinematic camera path walker. swrObjJdge_F2 (+0x32) evaluates it into camSweepTransform while camSweepState != NULL; seeded by swrObjJdge_SetupTrackEnvironment, and left with a NULL spline on a track that has no camera path
         rdMatrix44 camSweepTransform; // 0x164. swrSpline_EvaluateToMatrix output for the sweep; reset to identity at 'Load'/'RSet'
         void* cam_spline;
-        int unk1a8;
+        struct swrModel_Animation* camSweepAnim; // 0x1a8 start-node animation the sweep is timed against (swrObjJdge_SetupTrackEnvironment)
         int planetId;
         int unk1b0_modelId;
         int unk1b4_splineId;
@@ -1069,8 +1069,8 @@ extern "C"
         unsigned int fog_b_target;
         float fogDist;
         float fogDistTarget;
-        float unk2dc;
-        float unk2e0;
+        float fogStartDist; // 0x2dc stepped toward fogStartDistTarget at 5 units/s (swrObjcMan_UpdateFogAndViewport)
+        float fogStartDistTarget; // 0x2e0 surface fog start; -1.0 once reached
         unsigned int unk2e4_flag; // 0x2e4 swrObjcMan_LIGHTFLAG
         rdVector3 ambientColor; // 0x2e8 applied lighting (swrObjcMan_UpdateLighting), faded toward light
         rdVector3 lightVector; // 0x2f4
@@ -1444,6 +1444,18 @@ extern "C"
         int unk164;
         struct swrModel_Node* model_root_node;
     } swrViewport; // sizeof(0x16c)
+
+    // Per-viewport fog state saved by swrObjcMan_UpdateFogAndViewport in split screen and
+    // re-applied by swrPlayerHUD_RenderAllViewports before each viewport renders.
+    typedef struct swrViewportFog
+    {
+        short enabled;
+        short start;
+        short r;
+        short g;
+        short b;
+        short skyboxVisible;
+    } swrViewportFog; // sizeof(0xc)
 
     typedef union swrModel_HeaderEntry
     {
@@ -3223,14 +3235,15 @@ extern "C"
         int id;
         MODELID pod_modelID;
         MODELID pod_alt_modelID;
-        char unkc[8];
+        MODELID pod_lod_modelID; // 0xc low-detail pod for AI racers (swrObjJdge_SpawnRacers)
+        MODELID unk10_modelID; // 0x10 loaded by an unreachable SpawnRacers LOD class
         char* name;
         char* lastname;
         char unk1c[4];
         float float20;
         char unk24[4];
         SPRTID pilot_spriteId;
-        char unk2c[4];
+        swrSprite_NAME hudSpriteId; // 0x2c per-racer standings portrait (swrPlayerHUD_LoadRaceHUD)
         MODELID puppet_modelId;
     } swrRacerData; // sizeof(0x34)
 

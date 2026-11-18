@@ -145,6 +145,8 @@
 
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
 #define SWR_MAX_RACERS (20)
+// swrObjJdge_InitTrack's asset-buffer tally assumes a 4 MiB buffer (swrObjJdge_raceBufferSlack)
+#define SWR_RACE_BUFFER_TALLY_SIZE (0x400000)
 // selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
 #define SWR_PILOT_COUNT (23)
 #define SWR_PILOT_DUD_BOLT (10) // first-person camera pushed 3 units forward

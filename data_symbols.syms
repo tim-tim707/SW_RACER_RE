@@ -977,6 +977,21 @@ swrRace_creditsMode 0x0050ca3c int
 swrObjcMan_spectatorCamTimer 0x0050c8a0 float # seconds until the auto-cycling spectator cam picks a new mode (3..10 s)
 swrObjcMan_spectatorCamIndex 0x0050c8a4 int # current index into swrObjcMan_SpectatorCamModes
 swrObjcMan_guideArrowPhase 0x0050c8a8 float # guide-arrow pulse phase, -1..1: drives its alpha and forward bob (swrObjcMan_UpdateSplineGuideMarker)
+swrObjHang_holoAnchor8 0x0050ca98 rdVector3 # rest translation of cantina hologram node 8 (latched once by swrObjHang_UpdateCantinaHolotable)
+swrObjHang_holoAnchor5 0x0050caa8 rdVector3 # node 5
+swrObjHang_holoAnchor2 0x0050cab8 rdVector3 # node 2
+swrObjHang_holoAnchor4 0x0050cac8 rdVector3 # node 4
+swrObjHang_holoSpinAngle 0x0050cadc float # hologram spin, +9 deg/s, wraps at 360; 0 while swrRace_Transition is 0
+swrObjHang_holotableInitScreen 0x004c7078 int # -1 until swrObjHang_UpdateCantinaHolotable latches its menu screen and the hologram anchors
+swrObjcMan_holdFog 0x0050c890 int # debug: swrObjcMan_UpdateFogAndViewport reuses heldFogEnabled/heldFogStart instead of the camera's
+swrObjcMan_holdClipPlanes 0x0050c894 int # debug: reuse heldNearClip/heldFarClip
+swrObjcMan_holdFov 0x0050c898 int # debug: reuse heldFov
+swrObjcMan_heldFogEnabled 0x0050c89c int # last fog on/off applied (swrObjcMan_VIEWFLAGS_FOG_START bit)
+swrObjcMan_heldFov 0x004c3ed8 float # last FOV passed to swrViewport_SetCameraParameters
+swrObjcMan_heldFarClip 0x004c3edc float # last far clip (fogDist, or -1)
+swrObjcMan_heldNearClip 0x004c3ee0 float # last near clip
+swrObjcMan_heldFogStart 0x004c3ee4 int # last fog start passed to SetFogParameters
+swrPlayerHUD_viewportFog 0x00e226f4 swrViewportFog[4] # split-screen fog per viewport; written by swrObjcMan_UpdateFogAndViewport, applied by swrPlayerHUD_RenderAllViewports
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
 swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have scrolled (swrObjJdge_ScrollCredits)
@@ -1349,6 +1364,27 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
+swrModel_beamTemplateNode 0x00e277e0 swrModel_Node* # beamanim_vlec root (swrModel_LoadBeamAndSparkModels); RecordLoadedModel_Maybe target for pod parts
+swrModel_sparkTemplateNode 0x00e28964 swrModel_Node* # first child of sparky_part's root (swrModel_LoadBeamAndSparkModels)
+swrObjJdge_duplicatePods 0x0050ca1c int # 1 when two racers in the race share a pod (swrObjJdge_SpawnRacers); passed to every swrObjJdge_SpawnRacer
+swrObjJdge_racerNameTags 0x00e27840 char[80] # per racer, 4 bytes: chars 2..4 of the translated pilot name + NUL (swrObjJdge_SpawnRacers)
+swrObjJdge_raceBufferStart 0x00e289a8 char* # asset-buffer cursor when swrObjJdge_InitTrack starts the race load
+swrObjJdge_raceBufferEnd 0x00e28a60 char* # asset-buffer cursor after the race load
+swrObjJdge_raceBufferFree 0x00e27894 int # swrAssetBuffer_RemainingSize after the race load
+swrObjJdge_raceBufferSlack 0x00e28760 int # SWR_RACE_BUFFER_TALLY_SIZE - bytes used - bytes free
+swrObjJdge_raceBufferOtherBytes 0x00e2875c int # race-load bytes not attributed to racers, Test objs, spline or track models
+swrObjJdge_racerBufferBytes 0x00e28860 int[20] # asset-buffer bytes per spawned racer (swrObjJdge_SpawnRacers)
+swrObjJdge_testObjBufferBytes 0x00e27240 int # asset-buffer bytes of the Test objs (swrObjJdge_SpawnRacers)
+swrObjJdge_trackModelBufferBytes 0x00e289a4 int # asset-buffer bytes of the track model + animations (LoadTrackModels)
+swrObjJdge_trackAssetStats1 0x00e289a0 int # assetBufferUnknownStats1 snapshot after the track model load
+swrObjJdge_trackAssetStats2 0x00e286d0 int # assetBufferUnknownStats2 snapshot
+swrObjJdge_trackAssetStats4 0x00e288b0 int # assetBufferUnknownStats4 snapshot
+swrObjJdge_splitSkyboxNode 0x0050cd08 swrModel_Node* # track skybox (scene slot 0) in split screen; shown/hidden per viewport by swrPlayerHUD_RenderAllViewports
+swrObjJdge_podRootNode 0x00e27800 swrModel_Node # scene slot 10: one child per spawned pod model (swrObjJdge_SpawnRacer)
+swrObjJdge_podRootChildren 0x00e286e0 swrModel_Node*[24]
+swrObjJdge_podReflectionRootNode 0x00e28660 swrModel_Node # scene slot 1: one swrObjJdge_podReflectionNodes entry per spawned pod (swrObjJdge_SpawnRacer)
+swrObjJdge_podReflectionRootChildren 0x00e28780 swrModel_Node*[24]
+swrObjJdge_podReflectionNodes 0x00e28a80 swrModel_NodeTransformedWithPivot[20] # Z-flipped node sharing each pod root's children; becomes swrRace.reflectionNode
 
 fireballChildNodeArray2 0x00E288C0 swrModel_Node*[40] # one per fireballChildNodeArray entry; runs up to swrScoresPtr
 
@@ -1364,6 +1400,8 @@ dustKickChildNodes 0x00E28A20 swrModel_Node*[16]
 swrScene_ChildNodes 0x00e29160 swrModel_Node*[151]
 
 swrRace_Transition 0x00e295a0 float
+swrObjHang_holotableActive 0x00e295a4 int # set by swrObjHang_SetupScreenScene on holotable screens; gates the cantina holotable light fade and hologram node 2
+swrObjHang_vehicleStatsFade 0x00e295ac float # faded out by swrRace_SelectVehicle; raises cantina hologram node 4 and shows node 7
 swrObjHang_screenTransitionActive 0x00e295a8 int # set by swrObjHang_Init / SetupScreenScene; while set, swrObjElmo_F3 and the cantina holotable key off swrRace_Transition
 swrRace_MenuNavLeftActive 0x00e295b0 int # left menu-nav input active this frame (shows marker sprite 0xaf)
 swrRace_MenuNavRightActive 0x00e295b4 int # right menu-nav input active this frame (shows marker sprite 0xac)

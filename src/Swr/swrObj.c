@@ -453,9 +453,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
         goto updateLightFlags;
 
     if ((behavior->unk1 & 2) != 0)
-        cman->fog_flag |= 4;
+        cman->fog_flag |= swrObjcMan_VIEWFLAGS_NO_SKYBOX;
     if ((behavior->unk1 & 4) != 0)
-        cman->fog_flag &= ~4;
+        cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_NO_SKYBOX;
 
     if ((behavior->fog_flags & swrModel_Behavior_FOGFLAG_DISTANCE) != 0) {
         cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_DISTANCE;
@@ -474,9 +474,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
             cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_START;
         else
             cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_FOG_START;
-        cman->unk2e0 = (float)(short)behavior->fog_start;
-        if (cman->unk2e0 > 999.0f)
-            cman->unk2e0 = 999.0f;
+        cman->fogStartDistTarget = (float)(short)behavior->fog_start;
+        if (cman->fogStartDistTarget > 999.0f)
+            cman->fogStartDistTarget = 999.0f;
         cman->fog_r_target = behavior->fog_color[0];
         cman->fog_g_target = behavior->fog_color[1];
         cman->fog_b_target = behavior->fog_color[2];
@@ -1059,10 +1059,141 @@ void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman)
     swrModel_NodeSetTransform((swrModel_NodeTransformed*)pod->guideArrowNode, &arrow);
 }
 
+static void swrObjcMan_StepFogChannel(unsigned int* channel, int target)
+{
+    int value = (int)*channel;
+    if (value > target) {
+        *channel = (int)(value - swrRace_deltaTimeSecs * 195.0);
+        if ((int)*channel < target)
+            *channel = target;
+    } else if (value < target) {
+        *channel = (int)(value + swrRace_deltaTimeSecs * 195.0);
+        if ((int)*channel > target)
+            *channel = target;
+    }
+}
+
 // 0x004538d0
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
 {
-    HANG("TODO");
+    float nearClip;
+    float farClip;
+    float fov;
+    float camParam6;
+    int fogEnabled;
+    int fogStartInt;
+    unsigned int flags;
+    double step;
+    swrViewportFog* viewportFog;
+
+    if (swrObjcMan_holdClipPlanes != 0) {
+        nearClip = swrObjcMan_heldNearClip;
+        farClip = swrObjcMan_heldFarClip;
+    } else {
+        if ((cman->fog_flag & swrObjcMan_VIEWFLAGS_FOG_DISTANCE) == 0) {
+            farClip = -1.0f;
+        } else {
+            if (cman->fogDistTarget > 0.0f) {
+                if (cman->fogDist > cman->fogDistTarget) {
+                    step = cman->fogDist - swrRace_deltaTimeSecs * 2000.0;
+                    cman->fogDist = step;
+                    if (step < cman->fogDistTarget) {
+                        cman->fogDist = cman->fogDistTarget;
+                        cman->fogDistTarget = -1.0f;
+                    }
+                } else {
+                    step = cman->fogDist - swrRace_deltaTimeSecs * -2000.0;
+                    cman->fogDist = step;
+                    if (step > cman->fogDistTarget) {
+                        cman->fogDist = cman->fogDistTarget;
+                        cman->fogDistTarget = -1.0f;
+                    }
+                }
+            }
+            farClip = cman->fogDist;
+        }
+        nearClip = cman->nearClip;
+        swrObjcMan_heldNearClip = nearClip;
+        swrObjcMan_heldFarClip = farClip;
+    }
+
+    if (swrObjcMan_holdFov != 0) {
+        fov = swrObjcMan_heldFov;
+    } else {
+        fov = cman->fov;
+        swrObjcMan_heldFov = fov;
+    }
+
+    camParam6 = cman->unk2b8;
+    if (swrObjcMan_holdFog != 0) {
+        fogEnabled = swrObjcMan_heldFogEnabled;
+        fogStartInt = swrObjcMan_heldFogStart;
+    } else {
+        fogEnabled = cman->fog_flag & swrObjcMan_VIEWFLAGS_FOG_START;
+        if (fogEnabled != 0 && cman->fogStartDistTarget >= 0.0f) {
+            if (cman->fogStartDist > cman->fogStartDistTarget) {
+                step = cman->fogStartDist - swrRace_deltaTimeSecs * 5.0;
+                cman->fogStartDist = step;
+                if (step < cman->fogStartDistTarget) {
+                    cman->fogStartDist = cman->fogStartDistTarget;
+                    cman->fogStartDistTarget = -1.0f;
+                }
+            } else {
+                step = cman->fogStartDist - swrRace_deltaTimeSecs * -5.0;
+                cman->fogStartDist = step;
+                if (step > cman->fogStartDistTarget) {
+                    cman->fogStartDist = cman->fogStartDistTarget;
+                    cman->fogStartDistTarget = -1.0f;
+                }
+            }
+        }
+        fogStartInt = (int)cman->fogStartDist;
+        swrObjcMan_heldFogEnabled = fogEnabled;
+        swrObjcMan_heldFogStart = fogStartInt;
+    }
+
+    if (fov >= 0.0 || camParam6 >= 0.0 || nearClip >= 0.0 || farClip >= 0.0) {
+        if (swrObjJdge_splitscreenWideFov != 0 && (swrViewport_array[2].flag & 1) != 0)
+            swrViewport_SetCameraParameters(cman->metaCamIndex_count, 120.0f, -1.0f, nearClip, farClip, camParam6);
+        else
+            swrViewport_SetCameraParameters(cman->metaCamIndex_count, fov, -1.0f, nearClip, farClip, camParam6);
+    }
+
+    flags = cman->fog_flag;
+    if ((flags & swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR) != 0) {
+        cman->fog_r = cman->fog_r_target;
+        cman->fog_g = cman->fog_g_target;
+        cman->fog_b = cman->fog_b_target;
+    } else {
+        swrObjcMan_StepFogChannel(&cman->fog_r, (int)cman->fog_r_target);
+        swrObjcMan_StepFogChannel(&cman->fog_g, (int)cman->fog_g_target);
+        swrObjcMan_StepFogChannel(&cman->fog_b, (int)cman->fog_b_target);
+    }
+
+    // faithful: the color snap request is only consumed while fog is on
+    if (fogEnabled != 0) {
+        cman->fog_flag = flags & ~swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR;
+        rdModel_SetFogEnabled_Maybe(1);
+        SetFogParameters(fogStartInt, 1000, cman->fog_r, cman->fog_g, cman->fog_b, 0xff);
+        SetClearColor(cman->fog_r, cman->fog_g, cman->fog_b);
+    } else {
+        rdModel_SetFogEnabled_Maybe(0);
+    }
+    swrObjJdge_ToggleSkyboxVisibility_Maybe((int)&cman->unk20_mat.vD, cman->fog_flag);
+
+    if (swrObjJdge_splitscreenActive == 0)
+        return;
+    viewportFog = &swrPlayerHUD_viewportFog[cman->metaCamIndex_count];
+    viewportFog->skyboxVisible = (cman->fog_flag & swrObjcMan_VIEWFLAGS_NO_SKYBOX) == 0;
+    if (fogEnabled == 0) {
+        viewportFog->enabled = 0;
+        return;
+    }
+    viewportFog->enabled = 1;
+    viewportFog->start = fogStartInt;
+    viewportFog->r = cman->fog_r;
+    viewportFog->g = cman->fog_g;
+    viewportFog->b = cman->fog_b;
 }
 
 // 0x00453e00
@@ -5617,7 +5748,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->camSweepTransform.vD.z = 0.0f;
         jdge->camSweepTransform.vD.w = 1.0f;
         jdge->cam_spline = NULL;
-        jdge->unk1a8 = 0;
+        jdge->camSweepAnim = NULL;
         jdge->viewportMode = swrObjJdge_VIEWPORT_NONE;
         jdge->unk1e4 = 0.0f;
         jdge->hud_mode = swrObjJdge_HUDMODE_MINIMAP_FAR;
@@ -5846,10 +5977,298 @@ void* GetTrackModelRoot(void)
     return someRootNodeChildNodes[3];
 }
 
+// 0x00464b90
+void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model)
+{
+    static const SPLINEID camSplines[8][4] = {
+        { SPLINEID_tatooine_mini_track6came, SPLINEID_tatooine_track7camm, -1, -1 }, { SPLINEID_planeta_track6came, SPLINEID_planeta_track7camm, SPLINEID_planeta_track8camh, SPLINEID_planeth_track6came }, { SPLINEID_planetb1_track6came, SPLINEID_planetb2_track7camm, SPLINEID_planetb3_track8camh, -1 }, { SPLINEID_planetc_track6came, SPLINEID_planetc_track7camm, SPLINEID_planetc_track8camh, -1 }, { SPLINEID_planetd1_track6came, SPLINEID_planetd2_track7camm, SPLINEID_planetd3_track8camh, SPLINEID_planeti_track6came }, { SPLINEID_planete1_track6came, SPLINEID_planete2_track7camm, SPLINEID_planete3_track8camh, -1 }, { SPLINEID_planetf_track6came, SPLINEID_planetf_track7camm, SPLINEID_planetf_track8camh, -1 }, { SPLINEID_planetj1_track6came, SPLINEID_planetj2_track7camm, SPLINEID_planetj3_track8camh, -1 },
+    };
+    swrModel_Header* header = (swrModel_Header*)model;
+    swrModel_Node* startNode = NULL;
+    swrModel_Animation* camAnim;
+    char* bufferBefore;
+    int fogStartDist;
+    int fogR = 0;
+    int fogG = 0;
+    int fogB = 0;
+
+    judge->cam_splineId = -1;
+    if (judge->planetId >= 0 && judge->planetId < 8 && judge->planet_track_number >= 0 && judge->planet_track_number < 4)
+        judge->cam_splineId = camSplines[judge->planetId][judge->planet_track_number];
+    judge->camSweepState = NULL;
+    if ((int)judge->cam_splineId < 0)
+        return;
+
+    bufferBefore = swrAssetBuffer_GetBuffer();
+    judge->cam_spline = swrSpline_LoadSplineById((char*)judge->cam_splineId);
+    swrObjJdge_splineBufferBytes += swrAssetBuffer_GetBuffer() - bufferBefore;
+
+    if (judge->planet_track_number == 0)
+        startNode = header->entries[3].node;
+    if (judge->planet_track_number == 1)
+        startNode = header->entries[4].node;
+    if (judge->planet_track_number == 2)
+        startNode = header->entries[5].node;
+    if (judge->planet_track_number == 3)
+        startNode = header->entries[3].node;
+    if (judge->cam_spline == NULL || startNode == NULL)
+        return;
+
+    judge->camSweepState = NULL;
+    judge->camSweepCursor.spline = judge->cam_spline;
+    judge->camSweepCursor.velocity = 0.0f;
+    judge->camSweepCursor.segmentT = 0.0f;
+    judge->camSweepCursor.tangentLength = 0.0f;
+    judge->camSweepCursor.endFlag = 0;
+    judge->camSweepCursor.startFlag = 0;
+    judge->camSweepCursor.branchSelector = 0;
+    judge->camSweepCursor.branchFlags = 0;
+    if (judge->camSweepCursor.spline != NULL)
+        swrSpline_CursorSeek(&judge->camSweepCursor, 0);
+    swrSpline_EvaluateAtOffset(&judge->camSweepCursor, &judge->camSweepTransform, 0.0f);
+
+    camAnim = NULL;
+    if (anims != NULL) {
+        for (; *anims != 0; anims++) {
+            if (((swrModel_Animation*)*anims)->node_ptr == (swrModel_NodeTransformed*)startNode) {
+                swrModel_AnimationClearFlags((swrModel_Animation*)*anims, 0x30);
+                camAnim = (swrModel_Animation*)*anims;
+            }
+        }
+    }
+    // the sweep walks the whole camera spline over the start node's animation
+    if (camAnim == NULL)
+        judge->camSweepCursor.velocity = 1.0f;
+    else
+        judge->camSweepCursor.velocity = ((float)(int)((swrSpline*)judge->cam_spline)->num_control_points - 1.0f) / camAnim->duration4;
+    swrCam_CamState_InitMainMat4(5, 2, &judge->camSweepTransform, 0);
+    swrCam_CamState_SetOffsetSource(5, startNode, 2);
+    judge->camSweepAnim = camAnim;
+
+    nearClipDistance = 5.0f;
+    drawDistance = 5000.0f;
+    fogStartDist = 0;
+    if (judge->planetId == 0) {
+        drawDistance = 4500.0f;
+        fogStartDist = 996;
+        fogR = 0xdc;
+        fogG = 0xea;
+        fogB = 0xe5;
+    }
+    if (judge->planetId == 1) {
+        drawDistance = 11000.0f;
+        fogStartDist = 996;
+        if (judge->planet_track_number == 3) {
+            fogR = 0xad;
+            fogG = 0xb9;
+            fogB = 0xc6;
+        } else {
+            fogR = 0xd2;
+            fogG = 0xd7;
+            fogB = 0xe1;
+        }
+    }
+    if (judge->planetId == 2) {
+        if (judge->planet_track_number == 0) {
+            drawDistance = 3500.0f;
+        } else if (judge->planet_track_number == 1) {
+            drawDistance = 3500.0f;
+            fogStartDist = 996;
+            fogR = 0x78;
+            fogG = 0x64;
+            fogB = 0x78;
+        } else if (judge->planet_track_number == 2) {
+            drawDistance = 11000.0f;
+        }
+    }
+    if (judge->planetId == 3) {
+        fogStartDist = 994;
+        fogR = 0x9a;
+        fogG = 0x81;
+        fogB = 0x81;
+        drawDistance = 11000.0f;
+    }
+    if (judge->planetId == 4) {
+        if (judge->planet_track_number == 3) {
+            drawDistance = 5000.0f;
+        } else if (judge->planet_track_number == 0) {
+            drawDistance = 5000.0f;
+            fogStartDist = 996;
+            fogR = 0xca;
+            fogG = 0xb7;
+            fogB = 0xc3;
+        } else if (judge->planet_track_number == 1 || judge->planet_track_number == 2) {
+            if (judge->planet_track_number == 1) {
+                drawDistance = 1200.0f;
+                fogStartDist = 992;
+                fogR = 0x9b;
+                fogG = 0x9a;
+                fogB = 0xa7;
+            } else {
+                drawDistance = 1500.0f;
+                fogStartDist = 990;
+                fogR = 0x5a;
+                fogG = 0x36;
+                fogB = 0x28;
+            }
+            if (someRootNodeChildNodes[0] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[0], 2, -4, 0x10, 3);
+        }
+    }
+    if (judge->planetId == 5) {
+        fogR = 0xbe;
+        fogG = 0x37;
+        fogB = 0x0a;
+        if (judge->planet_track_number == 0) {
+            drawDistance = 8000.0f;
+            fogStartDist = 990;
+        } else if (judge->planet_track_number == 1) {
+            drawDistance = 2500.0f;
+            fogStartDist = 996;
+        } else if (judge->planet_track_number == 2) {
+            drawDistance = 4000.0f;
+            fogStartDist = 996;
+        }
+    }
+    if (judge->planetId == 6)
+        drawDistance = 11000.0f;
+    if (judge->planetId == 7) {
+        if (judge->planet_track_number == 1)
+            drawDistance = 2500.0f;
+        else if (judge->planet_track_number == 0 || judge->planet_track_number == 2)
+            drawDistance = 6000.0f;
+    }
+
+    if (fogStartDist == 0) {
+        rdModel_SetFogEnabled_Maybe(0);
+    } else {
+        rdModel_SetFogEnabled_Maybe(1);
+        SetFogParameters(fogStartDist, 1000, fogR, fogG, fogB, 0xff);
+        SetClearColor(fogR, fogG, fogB);
+    }
+    swrRender_frameClearFlags |= swrRender_FRAME_CLEAR_COLOR;
+}
+
+// 0x004651a0
+void swrModel_LoadBeamAndSparkModels(void)
+{
+    swrModel_Header* header;
+
+    header = swrModel_LoadFromId(MODELID_beamanim_vlec);
+    swrModel_LoadAllAnimationsOfModel(header);
+    swrModel_beamTemplateNode = header->entries[0].node;
+    header = swrModel_LoadFromId(MODELID_sparky_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    swrModel_sparkTemplateNode = header->entries[0].node->children.nodes[0];
+}
+
 // 0x00465510
 void LoadTrackModels(swrObjJdge* judge)
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Animation** anims;
+    int i;
+    int viewFlags6;
+    int stackField;
+
+    memset(someRootNodeChildNodes, 0, sizeof(someRootNodeChildNodes));
+    swrModel_NodeInit(&someRootNode, NODE_BASIC);
+    someRootNode.num_children = 15;
+    someRootNode.children.nodes = someRootNodeChildNodes;
+
+    swrObjJdge_trackModelBufferBytes = (int)swrAssetBuffer_GetBuffer();
+    swr_noop4();
+    header = swrModel_LoadFromId(judge->unk1b0_modelId);
+    anims = swrModel_LoadAllAnimationsOfModel(header);
+    someRootNodeChildNodes[0] = header->entries[2].node;
+    someRootNodeChildNodes[3] = header->entries[0].node;
+    if (swrObjJdge_splitscreenActive != 0)
+        swrObjJdge_splitSkyboxNode = someRootNodeChildNodes[0];
+    swrAssetBuffer_GetStats(&swrObjJdge_trackAssetStats1, &swrObjJdge_trackAssetStats2, &swrObjJdge_trackAssetStats4);
+    swrObjJdge_trackModelBufferBytes = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_trackModelBufferBytes;
+
+    swrObjToss_AddDustKickModelsToScene();
+    swrObjSmok_AddFireballModelsToScene();
+    AddFireballToModelScene();
+    swrObjJdge_SetupTrackEnvironment(judge, (int*)anims, (int)header);
+    swrModel_LoadAllLightStreaks(header);
+
+    if (judge->planetId == 4 && judge->planet_track_number == 0) {
+        header = swrModel_LoadFromId(MODELID_beachanim_vlec);
+        swrModel_LoadAllAnimationsOfModel(header);
+        someRootNodeChildNodes[2] = header->entries[0].node;
+        if (header->entries[0].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0].node, 2, 3, 0x10, 2);
+    } else {
+        someRootNodeChildNodes[2] = NULL;
+    }
+    swrModel_LoadBeamAndSparkModels();
+
+    header = swrModel_LoadFromId(MODELID_lightset_vlec);
+    someRootNodeChildNodes[9] = header->entries[0].node;
+    for (i = 0; i < 6; i++) {
+        judge->splineMarkers[i] = header->entries[0].node->children.nodes[i];
+        if (judge->splineMarkers[i] != NULL)
+            swrModel_NodeModifyFlags(judge->splineMarkers[i], 2, -4, 0x10, 3);
+    }
+
+    header = swrModel_LoadFromId(MODELID_gate01_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    someRootNodeChildNodes[8] = header->entries[0].node;
+    if (someRootNodeChildNodes[8] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[8], 2, -4, 0x10, 3);
+    judge->unk28_model = header->entries[0].node;
+
+    someRootNodeChildNodes[13] = swrModel_LoadFromId(MODELID_white_arrow_part)->entries[0].node;
+    if (someRootNodeChildNodes[13] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[13], 2, -4, 0x10, 3);
+    someRootNodeChildNodes[14] = swrModel_LoadFromId(MODELID_white_arrow_part)->entries[0].node;
+    if (someRootNodeChildNodes[14] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[14], 2, -4, 0x10, 3);
+    judge->unk30 = (int)someRootNodeChildNodes[3];
+
+    swrModel_NodeInit(&swrObjJdge_podRootNode, NODE_BASIC);
+    swrObjJdge_podRootNode.num_children = 0;
+    swrObjJdge_podRootNode.children.nodes = swrObjJdge_podRootChildren;
+    someRootNodeChildNodes[10] = &swrObjJdge_podRootNode;
+    swrModel_NodeInit(&swrObjJdge_podReflectionRootNode, NODE_BASIC);
+    swrObjJdge_podReflectionRootNode.num_children = 0;
+    swrObjJdge_podReflectionRootNode.children.nodes = swrObjJdge_podReflectionRootChildren;
+    someRootNodeChildNodes[1] = &swrObjJdge_podReflectionRootNode;
+
+    swrObjJdge_AddTriggersToScene(judge);
+    swrViewport_SetRootNodeForAllViewports(&someRootNode);
+
+    viewFlags6 = 0x16;
+    stackField = 0x10;
+    if (judge->planet_track_number == 1) {
+        viewFlags6 = 0x26;
+        stackField = 0x20;
+    }
+    if (judge->planet_track_number == 2) {
+        viewFlags6 = 0x46;
+        stackField = 0x40;
+    }
+    if (judge->planet_track_number == 3) {
+        viewFlags6 = 0x16;
+        stackField = 0x10;
+    }
+    swrViewport_SetNodeFlagsForAllViewports(4, 0xffffff00);
+    swrViewport_SetNodeFlagsForAllViewports(3, 0xffffff00);
+    swrViewport_SetNodeFlagsForAllViewports(6, viewFlags6);
+    rdMatrixStack_SetField_Maybe(5, stackField | 2);
+    swr_noop2();
+}
+
+// 0x00465820
+void RecordLoadedModel_Maybe(void* record, int value)
+{
+    swrModel_Node* node = (swrModel_Node*)record;
+
+    if (node != NULL) {
+        node->num_children++;
+        node->children.nodes = (swrModel_Node**)value;
+    }
 }
 
 // 0x00465840
@@ -5996,10 +6415,353 @@ void InitAISettingsForTrack(swrObjJdge* judge)
     }
 }
 
+static void swrObjJdge_PlaceGridMarkers(swrModel_Node** markers, int count, swrTranslationRotation* place, float stepX, float stepY)
+{
+    int i;
+
+    for (i = 0; i < count; i++) {
+        swrModel_NodeSetTransformFromTranslationRotation((swrModel_NodeTransformed*)markers[i], place);
+        place->translation.x -= stepX;
+        place->translation.y -= stepY;
+    }
+}
+
+// 0x00465d50
+void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
+{
+    swrTranslationRotation place;
+    rdMatrix44 gate;
+    rdMatrix44 finish;
+    float gateZ;
+
+    judge->unk80_mat = judge->camBaseMat;
+    if (GetCustomStartTransform(&finish) != 0) {
+        // open track: three markers at the start, three at the finish
+        judge->unkbc_mat = judge->camBaseMat;
+        judge->num_laps = 1;
+        rdMatrix_ExtractTransform(&judge->camBaseMat, &place);
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        place.translation.x = place.translation.x - judge->camBaseMat.vA.x * 10.0f;
+        place.translation.y = place.translation.y - judge->camBaseMat.vA.y * 10.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[0], 3, &place, judge->camBaseMat.vA.x * -10.0f, judge->camBaseMat.vA.y * -10.0f);
+
+        rdMatrix_ExtractTransform(&finish, &place);
+        place.translation.x = place.translation.x - finish.vA.x * 10.0f;
+        place.translation.y = place.translation.y - finish.vA.y * 10.0f;
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[3], 3, &place, finish.vA.x * -10.0f, finish.vA.y * -10.0f);
+        gate = finish;
+        gateZ = finish.vD.z;
+    } else {
+        rdMatrix_ExtractTransform(&judge->camBaseMat, &place);
+        place.translation.x = place.translation.x - judge->camBaseMat.vA.x * 25.0f;
+        place.translation.y = place.translation.y - judge->camBaseMat.vA.y * 25.0f;
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[0], 6, &place, judge->camBaseMat.vA.x * -10.0f, judge->camBaseMat.vA.y * -10.0f);
+        gate = judge->camBaseMat;
+        judge->unkbc_mat = judge->unk80_mat;
+        gateZ = judge->camBaseMat.vD.z;
+    }
+
+    gate.vD.z = gateZ - -22.0f;
+    rdMatrix_AddRotationFromVectorAngle44Before(&gate, 180.0f, 0.0f, 0.0f, 1.0f, &gate);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)judge->unk28_model, &gate);
+    swrModel_NodeSetColorsOnAllMaterials(judge->unk28_model, -1, -1, 0, 0xff, 0, 0);
+    if (judge->unk28_model != NULL)
+        swrModel_NodeModifyFlags(judge->unk28_model, 2, 3, 0x10, 2);
+}
+
+// 0x00465980
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int riderModel, int lodBody, int lodSelector, int duplicatePods)
+{
+    swrModel_Header* header = (swrModel_Header*)podModel;
+    swrModel_Node* reflection = NULL; // faithful: uninitialized in the original when both podModel and lodBody are NULL
+    swrModel_Node* node;
+    swrRace* player;
+    rdMatrix44 mirror;
+    rdMatrix44 spawn;
+    int i;
+    static const int fullLodParts[6] = { 1, 2, 3, 4, 5, 0x47 };
+    static const int fullLodParts2[4] = { 0x2a, 0x2b, 0x1c, 0x1d };
+
+    score->unk58 = 0;
+    score->unk5a = 0;
+    score->results_P1_Lap = 0;
+    *(short*)&score->results_P1_Position = -1;
+    score->results_P1_total_time = 0.0f;
+    score->results_P1_Lap1 = -1.0f;
+    score->results_P1_Lap2 = -1.0f;
+    score->results_P1_Lap3 = -1.0f;
+    score->results_P1_Lap4 = -1.0f;
+    score->results_P1_Lap5 = -1.0f;
+    score->results_P1_Lap1 = 0.0f;
+    score->unk7c = 0;
+    score->flag &= ~3;
+    player = (swrRace*)swrEvent_AllocObj('Test');
+    score->obj_test_ptr = player;
+    player->score_ptr = score;
+
+    if (header != NULL) {
+        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = header->entries[0].node;
+        node = &swrObjJdge_podReflectionNodes[swrObjJdge_podReflectionRootNode.num_children].node;
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        swrObjJdge_podReflectionRootChildren[swrObjJdge_podReflectionRootNode.num_children] = node;
+        // the reflection shares the pod root's children array and draws its first child Z-flipped
+        node->num_children = 1;
+        node->children.nodes = header->entries[0].node->children.nodes;
+        rdMatrix_SetIdentity44(&mirror);
+        mirror.vC.z = -1.0f;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &mirror);
+        node->flags_5 |= 1;
+        swrObjJdge_podReflectionRootNode.num_children++;
+        reflection = node;
+        RecordLoadedModel_Maybe(header->entries[7].node, (int)&swrModel_beamTemplateNode);
+        RecordLoadedModel_Maybe(header->entries[9].node, (int)&swrModel_beamTemplateNode);
+        if (header->entries[0x48].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0x48].node, 2, -4, 0x10, 3);
+        if (header->entries[0x49].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0x49].node, 2, -4, 0x10, 3);
+        RecordLoadedModel_Maybe(header->entries[0x41].node, (int)&swrModel_sparkTemplateNode);
+        RecordLoadedModel_Maybe(header->entries[0x42].node, (int)&swrModel_sparkTemplateNode);
+    } else if (lodBody != 0) {
+        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = (swrModel_Node*)lodBody;
+        swrModel_NodeModifyFlags((swrModel_Node*)lodBody, 2, 3, 0x10, 2);
+    }
+
+    swrObjJdge_GetSpawnTransform(judge, &spawn, player->score_ptr->unk14);
+    // the header types arg 2 as float; it is the spline pointer
+    swrRace_Init(player, *(float*)&judge->unk2c_spline, (int)podModel, (void*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), duplicatePods);
+    player->reflectionNode = reflection;
+    player->lodBodyNode = (swrModel_Node*)lodBody;
+    player->lodSelectorNode = (swrModel_Node*)lodSelector;
+
+    if (header != NULL && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        header->entries[0].node->flags_5 |= 0xc;
+        header->entries[0].node->light_index = player->current_light_index;
+        if (numLocalPlayers < 2) {
+            for (i = 0; i < 6; i++) {
+                if (header->entries[fullLodParts[i]].node != NULL)
+                    header->entries[fullLodParts[i]].node->flags_5 |= 0x10;
+            }
+            for (i = 0; i < 4; i++) {
+                if (header->entries[fullLodParts2[i]].node != NULL)
+                    header->entries[fullLodParts2[i]].node->flags_5 |= 0x100;
+            }
+        }
+    }
+    SetLightColorsAndDirectionFromPrimaryLight3(player->current_light_index);
+    if ((player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0)
+        swrCam_CamState_InitMainMat4(1, 1, &player->transform, 0);
+}
+
+// 0x004663e0
+void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores)
+{
+    int lodNode[SWR_MAX_RACERS];
+    int spawnOrder[SWR_MAX_RACERS];
+    int podHeader[SWR_MAX_RACERS];
+    int lodNode2[SWR_MAX_RACERS];
+    int riderHeader[SWR_MAX_RACERS]; // faithful: only written on the full-LOD path, garbage otherwise
+    int aiSlot[SWR_MAX_RACERS];
+    swrRacerData* racer;
+    swrRacerData* other;
+    swrModel_Header* header;
+    swrModel_Header* rider;
+    char* name;
+    int duplicatePods;
+    int lodClass;
+    int i;
+    int j;
+    int pick;
+    int slot;
+
+    swrObjJdge_testObjBufferBytes = (int)swrAssetBuffer_GetBuffer();
+    swrEvent_AllocateAndLoadObjs('Test', judge->num_players);
+    swrEvent_FreeObjs('Test');
+    swrObjJdge_testObjBufferBytes = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_testObjBufferBytes;
+    memset(swrObjJdge_racerBufferBytes, 0, sizeof(swrObjJdge_racerBufferBytes));
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_racerNameTags[i * 4] = 0;
+
+    duplicatePods = 0;
+    for (i = 0; i < judge->num_players; i++) {
+        for (j = 0; j < judge->num_players; j++) {
+            if (i != j && *scores[i].pilotId == *scores[j].pilotId)
+                duplicatePods = 1;
+        }
+    }
+    swrObjJdge_duplicatePods = duplicatePods;
+
+    for (i = 0; i < judge->num_players; i++) {
+        racer = (swrRacerData*)scores[i].pilotId;
+        swrObjJdge_racerBufferBytes[i] = (int)swrAssetBuffer_GetBuffer();
+        swrObjJdge_racerNameTags[i * 4] = swrText_Translate(racer->name)[2];
+        swrObjJdge_racerNameTags[i * 4 + 1] = swrText_Translate(racer->name)[3];
+        swrObjJdge_racerNameTags[i * 4 + 2] = swrText_Translate(racer->name)[4];
+        swrObjJdge_racerNameTags[i * 4 + 3] = 0;
+
+        // 1 = full pod + rider, 2 = full pod (split screen), 3 = low-detail pod
+        lodClass = 3;
+        if (scores[i].identifier == 'Locl')
+            lodClass = (numLocalPlayers > 1) + 1;
+        if ((judge->flag & swrObjJdge_FLAG_NON_PAUSABLE) != 0)
+            lodClass = 1;
+        else if (numLocalPlayers == 0)
+            lodClass = 3;
+
+        if (lodClass == 2 || lodClass == 1) {
+            lodNode[i] = 0;
+            lodNode2[i] = 0;
+            header = swrModel_LoadFromId(racer->pod_modelID);
+            podHeader[i] = (int)header;
+            if (header == NULL) {
+                judge->num_players = i;
+                lowMemoryRacerCount = i;
+            } else if (lodClass == 1 && (int)racer->pod_alt_modelID >= 0) {
+                rider = swrModel_LoadFromId(racer->pod_alt_modelID);
+                riderHeader[i] = (int)rider;
+                if (rider == NULL) {
+                    judge->num_players = i;
+                    lowMemoryRacerCount = i;
+                } else {
+                    swrModel_FixupAltNodePointers((int*)header, (int*)rider);
+                }
+            }
+        } else if (lodClass == 3) {
+            podHeader[i] = 0;
+            lodNode2[i] = 0;
+            lodNode[i] = 0;
+            header = swrModel_LoadFromId(racer->pod_lod_modelID);
+            if (header != NULL) {
+                lodNode[i] = header->entries[0].value;
+                lodNode2[i] = header->entries[1].value;
+            }
+        } else if (lodClass == 4) {
+            podHeader[i] = 0;
+            lodNode2[i] = 0;
+            lodNode[i] = 0;
+            header = swrModel_LoadFromId(racer->unk10_modelID);
+            if (header != NULL) {
+                lodNode2[i] = 0;
+                lodNode[i] = header->entries[0].value;
+            }
+        }
+        swrObjJdge_racerBufferBytes[i] = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_racerBufferBytes[i];
+    }
+
+    for (i = 0; i < judge->num_players; i++)
+        spawnOrder[i] = -1;
+    for (i = 0; i < judge->num_players; i++) {
+        // pick the n-th still-free grid slot, n uniform in [0, remaining)
+        pick = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * (judge->num_players - i));
+        slot = -1;
+        while (pick >= 0) {
+            slot++;
+            if (spawnOrder[slot] == -1)
+                pick--;
+        }
+        spawnOrder[slot] = i;
+    }
+
+    slot = 1;
+    for (i = 0; i < judge->num_players; i++) {
+        if ((scores[i].flag & 0x20) == 0 && scores[i].identifier != 'Locl')
+            aiSlot[i] = slot++;
+        else
+            aiSlot[i] = -1;
+    }
+
+    for (i = 0; i < judge->num_players; i++) {
+        j = spawnOrder[i];
+        swrObjJdge_SpawnRacer(judge, &scores[j], aiSlot[j], (void*)podHeader[j], riderHeader[j], lodNode[j], lodNode2[j], duplicatePods);
+    }
+}
+
 // 0x00466BD0
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 {
-    HANG("TODO");
+    swrScore* score;
+    int i;
+
+    rdroid_g_curRenderOptions2 = 0;
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_prevRacePositions[i] = i;
+    swrAssetBuffer_ResetToIndex(1);
+    swrObjJdge_raceBufferStart = swrAssetBuffer_GetBuffer();
+    swrObjJdge_splineBufferBytes = 0;
+    lowMemoryRacerCount = 0;
+    swr_noop2();
+    swrModel_ClearSceneAnimations();
+    swrWeather_ResetParticles();
+    ResetLightStreakSprites();
+    ResetSunAndLensFlareSprites();
+    ResetPlayerSpriteValues();
+
+    judge->camSweepState = NULL;
+    swrScoresPtr = scores;
+    firstLocalPlayer = NULL;
+    secondLocalPlayer = NULL;
+    thirdLocalPlayer = NULL;
+    fourthLocalPlayer = NULL;
+    numLocalPlayers = 0;
+    for (i = 0; i < judge->num_players; i++) {
+        score = &scores[i];
+        if (score->identifier != 'Locl')
+            continue;
+        numLocalPlayers++;
+        if (firstLocalPlayer == NULL)
+            firstLocalPlayer = score;
+        else if (secondLocalPlayer == NULL)
+            secondLocalPlayer = score;
+        else if (thirdLocalPlayer == NULL)
+            thirdLocalPlayer = score;
+        else if (fourthLocalPlayer == NULL)
+            fourthLocalPlayer = score;
+    }
+
+    swrModel_Node1 = NULL;
+    swrModel_Node3 = NULL;
+    swrModel_Node2 = NULL;
+    swrModel_Node4 = NULL;
+    swrObjJdge_splitscreenActive = 0;
+    swrObjJdge_splitscreenWideFov = 0;
+    if (numLocalPlayers > 1) {
+        swrObjJdge_singleLocalViewport = 0;
+        swrObjJdge_splitscreenActive = 1;
+        if (judge->planetId == 6)
+            swrObjJdge_splitscreenWideFov = 1;
+    }
+    if (judge->planetId == 3 && judge->planet_track_number == 2)
+        swrObjTrig_regionGridLayout = 1;
+    else if (judge->planetId == 1 && judge->planet_track_number == 0)
+        swrObjTrig_regionGridLayout = 2;
+    else
+        swrObjTrig_regionGridLayout = 0;
+
+    LoadTrackModels(judge);
+    swrPlayerHUD_LoadRaceHUD(judge->planetId, judge->planet_track_number, (int)judge);
+    LoadTrackSpline(judge);
+    swrObjJdge_SetupStartingGrid(judge);
+    InitPrimaryLight();
+    InitAISettingsForTrack(judge);
+    swrObjJdge_SpawnRacers(judge, scores);
+    swrSound_ResetMusic();
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrSound_ClearSfxFlag(i, 0xff0000);
+
+    swrObjJdge_raceBufferEnd = swrAssetBuffer_GetBuffer();
+    swrObjJdge_raceBufferFree = swrAssetBuffer_RemainingSize();
+    swrObjJdge_raceBufferOtherBytes = swrObjJdge_raceBufferEnd - swrObjJdge_raceBufferStart;
+    swrObjJdge_raceBufferSlack = SWR_RACE_BUFFER_TALLY_SIZE - swrObjJdge_raceBufferOtherBytes - swrObjJdge_raceBufferFree;
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_raceBufferOtherBytes -= swrObjJdge_racerBufferBytes[i];
+    swrObjJdge_raceBufferOtherBytes -= swrObjJdge_testObjBufferBytes + swrObjJdge_splineBufferBytes + swrObjJdge_trackModelBufferBytes;
+    swrAssetBuffer_CheckOverflow();
+    // faithful: the original returns CheckOverflow's leftover EAX; the only caller ignores it
+    return 0;
 }
 
 // 0x00466e40
@@ -7055,10 +7817,153 @@ void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo)
         elmo->yaw -= swrRace_fdeltaTimeSecs * -90.0f;
 }
 
+// Random hologram flicker: alpha 8..31 plus a fixed UV scroll.
+static void swrObjHang_FlickerHoloNode(swrModel_Node* node)
+{
+    swrModel_MeshMaterial* material;
+
+    swrModel_NodeSetColorsOnAllMaterials(node, 0, 0, 0, 0xff, 0, (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 24.0f - -8.0f));
+    material = swrModel_NodeFindFirstMeshMaterial(node);
+    if (material != NULL)
+        swrModel_MeshMaterialSetTextureUVOffset(material, 0.11f, 0.11f);
+}
+
+// Spins, scales in and flickers one holotable hologram node.
+static void swrObjHang_UpdateHoloNode(swrModel_Node* node, const rdVector3* anchor, float t)
+{
+    rdMatrix44 xf;
+
+    rdMatrix_SetRotation44(&xf, swrObjHang_holoSpinAngle, 0.0f, 0.0f);
+    rdMatrix_ScaleBasis44(&xf, 1.5f, 1.5f, 1.5f, &xf);
+    // grows tall first, then wide
+    if (t < 0.5f)
+        rdMatrix_ScaleBasis44(&xf, 0.1f, 0.1f, t + t, &xf);
+    else
+        rdMatrix_ScaleBasis44(&xf, (t - 0.5f) + (t - 0.5f), (t - 0.5f) + (t - 0.5f), 1.0f, &xf);
+    rdVector_Copy3((rdVector3*)&xf.vD, anchor);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+    swrObjHang_FlickerHoloNode(node);
+    if (t > 0.0f)
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    else
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+}
+
 // 0x00469380
 void swrObjHang_UpdateCantinaHolotable(int menuScreen)
 {
-    HANG("TODO");
+    rdVector3 ambientFrom = { 80.0f, 75.0f, 50.0f };
+    rdVector3 colorFrom = { 235.0f, 100.0f, 0.0f };
+    rdVector3 directionFrom = { 0.0f, -100.0f, 400.0f };
+    rdVector3 ambientTo = { 20.0f, 65.0f, 40.0f };
+    rdVector3 colorTo = { 255.0f, 255.0f, 200.0f };
+    rdVector3 directionTo;
+    rdVector3 ambient;
+    rdVector3 color;
+    rdVector3 direction;
+    rdMatrix44 xf;
+    rdMatrix44 world;
+    swrObjElmo* holo;
+    swrObjElmo* droid;
+    swrModel_Node* node;
+    float t;
+    float fade;
+    float vehicleFade;
+
+    t = swrObjHang_holotableActive != 0 ? swrRace_Transition : 0.0f;
+    fade = 0.0f;
+    rdVector_Sub3(&directionTo, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+    directionTo.z = 400.0f;
+    rdVector_Scale3Add3_both(&ambient, 1.0 - t, &ambientFrom, t, &ambientTo);
+    rdVector_Scale3Add3_both(&color, 1.0 - t, &colorFrom, t, &colorTo);
+    rdVector_Scale3Add3_both(&direction, 1.0 - t, &directionFrom, t, &directionTo);
+    SetLightColorsAndDirection2(-1, &ambient, &color, &direction);
+
+    t = swrRace_Transition;
+    holo = (swrObjElmo*)swrEvent_GetItem('Elmo', 4);
+    if (swrObjHang_holotableInitScreen == -1) {
+        swrObjHang_holotableInitScreen = menuScreen;
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor2, (int)holo, 2);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor8, (int)holo, 8);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor4, (int)holo, 4);
+        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor5, (int)holo, 5);
+    }
+    swrObjHang_holoSpinAngle = swrObjHang_holoSpinAngle - swrRace_fdeltaTimeSecs * -9.0f;
+    if (swrObjHang_holoSpinAngle > 360.0f)
+        swrObjHang_holoSpinAngle = swrObjHang_holoSpinAngle - 360.0f;
+    if (t == 0.0f)
+        swrObjHang_holoSpinAngle = 0.0f;
+
+    node = holo->unk30_nodes[2];
+    if (node != NULL) {
+        if (swrObjHang_holotableActive == 0)
+            t = 0.0f;
+        swrObjHang_UpdateHoloNode(node, &swrObjHang_holoAnchor2, t);
+    }
+    // faithful: t carries over, so node 8 stays hidden whenever node 2 was zeroed
+    node = holo->unk30_nodes[8];
+    if (node != NULL) {
+        if (swrObjHang_screenTransitionActive == 0)
+            t = 0.0f;
+        swrObjHang_UpdateHoloNode(node, &swrObjHang_holoAnchor8, t);
+    }
+
+    if (swrObjHang_screenTransitionActive != 0)
+        fade = swrRace_Transition;
+    node = holo->unk30_nodes[5];
+    if (node != NULL) {
+        rdMatrix_SetIdentity44(&xf);
+        rdVector_Copy3((rdVector3*)&xf.vD, &swrObjHang_holoAnchor5);
+        xf.vD.z = xf.vD.z - (1.0f - fade) * 117.0f;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+        node = holo->unk30_nodes[6];
+        if (node != NULL) {
+            if (fade > 0.0f) {
+                swrObjHang_FlickerHoloNode(node);
+                swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+            } else {
+                swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+            }
+        }
+
+        droid = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x1c);
+        rdMatrix_SetIdentity44(&world);
+        swrModel_ComputeNodeWorldMatrix_Maybe(holo->unk30_nodes[5], (float*)&world, holo->unk30_nodes[0], &world);
+        world.vD.z = world.vD.z - -10.0f;
+        if (fade == 1.0f) {
+            rdVector_Scale3Add3_both((rdVector3*)&world.vD, 0.75f, &maybeUICameraPlacements[0x24].position1, 0.25f, (rdVector3*)&world.vD);
+            fade = fade * 0.25f;
+        }
+        swrRace_SetEngineNodeTranslation((void**)droid->unk30_nodes, (rdVector3*)&world.vD);
+        swrRace_SetEngineNodeRotScale((void**)droid->unk30_nodes, droid->scale * fade, swrObjHang_holoSpinAngle * 4.0f);
+    }
+
+    vehicleFade = swrObjHang_vehicleStatsFade;
+    node = holo->unk30_nodes[4];
+    if (node == NULL)
+        return;
+    rdMatrix_SetIdentity44(&xf);
+    rdVector_Copy3((rdVector3*)&xf.vD, &swrObjHang_holoAnchor4);
+    xf.vD.z = xf.vD.z - (1.0f - vehicleFade) * 117.0f;
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &xf);
+    node = holo->unk30_nodes[7];
+    if (node == NULL)
+        return;
+    if (vehicleFade > 0.0f) {
+        swrObjHang_FlickerHoloNode(node);
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    } else {
+        swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    }
+}
+
+// 0x00469b50
+void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex)
+{
+    rdMatrix44 xf;
+
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)((swrObjElmo*)entity)->unk30_nodes[childIndex], &xf);
+    rdVector_Copy3(out, (rdVector3*)&xf.vD);
 }
 
 // 0x00469b90
@@ -9673,6 +10578,15 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 void swrScene_ClearTextureAnim_Maybe(void)
 {
     swrScene_textureScrollState[1] = 0;
+}
+
+// 0x004800c0
+int GetCustomStartTransform(rdMatrix44* out)
+{
+    if (swrSpline_finishNodeIdx < 0)
+        return 0;
+    *out = swrSpline_finishMatrix;
+    return 1;
 }
 
 // 0x004804a0

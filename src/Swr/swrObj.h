@@ -618,7 +618,7 @@ void swrModel_LoadBeamAndSparkModels(void);
 // Computes a racer's starting-grid spawn transform from the spline (4-3-4-3 grid).
 void swrObjJdge_GetSpawnTransform(swrObjJdge* judge, rdMatrix44* out, int gridIndex);
 // Spawns one racer: allocates the Test pod, sets up its models, and calls swrRace_Init.
-void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8);
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int riderModel, int lodBody, int lodSelector, int duplicatePods);
 // Places the starting-grid position nodes from the start-line transform.
 void swrObjJdge_SetupStartingGrid(swrObjJdge* judge);
 // Loads every racer's pod model and spawns all racers (random grid order).

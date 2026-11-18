@@ -4544,6 +4544,12 @@ void swrRace_TakeDamage(int player, int engineIndex, float amount)
     p->totalDamage += amount;
 }
 
+// 0x00475ad0
+void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int param_5, float* spawnTransform, int param_7, int param_8, int param_9, int param_10)
+{
+    HANG("TODO");
+}
+
 // 0x00476AC0
 void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2)
 {
