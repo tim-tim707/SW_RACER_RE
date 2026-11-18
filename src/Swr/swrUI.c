@@ -828,6 +828,21 @@ int swrUI_GetSelectedIndex(swrUI_unk* list)
     return -1;
 }
 
+// 0x00413770
+swrUI_unk* swrUI_GetSelectableItem(swrUI_unk* list, int index)
+{
+    swrUI_unk* item;
+
+    for (item = list->next; item != NULL; item = item->next2) {
+        if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
+            if (index == 0)
+                return item;
+            index--;
+        }
+    }
+    return NULL;
+}
+
 // 0x004137a0
 swrUI_unk* swrUI_GetSelectedItem(swrUI_unk* list)
 {
@@ -875,6 +890,22 @@ void swrUI_RefreshListSelection(swrUI_unk* list)
         index++;
         element = next;
     }
+}
+
+// 0x00413870
+void swrUI_RestoreListSelection(swrUI_unk* list)
+{
+    swrUI_unk* item;
+
+    item = swrUI_GetSelectableItem(list, list->selected_index);
+    if (item == NULL) {
+        if (list->selected_text == NULL)
+            return;
+        item = swrUI_FindChildByText(list, list->selected_text);
+        if (item == NULL)
+            return;
+    }
+    swrUI_SelectListItem(item, 1);
 }
 
 // 0x004138b0
@@ -3992,7 +4023,20 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swr
 // 0x004206b0
 int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
-    HANG("TODO");
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param_3 != NULL) {
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrMultiplayer_SetRacerListDisplay(1, 10, 0x78);
+            swrMultiplayer_racerListPageActive = 1;
+            swrMultiplayer_PopulateRacerList();
+        } else {
+            swrMultiplayer_SetRacerListDisplay(0, 0, 0);
+            swrMultiplayer_racerListPageActive = 0;
+        }
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED && (int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+        swrUI_PopMenuPage();
+    }
+    return 0;
 }
 
 // 0x00420930

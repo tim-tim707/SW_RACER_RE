@@ -331,6 +331,12 @@ void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
     swrUI_DisableElement(button);
 }
 
+// 0x00420cc0
+void swrMultiplayer_PopulateRacerList(void)
+{
+    HANG("TODO");
+}
+
 // 0x00420f70
 int swrMultiplayer_IsPlayerActive(int playerIndex)
 {
