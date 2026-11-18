@@ -1054,6 +1054,12 @@ void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5,
     HANG("TODO");
 }
 
+// 0x00484130
+void swrSprite_ResetDirtyRects(void)
+{
+    swrSprite_dirtyRectCount = 0;
+}
+
 // 0x00484020
 void swrSprite_AddDirtyRect(short x1, short y1, short x2, short y2)
 {

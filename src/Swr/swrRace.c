@@ -825,6 +825,12 @@ void swrRace_OpenInRaceMenu(void)
     swrRace_inRaceMenuStateStack[swrRace_inRaceMenuStackDepth] = swrRace_INRACEMENU_ESC;
 }
 
+// 0x004376b0
+int swrRace_GetLensFlareEnabled(void)
+{
+    return swrConfig_VIDEO_LENSFLARE;
+}
+
 // 0x0042adf0
 int swrRace_GetInRaceMenuResult(void)
 {

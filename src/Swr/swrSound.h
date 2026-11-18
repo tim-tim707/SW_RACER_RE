@@ -85,7 +85,7 @@
 // Reset the mixer: reset all channels and re-arm swrSound_Update.
 #define swrSound_Reset_ADDR (0x00449d60)
 // Conditionally store an int(double) value read elsewhere; gated on init (best guess).
-#define swrSound_SetListenerTime_Maybe_ADDR (0x00449d70)
+#define swrSound_SetMasterGain_ADDR (0x00449d70)
 // Zero the requested-voice volume of, and rewind, the channel playing soundId.
 #define swrSound_StopVoiceById_ADDR (0x00449da0)
 #define swrSound_ResetChannel_ADDR (0x00449e00)
@@ -271,7 +271,7 @@ void swrSound_PreloadSoundSet(int scenario, int track);
 void swrSound_Reset(void);
 
 // Conditionally store an int(double) value gated on init (best guess, low confidence).
-void swrSound_SetListenerTime_Maybe(double value);
+void swrSound_SetMasterGain(float gain);
 
 // Stop the channel playing soundId: zero its requested-voice volume and rewind it.
 void swrSound_StopVoiceById(int soundId);

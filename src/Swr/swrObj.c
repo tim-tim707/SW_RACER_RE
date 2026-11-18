@@ -12344,16 +12344,98 @@ void swrScene_InitFog(void)
     SetFogParameters(996, 1000, 0xff, 0xff, 0xff, 0xff);
 }
 
+// 0x00449040
+void swrScene_InitWorld(void)
+{
+    assetBuffer = (char*)malloc(SWR_ASSET_BUFFER_SIZE_RETAIL);
+    assetBufferEnd = assetBuffer + SWR_ASSET_BUFFER_SIZE_RETAIL;
+    swrAssetBuffer_initialBase = assetBuffer;
+    // the original clears slots 1..9 and swrViewport_frameParity as one 10-dword block
+    for (int slot = 1; slot <= SWR_ASSET_BUFFER_MAX_INDEX; slot++)
+        (&assetBuffer)[slot] = NULL;
+    swrViewport_frameParity = 0;
+    swrScene_LoadObjects();
+    swrScene_InitFog();
+    swrAssetBuffer_CheckOverflow();
+}
+
 // 0x00449090
 void swrScene_Stub_Maybe(void)
 {
     // the original only loads a global into a dead local
 }
 
+// 0x004490a0
+void swrScene_InitCameras(void)
+{
+    short index;
+
+    swrCam_CamState_InitMatrices();
+    for (int i = 0; i < SWR_SCENE_FIXED_CAMERA_COUNT; i++)
+        swrCam_CamState_InitMainMat4(i, 1, &swrCam_fixedCameraMatrices[i], 0);
+
+    for (index = SWR_SCENE_CMAN_CAMERA_BASE; index < SWR_CAM_STATE_COUNT; index++) {
+        int id = index - SWR_SCENE_CMAN_CAMERA_BASE;
+        if (id >= swrEvent_GetEventCount('cMan'))
+            break;
+        swrObjcMan* cman = (swrObjcMan*)swrEvent_FindObjectById('cMan', id);
+        swrCam_CamState_InitMainMat4(index, 3, &cman->unk20_mat, 0);
+        swrCam_CamState_SetOffsetSource(index, &cman->focusTransform_mat, 0);
+        swrCam_CamState_SetOffset(index, 0, 0, 0, 0, 0, 0);
+        cman->camStateIndex = index;
+    }
+    swrViewport_SetActiveCamera(8);
+}
+
 // 0x00449260
 void swrScene_ClearTextureAnim_Maybe(void)
 {
-    swrScene_textureScrollState[1] = 0;
+    swrScene_textureScrollState->destPalette = NULL;
+}
+
+// 0x00449270
+void swrScene_UpdateTextureScroll_Maybe(void)
+{
+    swrScene_PaletteScroll* scroll = swrScene_textureScrollState;
+    int steps = 0;
+
+    scroll->timer = (float)(scroll->timer - swrRace_deltaTimeSecs);
+    while (scroll->timer < 0.0f) {
+        steps++;
+        scroll->timer = scroll->period + scroll->timer;
+    }
+    if (scroll->destPalette == NULL || steps <= 0)
+        return;
+    for (int i = 0; i < scroll->count; i++) {
+        scroll->phase[i] = (uint8_t)((steps + scroll->phase[i]) % scroll->paletteSize);
+        scroll->destPalette[scroll->destIndex[i]] = scroll->srcPalette[scroll->phase[i]];
+    }
+}
+
+// 0x004834b0
+void swrScene_ResetRenderState(void)
+{
+    swrWeather_ResetParticles();
+    ResetSunAndLensFlareSprites();
+    ResetPlayerSpriteValues();
+    ResetLightStreakSprites();
+    ResetWorldSpriteCount_Maybe();
+    for (int i = 0; i < SWR_VIEWPORT_COUNT; i++)
+        swrViewport_Init(i);
+    swrViewport_Enable(0, 1);
+    swrViewport_SetViewport(0, 0, 0, 0x140, 0xf0);
+    swrViewport_SetViewport(1, 8, 8, 0x138, 0xe8);
+    swrViewport_active = &swrViewport_array[0];
+    if (GameSettingFlags & GAME_SETTING_UNK_400) {
+        swrViewport_Enable(1, 0);
+        swrViewport_SetViewport(1, 8, 8, 0x138, 0xe8);
+    }
+    swrViewport_active->flag &= ~swrViewport_FLAGS_CAMERA_VALID;
+    resetOverlayDrawQueues();
+    swrViewport_frameTriple = 0;
+    swrViewport_frameParity = 0;
+    rdMatrixStack_SetField_Maybe(3, 2);
+    rdMatrixStack_SetField_Maybe(5, 0);
 }
 
 // 0x004800c0

@@ -4267,6 +4267,13 @@ void swrUI_Front_LoadTrackFromId(swrRace_TRACK trackId, char* buffer, size_t len
     snprintf(buffer, len, "%s", str);
 }
 
+// 0x00420960
+void swrUI_Menu_MpForwardKeyToChat(swrUI_unk* page, int key)
+{
+    swrUI_unk* chat = swrUI_GetById(page, SWR_UI_ID_MP_CHAT_ENTRY);
+    swrUI_RunCallbacks(chat, swrUI_MSG_KEY_DOWN, key, 0);
+}
+
 // 0x0043b0b0
 void swrUI_Front_HandleCircuits(swrObjHang* hang)
 {

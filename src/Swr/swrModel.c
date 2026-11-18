@@ -1543,6 +1543,12 @@ void ResetLightStreakSprites()
         light_streak_valid[i] = 0;
 }
 
+// 0x0042c500
+void ResetWorldSpriteCount_Maybe(void)
+{
+    swrPlayerHUD_worldSpriteCount = 0;
+}
+
 // 0x0042C490
 void InitLightStreak(int index, rdVector3* position)
 {
@@ -2365,6 +2371,63 @@ int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
             if (0.0f <= (&n1.x)[axis] && 0.0f <= (&n2.x)[axis]) return 1;
         } else {
             if ((&n1.x)[axis] <= 0.0f && (&n2.x)[axis] <= 0.0f) return 1;
+        }
+    }
+    return 0;
+}
+
+// Same test as swrModel_PointInTriangle, but the |z| used to pick the dominant axis stays on the
+// FPU stack here, so the sign checks read the signed component on every axis.
+// 0x00480a70
+int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA)
+{
+    rdVector3 toA, toB, toC, faceN, n0, n1, n2;
+
+    toA.x = a[0] - origin[0];
+    toA.y = a[1] - origin[1];
+    toA.z = a[2] - origin[2];
+    toB.x = b[0] - origin[0];
+    toB.y = b[1] - origin[1];
+    toB.z = b[2] - origin[2];
+    toC.x = c[0] - origin[0];
+    toC.y = c[1] - origin[1];
+    toC.z = c[2] - origin[2];
+
+    rdVector_Cross3(&faceN, edgeAB, edgeBC);
+    if (faceN.x == 0.0f && faceN.y == 0.0f && faceN.z == 0.0f)
+        return 0;
+
+    rdVector_Cross3(&n0, &toA, edgeAB);
+    rdVector_Cross3(&n1, &toB, edgeBC);
+    rdVector_Cross3(&n2, &toC, edgeCA);
+
+    float ax = (n0.x < 0.0f) ? -n0.x : n0.x;
+    float ay = (n0.y < 0.0f) ? -n0.y : n0.y;
+    float az = (n0.z < 0.0f) ? -n0.z : n0.z;
+
+    if (az + ay + ax <= SWR_MODEL_TRI_CROSS_EPS) {
+        // n0 ~ 0 (point near vertex a): decide from n1's dominant axis against n2
+        ax = (n1.x < 0.0f) ? -n1.x : n1.x;
+        ay = (n1.y < 0.0f) ? -n1.y : n1.y;
+        az = (n1.z < 0.0f) ? -n1.z : n1.z;
+        if (az + ay + ax < SWR_MODEL_TRI_ON_EDGE_EPS)
+            return 1;
+        int axis = (ay <= ax) ? ((az <= ax) ? 0 : 2) : ((az <= ay) ? 1 : 2);
+        if (0.0 <= (&n1.x)[axis]) {
+            if (0.0f <= (&n2.x)[axis])
+                return 1;
+        } else {
+            if ((&n2.x)[axis] <= 0.0f)
+                return 1;
+        }
+    } else {
+        int axis = (ay <= ax) ? ((az <= ax) ? 0 : 2) : ((az <= ay) ? 1 : 2);
+        if (0.0 <= (&n0.x)[axis]) {
+            if (0.0f <= (&n1.x)[axis] && 0.0f <= (&n2.x)[axis])
+                return 1;
+        } else {
+            if ((&n1.x)[axis] <= 0.0f && (&n2.x)[axis] <= 0.0f)
+                return 1;
         }
     }
     return 0;
@@ -3441,6 +3504,26 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
 void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
 {
     sunSpriteColors[index * 4 + 3] = alpha;
+}
+
+// 0x004827b0
+int swrModel_NodeSelectLOD(swrModel_Node* node)
+{
+    swrModel_NodeLODSelector* lod = (swrModel_NodeLODSelector*)node;
+    int numChildren = swrModel_NodeGetNumChildren(node);
+    int i;
+
+    if (numChildren <= 0)
+        return -1;
+    if (lod->lod_distances[0] > SWR_MODEL_LOD_SELECT_DISTANCE)
+        return -1;
+    for (i = 1; i < SWR_MODEL_LOD_MAX; i++) {
+        if (lod->lod_distances[i] == -1.0f || !(lod->lod_distances[i] < SWR_MODEL_LOD_SELECT_DISTANCE))
+            break;
+    }
+    if (i - 1 >= numChildren)
+        return -1;
+    return i - 1;
 }
 
 // 0x00482e60

@@ -3317,6 +3317,22 @@ extern "C"
         char unk64[4]; // 0x64
     } swrFont; // sizeof(0x68)
 
+    // Palette-cycling record walked by swrScene_UpdateTextureScroll_Maybe (retail instance at 0x4c1c90).
+    // Every `period` seconds each of the `count` entries advances its phase by one (mod
+    // `paletteSize`) and copies srcPalette[phase] into destPalette[destIndex].
+    typedef struct swrScene_PaletteScroll
+    {
+        int unk00; // 0x00
+        uint16_t* destPalette; // 0x04 NULL disables the copy (swrScene_ClearTextureAnim_Maybe)
+        uint16_t* srcPalette; // 0x08
+        short paletteSize; // 0x0c phase modulus
+        float period; // 0x10 seconds per step
+        float timer; // 0x14 counts down by the frame delta, refilled by period
+        short count; // 0x18 entries in destIndex / phase
+        uint8_t* destIndex; // 0x1c destPalette slot per entry
+        uint8_t* phase; // 0x20 srcPalette index per entry
+    } swrScene_PaletteScroll; // sizeof(0x24)
+
     typedef struct TrackInfo
     {
         INGAME_MODELID trackID;

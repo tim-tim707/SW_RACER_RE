@@ -146,6 +146,7 @@
 
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
+#define SWR_SOUND_MASTER_GAIN_SCALE (32000.0f) // swrSound_SetMasterGain (0x004acb90)
 #define SWR_SOUND_EVICT_HEADROOM (0x19000) // swrSound_LoadSound: extra bytes freed beyond the new sample
 #define SWR_SOUND_EVICT_RECHECK_FRAMES (2) // swrSound_EvictSounds -> swrSound_evictRecheckFrames
 #define SWR_SOUND_EVICT_MAX_WRAPS (2) // swrSound_EvictSounds restarts the bank scan at most this many times
@@ -198,6 +199,10 @@
 #define SWR_SCENE_CMAN_COUNT (6) // 'cMan' objects swrScene_LoadObjects allocates
 #define SWR_SCENE_FOG_START (996) // swrScene_LoadObjects front-end fog range
 #define SWR_SCENE_FOG_END (1000)
+#define SWR_SCENE_FIXED_CAMERA_COUNT (10) // swrScene_InitCameras: camera states fed by swrCam_fixedCameraMatrices
+#define SWR_SCENE_CMAN_CAMERA_BASE (7) // first camera state taken over by a 'cMan' object
+#define SWR_CAM_STATE_COUNT (32) // unkCameraArray entries
+#define SWR_VIEWPORT_COUNT (4) // swrViewport_array entries
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
@@ -403,5 +408,12 @@
 // swrMultiplayer_PublishPodState (0x0041d930)
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
+
+// swrModel_NodeSelectLOD (0x004827b0): LOD picked as if viewed from this fixed distance (0x004ae078)
+#define SWR_MODEL_LOD_SELECT_DISTANCE (20.0f)
+#define SWR_MODEL_LOD_MAX (8) // swrModel_NodeLODSelector.lod_distances length
+// swrModel_PointInTriangle2 (0x00480a70): degenerate-cross thresholds on |x|+|y|+|z|
+#define SWR_MODEL_TRI_CROSS_EPS (1e-4f) // 0x004adfbc
+#define SWR_MODEL_TRI_ON_EDGE_EPS (0.001f) // 0x004adfc8
 
 #endif // ENGINE_CONFIG_H

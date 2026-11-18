@@ -348,7 +348,7 @@ g_pTxtTrackID_22 0x004c1430 char[1] # "/SCREENTEXT_519/~~Malastare 100"
 g_pTxtTrackID_23 0x004c1414 char[1] # "/SCREENTEXT_520/~~Dug Derby"
 g_pTxtTrackID_24 0x004c13f0 char[1] # "/SCREENTEXT_521/~~Sebulba's Legacy"
 
-swrScene_textureScrollState 0x004c1cb4 int* # -> scroll-anim record (0x4c1c90); [1] cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
+swrScene_textureScrollState 0x004c1cb4 swrScene_PaletteScroll* # -> scroll-anim record (0x4c1c90); destPalette cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
 upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 swrRace_defaultGravityScale 0x004c2590 float # 32.0; swrRace_ResetGravityDown sets gravityScale = this * 0.25
@@ -2111,3 +2111,8 @@ swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain
 swrSound_globalPreloadIds 0x004b9008 int[34] # bank ids preloaded for every scene by swrSound_PreloadSoundSet; -1 terminated
 swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx ids preloaded for every racer (swrSound_PreloadRacerSounds)
 swrSound_localRacerPreloadSfxIds 0x004b90c8 int[10] # extra category-1 sfx ids preloaded for local ('Locl') racers
+swrSound_masterGainScaled 0x004c2588 int = 32000 # swrSound_SetMasterGain: gain * 32000, written while sound is up; no readers
+swrAssetBuffer_initialBase 0x00e98234 char* # assetBuffer as first allocated by swrScene_InitWorld; only read into a dead local by swrScene_Stub_Maybe
+swrViewport_frameParity 0x00e98228 uint8_t # toggled 0/1 by swrViewport_AdvanceFrameParity_Maybe; cleared with the asset-buffer slots by swrScene_InitWorld
+swrViewport_frameTriple 0x00e98244 uint8_t # cycles 0..2 in swrViewport_AdvanceFrameParity_Maybe; read by swrPlayerHUD_RenderAllViewports
+swrCam_fixedCameraMatrices 0x00e99420 rdMatrix44[10] # matrix sources of camera states 0..9 (swrScene_InitCameras); cMan cameras take over 7+
