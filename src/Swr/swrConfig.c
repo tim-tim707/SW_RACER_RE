@@ -9,6 +9,7 @@
 #include "swrSound.h"
 
 #include <Swr/swrText.h>
+#include <Swr/swrUI.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -634,4 +635,28 @@ size_t swrConfig_Printf(char* format, ...)
     }
 
     return 1;
+}
+
+// 0x0040bbf0
+void swrConfig_RefreshVideoMenu(swrUI_unk* page)
+{
+    swrUI_SetChecked(swrUI_GetById(page, 0x62), swrConfig_VIDEO_REFLECTIONS);
+    swrUI_SetChecked(swrUI_GetById(page, 0x273b), swrConfig_VIDEO_LENSFLARE);
+    swrUI_SetChecked(swrUI_GetById(page, 0x273c), swrConfig_VIDEO_ENGINEEXHAUST);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x67), swrConfig_VIDEO_MODEL_DETAIL), 1);
+}
+
+// 0x0040c100
+void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page)
+{
+    swrUI_SetChecked(swrUI_GetById(page, 0x59), swrConfig_FORCE_ENABLED != 0 && Main_force_feedback != 0);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5a), swrConfig_FORCE_STRENGTH), 1);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5b), swrConfig_FORCE_AUTOCENTER), 1);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5c), swrConfig_FORCE_COLLISIONS), 1);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5d), swrConfig_FORCE_DAMAGE), 1);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5e), swrConfig_FORCE_TERRAIN), 1);
+    swrUI_SetChecked(swrUI_GetByValue(swrUI_GetById(page, 0x5f), swrConfig_FORCE_PODACTIONS), 1);
+    swrUI_SetChecked(swrUI_GetById(page, 0x60), swrConfig_FORCE_GFORCES);
+    swrUI_SetChecked(swrUI_GetById(page, 0x61), swrConfig_FORCE_ENGINERUMBLE);
+    swrConfig_AssignForceValues();
 }

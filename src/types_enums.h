@@ -409,6 +409,14 @@ typedef enum swrModel_NodeType
     NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
 } swrModel_NodeType;
 
+// swrModel_Node.flags_5, applied per node by rdModel_ApplyNodeSettings (and undone by RevertNodeSettings)
+typedef enum swrModel_NODEFLAGS5
+{
+    swrModel_NODEFLAGS5_MIRRORED = 0x1, // flips rdModel_mirroredWinding for the subtree (negative-determinant transform)
+    swrModel_NODEFLAGS5_LIGHT_INDEX = 0x4, // light_index selects the subtree's light set
+    swrModel_NODEFLAGS5_NO_FRUSTUM_CULL = 0x8, // clears rdModel_frustumCullEnabled for the subtree
+} swrModel_NODEFLAGS5;
+
 typedef enum swrModel_AnimationFlags
 {
     ANIMATION_LOOP = 0x10, // if set, the animation will loop when it reaches the end. otherwise it just stops there.

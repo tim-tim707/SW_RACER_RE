@@ -3435,3 +3435,10 @@ float swrModel_GetNodeYaw(swrModel_Node** nodes, swrModel_Animation** anims)
     swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[2], &xf);
     return stdMath_ArcTan2(-xf.vB.x, xf.vB.y);
 }
+
+// 0x00409270
+void swrModel_ResetRootMeshCounts(void)
+{
+    memset(swrModel_slotMeshCount, 0, sizeof(swrModel_slotMeshCount));
+    swr_rootModel_ptr->aGeos[0].numMeshes = 0;
+}

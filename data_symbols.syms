@@ -375,6 +375,9 @@ swrText_timedMessageAlpha 0x004c3e44 float
 swrObjcMan_preRaceSweepTimer 0x004c3ee8 float = -1.0 # -1 idle; pre-race camera sweep clock (swrObjcMan_UpdatePreRaceSweepTimer), binder ignition sfx at 6s
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
+rdModel_frustumCullEnabled 0x004c3b98 int # 1 by default; a swrModel_NODEFLAGS5_NO_FRUSTUM_CULL node clears it for its subtree so rdModel_AddMeshGroupToScene skips AABBFrustumTest
+rdModel_mirroredWinding 0x0050c6d0 int # seeded from the mirror-mode setting by rdModel_BuildAndDrawScene, toggled per swrModel_NODEFLAGS5_MIRRORED node
+rdModel_flatNormalsClearFlag 0x0050c0d0 int # zeroed by rdModel_SetForceFlatNormals_Maybe(nonzero); no reader in the retail binary
 numEnabledLights 0x00004C3BA0 int[12]
 
 rdModel_useModelTranslation 0x004c3c08 int # nonzero -> factor rdVector_model_translation out of the stack-top translation around the MVP concat (model-origin-relative precision)
