@@ -854,7 +854,7 @@ extern "C"
         swrSplineCursor camSweepCursor; // 0x134. cinematic camera path walker. swrObjJdge_F2 (+0x32) evaluates it into camSweepTransform while camSweepState != NULL; seeded by swrObjJdge_SetupTrackEnvironment, and left with a NULL spline on a track that has no camera path
         rdMatrix44 camSweepTransform; // 0x164. swrSpline_EvaluateToMatrix output for the sweep; reset to identity at 'Load'/'RSet'
         void* cam_spline;
-        int unk1a8;
+        struct swrModel_Animation* camSweepAnim; // 0x1a8 start-node animation the sweep is timed against (swrObjJdge_SetupTrackEnvironment)
         int planetId;
         int unk1b0_modelId;
         int unk1b4_splineId;
@@ -3235,7 +3235,8 @@ extern "C"
         int id;
         MODELID pod_modelID;
         MODELID pod_alt_modelID;
-        char unkc[8];
+        MODELID pod_lod_modelID; // 0xc low-detail pod for AI racers (swrObjJdge_SpawnRacers)
+        MODELID unk10_modelID; // 0x10 loaded by an unreachable SpawnRacers LOD class
         char* name;
         char* lastname;
         char unk1c[4];

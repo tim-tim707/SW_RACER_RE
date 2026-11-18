@@ -1360,6 +1360,8 @@ dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
 swrModel_beamTemplateNode 0x00e277e0 swrModel_Node* # beamanim_vlec root (swrModel_LoadBeamAndSparkModels); RecordLoadedModel_Maybe target for pod parts
 swrModel_sparkTemplateNode 0x00e28964 swrModel_Node* # first child of sparky_part's root (swrModel_LoadBeamAndSparkModels)
+swrObjJdge_duplicatePods 0x0050ca1c int # 1 when two racers in the race share a pod (swrObjJdge_SpawnRacers); passed to every swrObjJdge_SpawnRacer
+swrObjJdge_racerNameTags 0x00e27840 char[80] # per racer, 4 bytes: chars 2..4 of the translated pilot name + NUL (swrObjJdge_SpawnRacers)
 swrObjJdge_raceBufferStart 0x00e289a8 char* # asset-buffer cursor when swrObjJdge_InitTrack starts the race load
 swrObjJdge_raceBufferEnd 0x00e28a60 char* # asset-buffer cursor after the race load
 swrObjJdge_raceBufferFree 0x00e27894 int # swrAssetBuffer_RemainingSize after the race load

@@ -5748,7 +5748,7 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3)
         jdge->camSweepTransform.vD.z = 0.0f;
         jdge->camSweepTransform.vD.w = 1.0f;
         jdge->cam_spline = NULL;
-        jdge->unk1a8 = 0;
+        jdge->camSweepAnim = NULL;
         jdge->viewportMode = swrObjJdge_VIEWPORT_NONE;
         jdge->unk1e4 = 0.0f;
         jdge->hud_mode = swrObjJdge_HUDMODE_MINIMAP_FAR;
@@ -5980,7 +5980,173 @@ void* GetTrackModelRoot(void)
 // 0x00464b90
 void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model)
 {
-    HANG("TODO");
+    static const SPLINEID camSplines[8][4] = {
+        { SPLINEID_tatooine_mini_track6came, SPLINEID_tatooine_track7camm, -1, -1 }, { SPLINEID_planeta_track6came, SPLINEID_planeta_track7camm, SPLINEID_planeta_track8camh, SPLINEID_planeth_track6came }, { SPLINEID_planetb1_track6came, SPLINEID_planetb2_track7camm, SPLINEID_planetb3_track8camh, -1 }, { SPLINEID_planetc_track6came, SPLINEID_planetc_track7camm, SPLINEID_planetc_track8camh, -1 }, { SPLINEID_planetd1_track6came, SPLINEID_planetd2_track7camm, SPLINEID_planetd3_track8camh, SPLINEID_planeti_track6came }, { SPLINEID_planete1_track6came, SPLINEID_planete2_track7camm, SPLINEID_planete3_track8camh, -1 }, { SPLINEID_planetf_track6came, SPLINEID_planetf_track7camm, SPLINEID_planetf_track8camh, -1 }, { SPLINEID_planetj1_track6came, SPLINEID_planetj2_track7camm, SPLINEID_planetj3_track8camh, -1 },
+    };
+    swrModel_Header* header = (swrModel_Header*)model;
+    swrModel_Node* startNode = NULL;
+    swrModel_Animation* camAnim;
+    char* bufferBefore;
+    int fogStartDist;
+    int fogR = 0;
+    int fogG = 0;
+    int fogB = 0;
+
+    judge->cam_splineId = -1;
+    if (judge->planetId >= 0 && judge->planetId < 8 && judge->planet_track_number >= 0 && judge->planet_track_number < 4)
+        judge->cam_splineId = camSplines[judge->planetId][judge->planet_track_number];
+    judge->camSweepState = NULL;
+    if ((int)judge->cam_splineId < 0)
+        return;
+
+    bufferBefore = swrAssetBuffer_GetBuffer();
+    judge->cam_spline = swrSpline_LoadSplineById((char*)judge->cam_splineId);
+    swrObjJdge_splineBufferBytes += swrAssetBuffer_GetBuffer() - bufferBefore;
+
+    if (judge->planet_track_number == 0)
+        startNode = header->entries[3].node;
+    if (judge->planet_track_number == 1)
+        startNode = header->entries[4].node;
+    if (judge->planet_track_number == 2)
+        startNode = header->entries[5].node;
+    if (judge->planet_track_number == 3)
+        startNode = header->entries[3].node;
+    if (judge->cam_spline == NULL || startNode == NULL)
+        return;
+
+    judge->camSweepState = NULL;
+    judge->camSweepCursor.spline = judge->cam_spline;
+    judge->camSweepCursor.velocity = 0.0f;
+    judge->camSweepCursor.segmentT = 0.0f;
+    judge->camSweepCursor.tangentLength = 0.0f;
+    judge->camSweepCursor.endFlag = 0;
+    judge->camSweepCursor.startFlag = 0;
+    judge->camSweepCursor.branchSelector = 0;
+    judge->camSweepCursor.branchFlags = 0;
+    if (judge->camSweepCursor.spline != NULL)
+        swrSpline_CursorSeek(&judge->camSweepCursor, 0);
+    swrSpline_EvaluateAtOffset(&judge->camSweepCursor, &judge->camSweepTransform, 0.0f);
+
+    camAnim = NULL;
+    if (anims != NULL) {
+        for (; *anims != 0; anims++) {
+            if (((swrModel_Animation*)*anims)->node_ptr == (swrModel_NodeTransformed*)startNode) {
+                swrModel_AnimationClearFlags((swrModel_Animation*)*anims, 0x30);
+                camAnim = (swrModel_Animation*)*anims;
+            }
+        }
+    }
+    // the sweep walks the whole camera spline over the start node's animation
+    if (camAnim == NULL)
+        judge->camSweepCursor.velocity = 1.0f;
+    else
+        judge->camSweepCursor.velocity = ((float)(int)((swrSpline*)judge->cam_spline)->num_control_points - 1.0f) / camAnim->duration4;
+    swrCam_CamState_InitMainMat4(5, 2, &judge->camSweepTransform, 0);
+    swrCam_CamState_SetOffsetSource(5, startNode, 2);
+    judge->camSweepAnim = camAnim;
+
+    nearClipDistance = 5.0f;
+    drawDistance = 5000.0f;
+    fogStartDist = 0;
+    if (judge->planetId == 0) {
+        drawDistance = 4500.0f;
+        fogStartDist = 996;
+        fogR = 0xdc;
+        fogG = 0xea;
+        fogB = 0xe5;
+    }
+    if (judge->planetId == 1) {
+        drawDistance = 11000.0f;
+        fogStartDist = 996;
+        if (judge->planet_track_number == 3) {
+            fogR = 0xad;
+            fogG = 0xb9;
+            fogB = 0xc6;
+        } else {
+            fogR = 0xd2;
+            fogG = 0xd7;
+            fogB = 0xe1;
+        }
+    }
+    if (judge->planetId == 2) {
+        if (judge->planet_track_number == 0) {
+            drawDistance = 3500.0f;
+        } else if (judge->planet_track_number == 1) {
+            drawDistance = 3500.0f;
+            fogStartDist = 996;
+            fogR = 0x78;
+            fogG = 0x64;
+            fogB = 0x78;
+        } else if (judge->planet_track_number == 2) {
+            drawDistance = 11000.0f;
+        }
+    }
+    if (judge->planetId == 3) {
+        fogStartDist = 994;
+        fogR = 0x9a;
+        fogG = 0x81;
+        fogB = 0x81;
+        drawDistance = 11000.0f;
+    }
+    if (judge->planetId == 4) {
+        if (judge->planet_track_number == 3) {
+            drawDistance = 5000.0f;
+        } else if (judge->planet_track_number == 0) {
+            drawDistance = 5000.0f;
+            fogStartDist = 996;
+            fogR = 0xca;
+            fogG = 0xb7;
+            fogB = 0xc3;
+        } else if (judge->planet_track_number == 1 || judge->planet_track_number == 2) {
+            if (judge->planet_track_number == 1) {
+                drawDistance = 1200.0f;
+                fogStartDist = 992;
+                fogR = 0x9b;
+                fogG = 0x9a;
+                fogB = 0xa7;
+            } else {
+                drawDistance = 1500.0f;
+                fogStartDist = 990;
+                fogR = 0x5a;
+                fogG = 0x36;
+                fogB = 0x28;
+            }
+            if (someRootNodeChildNodes[0] != NULL)
+                swrModel_NodeModifyFlags(someRootNodeChildNodes[0], 2, -4, 0x10, 3);
+        }
+    }
+    if (judge->planetId == 5) {
+        fogR = 0xbe;
+        fogG = 0x37;
+        fogB = 0x0a;
+        if (judge->planet_track_number == 0) {
+            drawDistance = 8000.0f;
+            fogStartDist = 990;
+        } else if (judge->planet_track_number == 1) {
+            drawDistance = 2500.0f;
+            fogStartDist = 996;
+        } else if (judge->planet_track_number == 2) {
+            drawDistance = 4000.0f;
+            fogStartDist = 996;
+        }
+    }
+    if (judge->planetId == 6)
+        drawDistance = 11000.0f;
+    if (judge->planetId == 7) {
+        if (judge->planet_track_number == 1)
+            drawDistance = 2500.0f;
+        else if (judge->planet_track_number == 0 || judge->planet_track_number == 2)
+            drawDistance = 6000.0f;
+    }
+
+    if (fogStartDist == 0) {
+        rdModel_SetFogEnabled_Maybe(0);
+    } else {
+        rdModel_SetFogEnabled_Maybe(1);
+        SetFogParameters(fogStartDist, 1000, fogR, fogG, fogB, 0xff);
+        SetClearColor(fogR, fogG, fogB);
+    }
+    swrRender_frameClearFlags |= swrRender_FRAME_CLEAR_COLOR;
 }
 
 // 0x004651a0
@@ -6238,8 +6404,67 @@ void InitAISettingsForTrack(swrObjJdge* judge)
     }
 }
 
+static void swrObjJdge_PlaceGridMarkers(swrModel_Node** markers, int count, swrTranslationRotation* place, float stepX, float stepY)
+{
+    int i;
+
+    for (i = 0; i < count; i++) {
+        swrModel_NodeSetTransformFromTranslationRotation((swrModel_NodeTransformed*)markers[i], place);
+        place->translation.x -= stepX;
+        place->translation.y -= stepY;
+    }
+}
+
 // 0x00465d50
 void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
+{
+    swrTranslationRotation place;
+    rdMatrix44 gate;
+    rdMatrix44 finish;
+    float gateZ;
+
+    judge->unk80_mat = judge->camBaseMat;
+    if (GetCustomStartTransform(&finish) != 0) {
+        // open track: three markers at the start, three at the finish
+        judge->unkbc_mat = judge->camBaseMat;
+        judge->num_laps = 1;
+        rdMatrix_ExtractTransform(&judge->camBaseMat, &place);
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        place.translation.x = place.translation.x - judge->camBaseMat.vA.x * 10.0f;
+        place.translation.y = place.translation.y - judge->camBaseMat.vA.y * 10.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[0], 3, &place, judge->camBaseMat.vA.x * -10.0f, judge->camBaseMat.vA.y * -10.0f);
+
+        rdMatrix_ExtractTransform(&finish, &place);
+        place.translation.x = place.translation.x - finish.vA.x * 10.0f;
+        place.translation.y = place.translation.y - finish.vA.y * 10.0f;
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[3], 3, &place, finish.vA.x * -10.0f, finish.vA.y * -10.0f);
+        gate = finish;
+        gateZ = finish.vD.z;
+    } else {
+        rdMatrix_ExtractTransform(&judge->camBaseMat, &place);
+        place.translation.x = place.translation.x - judge->camBaseMat.vA.x * 25.0f;
+        place.translation.y = place.translation.y - judge->camBaseMat.vA.y * 25.0f;
+        place.yaw_roll_pitch.y = 0.0f;
+        place.yaw_roll_pitch.z = 0.0f;
+        swrObjJdge_PlaceGridMarkers(&judge->splineMarkers[0], 6, &place, judge->camBaseMat.vA.x * -10.0f, judge->camBaseMat.vA.y * -10.0f);
+        gate = judge->camBaseMat;
+        judge->unkbc_mat = judge->unk80_mat;
+        gateZ = judge->camBaseMat.vD.z;
+    }
+
+    gate.vD.z = gateZ - -22.0f;
+    rdMatrix_AddRotationFromVectorAngle44Before(&gate, 180.0f, 0.0f, 0.0f, 1.0f, &gate);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)judge->unk28_model, &gate);
+    swrModel_NodeSetColorsOnAllMaterials(judge->unk28_model, -1, -1, 0, 0xff, 0, 0);
+    if (judge->unk28_model != NULL)
+        swrModel_NodeModifyFlags(judge->unk28_model, 2, 3, 0x10, 2);
+}
+
+// 0x00465980
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8)
 {
     HANG("TODO");
 }
@@ -6247,7 +6472,124 @@ void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
 // 0x004663e0
 void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores)
 {
-    HANG("TODO");
+    int lodNode[SWR_MAX_RACERS];
+    int spawnOrder[SWR_MAX_RACERS];
+    int podHeader[SWR_MAX_RACERS];
+    int lodNode2[SWR_MAX_RACERS];
+    int riderHeader[SWR_MAX_RACERS]; // faithful: only written on the full-LOD path, garbage otherwise
+    int aiSlot[SWR_MAX_RACERS];
+    swrRacerData* racer;
+    swrRacerData* other;
+    swrModel_Header* header;
+    swrModel_Header* rider;
+    char* name;
+    int duplicatePods;
+    int lodClass;
+    int i;
+    int j;
+    int pick;
+    int slot;
+
+    swrObjJdge_testObjBufferBytes = (int)swrAssetBuffer_GetBuffer();
+    swrEvent_AllocateAndLoadObjs('Test', judge->num_players);
+    swrEvent_FreeObjs('Test');
+    swrObjJdge_testObjBufferBytes = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_testObjBufferBytes;
+    memset(swrObjJdge_racerBufferBytes, 0, sizeof(swrObjJdge_racerBufferBytes));
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_racerNameTags[i * 4] = 0;
+
+    duplicatePods = 0;
+    for (i = 0; i < judge->num_players; i++) {
+        for (j = 0; j < judge->num_players; j++) {
+            if (i != j && *scores[i].pilotId == *scores[j].pilotId)
+                duplicatePods = 1;
+        }
+    }
+    swrObjJdge_duplicatePods = duplicatePods;
+
+    for (i = 0; i < judge->num_players; i++) {
+        racer = (swrRacerData*)scores[i].pilotId;
+        swrObjJdge_racerBufferBytes[i] = (int)swrAssetBuffer_GetBuffer();
+        swrObjJdge_racerNameTags[i * 4] = swrText_Translate(racer->name)[2];
+        swrObjJdge_racerNameTags[i * 4 + 1] = swrText_Translate(racer->name)[3];
+        swrObjJdge_racerNameTags[i * 4 + 2] = swrText_Translate(racer->name)[4];
+        swrObjJdge_racerNameTags[i * 4 + 3] = 0;
+
+        // 1 = full pod + rider, 2 = full pod (split screen), 3 = low-detail pod
+        lodClass = 3;
+        if (scores[i].identifier == 'Locl')
+            lodClass = (numLocalPlayers > 1) + 1;
+        if ((judge->flag & 0x20) != 0)
+            lodClass = 1;
+        else if (numLocalPlayers == 0)
+            lodClass = 3;
+
+        if (lodClass == 2 || lodClass == 1) {
+            lodNode[i] = 0;
+            lodNode2[i] = 0;
+            header = swrModel_LoadFromId(racer->pod_modelID);
+            podHeader[i] = (int)header;
+            if (header == NULL) {
+                judge->num_players = i;
+                lowMemoryRacerCount = i;
+            } else if (lodClass == 1 && (int)racer->pod_alt_modelID >= 0) {
+                rider = swrModel_LoadFromId(racer->pod_alt_modelID);
+                riderHeader[i] = (int)rider;
+                if (rider == NULL) {
+                    judge->num_players = i;
+                    lowMemoryRacerCount = i;
+                } else {
+                    swrModel_FixupAltNodePointers((int*)header, (int*)rider);
+                }
+            }
+        } else if (lodClass == 3) {
+            podHeader[i] = 0;
+            lodNode2[i] = 0;
+            lodNode[i] = 0;
+            header = swrModel_LoadFromId(racer->pod_lod_modelID);
+            if (header != NULL) {
+                lodNode[i] = header->entries[0].value;
+                lodNode2[i] = header->entries[1].value;
+            }
+        } else if (lodClass == 4) {
+            podHeader[i] = 0;
+            lodNode2[i] = 0;
+            lodNode[i] = 0;
+            header = swrModel_LoadFromId(racer->unk10_modelID);
+            if (header != NULL) {
+                lodNode2[i] = 0;
+                lodNode[i] = header->entries[0].value;
+            }
+        }
+        swrObjJdge_racerBufferBytes[i] = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_racerBufferBytes[i];
+    }
+
+    for (i = 0; i < judge->num_players; i++)
+        spawnOrder[i] = -1;
+    for (i = 0; i < judge->num_players; i++) {
+        // pick the n-th still-free grid slot, n uniform in [0, remaining)
+        pick = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * (judge->num_players - i));
+        slot = -1;
+        while (pick >= 0) {
+            slot++;
+            if (spawnOrder[slot] == -1)
+                pick--;
+        }
+        spawnOrder[slot] = i;
+    }
+
+    slot = 1;
+    for (i = 0; i < judge->num_players; i++) {
+        if ((scores[i].flag & 0x20) == 0 && scores[i].identifier != 'Locl')
+            aiSlot[i] = slot++;
+        else
+            aiSlot[i] = -1;
+    }
+
+    for (i = 0; i < judge->num_players; i++) {
+        j = spawnOrder[i];
+        swrObjJdge_SpawnRacer(judge, &scores[j], aiSlot[j], (void*)podHeader[j], riderHeader[j], lodNode[j], lodNode2[j], duplicatePods);
+    }
 }
 
 // 0x00466BD0
@@ -10005,6 +10347,15 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 void swrScene_ClearTextureAnim_Maybe(void)
 {
     swrScene_textureScrollState[1] = 0;
+}
+
+// 0x004800c0
+int GetCustomStartTransform(rdMatrix44* out)
+{
+    if (swrSpline_finishNodeIdx < 0)
+        return 0;
+    *out = swrSpline_finishMatrix;
+    return 1;
 }
 
 // 0x004804a0
