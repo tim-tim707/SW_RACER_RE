@@ -416,6 +416,7 @@ swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; s
 swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCameraAssignments_Maybe; no reader in the retail binary
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
+swrSprite_drawStateWord 0x004c3db8 int # low 16 bits of the swrSprite_SetDrawStateWord_Maybe argument; no reader found
 maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
@@ -590,6 +591,7 @@ swrMultiplayer_chatCaret 0x004eb1c4 int # caret index into swrMultiplayer_chatIn
 
 multiplayer_isHost 0x004eb1c8 int
 multiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
+swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' when a net race ends
 
 swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetRacerListDisplay)
 swrMultiplayer_networkTick 0x004eb1e0 int
@@ -977,6 +979,7 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
+swrObjJdge_boostHintBlinkCounter 0x0050ca58 int # frame toggle for the first-track "Boost" hint in swrObjJdge_DrawSpeedDialHud_Maybe
 
 swrObjJdge_unkCa0c 0x0050ca0c int
 

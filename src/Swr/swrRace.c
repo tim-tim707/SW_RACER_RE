@@ -3546,7 +3546,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 
     if (1 < numLocalPlayers && isPlayer2 == 0)
         dialY = 0x36;
-    swrObjJdge_DrawSpeedDialHud_Maybe((int)jdge, (int)pod, 0xe1, (short)dialY, isPlayer2);
+    swrObjJdge_DrawSpeedDialHud_Maybe(jdge, pod, 0xe1, (short)dialY, isPlayer2);
     if (swrRace_DebugLevel != 0 && assetBufferOverflow != 0)
         swrText_CreateTextEntry1(0xa0, 0x14, -1, 0, 0, -1, "~c~oZOT");
 }
@@ -4147,6 +4147,53 @@ void swrRace_UpdateAutopilotControl(swrRace* player)
             return;
         }
         swrRace_Tilt(player, 0.0f);
+    }
+}
+
+// 0x0046bc50
+void swrRace_GetBoostBarColor(swrRace* pod, uint8_t* outRgb, uint8_t* outRgba, float* outFill)
+{
+    outRgb[0] = 0;
+    outRgb[1] = 0xff;
+    outRgb[2] = 0;
+    outRgba[0] = 0xff;
+    outRgba[1] = 0xff;
+    outRgba[2] = 0xff;
+    outRgba[3] = 100;
+    *outFill = 0.0f;
+    switch (pod->boostIndicatorStatus) {
+    case 0:
+        outRgb[0] = 0;
+        outRgb[1] = 0xff;
+        outRgb[2] = 0;
+        outRgba[0] = 0xff;
+        outRgba[1] = 0xff;
+        outRgba[2] = 0xff;
+        outRgba[3] = 100;
+        *outFill = pod->speedValue / (pod->podStats.maxSpeed * 0.75);
+        if (*outFill > 1.0f)
+            *outFill = 1.0f;
+        break;
+    case 1:
+        outRgb[0] = 0;
+        outRgb[1] = 0xff;
+        outRgb[2] = 0;
+        outRgba[0] = 0xff;
+        outRgba[1] = 0x80;
+        outRgba[2] = 0;
+        outRgba[3] = 200;
+        *outFill = pod->boostChargeTimer;
+        break;
+    case 2:
+        outRgb[0] = 0xff;
+        outRgb[1] = 0xff;
+        outRgb[2] = 0;
+        outRgba[0] = 0xff;
+        outRgba[1] = 0x80;
+        outRgba[2] = 0;
+        outRgba[3] = 200;
+        *outFill = 1.0f;
+        break;
     }
 }
 

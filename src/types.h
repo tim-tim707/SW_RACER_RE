@@ -866,8 +866,7 @@ extern "C"
         float countdownTimer_ms; // 0x1cc. pre-race countdown timer; loaded from race config and counted down in F0 state 1; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
-        int unk1d8;
-        int unk1dc;
+        float boostLightLevel[2]; // 0x1d8. per local player boost-ready light, ramps 0..1 at 4/s while CAN_CHARGE_BOOST (swrObjJdge_DrawSpeedDialHud_Maybe)
         int viewportMode; // 0x1e0. swrObjJdge_VIEWPORT, consumed by swrObjJdge_UpdateViewportLayout
         float unk1e4;
     } swrObjJdge; // sizeof(0x1e8)

@@ -195,7 +195,7 @@ typedef enum swrObjElmo_KIND
     swrObjElmo_KIND_WATTO = 3,
     swrObjElmo_KIND_DEWBACK = 4,
     swrObjElmo_KIND_RONTO = 5,
-    swrObjElmo_KIND_UNUSED_6 = 6, // never loaded in retail; SetAnimState and UpdateMovement skip it
+    swrObjElmo_KIND_HOLO_PROJECTOR = 6, // hangar holo projector (swrObjHang_LoadRoomModels); SetAnimState and UpdateMovement skip it
     swrObjElmo_KIND_BARTENDER = 7,
     swrObjElmo_KIND_C3PO = 8,
     swrObjElmo_KIND_JARJAR = 9,

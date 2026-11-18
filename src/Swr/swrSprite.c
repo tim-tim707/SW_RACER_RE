@@ -963,6 +963,12 @@ void swrSprite_InitDrawing()
     swrSprite_SetViewport(0, swrDisplay_screenWidth - 1, 0, swrDisplay_screenHeight - 1);
 }
 
+// 0x0044f630
+void swrSprite_SetDrawStateWord_Maybe(unsigned int value)
+{
+    swrSprite_drawStateWord = value & 0xffff;
+}
+
 // 0x0044F640
 void swrSprite_GetUIScale(float* out_xscale, float* out_yscale)
 {

@@ -1383,6 +1383,33 @@ int swrSound_UnloadSound(swrSoundDescriptor* entry)
     return 1;
 }
 
+// 0x00422da0
+void swrSound_UnloadAll(void)
+{
+    char* bank = (char*)swrSound_bank;
+    swrSoundDescriptor* entry = *(swrSoundDescriptor**)(bank + 0x28);
+
+    if (entry != NULL) {
+        for (unsigned int i = 0; i < *(uint32_t*)(bank + 0x20); i++, entry++) {
+            if ((entry->flags & swrSoundDescriptor_LOADED) == 0)
+                continue;
+            if (Main_sound_unk == 0) {
+                if ((entry->flags & swrSoundDescriptor_DUPLICATE) == 0) {
+                    swrSound_UnloadSound(entry);
+                    continue;
+                }
+            } else {
+                swrSound_UnloadSound(entry);
+            }
+            entry->flags &= ~swrSoundDescriptor_DUPLICATE;
+        }
+    }
+    for (int i = 0; i < 8; i++) {
+        swrSound_ResetChannel(&swrSound_voicesLive[i]);
+        swrSound_ResetChannel(&swrSound_voicesRequested[i]);
+    }
+}
+
 // 0x0044a930
 float swrSound_GetSoundLengthSeconds(int soundId)
 {
