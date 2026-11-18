@@ -2252,6 +2252,12 @@ float swrRace_RaycastModel(swrModel_Node* model, float* ray, rdVector3* outHit, 
     return swrModel_collisionResultDist;
 }
 
+// 0x00441010
+void swrModel_SetRaycastIgnoreFacing(int value)
+{
+    swrModel_collisionForceBothFaces = value;
+}
+
 // Clears the collision-query "hit node" result before a ray query (the query latches it on hit).
 // 0x00441020
 void swrRace_ResetCollisionHit(void)
@@ -3058,17 +3064,6 @@ void swrRace_SaveCurrentProfile(void)
     swrRace_CopyProfileToSave(0, 0);
     swrRace_SaveGameData();
     swrRace_SaveProfile(swrRace_saveData.profiles[0].name);
-}
-
-// 0x0044e5a0
-void swrRace_GetProfileRecordVec3_Maybe(int base, int index, float* out3)
-{
-    float* rec;
-
-    rec = (float*)(*(int*)(base + 0xc) + index * 0x54 + 0x10);
-    out3[0] = rec[0];
-    out3[1] = rec[1];
-    out3[2] = rec[2];
 }
 
 // 0x004550d0
@@ -7718,6 +7713,130 @@ void swrRace_PlayEngineSounds(swrRace* player, float gain)
     }
 }
 
+// Engine-side tilt envelope: 0 outside [0, 2], ramps up to 1 and back down.
+static float engineTiltEnvelope(float tilt)
+{
+    if (tilt < 0.0f || tilt > 2.0f)
+        return 0.0f;
+    if (tilt > 1.0f)
+        return 2.0f - tilt;
+    return tilt;
+}
+
+// 0x0046dcd0
+void swrRace_TiltEngines(swrRace* player)
+{
+    float target = 0.0f;
+    if (player->pitch < 0.0f)
+        target = player->pitch * -15.0f;
+    if (player->speedValue < 100.0f)
+        target = 0.0f;
+    float tilt = player->tiltAngle * 0.022222223f;
+    float smoothed = (target - player->engineTiltSmoothed) * 0.1f + player->engineTiltSmoothed;
+    player->engineTiltSmoothed = smoothed;
+    float right = engineTiltEnvelope(tilt);
+    float left = engineTiltEnvelope(-tilt);
+    float angleRight = (right * 0.5f + 1.0f) * smoothed;
+    float angleLeft = (left * 0.5f + 1.0f) * smoothed;
+    float lift = smoothed * 0.01f;
+    if (player->partNodes[1] != NULL) {
+        rdMatrix_AddRotationFromVectorAngle44Before(&player->engineXfR, angleRight, 1.0f, 0.0f, 0.0f, &player->engineXfR);
+        player->engineXfR.vD.z = lift + player->engineXfR.vD.z;
+    }
+    if (player->partNodes[2] != NULL) {
+        rdMatrix_AddRotationFromVectorAngle44Before(&player->engineXfL, angleLeft, 1.0f, 0.0f, 0.0f, &player->engineXfL);
+        player->engineXfL.vD.z = lift + player->engineXfL.vD.z;
+    }
+}
+
+// 0x0046e2c0
+void swrRace_AnimateEngineWobble(swrRace* player)
+{
+    rdVector3 push;
+    rdVector3 toPod;
+    float sinPhase;
+    float cosPhase;
+    // retail reads these uninitialized when the matching main engine node is missing
+    float bobRight = 0.0f;
+    float bobLeft;
+
+    if (player->partNodes == NULL)
+        return;
+    int pilot = *player->score_ptr->pilotId;
+    for (int i = 0; i < 4; i++)
+        player->wobblePhase[i] = (float)(swrRace_deltaTimeSecs + player->wobblePhase[i]);
+    if ((player->flags0 & swrObjTest_FLAG0_HIT_BOTTOM) != 0)
+        player->wobbleAmplitude = 1.0f;
+    // grows below 200 speed, decays above it
+    if (player->speedValue > 200.0f)
+        player->wobbleAmplitude = (float)(player->wobbleAmplitude - swrRace_deltaTimeSecs * 0.5f);
+    else
+        player->wobbleAmplitude = (float)(player->wobbleAmplitude - swrRace_deltaTimeSecs * -0.5f);
+    if (player->wobbleAmplitude < 0.4f)
+        player->wobbleAmplitude = 0.4f;
+    else if (player->wobbleAmplitude > 1.0f)
+        player->wobbleAmplitude = 1.0f;
+
+    // collision push direction; engines on the struck side are shoved along it
+    push.x = player->velocityCollision.x + player->velocityCollisionOpponent.x;
+    push.y = player->velocityCollision.y + player->velocityCollisionOpponent.y;
+    push.z = player->velocityCollision.z + player->velocityCollisionOpponent.z;
+    float pushSq = push.x * push.x + push.y * push.y + push.z * push.z;
+    // pushSq doubles as the left bob when there is no left engine
+    bobLeft = pushSq;
+    if (pushSq > 0.5f) {
+        rdVector_Normalize3Acc(&push);
+    } else {
+        push.x = 0.0f;
+        push.y = 0.0f;
+        push.z = 0.0f;
+    }
+
+    float amplitude = player->wobbleAmplitude * 0.4f;
+    if (player->partNodes[1] != NULL) {
+        stdMath_SinCos(player->wobblePhase[0] * 72.0f, &sinPhase, &cosPhase);
+        rdVector_Scale3Add3((rdVector3*)&player->engineXfR.vD, (rdVector3*)&player->engineXfR.vD, sinPhase * amplitude, (rdVector3*)&player->engineXfR.vC);
+        if (player->engineXfR.vA.y * push.y + player->engineXfR.vA.x * push.x + player->engineXfR.vA.z * push.z < 0.0f)
+            rdVector_Scale3Add3((rdVector3*)&player->engineXfR.vD, (rdVector3*)&player->engineXfR.vD, pushSq / (pushSq + 30.0f), &push);
+        bobRight = sinPhase * amplitude;
+    }
+    amplitude = player->wobbleAmplitude * 0.4f;
+    if (player->partNodes[2] != NULL) {
+        stdMath_SinCos(player->wobblePhase[1] * 79.200005f, &sinPhase, &cosPhase);
+        rdVector_Scale3Add3((rdVector3*)&player->engineXfL.vD, (rdVector3*)&player->engineXfL.vD, sinPhase * amplitude, (rdVector3*)&player->engineXfL.vC);
+        if (player->engineXfL.vA.x * push.x + player->engineXfL.vA.y * push.y + player->engineXfL.vA.z * push.z > 0.0f)
+            rdVector_Scale3Add3((rdVector3*)&player->engineXfL.vD, (rdVector3*)&player->engineXfL.vD, pushSq / (pushSq + 30.0f), &push);
+        bobLeft = sinPhase * amplitude;
+    }
+    amplitude = player->wobbleAmplitude * 0.2f;
+    if (player->partNodes[5] != NULL) {
+        stdMath_SinCos(player->wobblePhase[2] * 86.4f, &sinPhase, &cosPhase);
+        rdVector_Scale3Add3((rdVector3*)&player->cockpitXf.vD, (rdVector3*)&player->cockpitXf.vD, sinPhase * amplitude, (rdVector3*)&player->cockpitXf.vC);
+    }
+    if (player->partNodes[3] != NULL)
+        rdVector_Scale3Add3((rdVector3*)&player->engineXfR2.vD, (rdVector3*)&player->engineXfR2.vD, (bobRight + bobRight + bobLeft) * 0.5f, (rdVector3*)&player->engineXfR2.vC);
+    if (player->partNodes[4] != NULL)
+        rdVector_Scale3Add3((rdVector3*)&player->engineXfL2.vD, (rdVector3*)&player->engineXfL2.vD, (bobLeft + bobLeft + bobRight) * 0.5f, (rdVector3*)&player->engineXfL2.vC);
+    swrRace_TiltEngines(player);
+    swrRace_AnimateSpinoutEngines(player);
+    if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+        return;
+
+    // keep the cockpit within its tether length of the pod origin
+    float tether = swrRacer_PodVisualData[pilot].hoverPadOffsetA.y * 1.5f;
+    if (tether < 0.0f)
+        tether = -tether;
+    if (player->partNodes[5] == NULL)
+        return;
+    toPod.x = player->transform.vD.x - player->cockpitXf.vD.x;
+    toPod.y = player->transform.vD.y - player->cockpitXf.vD.y;
+    toPod.z = player->transform.vD.z - player->cockpitXf.vD.z;
+    if (tether * tether < toPod.x * toPod.x + toPod.y * toPod.y + toPod.z * toPod.z) {
+        float dist = rdVector_Normalize3Acc(&toPod);
+        rdVector_Scale3Add3((rdVector3*)&player->cockpitXf.vD, (rdVector3*)&player->cockpitXf.vD, dist - tether, &toPod);
+    }
+}
+
 // 0x0046dea0
 void swrRace_AnimateSpinoutEngines(swrRace* player)
 {
@@ -7990,8 +8109,220 @@ void swrRace_UpdateScrapeSparks(swrRace* player)
     }
 }
 
+// Index of the transform recorded `lag` frames before the newest one.
+static int podHistoryIndex(int writeIdx, int lag)
+{
+    int index = writeIdx - lag;
+    if (index < 0)
+        index += ((unsigned int)(SWR_POD_TRANSFORM_HISTORY - 1 - index) / SWR_POD_TRANSFORM_HISTORY) * SWR_POD_TRANSFORM_HISTORY;
+    return index;
+}
+
+// Blend a lagged pod frame toward the current one and re-orthonormalize it.
+static void podBlendHistoryFrame(rdMatrix44* lagged, const rdMatrix44* current, float weight)
+{
+    rdVector_Scale3Add3((rdVector3*)&lagged->vA, (rdVector3*)&lagged->vA, weight, (rdVector3*)&current->vA);
+    rdVector_Scale3Add3((rdVector3*)&lagged->vB, (rdVector3*)&lagged->vB, weight, (rdVector3*)&current->vB);
+    rdVector_Scale3Add3((rdVector3*)&lagged->vC, (rdVector3*)&lagged->vC, weight, (rdVector3*)&current->vC);
+    rdVector_Cross3((rdVector3*)&lagged->vA, (rdVector3*)&lagged->vB, (rdVector3*)&lagged->vC);
+    rdVector_Cross3((rdVector3*)&lagged->vC, (rdVector3*)&lagged->vA, (rdVector3*)&lagged->vB);
+    rdVector_Normalize3Acc((rdVector3*)&lagged->vA);
+    rdVector_Normalize3Acc((rdVector3*)&lagged->vB);
+    rdVector_Normalize3Acc((rdVector3*)&lagged->vC);
+}
+
+// Move a pod-local offset into the frame of `pod` and add it to m's translation.
+static void podAddLocalOffset(rdMatrix44* m, const rdMatrix44* pod, float x, float y, float z)
+{
+    rdVector_Scale3Add3((rdVector3*)&m->vD, (rdVector3*)&m->vD, x, (rdVector3*)&pod->vA);
+    rdVector_Scale3Add3((rdVector3*)&m->vD, (rdVector3*)&m->vD, y, (rdVector3*)&pod->vB);
+    rdVector_Scale3Add3((rdVector3*)&m->vD, (rdVector3*)&m->vD, z, (rdVector3*)&pod->vC);
+}
+
 // 0x00470ae0
 void swrRace_PoddAnimateEngines(swrRace* player)
 {
-    HANG("TODO");
+    rdMatrix44 podXf;
+    rdMatrix44 lagEngines;
+    rdMatrix44 lagCockpit;
+    rdMatrix44 m;
+    rdVector3 offset;
+    rdVector3 lagDelta;
+    rdVector3 springTarget;
+    rdVector3 springPos;
+    int hasSecondEngines = 0;
+    int isFused = 0;
+    // only read while swrObjJdge_splitscreenActive is set
+    int localPlayer = -1;
+    swrModel_Node* node;
+
+    rdMatrix_Copy44(&podXf, &player->transform);
+    if (swrRace_creditsMode != 0)
+        player->flags0 |= swrObjTest_FLAG0_POD_HIDDEN;
+    int hidden = player->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD);
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEBUG_KEYS) != 0 && swrRace_DebugLevel != 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1000) != 0)
+        hidden = 1;
+    if (swrObjJdge_splitscreenActive != 0) {
+        if (NumLocalPlayers() == 0)
+            localPlayer = -1;
+        else
+            localPlayer = GetLocalPlayerNumberFromScore(player->score_ptr);
+    }
+
+    if (player->partNodes == NULL) {
+        rdMatrix_ScaleBasis44(&player->farLodPodXf, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, &podXf);
+        if (hidden != 0 && (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) != 0) {
+            if (player->lodBodyNode != NULL)
+                swrModel_NodeModifyFlags(player->lodBodyNode, 2, -4, 0x10, 3);
+            if (player->lodSelectorNode != NULL)
+                swrModel_NodeModifyFlags(player->lodSelectorNode, 2, -4, 0x10, 3);
+        } else {
+            if (player->lodBodyNode != NULL)
+                swrModel_NodeModifyFlags(player->lodBodyNode, 2, 3, 0x10, 2);
+            if (player->lodSelectorNode != NULL)
+                swrModel_NodeModifyFlags(player->lodSelectorNode, 2, 3, 0x10, 2);
+        }
+        if (swrObjJdge_splitscreenActive != 0 && localPlayer >= 0) {
+            if ((player->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) == swrObjTest_FLAG0_POD_HIDDEN) {
+                (&swrModel_Node1)[localPlayer] = player->lodBodyNode;
+                (&swrModel_Node3)[localPlayer] = player->lodSelectorNode;
+            } else {
+                (&swrModel_Node1)[localPlayer] = NULL;
+                (&swrModel_Node3)[localPlayer] = NULL;
+            }
+        }
+        if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+            return;
+        if (player->lodBodyNode != NULL)
+            swrModel_NodeModifyFlags(player->lodBodyNode, 2, 3, 0x10, 2);
+        if (player->lodSelectorNode != NULL)
+            swrModel_NodeModifyFlags(player->lodSelectorNode, 2, 3, 0x10, 2);
+        return;
+    }
+
+    node = player->partNodes[0];
+    if (hidden != 0) {
+        if (node != NULL)
+            swrModel_NodeModifyFlags(node, 2, -4, 0x10, 3);
+    } else if (node != NULL) {
+        swrModel_NodeModifyFlags(node, 2, 3, 0x10, 2);
+    }
+    if (swrObjJdge_splitscreenActive != 0) {
+        // unlike the far-LOD path, localPlayer is not range-checked here
+        if ((player->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) == swrObjTest_FLAG0_POD_HIDDEN)
+            (&swrModel_Node1)[localPlayer] = player->partNodes[0];
+        else
+            (&swrModel_Node1)[localPlayer] = NULL;
+    }
+
+    // cockpit follow strength: 1 at rest, 0 at 200+ speed or in zero-g
+    float follow = 1.0f - player->speedValue * 0.005f;
+    if ((player->flags0 & (swrObjTest_FLAG0_ZON | swrObjTest_FLAG0_ZOFF)) != 0)
+        follow = 0.0f;
+    if (follow < 0.0f)
+        follow = 0.0f;
+    if (follow > 1.0f)
+        follow = 1.0f;
+    follow = follow * follow;
+
+    if (player->partNodes[0x3b] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x3b], 2, 3, 0x10, 2);
+    if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE)
+        isFused = 1;
+    if (player->partNodes[3] != NULL && player->partNodes[4] != NULL)
+        hasSecondEngines = 1;
+    if (player->partNodes[0] != NULL)
+        swrModel_NodeSetSelectedChildNode((swrModel_NodeSelector*)player->partNodes[0], 0);
+
+    player->historyWriteIdx = (unsigned int)(player->historyWriteIdx + 1) % SWR_POD_TRANSFORM_HISTORY;
+    player->historyLagEngines = 16;
+    player->historyLagCockpit = 10;
+    rdMatrix_Copy44(&player->transformHistory[player->historyWriteIdx], &podXf);
+    if (player->lodDistance > 75 || player->partNodes == NULL || isFused) {
+        rdMatrix_Copy44(&lagEngines, &podXf);
+        rdMatrix_Copy44(&lagCockpit, &podXf);
+    } else {
+        rdMatrix_Copy44(&lagEngines, &player->transformHistory[podHistoryIndex(player->historyWriteIdx, player->historyLagEngines)]);
+        rdMatrix_Copy44(&lagCockpit, &player->transformHistory[podHistoryIndex(player->historyWriteIdx, player->historyLagCockpit)]);
+        // the history advances a second time this frame
+        player->historyWriteIdx = (unsigned int)(player->historyWriteIdx + 1) % SWR_POD_TRANSFORM_HISTORY;
+        rdMatrix_Copy44(&player->transformHistory[player->historyWriteIdx], &podXf);
+        rdMatrix_Copy44(&lagEngines, &player->transformHistory[podHistoryIndex(player->historyWriteIdx, player->historyLagEngines)]);
+        rdMatrix_Copy44(&lagCockpit, &player->transformHistory[podHistoryIndex(player->historyWriteIdx, player->historyLagCockpit)]);
+        podBlendHistoryFrame(&lagEngines, &podXf, 0.1f);
+        podBlendHistoryFrame(&lagCockpit, &podXf, 0.2f);
+    }
+
+    if (isFused) {
+        rdMatrix_Copy44(&player->cockpitXf, &podXf);
+        swrRace_AnimateEngineWobble(player);
+        return;
+    }
+
+    // cockpit: lagged frame at the cockpit offset, then a lag spring on its position
+    const swrRacerVisualData* visual = &swrRacer_PodVisualData[*player->score_ptr->pilotId];
+    rdVector_Copy3(&offset, &visual->hoverPadOffsetA);
+    rdVector_Add3(&offset, &offset, &player->partOffset[5]);
+    rdMatrix_Copy44(&m, &lagCockpit);
+    rdVector_Copy3((rdVector3*)&m.vD, (rdVector3*)&podXf.vD);
+    podAddLocalOffset(&m, &podXf, offset.x, offset.y, offset.z);
+    float pitch = podXf.vB.x * player->world_gravity.x + podXf.vB.z * player->world_gravity.z + podXf.vB.y * player->world_gravity.y;
+    rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, (pitch - player->cockpitPitchPrev) * 50.0f, (rdVector3*)&podXf.vC);
+    player->cockpitPitchPrev = pitch;
+    rdVector_Sub3(&lagDelta, (rdVector3*)&m.vD, (rdVector3*)&podXf.vD);
+    rdVector_Sub3(&springTarget, &lagDelta, &player->cockpitSpringPos);
+    float stretch = rdVector_Len3(&springTarget);
+    rdVector_Normalize3Acc(&springTarget);
+    rdVector_Scale3Add3(&player->cockpitSpringVel, &player->cockpitSpringVel, (float)(swrRace_deltaTimeSecs * stretch * 20.0f), &springTarget);
+    rdVector_Scale3(&player->cockpitSpringVel, stdMath_Decelerator(10.0f, (float)swrRace_deltaTimeSecs), &player->cockpitSpringVel);
+    rdVector_Scale3Add3(&springPos, &player->cockpitSpringPos, (float)swrRace_deltaTimeSecs, &player->cockpitSpringVel);
+    if ((player->flags0 & swrObjTest_FLAG0_RACING) == 0) {
+        rdVector_Copy3(&springPos, &lagDelta);
+        rdVector_Set3(&player->cockpitSpringVel, 0.0f, 0.0f, 0.0f);
+    }
+    rdVector_Sub3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &lagDelta);
+    rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &springPos);
+    rdVector_Copy3(&player->cockpitSpringPos, &springPos);
+    float roll = (player->cockpitSpringVel.y * player->world_gravity.y + player->cockpitSpringVel.z * player->world_gravity.z + player->cockpitSpringVel.x * player->world_gravity.x) * -2.0f;
+    if (roll > 50.0)
+        roll = 50.0f;
+    if (roll < -50.0)
+        roll = -50.0f;
+    rdMatrix_AddRotationFromVectorAngle44Before(&m, roll, 1.0f, 0.0f, 0.0f, &m);
+    // bob toward the ground under the pod, eased by the follow strength
+    float bob = (player->shadowXf0.vD.z - m.vD.z) * follow;
+    if (bob > 12.0f)
+        bob = 12.0f;
+    if (bob < -12.0f)
+        bob = -12.0f;
+    bob = bob * 0.5;
+    m.vD.z = bob + m.vD.z;
+    player->unk19b4 = bob;
+    rdMatrix_Copy44(&player->cockpitXf, &m);
+
+    rdVector_Copy3(&offset, &visual->hoverPadOffsetB);
+    rdVector_Add3(&offset, &offset, &player->partOffset[1]);
+    float yaw = player->tiltAngle * -0.5f;
+    rdMatrix_Copy44(&m, &podXf);
+    rdMatrix_AddRotationFromVectorAngle44Before(&m, yaw, 0.0f, 1.0f, 0.0f, &m);
+    podAddLocalOffset(&m, &podXf, offset.x, offset.y, offset.z);
+    rdMatrix_Copy44(&player->engineXfR, &m);
+    if (hasSecondEngines) {
+        podAddLocalOffset(&m, &podXf, swrRace_secondEngineOffset.x, swrRace_secondEngineOffset.y, swrRace_secondEngineOffset.z);
+        rdMatrix_Copy44(&player->engineXfR2, &m);
+    }
+
+    rdVector_Copy3(&offset, &visual->hoverPadOffsetB);
+    offset.x = -offset.x;
+    rdVector_Add3(&offset, &offset, &player->partOffset[2]);
+    yaw = player->tiltAngle * -0.5f;
+    rdMatrix_Copy44(&m, &podXf);
+    rdMatrix_AddRotationFromVectorAngle44Before(&m, yaw, 0.0f, 1.0f, 0.0f, &m);
+    podAddLocalOffset(&m, &podXf, offset.x, offset.y, offset.z);
+    rdMatrix_Copy44(&player->engineXfL, &m);
+    if (hasSecondEngines) {
+        podAddLocalOffset(&m, &podXf, -swrRace_secondEngineOffset.x, swrRace_secondEngineOffset.y, swrRace_secondEngineOffset.z);
+        rdMatrix_Copy44(&player->engineXfL2, &m);
+    }
+    swrRace_AnimateEngineWobble(player);
 }

@@ -2423,10 +2423,231 @@ void swrObjHang_SetState5_Maybe(void)
     swrObjHang_displayPodResetFrames = SWR_DISPLAY_POD_RESET_FRAMES;
 }
 
-// 0x004337e0
-void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int param_3, float scaleX, float scaleY, float scaleZ, float param_7, int animated, float param_9, float param_10)
+// Bob a display-pod part along its up axis and roll it about its forward axis.
+static void displayPodWobble(rdMatrix44* m, float bob, float angle)
 {
-    HANG("TODO");
+    rdVector3 axis;
+    rdVector_Scale3Add3((rdVector3*)&m->vD, (rdVector3*)&m->vD, bob, (rdVector3*)&m->vC);
+    rdVector_Copy3(&axis, (rdVector3*)&m->vB);
+    rdVector_Normalize3Acc(&axis);
+    rdMatrix_AddRotationFromVectorAngle44Before(m, angle, axis.x, axis.y, axis.z, m);
+}
+
+// Flatten a part's shadow quad onto the floor below the part.
+static void displayPodShadow(swrModel_Node* shadow, rdMatrix44* m, float scaleX, float scaleY, float scaleZ, float floorZ)
+{
+    rdVector3 pos;
+    rdVector_Copy3(&pos, (rdVector3*)&m->vD);
+    rdMatrix_SetDiagonal44(m, scaleX, scaleY, scaleZ);
+    rdVector_Copy3((rdVector3*)&m->vD, &pos);
+    m->vD.z = floorZ;
+    rdMatrix_ScaleBasis44(m, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, m);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)shadow, m);
+    swrModel_NodeModifyFlags(shadow, 2, 3, 0x10, 2);
+}
+
+// Stretch one cockpit->engine cable between the two anchors (X mirrored for the left side).
+static void displayPodCable(swrModel_Node** nodes, int cable, int engine, int mirror, const swrRacerVisualData* visual, float scaleX, float scaleZ, int animated)
+{
+    rdMatrix44 cockpitMat;
+    rdMatrix44 engineMat;
+    rdMatrix44 cableMat;
+    rdVector3 cockpitEnd;
+    rdVector3 engineEnd;
+    rdVector3 anchor;
+    rdVector3 dir;
+    rdVector3 zero0;
+    rdVector3 zero1;
+
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[5], &cockpitMat);
+    rdVector_Copy3(&cockpitEnd, (rdVector3*)&cockpitMat.vD);
+    swrModel_NodeGetTransform((swrModel_NodeTransformed*)nodes[engine], &engineMat);
+    rdVector_Copy3(&engineEnd, (rdVector3*)&engineMat.vD);
+    rdVector_Copy3(&anchor, &visual->cableCockpitAnchor);
+    if (mirror)
+        anchor.x = -anchor.x;
+    rdMatrix_Multiply3(&anchor, &anchor, &cockpitMat);
+    rdVector_Add3(&cockpitEnd, &anchor, &cockpitEnd);
+    rdVector_Copy3(&anchor, &visual->cableEngineAnchor);
+    if (mirror)
+        anchor.x = -anchor.x;
+    rdMatrix_Multiply3(&anchor, &anchor, &engineMat);
+    rdVector_Add3(&engineEnd, &anchor, &engineEnd);
+    rdVector_Sub3(&dir, &cockpitEnd, &engineEnd);
+    float length = rdVector_Len3(&dir);
+    rdVector_Normalize3Acc(&dir);
+
+    rdMatrix_SetTranslation44(&cableMat, cockpitEnd.x, cockpitEnd.y, cockpitEnd.z);
+    rdVector_Copy3((rdVector3*)&cableMat.vB, &dir);
+    rdVector_Set3((rdVector3*)&cableMat.vC, 0.0f, 0.0f, 1.0f);
+    rdVector_Cross3((rdVector3*)&cableMat.vA, (rdVector3*)&cableMat.vB, (rdVector3*)&cableMat.vC);
+    rdVector_Cross3((rdVector3*)&cableMat.vC, (rdVector3*)&cableMat.vA, (rdVector3*)&cableMat.vB);
+    rdMatrix_ScaleBasis44(&cableMat, scaleX * SWR_POD_MODEL_UNIT_SCALE, length * 0.01f, scaleZ * SWR_POD_MODEL_UNIT_SCALE, &cableMat);
+    swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[cable], &cableMat);
+    if (swrObjHang_displayPodResetFrames > 0) {
+        rdVector_Set3(&zero0, 0.0f, 0.0f, 0.0f);
+        rdVector_Set3(&zero1, 0.0f, 0.0f, 0.0f);
+        float stiffness = 1.3f;
+        if (animated == 0)
+            stiffness = 0.5f;
+        swrModel_DeformPoddConnectionMesh(nodes[cable], &zero0, &zero1, stiffness, 1.0f, 0.0f, 50.0f, 0);
+    }
+    if (nodes[cable] != NULL)
+        swrModel_NodeModifyFlags(nodes[cable], 2, 3, 0x10, 2);
+}
+
+// 0x004337e0
+void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int useRacerScale, float scaleX, float scaleY, float scaleZ, float floorZ, int animated, float exhaustLeft, float exhaustRight)
+{
+    float sinPhase[8];
+    float cosPhase[8];
+    rdMatrix44 base;
+    rdMatrix44 m;
+    rdVector3 offset;
+    rdVector3 rotated;
+
+    if (nodes == NULL)
+        return;
+    int pilot = (int)nodes[0x3c];
+    const swrRacerVisualData* visual = &swrRacer_PodVisualData[pilot];
+    if (animated != 0) {
+        for (unsigned int i = 0; i < 8; i++)
+            stdMath_SinCos((float)(((int)i * 0.01 + 0.1) * timetotal * 360.0), &sinPhase[i], &cosPhase[i]);
+    }
+    if (useRacerScale != 0) {
+        float racerScale = *(float*)swrRacer_PodData[pilot].unk1c;
+        if (racerScale < 0.3 || racerScale > 5.0f)
+            racerScale = 1.0f;
+        scaleX = racerScale * scaleX;
+        scaleY = racerScale * scaleY;
+        scaleZ = racerScale * scaleZ;
+    }
+    swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)nodes[5], poddLodDistances1);
+    swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)nodes[1], poddLodDistances2);
+    swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)nodes[2], poddLodDistances2);
+    swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)nodes[3], poddLodDistances2);
+    swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*)nodes[4], poddLodDistances2);
+    // mirrored parts: flip the culling winding
+    if (nodes[0x3e] != NULL)
+        nodes[0x3e]->flags_5 |= 1;
+    if (nodes[2] != NULL)
+        nodes[2]->flags_5 |= 1;
+    if (nodes[4] != NULL)
+        nodes[4]->flags_5 |= 1;
+    rdMatrix_Copy44(&base, transform);
+    rdMatrix_ScaleBasis44(&base, scaleX, scaleY, scaleZ, &base);
+    swrModel_NodeSelector* lodSwitch = (swrModel_NodeSelector*)nodes[0];
+    if (lodSwitch != NULL) {
+        swrModel_NodeSetSelectedChildNode(lodSwitch, 0);
+        swrModel_NodeModifyFlags((swrModel_Node*)lodSwitch, 2, 3, 0x10, 2);
+    }
+
+    if ((swrRace_DebugFlag & 0x80) != 0 && (inRaceLocalPlayerInputBitset3[1] & 0x400) != 0) {
+        if (lodSwitch != NULL) {
+            swrModel_NodeSetSelectedChildNode(lodSwitch, 1);
+            swrModel_NodeModifyFlags((swrModel_Node*)lodSwitch, 2, 3, 0x10, 2);
+        }
+        swrModel_Node* debugModel = nodes[0x4a];
+        if (debugModel == NULL)
+            return;
+        rdMatrix_Copy44(&m, &base);
+        rdMatrix_ScaleBasis44(&m, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, SWR_POD_MODEL_UNIT_SCALE, &m);
+        if (animated != 0)
+            rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, sinPhase[3] * 0.2f, (rdVector3*)&m.vC);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)debugModel, &m);
+        swrModel_NodeModifyFlags(debugModel, 2, 3, 0x10, 2);
+        return;
+    }
+
+    if (nodes[1] != NULL) {
+        rdMatrix_Copy44(&m, &base);
+        rdVector_Copy3(&offset, &visual->hoverPadOffsetB);
+        rdMatrix_Multiply3(&rotated, &offset, &m);
+        rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &rotated);
+        if (animated != 0)
+            displayPodWobble(&m, sinPhase[3] * 0.2f, sinPhase[1] * 5.0f);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[1], &m);
+        swrModel_NodeModifyFlags(nodes[1], 2, 3, 0x10, 2);
+        if (nodes[3] != NULL) {
+            rdVector_Copy3(&offset, &swrRace_secondEngineOffset);
+            rdMatrix_Multiply3(&rotated, &offset, &base);
+            rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &rotated);
+            if (animated != 0)
+                displayPodWobble(&m, sinPhase[3] * 0.2f, sinPhase[1] * 5.0f);
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[3], &m);
+            swrModel_NodeModifyFlags(nodes[3], 2, 3, 0x10, 2);
+        }
+        if (nodes[0x3e] != NULL)
+            displayPodShadow(nodes[0x3e], &m, scaleX, scaleY, scaleZ, floorZ);
+    }
+
+    if (nodes[2] != NULL) {
+        rdMatrix_Copy44(&m, &base);
+        rdVector_Copy3(&offset, &visual->hoverPadOffsetB);
+        offset.x = -offset.x;
+        rdMatrix_Multiply3(&rotated, &offset, &m);
+        rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &rotated);
+        if (animated != 0)
+            displayPodWobble(&m, sinPhase[4] * 0.2f, sinPhase[2] * 5.0f);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[2], &m);
+        swrModel_NodeModifyFlags(nodes[2], 2, 3, 0x10, 2);
+        if (nodes[4] != NULL) {
+            rdVector_Copy3(&offset, &swrRace_secondEngineOffset);
+            offset.x = -offset.x;
+            rdMatrix_Multiply3(&rotated, &offset, &base);
+            rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &rotated);
+            if (animated != 0)
+                displayPodWobble(&m, sinPhase[2] * 0.2f, sinPhase[0] * 5.0f);
+            swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[4], &m);
+            swrModel_NodeModifyFlags(nodes[4], 2, 3, 0x10, 2);
+        }
+        if (nodes[0x3f] != NULL)
+            displayPodShadow(nodes[0x3f], &m, scaleX, scaleY, scaleZ, floorZ);
+    }
+
+    if (nodes[5] != NULL) {
+        rdMatrix_Copy44(&m, &base);
+        rdVector_Copy3(&offset, &visual->hoverPadOffsetA);
+        rdMatrix_Multiply3(&rotated, &offset, &m);
+        rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &rotated);
+        if (animated != 0) {
+            m.vD.z = (float)(swrRacer_PodData[pilot].unk24[0] * 10) + scaleZ * 1.5f + floorZ;
+            displayPodWobble(&m, sinPhase[5] * 0.1f, sinPhase[1] * 10.0f);
+        }
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[5], &m);
+        swrModel_NodeModifyFlags(nodes[5], 2, 3, 0x10, 2);
+        if (offset.y == 0.0f) {
+            // no cockpit offset: the engines ride on the cockpit transform
+            if (nodes[1] != NULL)
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[1], &m);
+            if (nodes[2] != NULL)
+                swrModel_NodeSetTransform((swrModel_NodeTransformed*)nodes[2], &m);
+        }
+        if (nodes[0x40] != NULL)
+            displayPodShadow(nodes[0x40], &m, scaleX, scaleY, scaleZ, floorZ);
+    }
+
+    swrRace_UpdateEngineExhaust(NULL, nodes, exhaustLeft, exhaustRight);
+    for (int i = 6; i <= 0xd; i++) {
+        if (nodes[i] != NULL)
+            swrModel_NodeModifyFlags(nodes[i], 2, -4, 0x10, 3);
+    }
+    if (swrObjHang_displayPodResetFrames > 0)
+        swrObjHang_displayPodResetFrames--;
+    if (nodes[0xa] != NULL)
+        displayPodCable(nodes, 0xa, 1, 0, visual, scaleX, scaleZ, animated);
+    if (nodes[0xb] != NULL)
+        displayPodCable(nodes, 0xb, 2, 1, visual, scaleX, scaleZ, animated);
+    if (nodes[0xc] != NULL)
+        displayPodCable(nodes, 0xc, 3, 0, visual, scaleX, scaleZ, animated);
+    if (nodes[0xd] != NULL)
+        displayPodCable(nodes, 0xd, 4, 1, visual, scaleX, scaleZ, animated);
+    if (swrObjHang_displayPodResetFrames == 4)
+        ComputeModelViewBounds();
+    if (nodes[0x3b] != NULL)
+        swrModel_NodeModifyFlags(nodes[0x3b], 2, -4, 0x10, 3);
+    if ((swrRace_DebugFlag & 0x80) != 0 && (inRaceLocalPlayerInputBitset3[1] & 0x1000) != 0 && nodes[0x3b] != NULL)
+        swrModel_NodeModifyFlags(nodes[0x3b], 2, 3, 0x10, 2);
 }
 
 // 0x0043da90
@@ -9215,6 +9436,34 @@ void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang)
             swrObjElmo_SetAnimStateById(index, 0x11);
     }
     hang->elmoEntityIndex = -1;
+}
+
+// 0x0043e6f0
+void ComputeModelViewBounds(void)
+{
+    swrModel_Node** pod = (swrModel_Node**)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
+
+    if (swrModel_NodeComputeFirstMeshAABB(pod[0x40], swrObjHang_displayPodBoundsCockpit, 0) == 0) {
+        rdVector_Set3((rdVector3*)&swrObjHang_displayPodBoundsCockpit[0], 0.0f, 0.0f, 0.0f);
+        rdVector_Set3((rdVector3*)&swrObjHang_displayPodBoundsCockpit[3], -10.0f, -10.0f, -10.0f);
+    } else {
+        // look-at of the inspect-vehicle camera framing
+        rdVector_Set3(&maybeUICameraPlacements[0x1e].position2, swrObjHang_displayPodBoundsCockpit[3] + 100.0f, (swrObjHang_displayPodBoundsCockpit[1] + swrObjHang_displayPodBoundsCockpit[4]) * 0.5, -157.0f);
+    }
+    if (swrModel_NodeComputeFirstMeshAABB(pod[0x3e], swrObjHang_displayPodBoundsEngineR, 0) == 0) {
+        rdVector_Copy3((rdVector3*)&swrObjHang_displayPodBoundsEngineR[0], (rdVector3*)&swrObjHang_displayPodBoundsCockpit[0]);
+        rdVector_Copy3((rdVector3*)&swrObjHang_displayPodBoundsEngineR[3], (rdVector3*)&swrObjHang_displayPodBoundsCockpit[3]);
+    }
+    if (swrModel_NodeComputeFirstMeshAABB(pod[0x3f], swrObjHang_displayPodBoundsEngineL, 0) == 0) {
+        rdVector_Copy3((rdVector3*)&swrObjHang_displayPodBoundsEngineL[0], (rdVector3*)&swrObjHang_displayPodBoundsCockpit[0]);
+        rdVector_Copy3((rdVector3*)&swrObjHang_displayPodBoundsEngineL[3], (rdVector3*)&swrObjHang_displayPodBoundsCockpit[3]);
+        float midY = (swrObjHang_displayPodBoundsCockpit[1] + swrObjHang_displayPodBoundsCockpit[4]) * 0.5f;
+        float cockpitMinY = (swrObjHang_displayPodBoundsCockpit[1] - swrObjHang_displayPodBoundsCockpit[4] * -5.0f) * 0.16666667f;
+        swrObjHang_displayPodBoundsEngineL[4] = midY;
+        // the right engine's max Y is overwritten even when its own AABB succeeded
+        swrObjHang_displayPodBoundsEngineR[4] = midY;
+        swrObjHang_displayPodBoundsCockpit[1] = cockpitMinY;
+    }
 }
 
 // 0x00457350

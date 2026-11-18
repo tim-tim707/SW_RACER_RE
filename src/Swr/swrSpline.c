@@ -7,6 +7,8 @@
 #include "swrAssetBuffer.h"
 #include "globals.h"
 #include "swr.h"
+#include "swrModel.h"
+#include "swrObj.h"
 
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
@@ -81,6 +83,15 @@ char* swrSpline_LoadSplineById(char* splineBuffer)
 {
     swrSpline_LoadSpline((int)splineBuffer, (unsigned short**)&splineBuffer);
     return splineBuffer;
+}
+
+// 0x0044e5a0
+void swrSpline_GetControlPointPosition(swrSpline* spline, int index, rdVector3* out)
+{
+    rdVector3* position = &spline->control_points[index].position;
+    out->x = position->x;
+    out->y = position->y;
+    out->z = position->z;
 }
 
 // 0x0044e5e0
@@ -411,13 +422,53 @@ void swrSpline_CursorSeekToProgress(void* cursor, int progress)
     }
 }
 
-// March the cursor along the spline until the point projects onto the segment between the
-// current sample and the next (advance while the point is ahead of the tangent plane,
-// then back off by fine steps), mapping a world position to a spline parameter.
 // 0x0047ea20
 void swrSpline_BakeSampleTrackMesh(void* cursor, float samplesPerNode, swrModel_Node* trackModel, unsigned short* order)
 {
-    HANG("TODO");
+    swrSplineCursor* c = (swrSplineCursor*)cursor;
+    swrModel_Mesh** sampleMeshes = (swrModel_Mesh**)&spline_progress_values[0xfc].x;
+    rdMatrix44 m;
+    // origin, direction, length
+    float ray[7];
+    int ambiguous = 0;
+
+    ray[3] = 0.0f;
+    ray[4] = 0.0f;
+    ray[5] = -1.0f;
+    ray[6] = 5000.0f;
+    swrSpline_EvaluateToMatrix(c, &m);
+    ray[0] = m.vD.x;
+    ray[1] = m.vD.y;
+    ray[2] = m.vD.z;
+    swrModel_SetRaycastIgnoreFacing(1);
+    swrModel_Mesh* mesh = (swrModel_Mesh*)swrModel_CollideRayWithModel((swrModel_NodeTransformed*)trackModel, ray);
+    if (mesh == NULL) {
+        ray[5] = 1.0f;
+        mesh = (swrModel_Mesh*)swrModel_CollideRayWithModel((swrModel_NodeTransformed*)trackModel, ray);
+    }
+    swrModel_SetRaycastIgnoreFacing(0);
+
+    int node = swrSpline_getControlPoint(c, 0);
+    int sample = (int)(((float)node + c->segmentT) * samplesPerNode);
+    unsigned short pathOrder = order[node];
+    sampleMeshes[sample] = mesh;
+    if (mesh != NULL) {
+        if (mesh->splineSampleIndex == 0) {
+            mesh->splineSampleIndex = (uint16_t)sample;
+        } else {
+            int anchorNode = (int)((float)(short)mesh->splineSampleIndex / samplesPerNode);
+            if (pathOrder != order[anchorNode])
+                ambiguous = 1;
+        }
+    }
+    if (ambiguous) {
+        swrModel_Behavior* behavior = swrModel_MeshGetBehavior(mesh);
+        if (behavior == NULL) {
+            swrModel_MeshSetBehavior(mesh, &swrSpline_ambiguousMeshBehavior);
+            return;
+        }
+        behavior->unk1 |= swrModel_BEHAVIOR_SPLINE_AMBIGUOUS;
+    }
 }
 
 // 0x0047eb60
@@ -460,13 +511,41 @@ void swrSpline_ProjectPoint(void* cursor, rdVector3* point)
     }
 }
 
-// Walk every forward path through the spline graph (node -> next branches, up to 3 levels
-// deep for multi-segment types), subdividing each into fixed 1/step increments and invoking
-// callback(cursor, step, arg3, arg4) at each sample.
 // 0x0047ece0
 void swrSpline_ValidateSampleTrackMesh(void* cursor, float samplesPerNode)
 {
-    HANG("TODO");
+    swrSplineCursor* c = (swrSplineCursor*)cursor;
+    swrModel_Mesh** sampleMeshes = (swrModel_Mesh**)&spline_progress_values[0xfc].x;
+    swrSplineCursor anchorBuf;
+    rdMatrix44 sampleMat;
+    rdMatrix44 anchorMat;
+    rdVector3 behind;
+
+    void* anchor = swrSpline_CursorInit(&anchorBuf, c->spline);
+    int node = swrSpline_getControlPoint(c, 0);
+    swrModel_Mesh* mesh = sampleMeshes[(int)(((float)node + c->segmentT) * samplesPerNode)];
+    if (mesh == NULL)
+        return;
+    swrModel_Behavior* behavior = swrModel_MeshGetBehavior(mesh);
+    if (behavior != NULL && (behavior->unk1 & swrModel_BEHAVIOR_SPLINE_AMBIGUOUS) != 0)
+        return;
+    if (mesh->splineSampleIndex == 0)
+        return;
+
+    swrSpline_CursorSeekToProgress(anchor, (short)mesh->splineSampleIndex);
+    swrSpline_EvaluateToMatrix(c, &sampleMat);
+    behind.x = sampleMat.vD.x - sampleMat.vB.x * 0.5f;
+    behind.y = sampleMat.vD.y - sampleMat.vB.y * 0.5f;
+    behind.z = sampleMat.vD.z - sampleMat.vB.z * 0.5f;
+    swrSpline_ProjectPoint(anchor, &behind);
+    swrSpline_EvaluateToMatrix(anchor, &anchorMat);
+    if (rdVector_DistSquared3((rdVector3*)&sampleMat.vD, (rdVector3*)&anchorMat.vD) > 4.0f) {
+        // stripped debug print: the node ids are fetched and discarded
+        swrSpline_getControlPoint(c, 0);
+        swrSpline_getControlPoint(c, 1);
+        swrSpline_getControlPoint(anchor, 0);
+        swrSpline_getControlPoint(anchor, 1);
+    }
 }
 
 // 0x0047ee20
@@ -517,14 +596,158 @@ void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* ar
     }
 }
 
-// spline_progress_values packs two per-node regions in one array: the [node] entry
-// (.x = arc-length progress, .y = segment delta) and, at +0xfc, the baked sample->track-mesh
-// table (10 mesh pointers per node, written by swrSpline_BakeSampleTrackMesh, read by
-// swrRace_GetTrackMeshAtCursor). Clear both for one node.
+// 0x0047f060
+void swrSpline_TraceProgress(void* cursor, float segmentLength, unsigned short* order, short* counter)
+{
+    swrSplineCursor* c = (swrSplineCursor*)cursor;
+    swrSplineCursor walk;
+    rdMatrix44 m;
+    rdVector3 prevPos;
+    int isStart = 0;
+    int done = 0;
+    float startProgress;
+    float endProgress;
+    int node;
+    int prevNode;
+
+    int first = swrSpline_getControlPoint(c, 0);
+    if (!(spline_progress_values[first].x <= 0.0f))
+        return;
+    if (c->branchFlags == 0) {
+        isStart = 1;
+        startProgress = 0.0f;
+    } else {
+        startProgress = spline_progress_values[c->nodeLookahead[0]].x;
+    }
+    spline_progress_values[first].x = startProgress;
+
+    float tStep = 1.0f / segmentLength;
+    walk = *c;
+    walk.segmentT = 0.0f;
+    float length = 0.0f;
+    swrSpline_EvaluateToMatrix(&walk, &m);
+    prevPos.x = m.vD.x;
+    prevPos.y = m.vD.y;
+    prevPos.z = m.vD.z;
+    int nodeCount = 0;
+    node = -1;
+    do {
+        float t = 0.0f;
+        nodeCount++;
+        int i = 1;
+        while ((float)i < segmentLength) {
+            t += tStep;
+            swrSpline_EvaluateAtOffset(&walk, &m, t);
+            length = rdVector_Dist3(&prevPos, (rdVector3*)&m.vD) + length;
+            i++;
+            prevPos.x = m.vD.x;
+            prevPos.y = m.vD.y;
+            prevPos.z = m.vD.z;
+        }
+        walk.segmentT = 1.0f;
+        swrSpline_EvaluateToMatrix(&walk, &m);
+        prevNode = node;
+        node = swrSpline_getControlPoint(&walk, 0);
+        if (prevNode == node) {
+            // the path dead-ends: an open track's finish
+            done = 1;
+            endProgress = 1.0f;
+            if (swrSpline_finishNodeIdx == -2) {
+                swrSpline_finishMatrix = m;
+                swrSpline_finishNodeIdx = node;
+            } else {
+                swrSpline_finishNodeIdx = -3;
+            }
+        } else {
+            length = rdVector_Dist3(&prevPos, (rdVector3*)&m.vD) + length;
+            prevPos.x = m.vD.x;
+            prevPos.y = m.vD.y;
+            prevPos.z = m.vD.z;
+            if (spline_progress_values[node].x < 0.0f) {
+                walk.segmentT = 0.0f;
+                spline_progress_values[node].x = length;
+            } else {
+                // reached a node another path already traced
+                endProgress = spline_progress_values[node].x;
+                done = 1;
+            }
+        }
+    } while (!done);
+
+    if (endProgress == 0.0f)
+        endProgress = 1.0f;
+    if (isStart)
+        swrSpline_trackLength = length;
+
+    // remap the raw arc lengths onto [startProgress, endProgress]
+    walk = *c;
+    for (int i = 0; i < nodeCount; i++) {
+        node = swrSpline_getControlPoint(&walk, 0);
+        order[node] = *counter;
+        float f = (spline_progress_values[node].x - startProgress) / length;
+        float progress = f * endProgress + (1.0f - f) * startProgress;
+        spline_progress_values[node].x = progress;
+        if (i != 0)
+            spline_progress_values[prevNode].y = progress - spline_progress_values[prevNode].x;
+        prevNode = node;
+        walk.segmentT = 1.0f;
+        swrSpline_EvaluateToMatrix(&walk, &m);
+        walk.segmentT = 0.0f;
+    }
+    spline_progress_values[prevNode].y = endProgress - spline_progress_values[prevNode].x;
+    (*counter)++;
+}
+
+// 0x0047f450
+void swrSpline_TracePathProgress(void* cursor, float segmentLength, unsigned short* order, short* counter)
+{
+    swrSpline_TraceProgress(cursor, segmentLength, order, counter);
+}
+
 // 0x0047f470
 void swrSpline_BuildProgressTable(swrSpline* spline, float segmentLength, unsigned short* order)
 {
-    HANG("TODO");
+    swrSplineControlPoint* cp = spline->control_points;
+    swrSplineCursor cursor;
+    short counter;
+
+    for (int i = 0; i < (int)spline->num_segments; i++) {
+        order[i] = 0xffff;
+        spline_progress_values[i].x = -1.0f;
+    }
+    counter = 0;
+    swrSplineCursor* c = (swrSplineCursor*)swrSpline_CursorInit(&cursor, spline);
+    for (int progress = 0; progress < (int)spline->num_control_points; progress++) {
+        swr_noop4();
+        c->nodeLookahead[0] = swrSpline_getControlPointIdFromProgress(c->spline, progress, 0);
+        while (c->nodeLookahead[0] != -1) {
+            c->branchFlags = 0;
+            for (int i = 0; i < (short)cp[c->nodeLookahead[0]].next_count; i++) {
+                c->branchFlags = (c->branchFlags & ~1u) | (i != 0 ? 1u : 0u);
+                int n1 = (short)(&cp[c->nodeLookahead[0]].next1)[i];
+                c->nodeLookahead[1] = n1;
+                if (spline->type == SPLINE_TYPE_BEZIER_FLAT) {
+                    swrSpline_TracePathProgress(c, segmentLength, order, &counter);
+                    continue;
+                }
+                for (int j = 0; j < (short)cp[c->nodeLookahead[1]].next_count; j++) {
+                    c->branchFlags = (c->branchFlags & ~2u) | (j != 0 ? 2u : 0u);
+                    int n2 = (short)(&cp[c->nodeLookahead[1]].next1)[j];
+                    c->nodeLookahead[2] = n2;
+                    if (n2 == c->nodeLookahead[0])
+                        continue;
+                    for (int k = 0; k < (short)cp[c->nodeLookahead[2]].next_count; k++) {
+                        c->branchFlags = (c->branchFlags & ~4u) | (k != 0 ? 4u : 0u);
+                        int n3 = (short)(&cp[c->nodeLookahead[2]].next1)[k];
+                        c->nodeLookahead[3] = n3;
+                        if (n3 != c->nodeLookahead[1])
+                            swrSpline_TracePathProgress(c, segmentLength, order, &counter);
+                    }
+                }
+            }
+            c->nodeLookahead[0] = swrSpline_getControlPointIdFromProgress(c->spline, progress, c->nodeLookahead[0] + 1);
+        }
+    }
 }
 
 // 0x0047f6c0
@@ -555,7 +778,81 @@ float swrSpline_GetSampleSpacing(void)
 // 0x00480170
 int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range, int maxPoints, rdVector2* outPoints, float density)
 {
-    HANG("TODO");
+    swrSplineCursor cursor;
+    rdMatrix44 m;
+    rdVector3 nodePos;
+    rdVector3 nextPos;
+    int count = 0;
+    int skip;
+
+    if (spline->type != SPLINE_TYPE_BEZIER_FLAT)
+        return 0;
+    float step = 1.0f / density;
+    swrSplineCursor* c = (swrSplineCursor*)swrSpline_CursorInit(&cursor, spline);
+    swrSplineControlPoint* cp = spline->control_points;
+    skip = 0;
+    for (int node = 0; node < (int)spline->num_control_points; node++) {
+        c->nodeLookahead[0] = node;
+        int nextCount = (short)cp[node].next_count;
+        if (track_spline_variant != 0) {
+            // track variants mask out the control-point range of an alternate path
+            skip = 0;
+            if (node == 1)
+                nextCount = 1;
+            else if (track_spline_variant == 1)
+                skip = node >= 0x63 && node <= 0x71;
+            else if (track_spline_variant == 2)
+                skip = node >= 0x67 && node <= 0x73;
+            else if (track_spline_variant == 3)
+                skip = node >= 0x84 && node <= 0x90;
+        }
+        if (skip)
+            continue;
+        c->branchFlags = 0;
+        swrSpline_GetControlPointPosition(spline, node, &nodePos);
+        // dx/dy start as the node's offset but are overwritten by the last sample of each branch,
+        // which the next branch's reject test then reads
+        float dx = nodePos.x - center[0];
+        float dy = nodePos.y - center[1];
+        if (nextCount <= 0)
+            continue;
+        float negRange = -range;
+        for (int i = 0; i < nextCount; i++) {
+            c->branchFlags = (c->branchFlags & ~1u) | (i != 0 ? 1u : 0u);
+            int next = (short)(&cp[c->nodeLookahead[0]].next1)[i];
+            c->nodeLookahead[1] = next;
+            swrSpline_GetControlPointPosition(spline, next, &nextPos);
+            float nextDx = nextPos.x - center[0];
+            float nextDy = nextPos.y - center[1];
+            // skip segments whose ends both lie past the same edge of the box
+            if (dx < negRange && nextDx < negRange)
+                continue;
+            if (dx > range && nextDx > range)
+                continue;
+            if (dy < negRange && nextDy < negRange)
+                continue;
+            if (dy > range && nextDy > range)
+                continue;
+            c->segmentT = 0.0f;
+            rdVector2* out = &outPoints[count];
+            do {
+                swrSpline_EvaluateToMatrix(c, &m);
+                dx = m.vD.x - center[0];
+                dy = m.vD.y - center[1];
+                if (dx < range && -dx < range && dy < range && -dy < range) {
+                    // counted even past maxPoints; only the first maxPoints are stored
+                    if (count < maxPoints) {
+                        out->x = dx;
+                        out->y = dy;
+                    }
+                    count++;
+                    out++;
+                }
+                c->segmentT = step + c->segmentT;
+            } while (c->segmentT < 1.0f);
+        }
+    }
+    return count;
 }
 
 // 0x0047f6f0

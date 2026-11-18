@@ -231,7 +231,6 @@
 #define swrRace_CopyProfileFromSave_ADDR (0x0044e500)
 #define swrRace_CopyProfileToSave_ADDR (0x0044e530)
 #define swrRace_SaveCurrentProfile_ADDR (0x0044e560)
-#define swrRace_GetProfileRecordVec3_Maybe_ADDR (0x0044e5a0)
 #define swrRace_UpdatePitDroidModels_Maybe_ADDR (0x00456200)
 #define swrRace_UpdateAIGlidePitch_ADDR (0x0046aec0)
 #define swrRace_SendFlameAttackEvent_ADDR (0x0046bb30)
@@ -620,8 +619,6 @@ bool swrRace_IsGameDataUninitialized(void);
 // that must survive (shop purchase, race result, settings, name entry) and at shutdown.
 void swrRace_SaveCurrentProfile(void);
 
-// Reads a vec3 field from an indexed save/profile record (best guess).
-void swrRace_GetProfileRecordVec3_Maybe(int base, int index, float* out3);
 // Build the default save image in place (records, "AAA" record-holder names, default unlock
 // bitfield, default profiles) and store its checksum.
 void swrRace_InitDefaultGameData(void* saveImage);

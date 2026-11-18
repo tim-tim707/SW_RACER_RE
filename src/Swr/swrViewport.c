@@ -22,7 +22,8 @@ void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
             unkCameraArrayIndex = -1;
             return;
         }
-        swrViewport_SetRootNode_Maybe(mesh, a1);
+        // the camera index is stored in the mesh behavior slot
+        swrModel_MeshSetBehavior((swrModel_Mesh*)mesh, (swrModel_Behavior*)(int)a1);
         unkCameraArray[unkCameraArrayIndex].flags |= 1u;
         swrViewport_cameraApplied = 0;
     }
@@ -160,12 +161,6 @@ void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value)
         a1->node_flags1_exact_match_for_rendering = value;
         break;
     }
-}
-
-// 0x00431b90
-void swrViewport_SetRootNode_Maybe(swrViewport* viewport, int cameraIndex)
-{
-    viewport->unkCameraIndex = cameraIndex;
 }
 
 // 0x00482EE0

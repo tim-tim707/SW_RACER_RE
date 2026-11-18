@@ -1784,6 +1784,12 @@ swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh)
     return mesh->behavior;
 }
 
+// 0x00431b90
+void swrModel_MeshSetBehavior(swrModel_Mesh* mesh, swrModel_Behavior* behavior)
+{
+    mesh->behavior = behavior;
+}
+
 // 0x00431B00
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id)
 {
@@ -2043,6 +2049,12 @@ void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
         for (uint32_t i = 0; i < num_children; i++)
             swrModel_NodeSetLodDistances((swrModel_NodeLODSelector*) node->node.children.nodes[i], a2);
     }
+}
+
+// 0x00481c30
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float unk4, float unk5, float energy, float maxEnergy, int unk8)
+{
+    HANG("TODO");
 }
 
 // 0x00431750
