@@ -6,10 +6,86 @@
 #include "swrObj.h"
 #include "swrModel.h"
 #include "swrWeather.h"
+#include "swrText.h"
 
 #include <Primitives/rdVector.h>
 #include <engine_config.h>
 #include <macros.h>
+#include <stdio.h>
+
+// 0x0042c510
+void swrPlayerHUD_RenderDistanceText(void* viewport, bool secondaryPass)
+{
+    rdVector3* worldPos;
+    float dist;
+    float alpha;
+    float screenX;
+    float screenY;
+    float screenZ;
+    float depth;
+    int label;
+    char text[8];
+    char a;
+    char b;
+
+    for (int i = 0; i < SWR_MAX_RACERS; i++) {
+        worldPos = &player_sprite_positions_on_map[i];
+        if (!secondaryPass) {
+            player_sprite_pixel_pos_x[i] = -1000;
+            player_sprite_pixel_pos_y[i] = -1000;
+        } else {
+            player_sprite_pixel_pos_x2[i] = -1000;
+            player_sprite_pixel_pos_y2[i] = -1000;
+        }
+        if (player_sprite_unknown_values[i] == SWR_HUD_RACER_LABEL_NONE)
+            continue;
+        dist = rdVector_Dist3(worldPos, &rdVector_model_translation);
+        if (!(dist > SWR_HUD_RACER_LABEL_MIN_DIST) || !(dist < SWR_HUD_WORLD_SPRITE_MAX_DIST))
+            continue;
+        if (dist < SWR_HUD_RACER_LABEL_FADE_DIST)
+            alpha = 255.0f;
+        else
+            alpha = (SWR_HUD_WORLD_SPRITE_MAX_DIST - dist) * 255.0f * SWR_HUD_RACER_LABEL_FADE_SCALE;
+        if (alpha > SWR_HUD_RACER_LABEL_MAX_ALPHA)
+            alpha = SWR_HUD_RACER_LABEL_MAX_ALPHA;
+        if (GetPauseState() != 0)
+            alpha = alpha * 0.5f;
+
+        swrViewport_ProjectToScreen((swrViewport*)viewport, (rdVector4*)worldPos, &screenX, &screenY, &screenZ, &depth, 0);
+        if (!(screenX > -4.0f))
+            continue;
+        label = player_sprite_unknown_values[i];
+        if (label >= 0) {
+            screenY = screenY - 13.0f;
+            screenX = screenX - 4.0f;
+        } else {
+            screenY = screenY - 20.0f;
+            screenX = screenX - 8.0f;
+        }
+        if (!(screenX < (float)swrDisplay_screenWidth) || !(screenY > 0.0f) || !(screenY < (float)swrDisplay_screenHeight))
+            continue;
+        if (!secondaryPass) {
+            player_sprite_pixel_pos_x[i] = (int)screenX;
+            player_sprite_pixel_pos_y[i] = (int)screenY;
+        } else {
+            player_sprite_pixel_pos_x2[i] = (int)screenX;
+            player_sprite_pixel_pos_y2[i] = (int)screenY;
+        }
+        // drawn when in front of the camera plane or nearer than the sampled z-buffer depth
+        if (!(screenZ < 0.0f) && !(screenZ < player_sprite_depth_values[i]))
+            continue;
+        if (label >= 0) {
+            sprintf(text, swrText_Translate("~s%d"), label);
+            a = (char)(int)alpha;
+            b = -1;
+        } else {
+            sprintf(text, "~f1~s%d", -label);
+            a = (char)((int)alpha + 0x28);
+            b = 0;
+        }
+        swrText_CreateTextEntry2((int16_t)(int)screenX, (int16_t)(int)screenY, -1, -1, b, a, text);
+    }
+}
 
 // 0x0042cb00
 void swrPlayerHUD_RenderWorldSprites(void* viewport)

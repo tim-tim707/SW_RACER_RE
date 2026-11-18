@@ -66,8 +66,10 @@ typedef enum swrVehicleReaction
 // GameSettingFlags @ 0x00e996dc: global render/gameplay setting bits.
 typedef enum GameSettingFlag
 {
+    GAME_SETTING_UNK_1 = 0x1, // set by swrScene_LoadObjects; part of the swrViewport_ResetCameraState_Maybe default (9)
     GAME_SETTING_STEREO_PAN = 0x8, // swrSound_PlaySpatial pans sfx by their side of the listener
     GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
+    GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 

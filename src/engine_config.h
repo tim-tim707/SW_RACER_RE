@@ -195,6 +195,9 @@
 #define SWROBJHANG_MENU_SPRITE_COUNT (0xb8) // front-end sprite ids 0..0xb7, hidden by swrObjHang_F0 every frame
 
 // swrObjHang_CullElmoAssets (0x0045ce90): size of the 'Elmo' event pool
+#define SWR_SCENE_CMAN_COUNT (6) // 'cMan' objects swrScene_LoadObjects allocates
+#define SWR_SCENE_FOG_START (996) // swrScene_LoadObjects front-end fog range
+#define SWR_SCENE_FOG_END (1000)
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
@@ -378,6 +381,11 @@
 #define SWR_UI_CARET_WIDE_SCREEN_WIDTH (512) // the caret is stretched 1.25x at this screen width
 #define SWR_UI_FRAME_NATIVE_SCREEN_WIDTH (640) // panel/frame edges are widened by two edge sprites at any other width
 #define SWR_HUD_WORLD_SPRITE_MAX_DIST (1500.0f)
+#define SWR_HUD_RACER_LABEL_NONE (-9999) // player_sprite_unknown_values: no label for this slot
+#define SWR_HUD_RACER_LABEL_MIN_DIST (40.0f) // swrPlayerHUD_RenderDistanceText: hidden closer than this
+#define SWR_HUD_RACER_LABEL_FADE_DIST (400.0f) // fades out from here to SWR_HUD_WORLD_SPRITE_MAX_DIST
+#define SWR_HUD_RACER_LABEL_FADE_SCALE (0.000909090915f) // 1 / (1500 - 400)
+#define SWR_HUD_RACER_LABEL_MAX_ALPHA (128.0f)
 
 // swrObjTest_F4 'Hitt' event (0x00474d80)
 #define SWR_OBJTEST_HIT_LOG_SIZE (8) // swrObjTest_hitKindLog / swrObjTest_hitAmountLog ring entries

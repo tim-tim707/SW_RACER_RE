@@ -12421,6 +12421,27 @@ void swrScene_LoadPreviewModel(void)
     swrViewport_SetRootNodeForAllViewports(&someRootNode);
 }
 
+// 0x00448f40
+void swrScene_LoadObjects(void)
+{
+    swrSound_SetSpatialOrigin_Maybe(50.0f, 300.0f);
+    swrAssetBuffer_ReserveRegionA_Maybe();
+    swrAssetBuffer_ReserveRegionB_Maybe();
+    ResetModelPreviewState_Maybe();
+    if (swrScene_previewModelId == -1) {
+        swrEvent_AllocateAndLoadObjs('cMan', SWR_SCENE_CMAN_COUNT);
+        swrEvent_AllocateAndLoadObjs('Jdge', 1);
+        swrEvent_AllocateAndLoadObjs('Hang', 1);
+    } else {
+        swrScene_LoadPreviewModel();
+    }
+    GameSettingFlags &= ~GAME_SETTING_UNK_800;
+    SetClearColor(0, 0, 0);
+    SetFogParameters(SWR_SCENE_FOG_START, SWR_SCENE_FOG_END, 0xff, 0xff, 0xff, 0xff);
+    swrScene_objectsLoaded = 1;
+    GameSettingFlags |= GAME_SETTING_UNK_1;
+}
+
 // 0x004292b0
 void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out)
 {
