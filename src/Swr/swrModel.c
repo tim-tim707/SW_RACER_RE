@@ -3310,6 +3310,12 @@ float DistanceToNearestViewportCamera(rdVector3* point)
     return stdMath_Sqrt(nearest);
 }
 
+// 0x0046d690
+int swrModel_FxAnimGetState_Maybe(void)
+{
+    return 0;
+}
+
 // 0x0046d730
 float swrMath_StepTowardClamped(float value, float current, float min, float max, float upper, float lower)
 {

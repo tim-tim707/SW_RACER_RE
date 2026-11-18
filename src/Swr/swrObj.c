@@ -6532,8 +6532,7 @@ void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void
     }
 
     swrObjJdge_GetSpawnTransform(judge, &spawn, player->score_ptr->unk14);
-    // the header types arg 2 as float; it is the spline pointer
-    swrRace_Init(player, *(float*)&judge->unk2c_spline, (int)podModel, (void*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), duplicatePods);
+    swrRace_Init(player, judge->unk2c_spline, (swrModel_Node**)podModel, (swrModel_Node*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), duplicatePods);
     player->reflectionNode = reflection;
     player->lodBodyNode = (swrModel_Node*)lodBody;
     player->lodSelectorNode = (swrModel_Node*)lodSelector;
