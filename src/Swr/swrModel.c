@@ -5,6 +5,7 @@
 #include "swrEvent.h"
 #include "swrObj.h"
 #include "swrViewport.h"
+#include "swrSprite.h"
 
 #include <Engine/rdMaterial.h>
 #include <engine_config.h>
@@ -1457,9 +1458,17 @@ void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, i
 // functions for placing sprites onto the screen while ingame (like player positions, sun and lens flares, light streaks)
 
 // 0x0042BA20
-void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b)
+void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int x, int y, float size, float spread, float intensity, uint8_t r, uint8_t g, uint8_t b)
 {
-    HANG("TODO");
+    float scale = 0.7f - (1.0f - intensity) * -0.3f;
+    int halfWidth = swrDisplay_screenWidth / 2;
+    int halfHeight = swrDisplay_screenHeight / 2;
+
+    // spread pushes the flare away from (or toward) the screen center
+    swrSprite_SetPosF(id, (int)((x - halfWidth) * spread + halfWidth), (int)((y - halfHeight) * spread + halfHeight));
+    swrSprite_SetColor(id, r, g, b, (int)(intensity * 130.0f));
+    swrSprite_SetDim(id, scale * size, scale * size);
+    swrSprite_SetVisible(id, 1);
 }
 
 // 0x0042C400
@@ -1968,7 +1977,28 @@ int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3)
 // 0x00447370
 void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_data_ptr, uint8_t** palette_ptr)
 {
-    HANG("TODO");
+    // texture_offsets = { pixel data, palette (0 = none), next texture's pixel data } in the texture block
+    size_t size = texture_offsets[2] - texture_offsets[0];
+    uint8_t* dest;
+
+    if (swrAssetBuffer_RemainingSize() < (int)(size + SWR_TEXTURE_LOAD_HEADROOM)) {
+        *palette_ptr = NULL;
+        *texture_data_ptr = NULL;
+        assetBufferOverflow = 1;
+        return;
+    }
+    if (texture_offsets[1] != 0)
+        size = texture_offsets[1] - texture_offsets[0];
+    dest = (uint8_t*)(((uintptr_t)swrAssetBuffer_GetBuffer() + SWR_TEXTURE_DATA_ALIGN - 1) & ~(uintptr_t)(SWR_TEXTURE_DATA_ALIGN - 1));
+    swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, texture_offsets[0], dest, size);
+    *texture_data_ptr = dest;
+    if (texture_offsets[1] != 0) {
+        dest = (uint8_t*)(((uintptr_t)dest + size + SWR_TEXTURE_DATA_ALIGN - 1) & ~(uintptr_t)(SWR_TEXTURE_DATA_ALIGN - 1));
+        size = texture_offsets[2] - texture_offsets[1];
+        swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, texture_offsets[1], dest, size);
+        *palette_ptr = dest;
+    }
+    swrAssetBuffer_SetBuffer((char*)(dest + size));
 }
 
 // 0x00447420
@@ -1987,7 +2017,36 @@ void swrModel_InitializeTextureBuffer()
 // 0x00447490
 void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, uint8_t** palette_data_ptr)
 {
-    HANG("TODO");
+    int offsets[3];
+    int i;
+
+    if ((int)texture_index < 0 || (int)texture_index >= (int)texture_count) {
+        *material_ptr = NULL;
+        *palette_data_ptr = NULL;
+        return;
+    }
+    // texture_buffer caches a pointer to the first loader's {material, palette} slot pair
+    if (texture_buffer[texture_index] != NULL) {
+        *material_ptr = ((swrMaterial**)texture_buffer[texture_index])[0];
+        *palette_data_ptr = ((uint8_t**)texture_buffer[texture_index])[1];
+        return;
+    }
+    swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, texture_index * 8 + 4, offsets, sizeof(offsets));
+    for (i = 0; i < 3; i++)
+        offsets[i] = SWAP32(offsets[i]);
+    swrModel_LoadTextureDataAndPalette(offsets, (uint8_t**)material_ptr, palette_data_ptr);
+    swrModel_DoConvertTextureDataToRdMaterial(material_ptr, palette_data_ptr);
+    texture_buffer[texture_index] = material_ptr;
+    if (texture_index == TEXID_b_alpha_waterfall_ctr_rgb)
+        rdMaterial_b_alpha_waterfall_ctr_rgb = (RdMaterial*)*material_ptr;
+    if (texture_index == TEXID_b_alpha_waterfall_edge_rgb)
+        rdMaterial_b_alpha_waterfall_edge_rgb = (RdMaterial*)*material_ptr;
+    if (texture_index == TEXID_a_alpha_ice03_rgb)
+        rdMaterial_a_alpha_ice03_rgb = (RdMaterial*)*material_ptr;
+    if (texture_index == TEXID_mg_engturbine_rgb)
+        rdMaterial_mg_engturbine_rgb = (RdMaterial*)*material_ptr;
+    if (texture_index == TEXID_clouds2_rgb)
+        rdMaterial_InvertTextureColorR4G4B4A4((RdMaterial*)*material_ptr);
 }
 
 // 0x00431A50

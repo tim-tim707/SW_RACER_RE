@@ -177,6 +177,10 @@
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
+// swrModel_LoadTextureDataAndPalette: pixel data and palette each start on a 64-byte boundary;
+// the free-space check reserves room for both alignment pads
+#define SWR_TEXTURE_DATA_ALIGN (64)
+#define SWR_TEXTURE_LOAD_HEADROOM (0x80)
 // swrModel_RegisterRootMaterial (0x00408fb0): swrModel3_root_materials entries (0x2000-byte block)
 #define SWR_ROOT_MATERIAL_CAPACITY (0x800)
 
