@@ -583,7 +583,7 @@ void swrObjJdge_F3(swrObjJdge* jdge);
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 
 // Sets up the eight lens-flare sprites with descending sizes and colors.
-void swrObjJdge_SetupLensFlareSprites(int param_1, int baseSprite, float scale);
+void swrObjJdge_SetupLensFlareSprites(int sunIndex, int baseSprite, float scale);
 
 int SetPlanetIdAndTrackNumber(int, int);
 

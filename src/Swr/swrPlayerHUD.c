@@ -4,6 +4,8 @@
 #include "swrSprite.h"
 #include "swrViewport.h"
 #include "swrObj.h"
+#include "swrModel.h"
+#include "swrWeather.h"
 
 #include <Primitives/rdVector.h>
 #include <engine_config.h>
@@ -52,9 +54,166 @@ void swrPlayerHUD_Enable(void)
 }
 
 // 0x00464010
-void swrPlayerHUD_SetupTrackOverlay(int hudType, int weatherLevel)
+void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
 {
-    HANG("TODO");
+    swrSpriteTexture* tex;
+    rdVector3 sunPos;
+    float sunScale;
+    uint8_t r, g, b;
+    uint8_t a;
+    int i;
+
+    if (numLocalPlayers > 1) {
+        DisableIngameSprites();
+        return;
+    }
+
+    if (planetId != 7 && planetId != 5) {
+        tex = swrSprite_LoadTexture_(swrSprite_lensflare1_rgb);
+        swrSprite_NewSprite(0x41, tex);
+        if (planetId == 0)
+            swrSprite_NewSprite(0x49, tex);
+        tex = swrSprite_LoadTexture_(swrSprite_newflare1_rgb);
+        for (i = 0x42; i < 0x49; i++)
+            swrSprite_NewSprite(i, tex);
+        if (planetId == 0) {
+            for (i = 0x4a; i < 0x51; i++)
+                swrSprite_NewSprite(i, tex);
+        }
+        tex = swrSprite_LoadTexture_(swrSprite_newsun_rgb);
+        swrSprite_NewSprite(0x3f, tex);
+        if (planetId == 0)
+            swrSprite_NewSprite(0x40, tex);
+        swrSprite_SetFlag(0x3f, 0x1e00);
+        swrSprite_UnsetFlag(0x3f, 1);
+        for (i = 0x41; i < 0x49; i++) {
+            swrSprite_SetFlag(i, 0x1e00);
+            swrSprite_UnsetFlag(i, 1);
+        }
+        if (planetId == 0) {
+            swrSprite_SetFlag(0x40, 0x1e00);
+            swrSprite_UnsetFlag(0x40, 1);
+            for (i = 0x49; i < 0x51; i++) {
+                swrSprite_SetFlag(i, 0x1e00);
+                swrSprite_UnsetFlag(i, 1);
+            }
+        }
+
+        a = 0xff;
+        if (planetId == 0) {
+            rdVector_Set3(&sunPos, -360.0f, 512.0f, 200.0f);
+            SetSunSprite(1, 0x40, &sunPos.x, 0.90000004f, 0xff, 0xdc, 0xbe, 0xff);
+            swrObjJdge_SetupLensFlareSprites(1, 0x49, 0.90000004f);
+            rdVector_Set3(&sunPos, -220.0f, 512.0f, 260.0f);
+            sunScale = 1.2f;
+            r = 0xff;
+            g = 0xfd;
+            b = 0xe1;
+        } else if (planetId == 1) {
+            rdVector_Set3(&sunPos, 278.13f, -121.01f, 213.05f);
+            sunScale = 0.3f;
+            r = 0xcd;
+            g = 0xf0;
+            b = 0xff;
+        } else if (planetId == 2) {
+            rdVector_Set3(&sunPos, 0.0f, 512.0f, 230.0f);
+            sunScale = 1.2f;
+            r = 0xff;
+            g = 0xf4;
+            b = 0xbe;
+        } else if (planetId == 3) {
+            rdVector_Set3(&sunPos, 278.13f, -121.01f, 213.05f);
+            sunScale = 1.44f;
+            r = 0xff;
+            g = 0xda;
+            b = 0xcc;
+        } else if (planetId == 4) {
+            rdVector_Set3(&sunPos, -144.9f, 84.0f, 35.0f);
+            sunScale = 1.44f;
+            r = 0xff;
+            g = 0xe6;
+            b = 0xb4;
+            if (trackNumber != 3) {
+                a = 100;
+                sunScale = 0.48000002f;
+                r = 0x80;
+                g = 0x73;
+                b = 0x5a;
+            }
+        } else if (planetId == 6) {
+            rdVector_Set3(&sunPos, -145.08f, 69.15f, 126.97f);
+            sunScale = 0.24000001f;
+            r = 0xf0;
+            g = 0xf0;
+            b = 0xff;
+        } else {
+            rdVector_Set3(&sunPos, 0.0f, 512.0f, 230.0f);
+            sunScale = 1.2f;
+            r = 0xff;
+            g = 0xff;
+            b = 0xff;
+        }
+        SetSunSprite(0, 0x3f, &sunPos.x, sunScale, r, g, b, a);
+        swrObjJdge_SetupLensFlareSprites(0, 0x41, sunScale);
+    }
+
+    if (numLocalPlayers < 2 && (planetId == 1 || planetId == 4) && trackNumber != 3) {
+        swrWeather_Enable();
+        swrWeather_SetStretchFactor(1.0f);
+        swrWeather_SetParticleCap(0);
+        tex = swrSprite_LoadTexture_(swrSprite_newflare1_rgb);
+        for (i = 0x51; i < 0x8d; i++) {
+            swrSprite_NewSprite(i, tex);
+            swrSprite_SetFlag(i, 0x1e00);
+            swrSprite_UnsetFlag(i, 1);
+            swrWeather_SetParticleSpriteId(i - 0x51, i);
+        }
+        if (planetId == 1) {
+            for (i = 0x8d; i < 0xa1; i++) {
+                swrSprite_NewSprite(i, tex);
+                swrSprite_SetFlag(i, 0x1e00);
+                swrSprite_UnsetFlag(i, 1);
+                swrWeather_SetParticleSpriteId(i - 0x51, i);
+            }
+            swrWeather_SetColor(0xe6, 0xe6, 0xff, 200);
+            if (trackNumber == 0) {
+                swrWeather_SetParticleCap(0);
+            } else if (trackNumber == 1) {
+                swrWeather_SetVelocity(25.0f, 45.0f);
+                swrWeather_SetParticleCap(20);
+            } else if (trackNumber == 2) {
+                swrWeather_SetVelocity(20.0f, 60.0f);
+                swrWeather_SetParticleCap(40);
+                SetSunSpriteAlpha_Maybe(0, 0x80);
+            }
+        } else {
+            swrWeather_SetColor(0xff, 0xff, 0xff, 40);
+            swrWeather_SetStretchFactor(7.0f);
+            if (trackNumber == 0) {
+                swrWeather_SetParticleCap(20);
+                swrWeather_SetVelocity(10.0f, 300.0f);
+            } else {
+                swrWeather_SetVelocity(50.0f, 1000.0f);
+                swrWeather_SetParticleCap(60);
+            }
+        }
+    } else {
+        swrWeather_Disable();
+    }
+
+    if (planetId != 1 || trackNumber == 3) {
+        swrSpriteTexture* star = swrSprite_LoadTexture_(swrSprite_lightstar_glowstar2_rgb);
+        swrSpriteTexture* streak = swrSprite_LoadTexture_(swrSprite_lightstar_glowstreak_rgb);
+        for (i = 0; i < 10; i++) {
+            swrSprite_NewSprite(0x8d + i, streak);
+            swrSprite_SetFlag(0x8d + i, 0x1f00);
+            swrSprite_UnsetFlag(0x8d + i, 1);
+            swrSprite_NewSprite(0x97 + i, star);
+            swrSprite_SetFlag(0x97 + i, 0x1f00);
+            swrSprite_UnsetFlag(0x97 + i, 1);
+            SetLightStreakSpriteIDs(i, 0x8d + i, 0x97 + i);
+        }
+    }
 }
 
 // 0x00464630

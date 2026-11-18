@@ -205,8 +205,12 @@ swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitT
 InRaceSpritesEnabled 0x004B94C0 int
 
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
+sunSpriteScale 0x004b94d0 float[2] # sun glow size; SetSunSprite, scaled by occlusion in UpdateSunAndLensFlareSprites2
 sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
 lensFlareSpriteIds 0x004B94E0 int[16]
+lensFlareSize 0x00e99780 float[16] # per flare (sun * 8 + flare) sprite size; SetLensFlareSprite
+lensFlareSpread 0x00e9a440 float[16] # per flare position along the sun-to-screen-center axis (1 = on the sun, <0 = past center); SetLensFlareSprite
+lensFlareColors 0x00e9a6a0 uint8_t[48] # RGB per flare; SetLensFlareSprite
 
 # The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
 # swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
@@ -1672,6 +1676,10 @@ light_streak_positions 0x00e99e20 rdVector3[40]
 sun_sprite_position 0x00e9a3e0 rdVector3[2]
 sun_occlusionSampleX 0x00e9a480 int[2] # per-sun last-frame projected screen x; the pixel swrPlayerHUD_SampleOcclusion tests (< -500 = hidden)
 sun_occlusionSampleY 0x00e9a488 int[2] # per-sun last-frame projected screen y (pairs with sun_occlusionSampleX)
+sun_prevOcclusionSampleY 0x00e9a590 int[2] # sun_occlusionSampleY from the frame before
+sun_prevOcclusionSampleX 0x00e9a598 int[2] # sun_occlusionSampleX from the frame before
+sun_screenX 0x00e99c20 int[2] # per-sun projected screen x this frame (UpdateSunAndLensFlareSprites); -1000 until projected
+sun_screenY 0x00e99c28 int[2] # per-sun projected screen y this frame
 
 lightStreakSpriteIDs2 0x00e9a400 int[10]
 

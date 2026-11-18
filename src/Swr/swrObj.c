@@ -669,6 +669,15 @@ static void swrObjcMan_SetTranslationMatrix(rdMatrix44* m, const rdVector3* t)
     m->vD.x = t->x, m->vD.y = t->y, m->vD.z = t->z, m->vD.w = 1.0f;
 }
 
+// 0x004525d0
+void swrObjcMan_EndPreRaceSweep(swrObjcMan* cman)
+{
+    swrScene_Stub_Maybe();
+    cman->animTimer_ms = 8.0f;
+    swrObjcMan_UpdatePreRaceSweep(cman);
+    swrObjcMan_UpdatePreRaceSweepTimer(cman, 1000.0f);
+}
+
 // 0x00452600
 void swrObjcMan_UpdateDeathCamera(swrObjcMan* cman)
 {
@@ -1321,8 +1330,152 @@ void swrObjcMan_F3(swrObjcMan* cman)
 // 0x004543f0
 int swrObjcMan_F4(swrObjcMan* cman, int* subEvents, int p3)
 {
-    HANG("TODO");
-    return 0;
+    switch (*subEvents) {
+    case 0x43427574: // 'CBut'
+        if (cman->unkf4_objTest != (swrRace*)subEvents[1])
+            return 1;
+        cman->splineCamCursor.spline = NULL;
+        if (cman->mode_type == 7)
+            swrObjcMan_CommitStagedCamera(cman, 1);
+        switch (cman->mode_type) {
+        case 1:
+        case 3:
+            cman->mode_type = 4;
+            break;
+        case 4:
+            cman->mode_type = 5;
+            break;
+        case 5:
+            swrObjcMan_CommitStagedCamera(cman, 2);
+            break;
+        case 2:
+            swrObjcMan_CommitStagedCamera(cman, 1);
+            break;
+        }
+        cman->mode_respawn = cman->mode_type;
+        return 1;
+    case 0x44657468: // 'Deth'
+        if (cman->unkf4_objTest == (swrRace*)subEvents[1]) {
+            cman->mode_type = subEvents[2] == 0 ? 8 : 9;
+            const rdVector3* from = (const rdVector3*)subEvents[3];
+            const rdVector3* up = (const rdVector3*)subEvents[4];
+            const rdVector3* to = (const rdVector3*)subEvents[5];
+            cman->unk15c[0] = from->x;
+            cman->unk15c[1] = from->y;
+            cman->unk15c[2] = from->z;
+            cman->unk15c[3] = cman->unk20_mat.vD.x;
+            cman->unk15c[4] = cman->unk20_mat.vD.y;
+            cman->unk15c[5] = cman->unk20_mat.vD.z;
+            cman->unk15c[6] = up->x;
+            cman->unk15c[7] = up->y;
+            cman->unk15c[8] = up->z;
+            cman->unk15c[9] = to->x;
+            cman->unk15c[10] = to->y;
+            cman->unk15c[11] = to->z;
+            cman->animStage = 0;
+            cman->animTimer_ms = 1.0f;
+        }
+        rdVector_Set3(&cman->camShake, 0.0f, 0.0f, 0.0f);
+        return 1;
+    case 0x4c6f6164: // 'Load'
+        rdVector_Set3(&cman->unk8, 0.0f, 0.0f, 0.0f);
+        rdVector_Set3(&cman->unk14, 0.0f, 0.0f, 0.0f);
+        rdMatrix_SetIdentity44(&cman->unk20_mat);
+        cman->unk60 = 0;
+        cman->unk64 = 0;
+        cman->unk68 = 0;
+        cman->chaseTrail = 0.0f;
+        cman->chaseHeight = 0.0f;
+        cman->unk150 = 0;
+        cman->metaCamIndex_count = -1;
+        cman->mode_type = 0;
+        cman->surfaceBehavior = NULL;
+        cman->unkf4_objTest = NULL;
+        cman->unkf8 = 0;
+        rdVector_Set3(&cman->unkfc, 0.0f, 0.0f, 0.0f);
+        rdMatrix_SetIdentity44(&cman->focusTransform_mat);
+        cman->unk154 = 0;
+        cman->unk158 = 0;
+        return 1;
+    case 0x4e41736e: { // 'NAsn'
+        swrRace* pod = (swrRace*)subEvents[2];
+        cman->metaCamIndex_count = subEvents[1];
+        cman->unkf4_objTest = pod;
+        cman->mode_type = 1;
+        cman->mode_respawn = 1;
+        swrObjcMan_CommitStagedCamera(cman, 1);
+        cman->animTimer_ms = -1.0f;
+        cman->animStage = 0;
+        swrObjcMan_UpdatePreRaceSweepTimer(cman, -1.0f);
+        if (pod != NULL) {
+            const swrRacerVisualData* visual = &swrRacer_PodVisualData[*pod->score_ptr->pilotId];
+            cman->chaseTrail = visual->chaseCamTrail;
+            cman->chaseHeight = visual->chaseCamHeight;
+            cman->chaseHeight = cman->chaseHeight + pod->unk19b4 * 0.75;
+        }
+        cman->unk1b0 = 0;
+        cman->unk1a4 = 0;
+        cman->unk1a8 = 0;
+        cman->unk1ac = 0;
+        cman->unk198 = 0.0f;
+        cman->unk19c = 0.0f;
+        cman->unk1a0 = 0.0f;
+        cman->fov = 100.0f;
+        cman->fogDist = 5000.0f;
+        cman->fogDistTarget = -1.0f;
+        cman->fogStartDist = 990.0f;
+        cman->fogStartDistTarget = -1.0f;
+        cman->splineCamCursor.spline = NULL;
+        cman->unk150 = 0;
+        cman->fog_flag = swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR;
+        cman->surfaceBehavior = NULL;
+        cman->visual_flag = 0xffffff00;
+        cman->unk398_ms = 0.0f;
+        cman->unk2e4_flag = swrObjcMan_LIGHTFLAG_SNAP;
+        cman->lightDefault.flags = 0;
+        rdVector_Set3(&cman->lightDefault.ambientColor, 64.0f, 64.0f, 64.0f);
+        rdVector_Set3(&cman->lightDefault.lightVector, 0.0f, 0.0f, -1.0f);
+        rdVector_Set3(&cman->lightDefault.lightColor, 255.0f, 255.0f, 255.0f);
+        rdVector_Set3(&cman->lightDefault.lightVector2, 0.0f, 1.0f, 0.0f);
+        rdVector_Set3(&cman->camShake, 0.0f, 0.0f, 0.0f);
+        return 1;
+    }
+    case 0x52536574: // 'RSet'
+        cman->unkf4_objTest = NULL;
+        cman->mode_type = 0;
+        cman->metaCamIndex_count = -1;
+        rdVector_Set3(&cman->camShake, 0.0f, 0.0f, 0.0f);
+        return 1;
+    case 0x5368616b: // 'Shak'
+        cman->camShake.z = ((float*)p3)[1];
+        cman->camShake.y = ((float*)p3)[2];
+        cman->camShake.x = 0.0f;
+        return 1;
+    case 0x53776565: // 'Swee'
+        if (subEvents[1] == 0) {
+            swrObjcMan_EndPreRaceSweep(cman);
+            return 1;
+        }
+        swrObjcMan_UpdatePreRaceSweepTimer(cman, 0.0f);
+        cman->mode_type = 7;
+        cman->animTimer_ms = -1.0f;
+        cman->animStage = 0;
+        return 1;
+    case 0x63636631: // 'ccf1'
+        swrObjcMan_CommitStagedCamera(cman, 1);
+        return 1;
+    case 0x63636632: // 'ccf2'
+        swrObjcMan_CommitStagedCamera(cman, 4);
+        return 1;
+    case 0x63636633: // 'ccf3'
+        swrObjcMan_CommitStagedCamera(cman, 5);
+        return 1;
+    case 0x63636634: // 'ccf4'
+        swrObjcMan_CommitStagedCamera(cman, 2);
+        return 1;
+    default:
+        return 0;
+    }
 }
 
 // 0x00454920
@@ -4981,7 +5134,102 @@ void swrObjJdge_DrawSpeedDialHud_Maybe(int racer, int score, short x, short y, i
 // 0x004603f0
 void swrObjJdge_LayoutHudFrameSprites_Maybe(unsigned int mode)
 {
-    HANG("TODO");
+    if (NumLocalPlayers() > 1)
+        return;
+
+    if ((mode & 1) == 0) {
+        swrSprite_SetVisible(5, 1);
+        swrSprite_SetPos(5, 0, 0x15);
+        swrSprite_SetDim(5, 320.0f, 2.0f);
+        swrSprite_SetColor(5, 0x59, 0x8c, 0x36, 0x40);
+        swrSprite_SetVisible(6, 0);
+        swrSprite_SetVisible(0xd, 1);
+        swrSprite_SetPos(0xd, 0, 0x17);
+        swrSprite_SetDim(0xd, 80.0f, 1.0f);
+        swrSprite_SetColor(0xd, 0x00, 0x6e, 0x8f, 0xfe);
+        swrSprite_SetVisible(0, 1);
+        swrSprite_SetPos(0, 0x12, 0x22);
+        swrSprite_SetColor(0, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(0xb, 1);
+        swrSprite_SetPos(0xb, 0x42, 0x23);
+        swrSprite_SetDim(0xb, 21.5f, 1.0f);
+        swrSprite_SetColor(0xb, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(4, 1);
+        swrSprite_SetPos(4, 0x6d, 0x23);
+        swrSprite_SetColor(4, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(0xc, 1);
+        swrSprite_SetPos(0xc, 0xd3, 0x23);
+        swrSprite_SetDim(0xc, 21.5f, 1.0f);
+        swrSprite_SetColor(0xc, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(1, 1);
+        swrSprite_SetPos(1, 0xfe, 0x22);
+        swrSprite_SetColor(1, 0x59, 0x8c, 0x36, 0xfe);
+    } else {
+        swrSprite_SetVisible(6, 1);
+        swrSprite_SetPos(6, 0x17, 0xdc);
+        swrSprite_SetDim(6, 270.0f, 2.0f);
+        swrSprite_SetColor(6, 0x59, 0x8c, 0x36, 0x40);
+        swrSprite_SetVisible(5, 1);
+        swrSprite_SetPos(5, 0x17, 0x14);
+        swrSprite_SetDim(5, 270.0f, 2.0f);
+        swrSprite_SetColor(5, 0x59, 0x8c, 0x36, 0x40);
+        swrSprite_SetVisible(0xd, 0);
+        swrSprite_SetVisible(0, 0);
+        swrSprite_SetVisible(0xb, 0);
+        swrSprite_SetVisible(4, 0);
+        swrSprite_SetVisible(0xc, 0);
+        swrSprite_SetVisible(1, 0);
+    }
+    swrSprite_SetVisible(3, 1);
+    swrSprite_SetPos(3, 0xe5, 0xb4);
+    swrSprite_SetColor(3, 0x00, 0x6e, 0x8f, 0xfe);
+    swrSprite_SetVisible(2, 1);
+    swrSprite_SetPos(2, 0xf3, 0xb4);
+    swrSprite_SetDim(2, 6.0f, 1.0f);
+    swrSprite_SetColor(2, 0x00, 0x6e, 0x8f, 0xfe);
+    swrSprite_SetVisible(10, 1);
+    swrSprite_SetPos(10, 0x10b, 0xb4);
+    swrSprite_SetColor(10, 0x00, 0x6e, 0x8f, 0xfe);
+
+    if ((mode & 4) == 0) {
+        float slide;
+        if ((mode & 2) == 0) {
+            slide = 0.0f;
+        } else {
+            slide = (1.0f - GetPauseMenuScrollInOut()) * 2.0f;
+            if (slide > 1.0f)
+                slide = 1.0f;
+            slide = (1.0f - miniMapAlpha) * slide;
+        }
+        float barHeight = slide * 90.0f;
+        float barTop = 164.0f - barHeight;
+        swrSprite_SetVisible(7, 1);
+        swrSprite_SetPos(7, 0x113, (short)barTop);
+        swrSprite_SetDim(7, 1.0f, barHeight * 0.5f);
+        swrSprite_SetColor(7, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(9, 1);
+        swrSprite_SetPos(9, 0x113, (short)(barTop - 4.0f));
+        swrSprite_SetColor(9, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(8, 0);
+    } else {
+        swrSprite_SetVisible(7, 1);
+        swrSprite_SetPos(7, 0x16, 0x15);
+        swrSprite_SetDim(7, 1.0f, 99.5f);
+        swrSprite_SetColor(7, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(8, 1);
+        swrSprite_SetPos(8, 0x11b, 0x15);
+        swrSprite_SetDim(8, 1.0f, 99.5f);
+        swrSprite_SetColor(8, 0x59, 0x8c, 0x36, 0xfe);
+        swrSprite_SetVisible(9, 1);
+        swrSprite_SetPos(9, 0x113, 0xa0);
+        swrSprite_SetColor(9, 0x59, 0x8c, 0x36, 0xfe);
+    }
+
+    float alpha = miniMapAlpha;
+    swrSprite_SetVisible(0x19, alpha > 0.0f);
+    swrSprite_SetPos(0x19, 0xe8, 0x3c);
+    swrSprite_SetDim(0x19, 15.625f, 3.90625f);
+    swrSprite_SetColor(0x19, 0x00, 0x37, 0x47, (uint8_t)(int)(alpha * 254.0f));
 }
 
 // Per-frame in-race HUD draw, dispatched by hud_mode: the racer-position indicators in one of several
@@ -5873,6 +6121,22 @@ void swrObjJdge_UpdateViewportLayout(swrObjJdge* jdge, int mode)
     }
     swrViewport_SetViewport(1, 8, 8, 312, 232);
     swrViewport_SetCameraParameters(1, 100.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+}
+
+// 0x00463ec0
+void swrObjJdge_SetupLensFlareSprites(int sunIndex, int baseSprite, float scale)
+{
+    float midSize = scale * 0.75f;
+
+    SetLensFlareSprite(sunIndex, 0, baseSprite, 1.0f, scale * 0.8f, 0xff, 0xff, 0xc8);
+    SetLensFlareSprite(sunIndex, 1, baseSprite + 1, 0.75f, scale, 0xff, 0xff, 0xc8);
+    SetLensFlareSprite(sunIndex, 2, baseSprite + 2, 0.63f, midSize, 0xb4, 0xff, 0xb4);
+    SetLensFlareSprite(sunIndex, 3, baseSprite + 3, 0.43f, scale + scale, 0xff, 0xff, 0xc8);
+    SetLensFlareSprite(sunIndex, 4, baseSprite + 4, 0.25f, scale * 1.4f, 0xff, 0xc8, 0xc8);
+    // flare index 4 is set twice (slot 7 never is), so sprite baseSprite + 4 loses its slot
+    SetLensFlareSprite(sunIndex, 4, baseSprite + 5, -0.18f, midSize, 0xff, 0xc8, 0xc8);
+    SetLensFlareSprite(sunIndex, 5, baseSprite + 6, -0.43f, scale, 0xb4, 0xff, 0xb4);
+    SetLensFlareSprite(sunIndex, 6, baseSprite + 7, -1.35f, scale * 0.5f, 0xff, 0xb4, 0xb4);
 }
 
 // 0x00463FF0
@@ -10712,6 +10976,12 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 
     // only the first five args are pushed (add esp,0x14); the rest are stack garbage the receiver ignores
     swrMultiplayer_SendEvent(-1, 0, 'trig', index, player->score_ptr->time_unk, 0.0f, 0.0, NULL, NULL, 0);
+}
+
+// 0x00449090
+void swrScene_Stub_Maybe(void)
+{
+    // the original only loads a global into a dead local
 }
 
 // 0x00449260

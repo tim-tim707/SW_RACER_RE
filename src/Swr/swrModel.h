@@ -251,10 +251,10 @@ void UpdateSunAndLensFlareSprites(swrViewport* a1);
 void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha);
 
 // Stores the sprite id, world position, clamp values, and rgba color for a sun sprite.
-void SetSunSprite(int index, int spriteId, float* position, int param4, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+void SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
 // Stores the sprite id, params, and rgb color for a lens-flare sprite of a sun.
-void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, int param4, int param5, unsigned char r, unsigned char g, unsigned char b);
+void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b);
 
 // Resets all lens-flare and sun sprite ids to clear the sprite state.
 void ResetSunAndLensFlareSprites(void);
