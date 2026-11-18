@@ -298,7 +298,7 @@ void swrObjHang_EnterMultiplayerMenu_Maybe(void);
 // Sets a hangar menu state flag (best guess).
 void swrObjHang_SetState5_Maybe(void);
 
-void DrawTracks(swrObjHang* hang, char param_2);
+void DrawTracks(swrObjHang* hang, char circuit);
 
 // hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE):
 void swrObjHang_UpdateLegalScreen(swrObjHang* hang);

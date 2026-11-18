@@ -18,6 +18,7 @@
 
 #include <macros.h>
 #include <ctype.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <engine_config.h>
@@ -78,6 +79,48 @@ void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
     swrUI_UpdateProgressBar(0);
+}
+
+// 0x00411170
+void swrUI_AddNavButton(swrUI_unk* page, int id, int x, int y, int kind)
+{
+    // faithful: retail leaves the label uninitialised for an unknown kind
+    char text[256] = { 0 };
+
+    if (kind == 0)
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0388/~sQuit"));
+    else if (kind == 1)
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0034/~sCancel"));
+    else if (kind == 2)
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0371/~sBack"));
+    swrUI_NewButton(page, id, 6, text, x, y, 0xb4, 0x19, swrUI_FRAME_STYLE_BACK_BUTTON | swrUI_FRAME_STYLE_MIRROR_V, 0);
+}
+
+// 0x00411210
+swrUI_unk* swrUI_AddOkButton(swrUI_unk* page, int x, int y)
+{
+    swrSprite_BBox box;
+
+    swrSprite_GetBBoxFromId(swrSprite_ok_button, &box);
+    return swrUI_NewButton(page, SWR_UI_ID_OK_BUTTON, 6, swrText_Translate("/MONDOTEXT_H_0372/~sOK"), x, y, box.x2 - box.x, box.y2 - box.y, swrUI_FRAME_STYLE_OK_BUTTON, 0);
+}
+
+// 0x00411270
+void swrUI_AddRestoreButton(swrUI_unk* page, int x, int y)
+{
+    // faithful: the measured text size is discarded for a fixed 150x25 button
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0390/~sRestore"), swrText_fontsByIndex[6]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0390/~sRestore"), swrText_fontsByIndex[6]);
+    swrUI_NewButton(page, 0x26, 6, swrText_Translate("/MONDOTEXT_H_0390/~sRestore"), x, y, 0x96, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+}
+
+// 0x004112f0
+void swrUI_AddDefaultButton(swrUI_unk* page, int x, int y)
+{
+    // faithful: the measured text size is discarded for a fixed 150x25 button
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0389/~sDefault"), swrText_fontsByIndex[6]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0389/~sDefault"), swrText_fontsByIndex[6]);
+    swrUI_NewButton(page, 0x25, 6, swrText_Translate("/MONDOTEXT_H_0389/~sDefault"), x, y, 0x96, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
 }
 
 // 0x00411370
@@ -1357,6 +1400,33 @@ int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
     return 0;
 }
 
+// 0x004150e0
+swrUI_unk* swrUI_HitTest(swrUI_unk* root, int cursor_x, int cursor_y)
+{
+    swrUI_unk* hit;
+    swrSprite_BBox box;
+
+    for (; root != NULL; root = root->next2) {
+        if ((root->flags & swrUI_VISIBLE) == 0 || root->widget_class == swrUI_CLASS_PANEL)
+            continue;
+        if (root->next != NULL) {
+            hit = swrUI_HitTest(root->next, cursor_x, cursor_y);
+            if (hit != NULL)
+                return hit;
+        }
+        if ((root->flags & swrUI_CHECK_SPRITE_UNK) == 0) {
+            box.x = root->x;
+            box.y = root->y;
+            box.x2 = root->width;
+            box.y2 = root->height;
+            swrSprite_BBoxFit(&box, &root->bbox);
+            if (root != swrUI_unk_ptr && swrSprite_IsInsideBBox(&box, cursor_x, cursor_y) != 0)
+                return root;
+        }
+    }
+    return NULL;
+}
+
 // 0x004151a0
 int swrUI_RunCallbacks(swrUI_unk* ui, int forward1, int forward2, int forward3)
 {
@@ -2063,6 +2133,80 @@ void swrUI_OnSetElementPos(swrUI_unk* ui, int x, int y)
         ui->ui_elements[i].screen_y1 += dy;
         ui->ui_elements[i].screen_y2 += dy;
     }
+}
+
+// 0x004176f0
+void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font)
+{
+    int width = swrText_GetStringWidth(text, swrText_fontsByIndex[font]);
+    int height = swrText_GetStringHeight(text, swrText_fontsByIndex[font]);
+
+    bbox_out[2] = width + 0x13;
+    bbox_out[1] = 0;
+    bbox_out[0] = 0;
+    bbox_out[3] = height + 0x1d;
+}
+
+// 0x00417740
+void swrUI_GetButtonBBoxFromText_Maybe(int* bbox_out, char* text, int font)
+{
+    int width = swrText_GetStringWidth(text, swrText_fontsByIndex[font]);
+    int height = swrText_GetStringHeight(text, swrText_fontsByIndex[font]);
+    // roughly square box: side ~ sqrt(text area / 8)
+    int side = (int)sqrt((double)((unsigned int)((height + 5) * width) >> 3));
+
+    bbox_out[1] = 0;
+    bbox_out[0] = 0;
+    bbox_out[2] = side * 8 + 0x3b;
+    bbox_out[3] = side + 0x4f;
+}
+
+// 0x004177b0
+unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, char* label3, int font)
+{
+    unsigned int count = 0;
+    unsigned int buttonWidth = 0x96;
+    int textHeight = 0;
+    int rowWidth;
+    int width;
+
+    if (label1 != NULL) {
+        width = swrText_GetStringWidth(label1, swrText_fontsByIndex[font]);
+        if ((unsigned int)(width * 3) > 0x95)
+            buttonWidth = width * 3;
+        if (swrText_GetStringHeight(label1, swrText_fontsByIndex[font]) >= 0)
+            textHeight = swrText_GetStringHeight(label1, swrText_fontsByIndex[font]);
+        count = 1;
+    }
+    if (label2 != NULL) {
+        width = swrText_GetStringWidth(label2, swrText_fontsByIndex[font]);
+        if ((unsigned int)(width * 3) >= buttonWidth)
+            buttonWidth = width * 3;
+        if (swrText_GetStringHeight(label2, swrText_fontsByIndex[font]) >= textHeight)
+            textHeight = swrText_GetStringHeight(label2, swrText_fontsByIndex[font]);
+        count++;
+    }
+    if (label3 != NULL) {
+        width = swrText_GetStringWidth(label3, swrText_fontsByIndex[font]);
+        if ((unsigned int)(width * 3) >= buttonWidth)
+            buttonWidth = width * 3;
+        if (swrText_GetStringHeight(label3, swrText_fontsByIndex[font]) >= textHeight)
+            textHeight = swrText_GetStringHeight(label3, swrText_fontsByIndex[font]);
+        count++;
+    }
+    // three buttons wrap to two columns and two rows
+    if (count < 3)
+        rowWidth = buttonWidth * count;
+    else
+        rowWidth = buttonWidth << 1;
+    textHeight = textHeight + 0x14;
+    if (count > 2)
+        textHeight = textHeight * 2;
+    bbox_out[2] = rowWidth + count * 0x14 - 1;
+    bbox_out[1] = 0;
+    bbox_out[0] = 0;
+    bbox_out[3] = textHeight - 1;
+    return buttonWidth;
 }
 
 // 0x00417060
@@ -3188,6 +3332,29 @@ swrUI_unk* swrUI_NewPanel(swrUI_unk* parent, int id, int* rect, int kind)
     swrUI_RunCallbacks2(ui, 1);
     ui->widget_class = swrUI_CLASS_PANEL;
     return ui;
+}
+
+// 0x0041b300
+void swrUI_ClearListSelection(swrUI_unk* list)
+{
+    swrUI_unk* item;
+    uint8_t cls;
+
+    if (list == NULL || list->next == NULL)
+        return;
+    for (item = list->next; item != NULL; item = item->next2) {
+        cls = (uint8_t)item->widget_class;
+        // faithful: a mask test, so classes 13..15 pass too (15 keeps its sprites)
+        if ((cls & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
+            if ((cls & 3) != 3) {
+                swrUI_AddSprite(item, 0, 0, NULL, 0, 0);
+                swrUI_AddSprite(item, 1, 0, NULL, 0, 0);
+                swrUI_AddSprite(item, 2, 0, NULL, 0, 0);
+            }
+            item->item_flags &= ~swrUI_ITEM_SELECTED;
+        }
+    }
+    swrUI_RefreshListLayout(list);
 }
 
 // 0x0041b380

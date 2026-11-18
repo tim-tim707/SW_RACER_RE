@@ -60,9 +60,76 @@ void swrObjHang_SetUnused(void)
 }
 
 // 0x004360e0
-void DrawTracks(swrObjHang* hang, char param_2)
+void DrawTracks(swrObjHang* hang, char circuit)
 {
-    HANG("TODO");
+    static const uint8_t circuitColors[SWR_CIRCUIT_COUNT][3] = {
+        { 0x32, 0xff, 0xff },
+        { 0x44, 0xff, 0x3e },
+        { 0xa3, 0xbe, 0x11 },
+        { 0x9d, 0x59, 0x20 },
+    };
+    char text[17] = { 0 };
+    const uint8_t* color;
+    short place = 0;
+    float alpha = 254.0f;
+    short id;
+    short x;
+    short y;
+    int track;
+    int c;
+
+    if (circuit != hang->circuitIdx)
+        alpha = swrRace_Transition * 254.0f;
+
+    // faithful: a loop over [circuit, circuit + 1)
+    for (c = circuit; c < circuit + 1; c++) {
+        color = (unsigned int)c < SWR_CIRCUIT_COUNT ? circuitColors[c] : NULL;
+        for (track = 0; track < g_aTracksInCircuits[c]; track++) {
+            if (hang->isTournamentMode != 0)
+                place = ((short)g_aBeatTrackPlace[c] >> (track * 2)) & 3;
+            id = SWROBJHANG_TRACK_GRID_SPRITE_BASE + c * SWR_TRACKS_PER_CIRCUIT + track;
+            x = track * 35 + 0x37;
+            y = 0x5e;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, x, y);
+            swrSprite_SetDim(id, 0.6667f, 0.6667f);
+            if (color != NULL)
+                swrSprite_SetColor(id, color[0], color[1], color[2], (uint8_t)(int)alpha);
+            if (!isTrackPlayable(hang, (char)c, (char)track))
+                swrSprite_SetColor(id, 0x80, 0x80, 0x80, (uint8_t)(int)alpha);
+            else if (place > 0)
+                swrSprite_SetColor(id, 0xff, 0xff, 0xff, (uint8_t)(int)alpha);
+
+            sprintf(text, "~f2~s%d", track + 1);
+            if (hang->isTournamentMode == 0 || isTrackUnlocked((char)c, (char)track) != 0) {
+                if (!isTrackPlayable(hang, (char)c, (char)track)) {
+                    swrText_CreateTextEntry1(x + 5, y + 0xf, -0x80, -0x80, -0x80, (int)alpha, text);
+                    swrText_CreateTextEntry1(x + 0xc, y + 0x11, -0x80, -0x80, -0x80, (int)alpha, swrText_Translate(g_pTxtRace));
+                } else if (color != NULL) {
+                    swrText_CreateTextEntry1(x + 5, y + 0xf, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, text);
+                    swrText_CreateTextEntry1(x + 0xc, y + 0x11, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, swrText_Translate(g_pTxtRace));
+                }
+            }
+            if (hang->isTournamentMode != 0 && place == 0 && isTrackUnlocked((char)c, (char)track) == 0 && color != NULL)
+                swrText_CreateTextEntry1(x + 3, y + 0x11, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, swrText_Translate(g_pTxt4th));
+
+            id = SWROBJHANG_TRACK_GRID_SPRITE_BASE + SWROBJHANG_TRACK_GRID_SELECT_OFFSET + c * SWR_TRACKS_PER_CIRCUIT + track;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, x - 2, y - 2);
+            swrSprite_SetDim(id, 0.6667f, 0.6667f);
+            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, (uint8_t)(int)alpha);
+            if (!isTrackPlayable(hang, (char)c, (char)track))
+                swrSprite_SetColor(id, 0x80, 0x80, 0x80, (uint8_t)(int)alpha);
+            if (circuit == hang->circuitIdx && VerifySelectedTrack(hang, swrRace_MenuSelectedItem) == track) {
+                // the selected track swaps its frame for the highlight sprite 0x62
+                swrSprite_SetVisible(id, 0);
+                swrSprite_SetVisible(0x62, 1);
+                swrSprite_SetPos(0x62, x - 5, y - 5);
+                swrSprite_SetDim(0x62, 0.6667f, 0.6667f);
+                swrSprite_SetColor(0x62, 0x32, 0xff, 0xff, (uint8_t)(int)alpha);
+            }
+        }
+    }
 }
 
 // 0x00440990
