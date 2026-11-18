@@ -253,10 +253,129 @@ void swrObjcMan_UpdatePreRaceSweepTimer(swrObjcMan* cman, float targetValue)
         swrRace_energyBinderTime = (float)(swrRace_energyBinderTime + swrRace_deltaTimeSecs);
 }
 
+// 50 - (phase mod 100), floored toward -inf; the caller takes |x| for a 0..50 triangle wave.
+static float lightPulseWave(float phase)
+{
+    float scaled = phase * 0.01f;
+    if (scaled < 0.0f)
+        scaled = scaled - 0.999999f;
+    int period = (int)scaled;
+    return 50.0f - (phase - (float)period * 100.0f);
+}
+
 // 0x00451160
 void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod)
 {
-    HANG("TODO");
+    rdVector3 flashDir;
+    rdVector3 flashColor;
+    rdVector3 ambient;
+    rdVector3 color;
+    int changed = 0;
+
+    if (pod->current_light_index < 0)
+        return;
+    if ((cman->unk2e4_flag & swrObjcMan_LIGHTFLAG_REFRESH) != 0) {
+        cman->unk2e4_flag &= ~swrObjcMan_LIGHTFLAG_REFRESH;
+        changed = 1;
+    }
+    if ((cman->unk2e4_flag & swrObjcMan_LIGHTFLAG_FADE) != 0) {
+        if ((cman->unk2e4_flag & swrObjcMan_LIGHTFLAG_SNAP) != 0) {
+            cman->unk2e4_flag &= ~(swrObjcMan_LIGHTFLAG_SNAP | swrObjcMan_LIGHTFLAG_FADE | swrObjcMan_LIGHTFLAG_FADE_SNAPSHOT);
+            cman->ambientColor = cman->light.ambientColor;
+            cman->lightColor = cman->light.lightColor;
+            cman->lightVector = cman->light.lightVector;
+            rdVector_Normalize3Acc(&cman->lightVector);
+            changed = 1;
+        } else {
+            if ((cman->unk2e4_flag & swrObjcMan_LIGHTFLAG_FADE_SNAPSHOT) != 0) {
+                cman->unk2e4_flag &= ~swrObjcMan_LIGHTFLAG_FADE_SNAPSHOT;
+                cman->fadeFromVector = cman->lightVector;
+                cman->fadeFromColor = cman->lightColor;
+                cman->fadeFromAmbient = cman->ambientColor;
+            }
+            cman->lightVector = cman->light.lightVector;
+            cman->lightColor = cman->light.lightColor;
+            cman->ambientColor = cman->light.ambientColor;
+        }
+    }
+    if ((cman->unk2e4_flag & swrObjcMan_LIGHTFLAG_RAW_VECTOR) != 0) {
+        // point light: light.lightVector is a position
+        cman->lightVector.x = pod->transform.vD.x - cman->light.lightVector.x;
+        cman->lightVector.y = pod->transform.vD.y - cman->light.lightVector.y;
+        cman->lightVector.z = pod->transform.vD.z - cman->light.lightVector.z;
+        rdVector_Normalize3Acc(&cman->lightVector);
+        changed = 1;
+    }
+    unsigned int flags = cman->unk2e4_flag;
+    if ((flags & swrObjcMan_LIGHTFLAG_PULSE) != 0) {
+        // brightness pulses as the pod moves along lightVector2
+        float phase = cman->light.lightVector2.x * pod->transform.vD.x + cman->light.lightVector2.y * pod->transform.vD.y + cman->light.lightVector2.z * pod->transform.vD.z;
+        float wave = lightPulseWave(phase);
+        if (wave < 0.0f)
+            wave = -wave;
+        wave = wave * 0.02f;
+        cman->lightColor.x = cman->light.lightColor.x * wave;
+        cman->lightColor.y = cman->light.lightColor.y * wave;
+        cman->lightColor.z = cman->light.lightColor.z * wave;
+        changed = 1;
+    }
+    if ((flags & swrObjcMan_LIGHTFLAG_FADE) != 0) {
+        float t = (float)(cman->unk398_ms - (swrRace_deltaTimeSecs + swrRace_deltaTimeSecs));
+        cman->unk398_ms = t;
+        if (t < 0.0f) {
+            flags &= ~swrObjcMan_LIGHTFLAG_FADE;
+            cman->unk398_ms = 0.0f;
+            cman->unk2e4_flag = flags;
+        }
+        float fade = cman->unk398_ms;
+        cman->ambientColor.x = fade * cman->fadeFromAmbient.x + (1.0f - fade) * cman->ambientColor.x;
+        cman->ambientColor.y = fade * cman->fadeFromAmbient.y + (1.0f - fade) * cman->ambientColor.y;
+        cman->ambientColor.z = fade * cman->fadeFromAmbient.z + (1.0f - fade) * cman->ambientColor.z;
+        cman->lightColor.x = fade * cman->fadeFromColor.x + (1.0f - fade) * cman->lightColor.x;
+        cman->lightColor.y = fade * cman->fadeFromColor.y + (1.0f - fade) * cman->lightColor.y;
+        cman->lightColor.z = fade * cman->fadeFromColor.z + (1.0f - fade) * cman->lightColor.z;
+        cman->lightVector.x = fade * cman->fadeFromVector.x + (1.0f - fade) * cman->lightVector.x;
+        cman->lightVector.y = fade * cman->fadeFromVector.y + (1.0f - fade) * cman->lightVector.y;
+        cman->lightVector.z = fade * cman->fadeFromVector.z + (1.0f - fade) * cman->lightVector.z;
+        changed = 1;
+    }
+
+    flags = cman->unk2e4_flag;
+    if ((flags & swrObjcMan_LIGHTFLAG_SPARK_FLASH) != 0) {
+        // scrape sparks: a random warm flash from the spark toward the pod
+        float level = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
+        flashDir.x = pod->transform.vD.x - pod->scrapeSparkXf.vD.x;
+        flashDir.y = pod->transform.vD.y - pod->scrapeSparkXf.vD.y;
+        flashDir.z = pod->transform.vD.z - pod->scrapeSparkXf.vD.z;
+        flashColor.x = level * 200.0f;
+        flashColor.y = level * 200.0f;
+        flashColor.z = level * 255.0f;
+        rdVector_Normalize3Acc(&flashDir);
+        cman->unk2e4_flag |= swrObjcMan_LIGHTFLAG_SPARK_FLASH_ACTIVE;
+        SetAlternativeLightColorsAndDirection3(pod->current_light_index, 1, &flashColor.x, &flashDir);
+    } else if ((flags & swrObjcMan_LIGHTFLAG_SPARK_FLASH_ACTIVE) != 0) {
+        cman->unk2e4_flag = flags & ~swrObjcMan_LIGHTFLAG_SPARK_FLASH_ACTIVE;
+        // retail passes these uninitialized; light_type2 = 0 ignores them
+        SetAlternativeLightColorsAndDirection3(pod->current_light_index, 0, &flashColor.x, &flashDir);
+    }
+
+    if (!changed)
+        return;
+    if (pod->lightColorMode == 0) {
+        SetLightColorsAndDirection2(pod->current_light_index, &cman->ambientColor, &cman->lightColor, &cman->lightVector);
+        return;
+    }
+    // per-local-player tint: drop two of the ambient channels
+    ambient = cman->ambientColor;
+    color = cman->lightColor;
+    if (pod->lightColorMode == 1) {
+        ambient.x = 0.0f;
+        ambient.y = 0.0f;
+    } else {
+        ambient.y = 0.0f;
+        ambient.z = 0.0f;
+    }
+    SetLightColorsAndDirection2(pod->current_light_index, &ambient, &color, &cman->lightVector);
 }
 
 // 0x00451800
@@ -286,17 +405,17 @@ void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* m
             light->flags &= ~swrObjcMan_LIGHTFLAG_RAW_VECTOR;
             rdVector_Normalize3Acc(&light->lightVector);
         }
-        if (behavior->light_flags & swrModel_Behavior_LIGHTFLAG_UNK8)
-            light->flags |= swrObjcMan_LIGHTFLAG_UNK4;
+        if (behavior->light_flags & swrModel_Behavior_LIGHTFLAG_PULSE)
+            light->flags |= swrObjcMan_LIGHTFLAG_PULSE;
         else
-            light->flags &= ~swrObjcMan_LIGHTFLAG_UNK4;
+            light->flags &= ~swrObjcMan_LIGHTFLAG_PULSE;
         if (light == &cman->lightDefault)
             cman->light = cman->lightDefault;
     } else {
         cman->light = cman->lightDefault;
     }
 
-    cman->unk2e4_flag = (cman->unk2e4_flag & ~(swrObjcMan_LIGHTFLAG_UNK4 | swrObjcMan_LIGHTFLAG_RAW_VECTOR)) | cman->light.flags;
+    cman->unk2e4_flag = (cman->unk2e4_flag & ~(swrObjcMan_LIGHTFLAG_PULSE | swrObjcMan_LIGHTFLAG_RAW_VECTOR)) | cman->light.flags;
     cman->unk2e4_flag |= 0x3;
     // fsub of the -1.0 double at 0x004acdd8
     cman->unk398_ms = swrRace_deltaTimeSecs + swrRace_deltaTimeSecs - -1.0;
@@ -548,7 +667,166 @@ void swrObjcMan_UpdateFirstPersonCamera(swrObjcMan* cman)
 // 0x00452aa0
 void swrObjcMan_UpdateChaseCamera(swrObjcMan* cman)
 {
-    HANG("TODO");
+    swrRace* pod = cman->unkf4_objTest;
+    rdMatrix44 podXf;
+    rdMatrix44 m;
+    rdVector3 toCam;
+    rdVector3 toFocus;
+    rdVector3 lookAt;
+    rdVector3 camPos;
+    swrTranslationRotation podTr;
+    float trail;
+    float height;
+    float lookHeight;
+    float roll;
+
+    if (pod == NULL)
+        return;
+    int isRemote = (pod->flags0 & swrObjTest_FLAG0_LOCAL) == 0;
+    if (!isRemote && pod->speedValue < 50.0f) {
+        // a slow local pod drags the camera back behind it
+        rdVector_Scale3Add3((rdVector3*)&cman->stagingTransform.vD, (rdVector3*)&cman->stagingTransform.vD, (float)(swrRace_deltaTimeSecs * -20.0), (rdVector3*)&pod->transform.vB);
+    }
+    int zeroG = (pod->flags0 & (swrObjTest_FLAG0_ZON | swrObjTest_FLAG0_ZOFF)) != 0;
+    cman->fov = 100.0f;
+    const swrRacerVisualData* visual = &swrRacer_PodVisualData[*pod->score_ptr->pilotId];
+    if (!zeroG) {
+        trail = visual->chaseCamTrail;
+        height = visual->chaseCamHeight + pod->unk19b4 * 0.75;
+    } else {
+        cman->chaseTrail = visual->chaseCamTrail;
+        cman->chaseHeight = visual->chaseCamHeight;
+        cman->chaseHeight = cman->chaseHeight + pod->unk19b4 * 0.75;
+        height = cman->chaseHeight;
+        trail = cman->chaseTrail;
+    }
+    lookHeight = height;
+    if (cman->mode_type == 2) {
+        // far chase view
+        trail = trail + trail;
+        if (trail > 30.0f)
+            trail = 30.0f;
+        height = height + height;
+        if (height > 15.0f)
+            height = 15.0f;
+        lookHeight = 8.0f;
+    }
+    float speedScale = (pod->speedValue - 200.0f) * 0.002631578947368421;
+    if (speedScale < 0.0)
+        speedScale = 0.0f;
+    if (speedScale > 1.0)
+        speedScale = 1.0f;
+    speedScale = speedScale * 0.3 - -0.75;
+    trail = trail * speedScale;
+    height = height * speedScale;
+    lookHeight = lookHeight * speedScale;
+    if (NumLocalPlayers() == 2)
+        trail = trail * 1.3f;
+
+    toFocus.x = cman->stagingTransformFocus.vD.x - cman->stagingTransform.vD.x;
+    toFocus.y = cman->stagingTransformFocus.vD.y - cman->stagingTransform.vD.y;
+    toFocus.z = cman->stagingTransformFocus.vD.z - cman->stagingTransform.vD.z;
+    rdVector_Normalize3Acc(&toFocus);
+    // pull in when the camera looks along the pod, push out when it looks across
+    swrRace* target = cman->unkf4_objTest;
+    float facing = target->transform.vB.z * toFocus.z + target->transform.vB.x * toFocus.x + target->transform.vB.y * toFocus.y;
+    trail = ((1.0f - facing) * 0.5f - -1.0f) * trail;
+    if (!zeroG) {
+        trail = (trail + cman->chaseTrail) * 0.5f;
+        height = (height + cman->chaseHeight) * 0.5f;
+        cman->chaseTrail = trail;
+        cman->chaseHeight = height;
+    }
+
+    rdMatrix_Copy44(&podXf, &cman->unkf4_objTest->transform);
+    podXf.vD.z = podXf.vD.z + pod->unk11_1;
+    rdMatrix_Copy44(&m, &podXf);
+    rdVector_Sub3(&toCam, (rdVector3*)&cman->stagingTransform.vD, (rdVector3*)&m.vD);
+    if (!zeroG) {
+        toCam.z = 0.0f;
+        rdVector_Len3(&toCam);
+        rdVector_Normalize3Acc(&toCam);
+        if (isRemote) {
+            // spectated pods: fixed side/front offsets, cycled by swrObjcMan_spectatorCamIndex
+            switch (swrObjcMan_spectatorCamIndex) {
+            case 0:
+                m.vD.x = m.vD.x - trail * -0.9f;
+                break;
+            case 1:
+                m.vD.y = m.vD.y - trail * -0.8f;
+                break;
+            case 2:
+                m.vD.x = m.vD.x - trail * 0.6f;
+                break;
+            default:
+                m.vD.y = m.vD.y - trail * 0.7f;
+                break;
+            }
+            m.vD.z = height + m.vD.z;
+        } else {
+            rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, trail, &toCam);
+            m.vD.z = height + m.vD.z;
+        }
+        rdVector_Copy3(&camPos, (rdVector3*)&m.vD);
+        lookAt.x = podXf.vD.x;
+        lookAt.y = podXf.vD.y;
+        lookAt.z = lookHeight + podXf.vD.z;
+        rdVector_Scale3Add3(&lookAt, &lookAt, (float)(pod->slide * 20.0), (rdVector3*)&podXf.vB);
+    } else {
+        // zero-g: trail within the pod's own plane, offset along its up axis
+        float up = toCam.x * podXf.vC.x + toCam.y * podXf.vC.y + toCam.z * podXf.vC.z;
+        rdVector_Scale3Add3(&toCam, &toCam, -up, (rdVector3*)&podXf.vC);
+        rdVector_Len3(&toCam);
+        rdVector_Normalize3Acc(&toCam);
+        rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, trail, &toCam);
+        rdVector_Scale3Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, height, (rdVector3*)&podXf.vC);
+        rdVector_Copy3(&camPos, (rdVector3*)&m.vD);
+        lookAt.x = podXf.vD.x;
+        lookAt.y = podXf.vD.y;
+        lookAt.z = podXf.vD.z;
+        rdVector_Scale3Add3(&lookAt, &lookAt, lookHeight, (rdVector3*)&podXf.vC);
+    }
+    if (!zeroG && podXf.vB.z < 0.0) {
+        // nose-down: lift the camera
+        float lift = podXf.vB.z * podXf.vB.z * 30.0f;
+        if (lift > 20.0)
+            lift = 20.0f;
+        camPos.z = camPos.z + lift;
+    }
+
+    rdMatrix_ExtractTransform(&cman->unkf4_objTest->transform, &podTr);
+    roll = podTr.yaw_roll_pitch.z * 0.0055555557f;
+    if (!zeroG) {
+        // cubic ease on small rolls, a quarter of the pod's roll once that is larger
+        float cubic = roll * roll * roll * 180.0f;
+        float cubicAbs = cubic < 0.0f ? -cubic : cubic;
+        float quarter = podTr.yaw_roll_pitch.z * 0.25;
+        float quarterAbs = quarter < 0.0 ? -quarter : quarter;
+        roll = cubicAbs > quarterAbs ? cubic : quarter;
+    } else {
+        roll = roll * 180.0f;
+    }
+    rdMatrix_SetRotation44(&m, 0.0f, 0.0f, roll);
+    rdVector_Copy3((rdVector3*)&m.vD, &camPos);
+    rdMatrix_Copy44(&cman->stagingTransform, &m);
+    rdMatrix_Copy44(&m, &cman->unkf4_objTest->transform);
+    rdVector_Copy3((rdVector3*)&m.vD, &lookAt);
+    rdMatrix_Copy44(&cman->stagingTransformFocus, &m);
+    cman->unk20_mat = cman->stagingTransform;
+    cman->focusTransform_mat = cman->stagingTransformFocus;
+
+    if ((pod->flags0 & swrObjTest_FLAG0_LOOK_BACK) != 0) {
+        rdMatrix_Copy44(&podXf, &pod->transform);
+        podXf.vD.z = podXf.vD.z + pod->unk11_1;
+        rdMatrix_Copy44(&cman->unk20_mat, &podXf);
+        rdMatrix_Copy44(&cman->focusTransform_mat, &podXf);
+        rdVector_Scale3((rdVector3*)&cman->unk20_mat.vB, -1.0f, (rdVector3*)&cman->unk20_mat.vB);
+        rdVector_Scale3((rdVector3*)&cman->unk20_mat.vA, -1.0f, (rdVector3*)&cman->unk20_mat.vA);
+        rdVector_Scale3Add3((rdVector3*)&cman->focusTransform_mat.vD, (rdVector3*)&cman->focusTransform_mat.vD, -1.0f, (rdVector3*)&podXf.vB);
+        rdVector_Scale3Add3((rdVector3*)&cman->unk20_mat.vD, (rdVector3*)&cman->unk20_mat.vD, pod->collisionWidth + pod->collisionWidth, (rdVector3*)&podXf.vB);
+        rdVector_Scale3Add3((rdVector3*)&cman->focusTransform_mat.vD, (rdVector3*)&cman->focusTransform_mat.vD, pod->collisionWidth * 0.2f, (rdVector3*)&podXf.vC);
+        rdVector_Scale3Add3((rdVector3*)&cman->unk20_mat.vD, (rdVector3*)&cman->unk20_mat.vD, pod->collisionWidth * 0.2f, (rdVector3*)&podXf.vC);
+    }
 }
 
 // 0x004533a0
@@ -2487,10 +2765,10 @@ static void displayPodCable(swrModel_Node** nodes, int cable, int engine, int mi
     if (swrObjHang_displayPodResetFrames > 0) {
         rdVector_Set3(&zero0, 0.0f, 0.0f, 0.0f);
         rdVector_Set3(&zero1, 0.0f, 0.0f, 0.0f);
-        float stiffness = 1.3f;
+        float amplitude = 1.3f;
         if (animated == 0)
-            stiffness = 0.5f;
-        swrModel_DeformPoddConnectionMesh(nodes[cable], &zero0, &zero1, stiffness, 1.0f, 0.0f, 50.0f, 0);
+            amplitude = 0.5f;
+        swrModel_DeformPoddConnectionMesh(nodes[cable], &zero0, &zero1, amplitude, 1.0f, 0.0f, 50.0f, 0);
     }
     if (nodes[cable] != NULL)
         swrModel_NodeModifyFlags(nodes[cable], 2, 3, 0x10, 2);
@@ -10180,6 +10458,231 @@ void swrObjHang_CycleInspectCamera(swrObjHang* hang)
     if (cameraState != hang->cameraState) {
         swrObjHang_AimHoloCamera(hang, cameraState, 0);
         hang->cameraState = cameraState;
+    }
+}
+
+// Re-derive the inspect orbit (distance, yaw, pitch) from the current eye and look-at.
+static void inspectOrbitFromCamera(void)
+{
+    rdVector3 dir;
+
+    rdVector_Sub3(&dir, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+    swrObjHang_inspectOrbitDistance = rdVector_Len3(&dir);
+    rdVector_Normalize3Acc(&dir);
+    swrObjHang_inspectOrbitYaw = stdMath_ArcTan2(-dir.x, dir.y);
+    swrObjHang_inspectOrbitPitch = stdMath_ArcSin(dir.z);
+    if (swrObjHang_inspectOrbitYaw < 0.0f)
+        swrObjHang_inspectOrbitYaw = swrObjHang_inspectOrbitYaw - -360.0f;
+    if (swrObjHang_inspectOrbitYaw > 360.0f)
+        swrObjHang_inspectOrbitYaw = swrObjHang_inspectOrbitYaw - 360.0f;
+    if (swrObjHang_inspectOrbitPitch < -90.0f)
+        swrObjHang_inspectOrbitPitch = swrObjHang_inspectOrbitPitch - -180.0f;
+    if (swrObjHang_inspectOrbitPitch > 90.0f)
+        swrObjHang_inspectOrbitPitch = swrObjHang_inspectOrbitPitch - 180.0f;
+}
+
+// 0x00438d20
+void swrObjHang_UpdateInspectCamera(swrObjHang* hang)
+{
+    rdMatrix44 rot;
+    int stepped = 0;
+    int orbitMoved = 0;
+    int snapToItem = 0;
+
+    if (swrObjHang_inspectCameraReset != 0 || swrObjHang_menuJustEntered != 0 || swrObjHang_cameraMoveMode == 4) {
+        if (swrObjHang_menuJustEntered != 0) {
+            sprintf(swrObjHang_inspectCaption, wuRegistry_lpClass);
+            if (swrObjHang_menuJustEntered != 0)
+                rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, 0.0f, 0.0f, 0.0f);
+        }
+        hang->cameraState = HangCameraState_InspectDefault;
+        swrObjHang_AimHoloCamera(hang, HangCameraState_InspectDefault, 0);
+        inspectOrbitFromCamera();
+        swrObjHang_inspectCameraFresh = 1;
+        swrObjHang_inspectCameraTimer = 0.0f;
+        swrObjHang_inspectCameraReset = 0;
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_cameraMoveMode = 0;
+    }
+    if (swrObjHang_inspectCameraFresh != 0) {
+        swrObjHang_inspectCameraTimer = swrObjHang_inspectCameraTimer + swrRace_fdeltaTimeSecs;
+        if (!(swrObjHang_inspectCameraTimer < 5.0f))
+            swrObjHang_inspectCameraTimer = 5.0f;
+    }
+
+    char* label = NULL;
+    switch (hang->cameraState) {
+    case HangCameraState_InspectDefault:
+        sprintf(swrObjHang_inspectCaption, wuRegistry_lpClass);
+        break;
+    case HangCameraState_InspectCockpit:
+        label = "/SCREENTEXT_152/~c~sCockpit";
+        break;
+    case HangCameraState_InspectEngine1:
+        label = "/SCREENTEXT_153/~c~sEngine 1";
+        break;
+    case HangCameraState_InspectEngine2:
+        label = "/SCREENTEXT_154/~c~sEngine 2";
+        break;
+    case HangCameraState_InspectEngine3:
+        label = "/SCREENTEXT_155/~c~sEngine 3";
+        break;
+    case HangCameraState_InspectEngine4:
+        label = "/SCREENTEXT_156/~c~sEngine 4";
+        break;
+    case HangCameraState_InspectPT01:
+        label = "/SCREENTEXT_158/~c~sPT01";
+        break;
+    case HangCameraState_InspectPT02:
+        label = "/SCREENTEXT_159/~c~sPT02";
+        break;
+    case HangCameraState_InspectPT03:
+        label = "/SCREENTEXT_160/~c~sPT03";
+        break;
+    case HangCameraState_InspectPT04:
+        label = "/SCREENTEXT_161/~c~sPT04";
+        break;
+    case HangCameraState_InspectCharacter: {
+        char* lastname = swrText_Translate(swrRacer_PodData[(int)hang->vehiclePlayer].lastname);
+        char* name = swrText_Translate(swrRacer_PodData[(int)hang->vehiclePlayer].name);
+        char* format = swrText_Translate("~c~s%s %s");
+        sprintf(swrObjHang_inspectCaption, format, name, lastname);
+        break;
+    }
+    default:
+        break;
+    }
+    if (label != NULL)
+        sprintf(swrObjHang_inspectCaption, swrText_Translate(label));
+    swrText_CreateTextEntry1(0xa0, 0xc3, 0, -1, 0, -1, swrObjHang_inspectCaption);
+
+    for (int i = 0; i < hang->num_local_players; i++) {
+        if (swrMultiplayer_menuOverlayActive == 0) {
+            if (swrControl_menuAcceptPressedEdge != 0) {
+                playUISound(0x54);
+                swrObjHang_inspectCameraReset = 1;
+                return;
+            }
+            if (swrControl_cancelPressedEdge != 0) {
+                playUISound(0x4d);
+                swrObjHang_inspectCameraReset = 1;
+                swrObjHang_lookAtMenuFade = 0.0f;
+                swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+                return;
+            }
+        }
+        float prevDistance = swrObjHang_inspectOrbitDistance;
+        // the first input after a reset only clears the fresh flag
+        if (swrControl_aPlayerAxisX[i] > 0.1 || swrControl_aPlayerAxisX[i] < -0.1) {
+            if (swrObjHang_inspectCameraFresh == 0) {
+                swrObjHang_inspectOrbitYaw = swrObjHang_inspectOrbitYaw - swrControl_aPlayerAxisX[i] * swrRace_fdeltaTimeSecs * -70.0f * 1.5;
+                orbitMoved = 1;
+            }
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+        }
+        if (swrControl_aPlayerAxisY[i] > 0.1 || swrControl_aPlayerAxisY[i] < -0.1) {
+            if (swrObjHang_inspectCameraFresh == 0) {
+                swrObjHang_inspectOrbitPitch = swrObjHang_inspectOrbitPitch - swrControl_aPlayerAxisY[i] * swrRace_fdeltaTimeSecs * -45.0f * 1.5;
+                if (swrObjHang_inspectOrbitPitch > 89.0f)
+                    swrObjHang_inspectOrbitPitch = 89.0f;
+                if (swrObjHang_inspectOrbitPitch < -89.0f)
+                    swrObjHang_inspectOrbitPitch = -89.0f;
+                orbitMoved = 1;
+            }
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+        }
+        int input = swrUI_localPlayersInputDownBitset[i];
+        if ((input & 4) != 0) {
+            if (swrObjHang_inspectCameraFresh == 0) {
+                swrObjHang_inspectOrbitDistance = swrObjHang_inspectOrbitDistance - swrRace_fdeltaTimeSecs * 800.0f;
+                if (swrObjHang_inspectOrbitDistance < 100.0f)
+                    swrObjHang_inspectOrbitDistance = 100.0f;
+                orbitMoved = 1;
+            }
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+        }
+        if ((input & 8) != 0) {
+            if (swrObjHang_inspectCameraFresh == 0) {
+                swrObjHang_inspectOrbitDistance = swrObjHang_inspectOrbitDistance - swrRace_fdeltaTimeSecs * -800.0f;
+                if (swrObjHang_inspectOrbitDistance > 1336.0f)
+                    swrObjHang_inspectOrbitDistance = 1336.0f;
+                orbitMoved = 1;
+            }
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+        }
+        // item stepping reads player 1's input for every local player
+        int vehicle = (&hang->vehiclePlayer)[i];
+        if ((swrUI_localPlayersInputDownBitset[0] & 0x10) != 0 && swrObjHang_cameraMoveMode != 3) {
+            hang->cameraState++;
+            if (hang->cameraState == HangCameraState_InspectEngine1 && swrRacer_PodData[vehicle].pod_modelID == MODELID_neva_kee_pod)
+                hang->cameraState = HangCameraState_InspectPT01;
+            if (hang->cameraState == HangCameraState_InspectEngine3 && swrRacer_PodData[vehicle].pod_modelID != MODELID_ben_quadinaros_pod)
+                hang->cameraState = HangCameraState_InspectPT01;
+            if (hang->cameraState <= HangCameraState_InspectPT04 && hang->cameraState - HangCameraState_InspectEngine4 > (swrRace_nbPitDroids & 0xff))
+                hang->cameraState = HangCameraState_InspectCharacter;
+            if (hang->cameraState > HangCameraState_InspectCharacter)
+                hang->cameraState = HangCameraState_InspectDefault;
+            stepped = 1;
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+            swrObjHang_inspectCameraTimer = 0.0f;
+        }
+        if ((swrUI_localPlayersInputDownBitset[0] & 0x20) != 0 && swrObjHang_cameraMoveMode != 3) {
+            hang->cameraState--;
+            if (hang->cameraState == HangCameraState_InspectEngine4) {
+                if (swrRacer_PodData[vehicle].pod_modelID == MODELID_neva_kee_pod)
+                    hang->cameraState = HangCameraState_InspectCockpit;
+                if (hang->cameraState == HangCameraState_InspectEngine4 && swrRacer_PodData[vehicle].pod_modelID != MODELID_ben_quadinaros_pod)
+                    hang->cameraState = HangCameraState_InspectEngine2;
+            }
+            if (hang->cameraState - HangCameraState_InspectEngine4 > (swrRace_nbPitDroids & 0xff))
+                hang->cameraState = (swrRace_nbPitDroids & 0xff) + HangCameraState_InspectEngine4;
+            if (hang->cameraState < HangCameraState_InspectDefault)
+                hang->cameraState = HangCameraState_InspectCharacter;
+            stepped = 1;
+            if (swrObjHang_inspectCameraTimer == 5.0f)
+                snapToItem = 1;
+            swrObjHang_inspectCameraFresh = 0;
+            swrObjHang_inspectCameraTimer = 0.0f;
+        }
+        if (stepped && !snapToItem) {
+            swrObjHang_AimHoloCamera(hang, hang->cameraState, 1);
+            stepped = 0;
+        } else {
+            swrObjHang_UpdateHoloCameraTarget(hang, hang->cameraState);
+        }
+        if (orbitMoved || swrObjHang_cameraMoveMode == 3) {
+            rdMatrix_SetRotation44(&rot, swrObjHang_inspectOrbitYaw, swrObjHang_inspectOrbitPitch, 0.0f);
+            rdVector_Scale3Add3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, swrObjHang_inspectOrbitDistance, (rdVector3*)&rot.vB);
+            // keep the eye between the hangar floor and ceiling
+            if (swrObjHang_cameraMatrix.vD.z < -147.0f) {
+                rdVector_Scale3Add3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (swrObjHang_holoCameraMatrix.vD.z - -147.0f) / (swrObjHang_holoCameraMatrix.vD.z - swrObjHang_cameraMatrix.vD.z) * swrObjHang_inspectOrbitDistance, (rdVector3*)&rot.vB);
+            }
+            if (swrObjHang_cameraMatrix.vD.z > 1066.0f) {
+                rdVector_Scale3Add3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, (swrObjHang_holoCameraMatrix.vD.z - 1066.0f) / (swrObjHang_holoCameraMatrix.vD.z - swrObjHang_cameraMatrix.vD.z) * swrObjHang_inspectOrbitDistance, (rdVector3*)&rot.vB);
+            }
+            if (swrObjHang_inspectOrbitDistance != prevDistance)
+                swrObjHang_inspectOrbitDistance = rdVector_Dist3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+            if (orbitMoved)
+                rdMatrix_Copy44(&swrObjHang_holoCameraMatrixStart, &swrObjHang_holoCameraMatrix);
+            orbitMoved = 0;
+        }
+    }
+    if (snapToItem) {
+        // input after the 5 s idle snaps back to aiming at the selected item
+        swrObjHang_inspectCameraFresh = 0;
+        swrObjHang_inspectCameraTimer = 0.0f;
+        swrObjHang_AimHoloCamera(hang, hang->cameraState, 1);
+        inspectOrbitFromCamera();
     }
 }
 

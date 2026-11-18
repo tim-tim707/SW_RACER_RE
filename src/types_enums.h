@@ -492,15 +492,21 @@ typedef enum swrModel_Behavior_FOGFLAG
 typedef enum swrModel_Behavior_LIGHTFLAG
 {
     swrModel_Behavior_LIGHTFLAG_RAW_VECTOR = 0x4, // light_vector is used as-is (not normalized); sets swrObjcMan_LIGHTFLAG_RAW_VECTOR
-    swrModel_Behavior_LIGHTFLAG_UNK8 = 0x8, // sets swrObjcMan_LIGHTFLAG_UNK4
+    swrModel_Behavior_LIGHTFLAG_PULSE = 0x8, // sets swrObjcMan_LIGHTFLAG_PULSE
     swrModel_Behavior_LIGHTFLAG_SET_DEFAULT = 0x10, // write swrObjcMan.lightDefault, then make it active
 } swrModel_Behavior_LIGHTFLAG;
 
 // swrObjcMan_Light.flags, merged into swrObjcMan.unk2e4_flag
 typedef enum swrObjcMan_LIGHTFLAG
 {
-    swrObjcMan_LIGHTFLAG_UNK4 = 0x4,
-    swrObjcMan_LIGHTFLAG_RAW_VECTOR = 0x8,
+    swrObjcMan_LIGHTFLAG_FADE = 0x1, // fade the applied lighting toward light over unk398_ms
+    swrObjcMan_LIGHTFLAG_FADE_SNAPSHOT = 0x2, // snapshot the applied lighting as the fade start
+    swrObjcMan_LIGHTFLAG_PULSE = 0x4, // light color pulses with the pod position along lightVector2
+    swrObjcMan_LIGHTFLAG_RAW_VECTOR = 0x8, // light.lightVector is a point-light position
+    swrObjcMan_LIGHTFLAG_SPARK_FLASH = 0x10, // scrape sparks are lighting the pod
+    swrObjcMan_LIGHTFLAG_SPARK_FLASH_ACTIVE = 0x20, // the alternative (spark) light is on
+    swrObjcMan_LIGHTFLAG_REFRESH = 0x40, // re-push the lighting this frame
+    swrObjcMan_LIGHTFLAG_SNAP = 0x80000000, // apply light immediately, skipping the fade
 } swrObjcMan_LIGHTFLAG;
 
 // swrModel_TriggerDescription.flags

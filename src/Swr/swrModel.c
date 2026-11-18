@@ -2051,10 +2051,89 @@ void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2)
     }
 }
 
-// 0x00481c30
-void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float unk4, float unk5, float energy, float maxEnergy, int unk8)
+// 0x00481be0
+void swrModel_SetupFaceNormal(rdVector3* vertices, RdFace* face, int i0, int i1, int i2)
 {
-    HANG("TODO");
+    rdMath_CalcSurfaceNormal(&face->normal, &vertices[i0], &vertices[i1], &vertices[i2]);
+    face->aVertIdxs[0] = i0;
+    face->aVertIdxs[1] = i1;
+    face->aVertIdxs[2] = i2;
+}
+
+// 0x00481c30
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float amplitude, float unk5, float energy, float maxEnergy, int unk8)
+{
+    float cosDump;
+
+    if (poddConnectionMesh_sinLookupTableInitialized == 0) {
+        for (int i = 0; i < SWR_PODD_CABLE_SIN_LUT_SIZE; i++)
+            stdMath_SinCos((float)i * 360.0f * 0.015625f, &poddConnectionMesh_sinLookupTable[i], &cosDump);
+        poddConnectionMesh_sinLookupTableInitialized = 1;
+    }
+    uint32_t flags = swrModel_NodeGetFlags(node);
+    if ((flags & NODE_HAS_CHILDREN) != 0) {
+        int count = swrModel_NodeGetNumChildren(node);
+        for (int i = 0; i < count; i++)
+            swrModel_DeformPoddConnectionMesh(node->children.nodes[i], unk2, unk3, amplitude, unk5, energy, maxEnergy, unk8);
+        return;
+    }
+    if (flags != NODE_MESH_GROUP)
+        return;
+    rdModel3Mesh* mesh = node->children.meshes[0]->converted_mesh;
+    if (strncmp(mesh->name, "aes", 3) != 0)
+        return;
+    rdVector3* vertices = mesh->apVertices;
+    rdVector4* lights = mesh->aLightIntensities;
+    float slack = 0.0f;
+    if (energy < maxEnergy)
+        slack = 1.0f - (energy / maxEnergy) * (energy / maxEnergy);
+    if (slack < 0.1f) {
+        // taut: back to the straight 6-vertex rest shape (vertex/face counts are left as they were)
+        for (int i = 0; i < 6; i++)
+            vertices[i] = swrModel_poddCableRestVertices[i];
+        return;
+    }
+
+    // slack: 9 rings of 3 vertices, rings 1..7 sag and wave along the cable
+    mesh->numVertices = 27;
+    mesh->numFaces = 48;
+    for (int ring = 0; ring < 8; ring++) {
+        for (int k = 0; k < 3; k++) {
+            vertices[ring * 3 + k] = swrModel_poddCableRestVertices[k];
+            lights[ring * 3 + k] = swrModel_poddCableRestLights[k];
+        }
+    }
+    for (int k = 0; k < 3; k++) {
+        vertices[24 + k] = swrModel_poddCableRestVertices[3 + k];
+        lights[24 + k] = swrModel_poddCableRestLights[3 + k];
+    }
+    float wave = slack * amplitude;
+    for (int ring = 1; ring < 8; ring++) {
+        float t = (float)ring * 0.125f;
+        // flatten the curve near the quarter points
+        if (t > 0.1 && t < 0.4)
+            t = (t - 0.25f) * 0.75f - -0.25f;
+        else if (t > 0.6 && t < 0.99)
+            t = (t - 0.75f) * 0.75f - -0.75f;
+        int along = (int)(t * -100.0);
+        int lutIndex = (int)(t * 64.0f - -0.5);
+        int sag = (int)(poddConnectionMesh_sinLookupTable[lutIndex] * wave * -100.0);
+        for (int k = 0; k < 3; k++) {
+            rdVector3* v = &vertices[ring * 3 + k];
+            v->y = (float)along;
+            v->z = v->z + (float)sag;
+        }
+    }
+
+    RdFace* face = mesh->aFaces;
+    for (int i = 1; i < 25; i += 3) {
+        swrModel_SetupFaceNormal(vertices, face++, i - 1, i + 1, i + 4);
+        swrModel_SetupFaceNormal(vertices, face++, i + 4, i + 2, i - 1);
+        swrModel_SetupFaceNormal(vertices, face++, i + 2, i + 3, i);
+        swrModel_SetupFaceNormal(vertices, face++, i, i - 1, i + 2);
+        swrModel_SetupFaceNormal(vertices, face++, i + 1, i, i + 3);
+        swrModel_SetupFaceNormal(vertices, face++, i + 3, i + 4, i + 1);
+    }
 }
 
 // 0x00431750

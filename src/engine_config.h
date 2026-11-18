@@ -193,6 +193,7 @@
 #define SWR_POD_PART_NODE_COUNT (75)
 #define SWR_POD_PART_SHADOW_FIRST (0x3d)
 #define SWR_POD_PART_SHADOW_LAST (0x40)
+#define SWR_PODD_CABLE_SIN_LUT_SIZE (64) // poddConnectionMesh_sinLookupTable entries (one sine period)
 #define SWR_POD_TRANSFORM_HISTORY (18) // swrRace.transformHistory ring size (PoddAnimateEngines)
 #define SWR_POD_MODEL_UNIT_SCALE (0.004f) // pod model units -> world (shadow quads, cable width, debug model)
 

@@ -1037,8 +1037,8 @@ extern "C"
         int unkf8;
         rdVector3 unkfc;
         rdMatrix44 focusTransform_mat;
-        float unk148;
-        float unk14c;
+        float chaseTrail; // 0x148 smoothed chase-camera distance behind the pod (UpdateChaseCamera)
+        float chaseHeight; // 0x14c smoothed chase-camera height
         int unk150;
         int unk154;
         int unk158;
@@ -1071,19 +1071,13 @@ extern "C"
         float fogDistTarget;
         float unk2dc;
         float unk2e0;
-        unsigned int unk2e4_flag;
-        float unk2e8;
-        float unk2ec;
-        float unk2f0;
-        rdVector3 unk2f4;
-        rdVector3 unk300;
-        rdVector3 unk30c;
-        float unk318;
-        float unk31c;
-        float unk320;
-        float unk324;
-        float unk328;
-        float unk32c;
+        unsigned int unk2e4_flag; // 0x2e4 swrObjcMan_LIGHTFLAG
+        rdVector3 ambientColor; // 0x2e8 applied lighting (swrObjcMan_UpdateLighting), faded toward light
+        rdVector3 lightVector; // 0x2f4
+        rdVector3 lightColor; // 0x300
+        rdVector3 fadeFromAmbient; // 0x30c snapshot the fade starts from (LIGHTFLAG_FADE_SNAPSHOT)
+        rdVector3 fadeFromVector; // 0x318
+        rdVector3 fadeFromColor; // 0x324
         swrObjcMan_Light light; // 0x330 active lighting, loaded by swrObjcMan_LoadLightingFromBehavior
         swrObjcMan_Light lightDefault; // 0x364 restored into light when the surface behavior sets no lighting
         float unk398_ms;
