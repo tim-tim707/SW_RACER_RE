@@ -2096,3 +2096,6 @@ swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (li
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
 swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
 swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain_ProcessDebugKeys); reserved-keys page then shows the SHIFT+4+F4 money hint
+swrSound_globalPreloadIds 0x004b9008 int[34] # bank ids preloaded for every scene by swrSound_PreloadSoundSet; -1 terminated
+swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx ids preloaded for every racer (swrSound_PreloadRacerSounds)
+swrSound_localRacerPreloadSfxIds 0x004b90c8 int[10] # extra category-1 sfx ids preloaded for local ('Locl') racers

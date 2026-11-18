@@ -1920,9 +1920,82 @@ void swrSound_ResetMusic(void)
 }
 
 // 0x00427d90
-void swrSound_PreloadSoundSet(int scenario, int param2)
+void swrSound_PreloadSoundSet(int scenario, int track)
 {
-    HANG("TODO");
+    swrSfxCue* cue;
+    int* id;
+
+    if (Main_sound_unk == 0 || swrSound_Initted == 0)
+        return;
+    swrSound_RewindChannels();
+    swrSound_UnloadAll();
+    swrSound_ResetChannels();
+    for (id = swrSound_globalPreloadIds; *id >= 0; id++)
+        swrSound_AcquireSource(swrSound_GetEntry(*id), 0, NULL);
+
+    if (track == 3) {
+        if (scenario == 1)
+            cue = swrSfxCuesAndoPrimeTrack3;
+        else if (scenario == 4)
+            cue = swrSfxCuesBaroondaTrack3;
+        else
+            cue = (swrSfxCue*)scenario; // faithful: the EXE falls back to the scenario argument itself
+    } else {
+        cue = swrSfxPreloadSets[scenario * 3 + track];
+    }
+    // a negative start progress terminates the cue list
+    for (; cue->startProgress >= 0.0f; cue++) {
+        if (cue->soundId >= 0)
+            swrSound_AcquireSource(swrSound_GetEntry(cue->soundId), 0, NULL);
+    }
+    if (swrMusicPlanetIntroTable[scenario] >= 0)
+        swrSound_AcquireSource(swrSound_GetEntry(swrMusicPlanetIntroTable[scenario]), 0, NULL);
+    swrSound_PreloadRacerSounds();
+}
+
+// 0x00427f10
+void swrSound_PreloadRacerSounds(void)
+{
+    swrRace* racer;
+    int count;
+    int variant;
+    int i;
+    int j;
+
+    count = swrEvent_GetEventCount('Test');
+    for (i = 0; i < count; i++) {
+        racer = (swrRace*)swrEvent_GetItem('Test', i);
+        if (racer == NULL)
+            continue;
+        variant = *racer->score_ptr->pilotId;
+        for (j = 0; j < (int)(sizeof(swrSound_racerPreloadSfxIds) / sizeof(swrSound_racerPreloadSfxIds[0])); j++)
+            swrSound_PreloadSfx(1, variant, swrSound_racerPreloadSfxIds[j]);
+        if (racer->flags0 & swrObjTest_FLAG0_LOCAL) {
+            for (j = 0; j < (int)(sizeof(swrSound_localRacerPreloadSfxIds) / sizeof(swrSound_localRacerPreloadSfxIds[0])); j++)
+                swrSound_PreloadSfx(1, variant, swrSound_localRacerPreloadSfxIds[j]);
+        }
+    }
+}
+
+// 0x00427fb0
+void swrSound_PreloadSfx(int category, int variant, int id)
+{
+    swrSoundDescriptor* desc;
+    int resolved;
+
+    if (0 < swrEvent_GetEventCount('Test')) {
+        if (NumLocalPlayers() == 0)
+            return;
+        if (swrRace_voices_enabled == 0)
+            return;
+    }
+    resolved = swrSound_ResolveSfxId(category, variant, id);
+    if (resolved == -1)
+        return;
+    desc = (swrSoundDescriptor*)swrSound_GetEntry(resolved);
+    // streamed sounds ignore the resident-bytes budget
+    if (desc->dataSize + swrSound_loadedBytes <= (uint32_t)swrSound_loadBudgetBytes || (desc->flags & swrSoundDescriptor_STREAMED) != 0)
+        swrSound_AcquireSource(desc, 1, NULL);
 }
 
 // 0x00427ad0
