@@ -1376,8 +1376,9 @@ swrObjJdge_trackAssetStats4 0x00e288b0 int # assetBufferUnknownStats4 snapshot
 swrObjJdge_splitSkyboxNode 0x0050cd08 swrModel_Node* # track skybox (scene slot 0) in split screen; shown/hidden per viewport by swrPlayerHUD_RenderAllViewports
 swrObjJdge_podRootNode 0x00e27800 swrModel_Node # scene slot 10: one child per spawned pod model (swrObjJdge_SpawnRacer)
 swrObjJdge_podRootChildren 0x00e286e0 swrModel_Node*[24]
-swrObjJdge_podMirrorRootNode 0x00e28660 swrModel_Node # scene slot 1: per pod, a Z-flipped transform node over its model's entry 6 (swrObjJdge_SpawnRacer)
-swrObjJdge_podMirrorRootChildren 0x00e28780 swrModel_Node*[24]
+swrObjJdge_podReflectionRootNode 0x00e28660 swrModel_Node # scene slot 1: one swrObjJdge_podReflectionNodes entry per spawned pod (swrObjJdge_SpawnRacer)
+swrObjJdge_podReflectionRootChildren 0x00e28780 swrModel_Node*[24]
+swrObjJdge_podReflectionNodes 0x00e28a80 swrModel_NodeTransformedWithPivot[20] # Z-flipped node sharing each pod root's children; becomes swrRace.reflectionNode
 
 fireballChildNodeArray2 0x00E288C0 swrModel_Node*[40] # one per fireballChildNodeArray entry; runs up to swrScoresPtr
 

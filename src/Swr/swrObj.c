@@ -6231,10 +6231,10 @@ void LoadTrackModels(swrObjJdge* judge)
     swrObjJdge_podRootNode.num_children = 0;
     swrObjJdge_podRootNode.children.nodes = swrObjJdge_podRootChildren;
     someRootNodeChildNodes[10] = &swrObjJdge_podRootNode;
-    swrModel_NodeInit(&swrObjJdge_podMirrorRootNode, NODE_BASIC);
-    swrObjJdge_podMirrorRootNode.num_children = 0;
-    swrObjJdge_podMirrorRootNode.children.nodes = swrObjJdge_podMirrorRootChildren;
-    someRootNodeChildNodes[1] = &swrObjJdge_podMirrorRootNode;
+    swrModel_NodeInit(&swrObjJdge_podReflectionRootNode, NODE_BASIC);
+    swrObjJdge_podReflectionRootNode.num_children = 0;
+    swrObjJdge_podReflectionRootNode.children.nodes = swrObjJdge_podReflectionRootChildren;
+    someRootNodeChildNodes[1] = &swrObjJdge_podReflectionRootNode;
 
     swrObjJdge_AddTriggersToScene(judge);
     swrViewport_SetRootNodeForAllViewports(&someRootNode);
@@ -6258,6 +6258,17 @@ void LoadTrackModels(swrObjJdge* judge)
     swrViewport_SetNodeFlagsForAllViewports(6, viewFlags6);
     rdMatrixStack_SetField_Maybe(5, stackField | 2);
     swr_noop2();
+}
+
+// 0x00465820
+void RecordLoadedModel_Maybe(void* record, int value)
+{
+    swrModel_Node* node = (swrModel_Node*)record;
+
+    if (node != NULL) {
+        node->num_children++;
+        node->children.nodes = (swrModel_Node**)value;
+    }
 }
 
 // 0x00465840
@@ -6466,7 +6477,84 @@ void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
 // 0x00465980
 void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8)
 {
-    HANG("TODO");
+    swrModel_Header* header = (swrModel_Header*)podModel;
+    swrModel_Node* reflection = NULL; // faithful: uninitialized in the original when both podModel and param_6 are NULL
+    swrModel_Node* node;
+    swrRace* player;
+    rdMatrix44 mirror;
+    rdMatrix44 spawn;
+    int i;
+    static const int fullLodParts[6] = { 1, 2, 3, 4, 5, 0x47 };
+    static const int fullLodParts2[4] = { 0x2a, 0x2b, 0x1c, 0x1d };
+
+    score->unk58 = 0;
+    score->unk5a = 0;
+    score->results_P1_Lap = 0;
+    *(short*)&score->results_P1_Position = -1;
+    score->results_P1_total_time = 0.0f;
+    score->results_P1_Lap1 = -1.0f;
+    score->results_P1_Lap2 = -1.0f;
+    score->results_P1_Lap3 = -1.0f;
+    score->results_P1_Lap4 = -1.0f;
+    score->results_P1_Lap5 = -1.0f;
+    score->results_P1_Lap1 = 0.0f;
+    score->unk7c = 0;
+    score->flag &= ~3;
+    player = (swrRace*)swrEvent_AllocObj('Test');
+    score->obj_test_ptr = player;
+    player->score_ptr = score;
+
+    if (header != NULL) {
+        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = header->entries[0].node;
+        node = &swrObjJdge_podReflectionNodes[swrObjJdge_podReflectionRootNode.num_children].node;
+        swrModel_NodeInit(node, NODE_TRANSFORMED_WITH_PIVOT);
+        swrObjJdge_podReflectionRootChildren[swrObjJdge_podReflectionRootNode.num_children] = node;
+        // the reflection shares the pod root's children array and draws its first child Z-flipped
+        node->num_children = 1;
+        node->children.nodes = header->entries[0].node->children.nodes;
+        rdMatrix_SetIdentity44(&mirror);
+        mirror.vC.z = -1.0f;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)node, &mirror);
+        node->flags_5 |= 1;
+        swrObjJdge_podReflectionRootNode.num_children++;
+        reflection = node;
+        RecordLoadedModel_Maybe(header->entries[7].node, (int)&swrModel_beamTemplateNode);
+        RecordLoadedModel_Maybe(header->entries[9].node, (int)&swrModel_beamTemplateNode);
+        if (header->entries[0x48].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0x48].node, 2, -4, 0x10, 3);
+        if (header->entries[0x49].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0x49].node, 2, -4, 0x10, 3);
+        RecordLoadedModel_Maybe(header->entries[0x41].node, (int)&swrModel_sparkTemplateNode);
+        RecordLoadedModel_Maybe(header->entries[0x42].node, (int)&swrModel_sparkTemplateNode);
+    } else if (param_6 != 0) {
+        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = (swrModel_Node*)param_6;
+        swrModel_NodeModifyFlags((swrModel_Node*)param_6, 2, 3, 0x10, 2);
+    }
+
+    swrObjJdge_GetSpawnTransform(judge, &spawn, player->score_ptr->unk14);
+    // the header types arg 2 as float; it is the spline pointer
+    swrRace_Init(player, *(float*)&judge->unk2c_spline, (int)podModel, (void*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), param_8);
+    player->reflectionNode = reflection;
+    player->lodBodyNode = (swrModel_Node*)param_6;
+    player->lodSelectorNode = (swrModel_Node*)param_7;
+
+    if (header != NULL && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        header->entries[0].node->flags_5 |= 0xc;
+        header->entries[0].node->light_index = player->current_light_index;
+        if (numLocalPlayers < 2) {
+            for (i = 0; i < 6; i++) {
+                if (header->entries[fullLodParts[i]].node != NULL)
+                    header->entries[fullLodParts[i]].node->flags_5 |= 0x10;
+            }
+            for (i = 0; i < 4; i++) {
+                if (header->entries[fullLodParts2[i]].node != NULL)
+                    header->entries[fullLodParts2[i]].node->flags_5 |= 0x100;
+            }
+        }
+    }
+    SetLightColorsAndDirectionFromPrimaryLight3(player->current_light_index);
+    if ((player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) != 0)
+        swrCam_CamState_InitMainMat4(1, 1, &player->transform, 0);
 }
 
 // 0x004663e0
