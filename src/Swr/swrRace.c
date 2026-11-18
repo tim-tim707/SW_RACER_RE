@@ -13,6 +13,7 @@
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
 #include "macros.h"
+#include "swrRender.h"
 #include "engine_config.h"
 #include "globals.h"
 #include "engine_config.h"
@@ -2072,6 +2073,86 @@ void swrRace_UpdateStatPartModels(void)
     rdVector_Copy3((rdVector3*)&m.vD, &previewPos);
     swrModel_NodeSetTransform(node, &m);
     swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+}
+
+// 0x00456200
+void swrRace_UpdatePitDroidModels_Maybe(void)
+{
+    swrModel_NodeTransformed* node;
+    swrObjElmo* droid;
+    rdVector3 ambient;
+    rdVector3 lightColor;
+    rdVector3 lightPos;
+    rdVector3 droidPos;
+    rdMatrix44 m;
+    float camYaw;
+    float sparkScale;
+    float animTime;
+    int i;
+
+    camYaw = stdMath_ArcTan2(swrObjHang_cameraMatrix.vD.x - swrObjHang_holoCameraMatrix.vD.x, swrObjHang_holoCameraMatrix.vD.y - swrObjHang_cameraMatrix.vD.y);
+    ambient.x = 80.0f;
+    ambient.y = 75.0f;
+    ambient.z = 50.0f;
+    for (i = 0; i < swrRace_nbPitDroids; i++) {
+        sparkScale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.5 - -2.0;
+        swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + i], &droidPos);
+        if (droidPos.z <= -157.0f)
+            continue;
+        if (swr_sceneModels[INGAME_MODELID_sparky_part_0 + i] == NULL)
+            return; // skips the light update below too
+        node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_sparky_part_0 + i]->entries[0].node;
+        if (node != NULL) {
+            swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+            swrModel_NodeSetColorsOnAllMaterials(&node->node, 0, 0, 200, 200, 0xff, 0xff);
+            droid = (swrObjElmo*)swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PIT_DROIDS + i);
+            // the spark shows only during the welding animation; the ambient light flickers with it
+            animTime = swrModel_GetAnimListTime((swrModel_Animation**)droid->unk34);
+            if ((float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].start * 0.0666f <= animTime && swrModel_GetAnimListTime((swrModel_Animation**)droid->unk34) <= (float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].end * 0.0666f) {
+                ambient.x = 80.0f;
+                ambient.y = 75.0f;
+                ambient.z = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 120.0 - 30.0 - -50.0f;
+                rdMatrix_SetRotation44(&m, camYaw, 0.0f, -90.0f);
+                rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+                if (m.vD.x < 0.0f)
+                    m.vD.x -= -30.0f;
+                else
+                    m.vD.x -= 30.0f;
+                m.vD.z -= -13.0f;
+                rdMatrix_ScaleBasis44(&m, sparkScale, sparkScale, sparkScale, &m);
+                swrModel_NodeSetTransform(node, &m);
+                swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+            }
+        }
+        node = (swrModel_NodeTransformed*)swr_sceneModels[INGAME_MODELID_hovcart_part_0 + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+        rdMatrix_ScaleBasis44(&m, 0.3f, 0.3f, 0.3f, &m);
+        m.vD.z -= 30.000002f;
+        swrModel_NodeSetTransform(node, &m);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+
+        node = (swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_SHADOW_SQUARES + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
+        rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
+        rdMatrix_ScaleBasis44(&m, 0.3f, 0.3f, 0.3f, &m);
+        m.vD.z = -157.0f;
+        swrModel_NodeSetTransform(node, &m);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
+    lightColor.x = 255.0f;
+    lightColor.y = 255.0f;
+    lightColor.z = 200.0f;
+    lightPos.x = 0.0f;
+    lightPos.y = 0.0f;
+    lightPos.z = -40000.0f;
+    SetLightColorsAndDirection2(-1, &ambient, &lightColor, &lightPos);
 }
 
 // 0x0043f380
