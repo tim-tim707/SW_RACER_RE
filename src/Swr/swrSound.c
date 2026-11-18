@@ -1135,6 +1135,39 @@ void swrSound_ClearSfxFlag(int index, unsigned int mask)
     swrSound_sfxFlags[index] &= ~mask;
 }
 
+// Count down each running cooldown; the first one to expire this frame fires the pending delayed sfx.
+static int swrSound_TickCooldowns(float* timers, int count, int id)
+{
+    double remaining;
+    int i;
+
+    for (i = 0; i < count; i++) {
+        if (timers[i] >= 0.0f) {
+            remaining = timers[i] - swrRace_deltaTimeSecs;
+            timers[i] = (float)remaining;
+            if (remaining <= 0.0 && id != -1) {
+                swrSound_PlaySfxThrottled(swrSound_delayedSfxCategory, swrSound_delayedSfxVariant, id, NULL);
+                id = -1;
+                swrSound_delayedSfxId = -1;
+            }
+        }
+    }
+    return id;
+}
+
+// 0x004276c0
+void swrSound_UpdateDelayedSfx(void)
+{
+    int id;
+
+    // a pause menu sliding in drops the pending sfx
+    if (GetPauseMenuScrollInOut() > 0.0f)
+        swrSound_delayedSfxId = -1;
+    id = swrSound_delayedSfxId;
+    id = swrSound_TickCooldowns(swrSound_sfxCategoryCooldown, sizeof(swrSound_sfxCategoryCooldown) / sizeof(swrSound_sfxCategoryCooldown[0]), id);
+    swrSound_TickCooldowns(swrSound_sfxVariantCooldown, sizeof(swrSound_sfxVariantCooldown) / sizeof(swrSound_sfxVariantCooldown[0]), id);
+}
+
 // Apply the default audio configuration: enable each feature only if the hardware
 // reports support for it, reset gains, and set the initial sfx/music volumes.
 // 0x004220b0
