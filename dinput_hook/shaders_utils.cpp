@@ -10,6 +10,8 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <cstdint>
+#include <set>
 
 #include <windows.h>
 
@@ -107,6 +109,52 @@ std::optional<GLuint> compileProgram(GLsizei vertexCount, const GLchar **vertexS
     return program;
 }
 
+static uint32_t fnv1a(const std::string &s) {
+    uint32_t h = 2166136261u;
+    for (unsigned char c: s) {
+        h = (h ^ c) * 16777619u;
+    }
+    return h;
+}
+
+static std::string withoutCarriageReturns(const char *s) {
+    std::string out;
+    for (; *s; s++) {
+        if (*s != '\r')
+            out.push_back(*s);
+    }
+    return out;
+}
+
+// A mismatch usually means a new DLL over an old assets/shaders/, which silently drops shader-side
+// fixes on that machine only.
+static void warnIfShaderDiffersFromEmbedded(const char *filepath, const std::string &disk_source) {
+    const char *name = filepath;
+    if (const char *slash = std::strrchr(filepath, '/')) {
+        name = slash + 1;
+    }
+    const char *embedded = embedded_shaders::find(name);
+    if (!embedded)
+        return;
+
+    static std::set<std::string> checked;
+    if (!checked.insert(name).second)
+        return;
+
+    const std::string disk = withoutCarriageReturns(disk_source.c_str());
+    const std::string built_in = withoutCarriageReturns(embedded);
+    if (disk == built_in) {
+        fprintf(hook_log, "[shader] %s matches the built-in copy (%08x)\n", name, fnv1a(disk));
+    } else {
+        fprintf(hook_log,
+                "[shader] WARNING: %s on disk (%08x) differs from the copy built into this DLL "
+                "(%08x). If it was not edited on purpose it is from another build; delete it to "
+                "use the built-in one.\n",
+                filepath, fnv1a(disk), fnv1a(built_in));
+    }
+    fflush(hook_log);
+}
+
 std::string readFileAsString(const char *filepath) {
     std::ifstream stream(filepath);
     if (!stream.is_open()) {
@@ -131,6 +179,8 @@ std::string readFileAsString(const char *filepath) {
     }
     std::stringstream buffer;
     buffer << stream.rdbuf();
+    std::string source = buffer.str();
+    warnIfShaderDiffersFromEmbedded(filepath, source);
 
-    return buffer.str();
+    return source;
 }
