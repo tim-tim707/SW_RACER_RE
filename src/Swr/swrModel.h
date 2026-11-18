@@ -86,6 +86,7 @@
 #define swrModel_NodeModifyFlags_ADDR (0x00431A50)
 #define swrModel_NodeGetFlags1Or2_ADDR (0x00431B00)
 #define swrModel_NodeInit_ADDR (0x00431B20)
+#define swrModel_MeshSetBehavior_ADDR (0x00431b90)
 #define swrViewport_ResetCameraState_Maybe_ADDR (0x00431ba0)
 
 // Sphere / ray vs mesh collision (the swept-collision pipeline).
@@ -294,6 +295,7 @@ void swrModel_MeshMaterialSetTexture(swrModel_MeshMaterial* material, int proper
 int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable);
 
 swrModel_Behavior* swrModel_MeshGetBehavior(swrModel_Mesh* mesh);
+void swrModel_MeshSetBehavior(swrModel_Mesh* mesh, swrModel_Behavior* behavior);
 
 void swrModel_NodeModifyFlags(swrModel_Node* node, int flag_id, int value, char modify_children, int modify_op);
 uint32_t swrModel_NodeGetFlags1Or2(swrModel_Node* node, int flag_id);
@@ -427,7 +429,8 @@ void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
 
 // Deforms the pod engine-cable connection mesh, rewriting its tube vertices and face normals by energy.
-void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, int unk2, int unk3, int unk4, int unk5, float energy, float maxEnergy, int unk8);
+// Only node/energy/maxEnergy are read; the rest are forwarded unchanged to the child recursion.
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float unk4, float unk5, float energy, float maxEnergy, int unk8);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 

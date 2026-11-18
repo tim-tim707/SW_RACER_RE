@@ -347,6 +347,7 @@ swrRacer_PodData 0x004c2700 swrRacerData[23]
 swrRacer_PodHandlingData 0x004c2bb0 PodHandlingData[23]
 swrRacer_AI_PodHandlingData 0x004c3114 PodHandlingData
 swrRacer_PodVisualData 0x004c7088 swrRacerVisualData[23]
+swrRace_secondEngineOffset 0x004c7a40 rdVector3 = { 1.5, 0.0, 3.0 } # pod-local offset from an engine to its second engine (pods with partNodes[3]/[4]); X mirrored on the left
 # ai_antiskid 0x004c3114 float
 # ai_turn_response 0x004c3118 float
 # ai_max_turn_rate 0x004c311c float
@@ -443,6 +444,7 @@ swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1
 
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
+swrSpline_ambiguousMeshBehavior 0x004c7be8 swrModel_Behavior = { 0x8, 0, { 0, 0, 0 }, 0, 0, 0, { 0xff, 0xff, 0xff }, { 0xff, 0xff, 0xff }, 0, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f } } # assigned by swrSpline_BakeSampleTrackMesh to behaviorless meshes shared between spline paths
 swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
 sithControl_secFPS 0x004c8174 float
@@ -1302,7 +1304,7 @@ swrRace_fdeltaTimeSecs 0x00e22a50 float
 
 spline_progress_values 0x00E22A60 rdVector2[500]
 
-rdMatrix44_00e25960 0x00e25960 rdMatrix44
+swrSpline_finishMatrix 0x00e25960 rdMatrix44 # spline frame at an open track's finish node (swrSpline_TraceProgress), read by GetCustomStartTransform
 
 swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
 swrObjTrig_TriggerDescriptionArray 0x00E25AC0 swrModel_TriggerDescription*[200]
@@ -1372,6 +1374,9 @@ swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu st
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
 swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
+swrObjHang_displayPodBoundsEngineL 0x00e99300 float[6] # AABB (min xyz, max xyz) of the display pod's left-engine shadow (partNodes[0x3f]); ComputeModelViewBounds, framed by swrObjHang_UpdateLookAtVehicle
+swrObjHang_displayPodBoundsEngineR 0x00e99320 float[6] # same for the right-engine shadow (partNodes[0x3e])
+swrObjHang_displayPodBoundsCockpit 0x00e99340 float[6] # same for the cockpit shadow (partNodes[0x40])
 swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
 swrRace_upgradeUnaffordable 0x00e99400 uint16_t # 1 when truguts + trade-in < price
 swrObjHang_junkyardStock 0x00e29860 swrJunkyardSlot[16] # rolled by swrObjHang_GenerateJunkyardStock

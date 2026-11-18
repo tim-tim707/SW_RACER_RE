@@ -12,6 +12,7 @@
 //   [0] spline   [1] velocity   [2] segment t   [3] tangent length
 //   [4..7] 4 node lookahead window   [8] end flag   [9] start flag
 //   [10] branch selector   [0xb] branch flag bits
+#define swrSpline_GetControlPointPosition_ADDR (0x0044e5a0)
 #define swrSpline_getControlPointIdFromProgress_ADDR (0x0044e5e0)
 #define swrSpline_getControlPoint_ADDR (0x0044e620)
 #define swrSpline_Interpolate_ADDR (0x0044e660)
@@ -33,6 +34,7 @@
 #define swrSpline_ValidateSampleTrackMesh_ADDR (0x0047ece0)
 #define swrSpline_ForEachSample_ADDR (0x0047ee20)
 #define swrSpline_TraceProgress_ADDR (0x0047f060)
+#define swrSpline_TracePathProgress_ADDR (0x0047f450)
 #define swrSpline_BuildProgressTable_ADDR (0x0047f470)
 #define swrSpline_ResetNodeProgress_ADDR (0x0047f6c0)
 #define swrSpline_Build_ADDR (0x0047f6f0)
@@ -43,6 +45,9 @@
 void swrSpline_LoadSpline(int index, unsigned short** b);
 
 char* swrSpline_LoadSplineById(char* splineBuffer);
+
+// Copies control_points[index].position.
+void swrSpline_GetControlPointPosition(swrSpline* spline, int index, rdVector3* out);
 
 // Scan control points from startIndex for one whose progress field equals
 // progress; returns its index or -1.
@@ -94,11 +99,11 @@ int swrSpline_ProjectPointStub(void* cursor, int* out);
 // 5000 units from the spline sample (facing check disabled), stores the hit track mesh into
 // the baked sample->mesh table (spline_progress_values scratch region), stamps mesh
 // splineSampleIndex with the first sample that hit it, and marks meshes shared between
-// traversal orders as spline-ambiguous (behavior unk1 bit 8; assigns the static behavior
-// @0x4c7be8 if the mesh has none).
+// traversal orders as spline-ambiguous (behavior unk1 bit 8; assigns
+// swrSpline_ambiguousMeshBehavior if the mesh has none).
 void swrSpline_BakeSampleTrackMesh(void* cursor, float samplesPerNode, swrModel_Node* trackModel, unsigned short* order);
 
-// Optional debug pass over the baked sample->mesh table (gated on the global at 0xe259a0 in
+// Optional debug pass over the baked sample->mesh table (gated on swrSpline_validateSampleMeshes in
 // swrSpline_Build): re-seeks a cursor to each mesh's anchor sample and distance-checks it;
 // the mismatch branch is a stripped debug print.
 void swrSpline_ValidateSampleTrackMesh(void* cursor, float samplesPerNode);
@@ -114,6 +119,9 @@ void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* ar
 // Trace one graph path, integrating arc length to assign each visited node a
 // normalized progress value.
 void swrSpline_TraceProgress(void* cursor, float segmentLength, unsigned short* order, short* counter);
+
+// Plain forwarder to swrSpline_TraceProgress; BuildProgressTable calls through it.
+void swrSpline_TracePathProgress(void* cursor, float segmentLength, unsigned short* order, short* counter);
 
 // Walk all graph paths and build the per-node progress table.
 void swrSpline_BuildProgressTable(swrSpline* spline, float segmentLength, unsigned short* order);

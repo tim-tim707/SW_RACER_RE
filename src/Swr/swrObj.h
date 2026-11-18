@@ -334,7 +334,8 @@ int compare3Chars(char* a, char* b);
 // Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
 void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 
-// Computes the AABBs of three model nodes and derives UI camera framing values from them.
+// Measures the hangar display pod's three shadow-quad AABBs (swrObjHang_displayPodBounds*) and
+// aims the inspect-vehicle camera framing at the cockpit.
 void ComputeModelViewBounds(void);
 
 // Builds the upgrade-info rows and loads the upgrade pod-part models into the hangar shop scene (best guess).
@@ -763,9 +764,9 @@ void swrRace_PoddAnimateVariousThings(swrRace* arg0);
 // Display-pod animator used outside racing: hangar "inspect vehicle"
 // (swrObjHang_UpdateLookAtVehicle), the vehicle-select menu (swrRace_SelectVehicle) and the
 // taunt/results cutscenes. Positions the pod's engine/cockpit/cable nodes and curves the cables.
-void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int param_3,
-                               float scaleX, float scaleY, float scaleZ, float param_7,
-                               int animated, float param_9, float param_10);
+// useRacerScale multiplies the scale by the pilot's swrRacer_PodData size; floorZ is the height
+// the shadow quads are flattened onto; exhaustLeft/Right feed swrRace_UpdateEngineExhaust.
+void swrRace_AnimateDisplayPod(swrModel_Node** nodes, rdMatrix44* transform, int useRacerScale, float scaleX, float scaleY, float scaleZ, float floorZ, int animated, float exhaustLeft, float exhaustRight);
 
 void swrRace_PoddAnimateSteeringParts(swrRace* a1);
 

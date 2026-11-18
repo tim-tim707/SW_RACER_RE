@@ -16,7 +16,6 @@
 #define swrViewport_SetMat3_ADDR (0x00431950)
 #define swrViewport_SetRootNode_ADDR (0x00431a00)
 #define swrViewport_SetNodeFlags_ADDR (0x00431a10)
-#define swrViewport_SetRootNode_Maybe_ADDR (0x00431b90)
 
 #define swrViewport_UpdateUnknown_ADDR (0x00482EE0)
 #define swrViewport_ComputeClipMatrix_ADDR (0x00482f10)
@@ -55,9 +54,6 @@ void swrViewport_ExtractViewTransform(swrViewport* param_1, rdVector3* translati
 void swrViewport_SetMat3(swrViewport* a1, const rdMatrix44* a2);
 void swrViewport_SetRootNode(swrViewport* a1, swrModel_Node* a2);
 void swrViewport_SetNodeFlags(swrViewport* a1, int flag, int value);
-
-// Stores the camera-slot index into the viewport's unkCameraIndex field (+4).
-void swrViewport_SetRootNode_Maybe(swrViewport* viewport, int cameraIndex);
 
 void swrViewport_UpdateUnknown(swrViewport*);
 void swrViewport_ComputeClipMatrix(swrViewport* unk);
