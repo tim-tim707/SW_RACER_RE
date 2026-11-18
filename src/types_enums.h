@@ -1321,6 +1321,7 @@ typedef enum swrUISprite
 
 typedef enum swrUI_FLAG
 {
+    swrUI_HIGHLIGHTED = 0x2, // set/cleared by swrUI_SetHighlightState; swrUI_UpdateElementColor reads it
     swrUI_STATIC = 0x4, // non-interactive static element (set by swrUI_NewLabel); skipped by focus navigation
     swrUI_EDITING = 0x8, // text entry is being edited (swrUI_MSG_SET_EDITING); key-downs go to swrUI_HandleTextEntryKey
     swrUI_HOVERED = 0x10, // element under the cursor (swrUI_SetUI4)
@@ -1432,11 +1433,16 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
     swrUI_MSG_SET_TEXT = 10, // swrUI_RunCallbacksScreenText; param = new string
     swrUI_MSG_SET_POS = 0xb, // swrUI_SetPos; param = x, param2 = y
+    swrUI_MSG_SET_ACTIVE = 0xe, // swrUI_RunCallbacks2; param = active (page procs reparent + refresh buttons when shown)
     swrUI_MSG_DESTROY = 0x10, // swrUI_FreeElement, before the element is unlinked and freed
+    swrUI_MSG_BACK = 0x13, // back/cancel on the current page; popped unless swrUI_suppressBackPop
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
+    swrUI_MSG_PAGE_SHOWN = 0x46, // swrUI_PushMenuPage / swrUI_PopMenuPage: page became top of stack; param = depth
+    swrUI_MSG_PAGE_POPPED = 0x47, // swrUI_PopMenuPage: page left the stack; param = depth
     swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
     swrUI_MSG_DIALOG_RESULT = 100, // fired to the confirm dialog's parent by swrUI_ProcessPendingClose; param = swrUI_confirmDialogResult
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent
+    swrUI_MSG_ELEMENT_ACTIVATED = 1000, // same code, sent to a page by swrUI_SetHighlightState (mode 1, else 1001); param = element id
     swrUI_MSG_SLIDER_DECREASED = 2000, // fired to the parent by swrUI_HandleSliderKey; param = slider id
     swrUI_MSG_SLIDER_INCREASED = 2001,
     swrUI_MSG_TEXT_ENTRY_COMMITTED = 3001, // fired to the parent on Enter (swrUI_HandleTextEntryKey); param = id, param2 = text

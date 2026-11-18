@@ -1410,6 +1410,36 @@ void swrSound_UnloadAll(void)
     }
 }
 
+// 0x00422e30
+IA3dSource* swrSound_AcquireSource(void* entry, int context, int* createDedicated)
+{
+    swrSoundDescriptor* desc = (swrSoundDescriptor*)entry;
+    IA3dSource* source = NULL;
+    char path[32];
+
+    if ((desc->flags & swrSoundDescriptor_LOADED) == 0) {
+        swrSound_LoadSound(entry);
+        if ((desc->flags & swrSoundDescriptor_STREAMED) != 0)
+            swrSoundStream_loop = context;
+        if ((desc->flags & swrSoundDescriptor_LOADED) == 0)
+            return NULL;
+    }
+    desc->unk44 = 1;
+    if (createDedicated != NULL && *createDedicated != 0) {
+        sprintf(path, "r%s", desc->name);
+        source = swrSound_CreateSourceFromFile(path);
+        if (source == NULL)
+            *createDedicated = 0;
+    }
+    if ((desc->flags & swrSoundDescriptor_STREAMED) == 0) {
+        if (source != NULL)
+            return source;
+        if (swrSound_GetWavePosition(desc->source, NULL) == 1 && desc->index < (uint32_t)swrSound_mapSoundCount)
+            return (IA3dSource*)swrSound_DuplicateSource(desc->source);
+    }
+    return desc->source;
+}
+
 // 0x0044a930
 float swrSound_GetSoundLengthSeconds(int soundId)
 {

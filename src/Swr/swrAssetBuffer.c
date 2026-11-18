@@ -3,6 +3,8 @@
 #include "globals.h"
 #include "swr.h"
 #include "swrModel.h"
+#include "swrRender.h"
+#include "swrSprite.h"
 #include "engine_config.h"
 
 #include <macros.h>
@@ -91,6 +93,40 @@ int swrAssetBuffer_RemainingSize(void)
 
     tmp = swrAssetBuffer_GetBuffer();
     return (int)assetBufferEnd - (int)tmp;
+}
+
+// 0x00445c00
+void ResetModelPreviewState_Maybe(void)
+{
+    translation_unk.x = 0.0f;
+    translation_unk.y = 0.0f;
+    translation_unk.z = 0.0f;
+    rotation_unk.x = 0.0f;
+    rotation_unk.y = 0.0f;
+    rotation_unk.z = 0.0f;
+    swrViewport_cameraResetWord = 0;
+    swrRender_frameClearFlags = swrRender_FRAME_CLEAR_COLOR;
+    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+    SetFogParameters(996, 1000, 0xff, 0xff, 0xff, 0xff);
+}
+
+// 0x00448d40
+void swrAssetBuffer_ReserveRegionA_Maybe(void)
+{
+    char* buffer = swrAssetBuffer_GetBuffer();
+
+    swrAssetBuffer_regionA = (char*)(((uintptr_t)buffer + 0x3f) & ~(uintptr_t)0x3f);
+    swrAssetBuffer_SetBuffer(buffer + SWR_ASSET_BUFFER_REGION_A_SIZE + 0x40);
+}
+
+// 0x00448d60
+void swrAssetBuffer_ReserveRegionB_Maybe(void)
+{
+    char* buffer = swrAssetBuffer_GetBuffer();
+
+    swrAssetBuffer_regionB = (char*)(((uintptr_t)buffer + 0x3f) & ~(uintptr_t)0x3f);
+    swrAssetBuffer_regionBEnd = swrAssetBuffer_regionB + SWR_ASSET_BUFFER_REGION_B_SIZE;
+    swrAssetBuffer_SetBuffer(buffer + SWR_ASSET_BUFFER_REGION_B_SIZE + 0x40);
 }
 
 // 0x004475d0

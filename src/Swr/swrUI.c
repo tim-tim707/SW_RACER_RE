@@ -2,6 +2,7 @@
 
 #include "globals.h"
 #include "swrModel.h"
+#include "swrMultiplayer.h"
 #include "swrObj.h"
 #include "swrRace.h"
 #include "swrSprite.h"
@@ -9,6 +10,7 @@
 #include "swr.h"
 #include "engine_config.h"
 
+#include <General/stdHashTable.h>
 #include <General/stdMath.h>
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
@@ -255,10 +257,110 @@ void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element)
     swrUI_Enqueue(parent, element);
 }
 
+// 0x004121f0
+void swrUI_BuildAuxPages(void)
+{
+    swrUI_unk* page;
+    swrUI_unk* arrow;
+    int rect[4];
+
+    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_SELECT_VEHICLE, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle);
+    if (page != NULL) {
+        rect[0] = 0x28;
+        rect[1] = 0x3c;
+        rect[2] = 0x5e;
+        rect[3] = 0x77;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_VEHICLE_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x217;
+        rect[1] = 0x3c;
+        rect[2] = 0x24d;
+        rect[3] = 0x77;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_VEHICLE_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+    }
+    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_SELECT_PLANET, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet);
+    if (page != NULL) {
+        rect[0] = 0x28;
+        rect[1] = 0x53;
+        rect[2] = 0x5e;
+        rect[3] = 0x8e;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x217;
+        rect[1] = 0x53;
+        rect[2] = 0x24d;
+        rect[3] = 0x8e;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x28;
+        rect[1] = 0x96;
+        rect[2] = 99;
+        rect[3] = 0xcc;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_UP, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x28;
+        rect[1] = 0x104;
+        rect[2] = 99;
+        rect[3] = 0x13a;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_DOWN, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+    }
+    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_83, (swrUI_unk_F2*)swrUI_Menu_MpPage83);
+    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_84, (swrUI_unk_F2*)swrUI_Menu_MpPage84);
+    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_85, (swrUI_unk_F2*)swrUI_Menu_MpPage85);
+    if (page != NULL) {
+        rect[0] = 0x28;
+        rect[1] = 0x1b;
+        rect[2] = 0x5e;
+        rect[3] = 0x56;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE85_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage85, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x217;
+        rect[1] = 0x1b;
+        rect[2] = 0x24d;
+        rect[3] = 0x56;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE85_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage85, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+    }
+    // the EXE reuses id 0x85 for the MpPage86 window
+    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_85, (swrUI_unk_F2*)swrUI_Menu_MpPage86);
+    if (page != NULL) {
+        rect[0] = 0x28;
+        rect[1] = 0x1b;
+        rect[2] = 0x5e;
+        rect[3] = 0x56;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE86_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage86, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+        rect[0] = 0x217;
+        rect[1] = 0x1b;
+        rect[2] = 0x24d;
+        rect[3] = 0x56;
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE86_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage86, 0);
+        swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
+    }
+    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_88, (swrUI_unk_F2*)swrUI_Menu_MpPage88);
+    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_89, (swrUI_unk_F2*)swrUI_Menu_MpPage89);
+}
+
 // 0x00412630
 void swrUI_ResetAttractDemoTimer(void)
 {
     swrObjHang_attractDemoTimer = 30.0f;
+}
+
+// 0x00412e40
+void swrUI_Shutdown(void)
+{
+    memset(swrUI_timers, 0, sizeof(swrUI_timers));
+    if (swrUI_unk_ptr != NULL)
+        swrUI_FreeElement(swrUI_unk_ptr);
+    swrUI_unk_ptr = NULL;
+    swrSprite_FreeSprites();
+    if (swrUI_elementHashtable_Maybe != NULL) {
+        stdHashtbl_Free(swrUI_elementHashtable_Maybe);
+        swrUI_elementHashtable_Maybe = NULL;
+    }
 }
 
 // 0x00412fb0
@@ -1601,6 +1703,221 @@ void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
     }
 }
 
+// 0x004191f0
+int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    swrUI_unk* button;
+
+    switch (msg) {
+    case swrUI_MSG_MOUSE_DOWN:
+        if (self->id == SWR_UI_ID_MP_VEHICLE_ARROW_LEFT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
+        else if (self->id == SWR_UI_ID_MP_VEHICLE_ARROW_RIGHT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
+        break;
+    case swrUI_MSG_SET_ACTIVE:
+        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_SELECT_VEHICLE) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_RefreshPageButtons(self, 1, multiplayer_enabled == 0);
+            if (multiplayer_enabled != 0)
+                swrObjHang_OnSelectVehicle_Maybe();
+        }
+        break;
+    case swrUI_MSG_PAGE_POPPED:
+        swrControl_menuAcceptGuard = 0;
+        // faithful: the OK button is looked up but the back button is deactivated twice
+        button = swrUI_GetById(self, SWR_UI_ID_BACK_BUTTON);
+        swrUI_RunCallbacks2(button, 0);
+        swrUI_GetById(self, SWR_UI_ID_OK_BUTTON);
+        swrUI_RunCallbacks2(button, 0);
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0) {
+                swrControl_cancelPressedEdge = 1;
+                break;
+            }
+            swrMultiplayer_RacerPick((&swrRace_SelectIndex)[swrRace_MenuSelectedItem * 2]);
+            button = swrUI_GetById(self, SWR_UI_ID_BACK_BUTTON);
+            swrUI_RunCallbacks2(button, 0);
+            swrUI_GetById(self, SWR_UI_ID_OK_BUTTON);
+            swrUI_RunCallbacks2(button, 0);
+            swrUI_PopMenuPage();
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x00419390
+int swrUI_Menu_MpSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    switch (msg) {
+    case swrUI_MSG_MOUSE_DOWN:
+        switch (self->id) {
+        case SWR_UI_ID_MP_PLANET_ARROW_LEFT:
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
+            break;
+        case SWR_UI_ID_MP_PLANET_ARROW_RIGHT:
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
+            break;
+        case SWR_UI_ID_MP_PLANET_ARROW_UP:
+            swrUI_pendingInputPressed = swrUI_INPUT_MENU_UP;
+            break;
+        case SWR_UI_ID_MP_PLANET_ARROW_DOWN:
+            swrUI_pendingInputPressed = swrUI_INPUT_MENU_DOWN;
+            break;
+        }
+        return 1;
+    case swrUI_MSG_SET_ACTIVE:
+        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_SELECT_PLANET) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_RefreshPageButtons(self, multiplayer_enabled == 0, 1);
+            if (multiplayer_enabled != 0)
+                swrObjHang_OnSelectPlanet_Maybe();
+        }
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0)
+                swrUI_PopMenuPage();
+            else
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x004194c0
+int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_83) {
+            swrUI_suppressBackPop = 1;
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_RefreshPageButtons(self, 1, 1);
+        }
+        break;
+    case swrUI_MSG_BACK:
+        swrControl_cancelPressedEdge = 1;
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x00419570
+int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_84) {
+            swrUI_suppressBackPop = 1;
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_RefreshPageButtons(self, 1, 1);
+        }
+        break;
+    case swrUI_MSG_BACK:
+        swrControl_cancelPressedEdge = 1;
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x00419620
+int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_88) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_RefreshPageButtons(self, 1, 0);
+        }
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+    }
+    return 0;
+}
+
+// 0x004196b0
+int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+    }
+    return 0;
+}
+
+// 0x00419700
+int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_MOUSE_DOWN) {
+        if (self->id == SWR_UI_ID_MP_PAGE85_ARROW_LEFT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
+        else if (self->id == SWR_UI_ID_MP_PAGE85_ARROW_RIGHT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+        }
+    }
+    return 0;
+}
+
+// 0x00419770
+int swrUI_Menu_MpPage86(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_MOUSE_DOWN) {
+        if (self->id == SWR_UI_ID_MP_PAGE86_ARROW_LEFT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
+        else if (self->id == SWR_UI_ID_MP_PAGE86_ARROW_RIGHT)
+            swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+                swrControl_menuAcceptPressedEdge = 1;
+        } else if ((int)param_3 == SWR_UI_ID_BACK_BUTTON) {
+            swrControl_cancelPressedEdge = 1;
+            swrUI_PopMenuPage();
+        }
+    }
+    return 0;
+}
+
 // 0x004197f0
 void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed)
 {
@@ -2900,6 +3217,19 @@ int swrUI_IsElementFocused(swrUI_unk* ui)
     return ui != NULL && ui == swrUI_focusedElement;
 }
 
+// 0x00417690
+void swrUI_SetHighlightState(int mode, swrUI_unk* ui, int highlighted, int fireCallback, int refreshColor)
+{
+    if (highlighted == 0)
+        ui->flags &= ~swrUI_HIGHLIGHTED;
+    else
+        ui->flags |= swrUI_HIGHLIGHTED;
+    if (refreshColor != 0)
+        swrUI_UpdateElementColor(ui);
+    if (fireCallback != 0)
+        swrUI_RunCallbacks(ui->prev, swrUI_MSG_ELEMENT_ACTIVATED + (mode != 1), ui->id, (int)ui);
+}
+
 // 0x00417ca0
 void swrUI_RefreshListLayout(swrUI_unk* list)
 {
@@ -3342,7 +3672,7 @@ void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect)
 // 0x004172f0
 void swrUI_UpdateElementColor(swrUI_unk* ui)
 {
-    if ((ui->flags & 2) != 0) {
+    if ((ui->flags & swrUI_HIGHLIGHTED) != 0) {
         swrUI_SetColorUnk(ui, ui->r4, ui->g4, ui->b4, ui->a4);
         swrUI_BuildHighlightSprites(ui, 0);
     } else if ((ui->flags & swrUI_FOCUSED) != 0) {

@@ -2,6 +2,8 @@
 
 #include "globals.h"
 #include "../macros.h"
+#include "../swr.h"
+#include "../Swr/swrObj.h"
 
 #include <string.h>
 
@@ -166,4 +168,17 @@ int Main_ParseCmdLine(char* cmdline)
             return 1;
         }
     } while (true);
+}
+
+// 0x00426920
+void swrMain_UpdateInRaceLoopSfx(void)
+{
+    int freq;
+
+    if (swrMain_inRaceLoopSfxDisabled != 0 || swrMain_inRaceLoopSfxId < 0)
+        return;
+    freq = (int)((float)swrMain_inRaceLoopSfxBaseFreq * swrMain_inRaceLoopSfxFreqScale);
+    if (GetPauseState() != 0)
+        freq = (int)((float)freq / (GetPauseMenuScrollInOut() + 1.0f));
+    playASound2(swrMain_inRaceLoopSfxId, 7, 0.25f, (float)freq, 1);
 }

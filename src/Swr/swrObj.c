@@ -178,6 +178,21 @@ int requestPause()
     return 0; // EXE returns whatever StopAllForceEffects left in EAX; callers ignore it
 }
 
+// 0x00445730
+void endPause(void)
+{
+    int ev[3];
+
+    if (pauseDisabled == 0) {
+        pauseState = 0;
+        ev[0] = 'Paws';
+        ev[1] = -1;
+        ev[2] = swrRace_GetInRaceMenuResult();
+        swrEvent_CallF4('All!', ev);
+        swrControl_StopForceEffect(swrForceEffect_AUTO_CENTER);
+    }
+}
+
 // 0x00445780
 void requestUnpause(void)
 {
@@ -11300,6 +11315,13 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
 
     // only the first five args are pushed (add esp,0x14); the rest are stack garbage the receiver ignores
     swrMultiplayer_SendEvent(-1, 0, 'trig', index, player->score_ptr->time_unk, 0.0f, 0.0, NULL, NULL, 0);
+}
+
+// 0x00449000
+void swrScene_InitFog(void)
+{
+    swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
+    SetFogParameters(996, 1000, 0xff, 0xff, 0xff, 0xff);
 }
 
 // 0x00449090
