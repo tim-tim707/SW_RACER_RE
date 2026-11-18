@@ -56,6 +56,7 @@
 #define SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD (0.5f) // mouse axis bound as a button without an AXIS_RANGE
 #define SWR_CONTROL_STEER_RECORD_SCALE (100.0f) // steer axes -> inRaceLocalPlayerInputRecord shorts (0x004ac328)
 #define SWR_CONTROL_STEER_RECORD_MAX (0x100)
+#define SWR_CONFIG_MAPPING_ROW_TRIMMED (0x3c) // swrConfig_SetMappingRowText: this row drops the first char of texts longer than 3
 // swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
 #define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)
 

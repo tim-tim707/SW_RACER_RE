@@ -759,3 +759,29 @@ void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page)
     swrUI_SetChecked(swrUI_GetById(page, 0x61), swrConfig_FORCE_ENGINERUMBLE);
     swrConfig_AssignForceValues();
 }
+
+// 0x0040c670
+void swrConfig_SetMappingRowText(int deviceIndex, swrUI_unk* page, int rowId, int control, int param5, int param6, int param7)
+{
+    char text[64];
+    swrUI_unk* row;
+    unsigned int boundControl;
+    int skipFirst;
+
+    skipFirst = 0;
+    row = swrUI_GetById(page, rowId);
+    // the EXE reuses the rowId argument slot as the out-param
+    swrControl_FormatBinding(deviceIndex, control, param5, (unsigned char)param6, param7, text, &boundControl);
+    if (rowId == SWR_CONFIG_MAPPING_ROW_TRIMMED && strlen(text) > 3) {
+        skipFirst = 1;
+    }
+    if (strcmp(text, "~") == 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0247/tilde"));
+    }
+    if (strcmp(text, "=") == 0) {
+        sprintf(text, "+");
+    }
+    if (row != NULL) {
+        swrUI_SetValueText(row, skipFirst ? text + 1 : text, 0);
+    }
+}

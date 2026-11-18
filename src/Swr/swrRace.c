@@ -8806,3 +8806,19 @@ void swrRace_PollScreenshotKey(void)
     }
     swrRace_screenshotKeyHeld = 0;
 }
+
+// 0x00455720
+void swrRace_SetupStatsMenuLighting(void)
+{
+    rdVector3 ambient;
+    rdVector3 color;
+    rdVector3 direction;
+
+    rdVector_Set3(&ambient, 255.0f, 255.0f, 255.0f);
+    rdVector_Set3(&color, 255.0f, 255.0f, 255.0f);
+    rdVector_Set3(&direction, 0.0f, 120.0f, 0.0f);
+    SetLightColorsAndDirection2(0, &ambient, &color, &direction);
+    rdVector_Set3(&ambient, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&color, 128.0f, 128.0f, 128.0f);
+    SetLightColorsAndDirection2(1, &ambient, &color, &direction);
+}
