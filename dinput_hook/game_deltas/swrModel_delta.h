@@ -15,6 +15,11 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id);
 
 void swrModel_InitializeTextureBuffer_delta();
 
+// 0x00446C20 -- skips the conversion when swrModel_LoadTextureDataAndPalette left the texture NULL
+// (asset buffer exhausted or a corrupt texture table entry); stock writes through it and crashes.
+void swrModel_DoConvertTextureDataToRdMaterial_delta(swrMaterial **texture_data_ptr,
+                                                     uint8_t **palette_data_ptr);
+
 // 0x00450310 -- swrText_SetEntryClipRect. Per-text-entry scissor rect (used by swrUI_DrawText for
 // e.g. the scrolling profile list). The vanilla X mapping uses the stretched screen_width/640 while
 // res-independent text now draws uniform, so clipped text fell left of the clip box and vanished.
