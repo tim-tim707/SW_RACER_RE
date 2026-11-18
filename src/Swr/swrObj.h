@@ -323,7 +323,7 @@ int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 
 // Fades a screen-flash sprite's alpha down over three cycles, hides it, and returns done (best guess).
 int swrObjHang_FadeScreenFlash_Maybe(void);
-// Advances each UI camera-placement entry's animation value by a mode-selected offset of the time.
+// Re-bases each UI camera placement's eye z (mode 1: eye and look-at) on a floor height; mode = low word of unk1.
 void UpdateUICameraPlacements(float time);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);

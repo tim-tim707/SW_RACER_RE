@@ -12839,6 +12839,33 @@ void swrObjHang_UpdateHoloBillboardMatrix(void)
     rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &eye);
 }
 
+// 0x0043e5b0
+void UpdateUICameraPlacements(float time)
+{
+    swrUICameraPlacement* placement;
+
+    for (placement = &maybeUICameraPlacements[0]; placement < &maybeUICameraPlacements[40]; placement++) {
+        switch ((short)placement->unk1) {
+        case 0:
+            placement->position1.z = time - 60.0f;
+            break;
+        case 1:
+            placement->position1.z = time - 157.0f;
+            placement->position2.z = time - 157.0f;
+            break;
+        case 2:
+            placement->position1.z = time - 157.0f;
+            break;
+        case -1:
+        case 4:
+            placement->position1.z = time - 145.0f;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 // 0x0043e620
 void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang)
 {

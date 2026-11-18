@@ -1394,7 +1394,7 @@ extern "C"
         char* selected_text; // 0x51c list: copy of the selected item's text (swrUI_RefreshListSelection)
         int selected_index; // 0x520 list: index of the selected item among the children
         int row_spacing; // 0x524 list row spacing in pixels (5 from swrUI_NewList)
-        int unk528; // 0x528
+        int sort_key; // 0x528 list-item order for swrUI_SortListItems; race-result rows: 0-based position, 666 = retired
         int entry_style; // 0x52c text-entry style: the high 16 bits of the swrUI_NewTextEntry flags
         int caret_pos; // 0x530 text-entry caret index (swrUI_HandleTextEntryKey)
         int max_length; // 0x534 text-entry max input length (swrUI_SetMaxLength)
@@ -1410,7 +1410,11 @@ extern "C"
         int slider_center_value; // 0x554 centered slider: marker position, -100..100
         int slider_step; // 0x558
         int number_value; // 0x55c number-field / slider value (swrUI_GetNumberValue / swrUI_SetNumberValue)
-        char unk560[4192]; // 0x560 rest of the class payload; the swrUI_New slot array follows it
+        int result_lap; // 0x560 race-result row (swrUI_DrawRaceResultRow): current lap, 0-based
+        float result_current_time; // 0x564 race-result row: current lap time in seconds
+        float result_total_time; // 0x568 race-result row: total race time in seconds
+        int result_player_slot; // 0x56c race-result row: MP player slot (swrMultiplayer_PopulateRacerList)
+        char unk570[4176]; // 0x570 rest of the class payload; the swrUI_New slot array follows it
     } swrUI_unk; // sizeof(0x15c0 + unk size)
 
     // this could be some kind of viewport struct.
@@ -3492,6 +3496,15 @@ extern "C"
         char level; // 0x1
         uint8_t health; // 0x2
     } swrJunkyardSlot; // sizeof(0x3)
+
+    // swrRace_SelectIndex entry: one vehicle-select carousel slot (swrRace_BuildPartMenuList).
+    typedef struct swrRace_VehicleSelectEntry
+    {
+        int racerId; // 0x0 swrRacer_PodData index, -1 = empty slot
+        uint8_t unk4; // 0x4 0xff on every rebuild; no readers found
+        uint8_t unk5; // 0x5 0 on every rebuild; no readers found
+        char unk6[2]; // 0x6
+    } swrRace_VehicleSelectEntry; // sizeof(0x8)
 
     typedef struct swrUICameraPlacement
     {

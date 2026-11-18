@@ -1683,7 +1683,20 @@ Mon_Gazza_textbuffer 0x00e99128 char[92]
 Oovo_IV_textbuffer 0x00e99184 char[92]
 Malastare_textbuffer 0x00e991e0 char[92]
 
-swrRace_SelectIndex 0x00e99240 int
+swrRace_vehicleSelectStep 0x0050c49c int # swrRace_SelectVehicle phase: 0 = browsing, 1 = picked/backing out, 2..3 = waiting on the transition, 5 = leave via swrObjHang_state2
+swrRace_vehicleSelectEntered 0x0050c4a0 int # cleared on menu entry, set to 1 on the first update; no other readers
+swrRace_vehicleSelectLoadedRacer 0x004c00b4 int # pod whose model is loaded in scene slot 0xf (-1 = none); a change reloads pod + pilot puppet
+swrRace_vehicleSelectShowStats 0x004c00c0 int # stats panel toggle (default 1); input bit 8 flips it
+swrRace_vehicleSelectPodScale 0x004c00b8 float # display-pod scale = swrRace_Transition * 4 (min 0.001), halved before swrRace_AnimateDisplayPod
+swrRace_vehicleSelectSaveSlot 0x0050c4a4 int # swrSaveData profile slot the pick is mirrored into (<4); an empty slot routes to name entry
+swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrRace_HangarMenu re-lays out its icons and resets the selection on the next update
+swrRace_hangarMenuFrame 0x0050c538 int # frames since the hangar menu (re)initialized, saturates at 2; frame 1 builds the inspect camera placements 0x1f..0x22
+swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrRace_HangarMenu refreshes stats + inspect camera
+swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrRace_HangarMenu update, which marks the selection dirty
+swrRace_hangarVisited 0x004c0224 int # set by the first swrRace_HangarMenu update; no readers
+swrObjHang_displayPodEngineREntry 0x004bfed4 int # pod-model header entry framed by inspect placement 0x1f (1, or 5 when entry 1 is empty; swrObjHang_UpdateLookAtVehicle)
+swrObjHang_displayPodEngineLEntry 0x004bfed8 int # pod-model header entry framed by inspect placement 0x22 (2, or 5 when entry 2 is empty)
+swrRace_SelectIndex 0x00e99240 swrRace_VehicleSelectEntry[23] # vehicle-select carousel (swrRace_BuildPartMenuList): unlocked pods first, rest racerId -1; 0xe992f8 ends it
 swrObjHang_screenSlideOffset 0x00e99358 float # front-end panel slide offset; animated -300 -> target by swrObjHang_UpdateScreenTransition, read by the shop/junkyard draw code
 
 swrRace_PodRotationAnimation 0x00e99384 float

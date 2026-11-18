@@ -71,6 +71,7 @@
 #define ELFSAVE_RECORD_TIME_EMPTY (3599.99f) // record-slot default; at/above this the UI shows "--:--.---"
 #define ELFSAVE_DEFAULT_PILOTS (0x22e01) // pilot-unlock bitfield of a fresh profile
 #define ELFSAVE_DEFAULT_TRUGUTS (400) // starting currency of a fresh profile
+#define ELFSAVE_NB_PROFILE_SLOTS (4) // swrSaveData::profiles
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)
@@ -416,6 +417,7 @@
 // swrMultiplayer_PublishPodState (0x0041d930)
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
+#define SWR_UI_RACE_RESULT_RETIRED (666) // swrUI_unk::sort_key of a retired racer's result row
 
 // swrModel_NodeSelectLOD (0x004827b0): LOD picked as if viewed from this fixed distance (0x004ae078)
 #define SWR_MODEL_LOD_SELECT_DISTANCE (20.0f)

@@ -342,7 +342,42 @@ void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
 // 0x00420cc0
 void swrMultiplayer_PopulateRacerList(void)
 {
-    HANG("TODO");
+    unsigned int count;
+    unsigned int slot;
+    swrUI_unk* list;
+    swrUI_unk* row;
+
+    count = swrMultiplayer_GetActivePlayerCount();
+    list = swrUI_GetById(NULL, SWR_UI_ID_MP_RESULTS_LIST);
+    swrUI_RefreshListSelection(list);
+    for (slot = 0; slot < count; slot++) {
+        row = swrUI_CreateRaceResultRow(slot);
+        row->result_player_slot = slot;
+        swrUI_AddListElement(list, row);
+    }
+}
+
+// 0x00420d10
+void swrMultiplayer_UpdatePlayerListItems(void)
+{
+    swrUI_unk* list;
+    swrUI_unk* row;
+    int slot;
+
+    list = swrUI_GetById(NULL, SWR_UI_ID_MP_RESULTS_LIST);
+    for (row = list->next; row != NULL; row = row->next2) {
+        slot = row->result_player_slot;
+        if (multiplayer_aPlayerQuit[slot] == 0) {
+            // raw dword copies: slots 2/3 hold float times in an int array
+            row->result_lap = swrMultiplayer_aPodStatus[slot][1];
+            row->result_current_time = *(float*)&swrMultiplayer_aPodStatus[slot][2];
+            row->result_total_time = *(float*)&swrMultiplayer_aPodStatus[slot][3];
+            row->sort_key = swrMultiplayer_aPodStatus[slot][0] - 1;
+        } else {
+            row->sort_key = SWR_UI_RACE_RESULT_RETIRED;
+        }
+    }
+    swrUI_SortListItems(list);
 }
 
 // 0x00420f70
