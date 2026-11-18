@@ -602,3 +602,76 @@ int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, 
 
     return hook_call_original(stdComm_Send, idFrom, idTo, lpData, dwDataSize, dwFlags);
 }
+
+// --- Ready barrier re-arm guard ---------------------------------------------------------------
+// swrMultiplayer_readyBarriers[1] gates the pre-race countdown, [2] the "Go" ack. Host
+// InitPlayerStatus broadcasts 0x2c (clients re-send their bit via ApplyReadyMask), clients send
+// 0x2d once, and the host broadcasts 0x2e on release. A client that already released has cleared
+// its barrier, so vanilla ignores a later host re-arm and the host waits on "Waiting for
+// racers..." forever. Re-answer that re-arm while the race is past the barrier.
+
+#define MP_READY_NUM_SLOTS 3 // length of swrMultiplayer_readyBarriers
+
+static const int MP_READY_MSG_SLOT = 0x28; // ready-message payload, after the sithMessage header
+
+// swrObjJdge_F0 states (flag & 0xf) that lie past the pre-race barrier.
+static const int JDGE_STATE_COUNTDOWN = 0;
+static const int JDGE_STATE_GO = 1;
+
+typedef void(swrMultiplayer_InitPlayerStatus_t)(int slot);
+typedef void(swrMultiplayer_SendReadyFlag_t)(int slot, int ready);
+typedef int(swrMultiplayer_PollPlayerStatus_t)(int slot);
+typedef int(swrMultiplayer_ApplyReadyMask_t)(void *message);
+
+// Set when our Poll released this barrier; cleared when we arm it again.
+static bool g_ready_passed[MP_READY_NUM_SLOTS];
+
+static bool mp_ready_slot_in_range(int slot) {
+    return slot >= 0 && slot < MP_READY_NUM_SLOTS;
+}
+
+void swrMultiplayer_InitPlayerStatus_delta(int slot) {
+    hook_call_original((swrMultiplayer_InitPlayerStatus_t *) swrMultiplayer_InitPlayerStatus_ADDR,
+                       slot);
+    if (mp_ready_slot_in_range(slot))
+        g_ready_passed[slot] = false;
+}
+
+int swrMultiplayer_PollPlayerStatus_delta(int slot) {
+    const bool was_released = mp_ready_slot_in_range(slot) &&
+                              swrMultiplayer_readyBarriers[slot].state ==
+                                  swrMultiplayer_READY_BARRIER_RELEASED;
+    const int result = hook_call_original(
+        (swrMultiplayer_PollPlayerStatus_t *) swrMultiplayer_PollPlayerStatus_ADDR, slot);
+    if (result != 0 && was_released)
+        g_ready_passed[slot] = true;
+    return result;
+}
+
+int swrMultiplayer_ApplyReadyMask_delta(void *message) {
+    const int slot = mp_msg_int(message, MP_READY_MSG_SLOT);
+    if (!mp_ready_slot_in_range(slot))
+        return 1;
+
+    swrObjJdge *jdge = (swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    const int jdge_state = jdge != NULL ? (int) (jdge->flag & 0xf) : -1;
+    swrMultiplayerReadyBarrier &barrier = swrMultiplayer_readyBarriers[slot];
+    if (!multiplayer_isHost && barrier.state == swrMultiplayer_READY_BARRIER_IDLE &&
+        g_ready_passed[slot] &&
+        (jdge_state == JDGE_STATE_COUNTDOWN || jdge_state == JDGE_STATE_GO)) {
+        barrier.state = swrMultiplayer_READY_BARRIER_ARMED;
+        barrier.readyMask = 0;
+        barrier.sent = 1;
+        fprintf(hook_log,
+                "[swrMultiplayer_delta] host re-armed ready barrier %d after we passed it; "
+                "re-answering\n",
+                slot);
+        fflush(hook_log);
+        hook_call_original((swrMultiplayer_SendReadyFlag_t *) swrMultiplayer_SendReadyFlag_ADDR,
+                           slot, 1);
+        return 1;
+    }
+
+    return hook_call_original(
+        (swrMultiplayer_ApplyReadyMask_t *) swrMultiplayer_ApplyReadyMask_ADDR, message);
+}

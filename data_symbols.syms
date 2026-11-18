@@ -550,6 +550,7 @@ swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: m
 swrMultiplayer_chatInputY 0x004e9f18 int # y of the chat input line (below the last chat line); caret y
 
 time_buffer 0x004e9f20 char[256]
+swrMultiplayer_readyBarriers 0x004ea020 swrMultiplayerReadyBarrier[3] # indexed by status slot (InitPlayerStatus / SetPlayerStatusBit / PollPlayerStatus)
 
 swrMultiplayer_rosterIdentifiers 0x004ea8f0 int[20] # per-slot racer identifier ('AAII' AI / 'REMO' remote) mirrored into swrScores[i].identifier
 swrMultiplayer_chatLineState 0x004ea940 int[15] # zeroed on add/free/reset; never read in the retail binary
