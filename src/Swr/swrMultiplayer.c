@@ -6,6 +6,7 @@
 #include <General/stdString.h>
 #include <Platform/wuRegistry.h>
 #include <Win95/stdComm.h>
+#include <Dss/sithMessage.h>
 #include <Dss/sithMulti.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrText.h>
@@ -621,6 +622,21 @@ void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex)
             swrMultiplayer_rosterIdentifiers[playerIndex] = 'AAII';
         }
     }
+}
+
+// 0x0041c9e0
+void swrMultiplayer_OnPlayerJoined(DPID player)
+{
+    char text[1024];
+    int playerNum;
+
+    playerNum = sithMulti_GetPlayerNum(player);
+    if (multiplayer_isHost != 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0424/%s has joined the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
+        swrMultiplayer_PostChatMessage(text);
+    }
+    swrMultiplayer_aRejoinRequested[playerNum] = 0;
+    swrUI_BroadcastToWindows(0x3f, playerNum);
 }
 
 // 0x0041d0c0

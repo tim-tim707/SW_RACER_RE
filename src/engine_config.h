@@ -72,6 +72,7 @@
 #define ELFSAVE_DEFAULT_PILOTS (0x22e01) // pilot-unlock bitfield of a fresh profile
 #define ELFSAVE_DEFAULT_TRUGUTS (400) // starting currency of a fresh profile
 #define ELFSAVE_NB_PROFILE_SLOTS (4) // swrSaveData::profiles
+#define RDMODEL_SCENE_MAX_DEPTH (0x20) // rdModel_sceneNodeDepth past which transformed nodes skip the matrix-stack push
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)

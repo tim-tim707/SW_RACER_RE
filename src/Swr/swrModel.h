@@ -453,7 +453,7 @@ void swrModel_NodeTreeClosestPoint(swrModel_Node* targetNode, swrModel_Node* nod
 void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal);
 
 // Transforms a point and direction into a frame-described coordinate space (best guess).
-void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, int frameDesc, rdVector3* point, rdVector3* dir);
+void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, swrModel_Node** nodeChain, rdVector3* point, rdVector3* dir);
 
 // Advances per-frame buffer parity, stepping a ring counter and flipping a toggle (best guess).
 void swrViewport_AdvanceFrameParity_Maybe(void);

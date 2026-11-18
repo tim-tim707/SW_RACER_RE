@@ -66,6 +66,16 @@ void swrWeather_ResetParticles(void)
         swrWeather_particleSpriteIds[i] = -1;
 }
 
+// 0x0042d330
+void swrSprite_SetStreakEndpoints_Maybe(short id, short x, short y)
+{
+    short v;
+
+    // screen pixels -> the 320x240 sprite space
+    v = (short)(int)((float)y / (float)swrDisplay_screenHeight * 240.0f);
+    swrSprite_SetUVOffset_Maybe(id, (short)(int)((float)x / (float)swrDisplay_screenWidth * 320.0f), v);
+}
+
 // 0x0042d380
 void swrWeather_HideAllParticles(void)
 {
