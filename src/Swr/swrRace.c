@@ -4016,6 +4016,12 @@ void swrRace_SpawnFlameAttack(swrRace* player)
     swrObjSmok_SetOwnerHandle(player->flameSmokeHandle, &player->flameSmokeHandle);
 }
 
+// 0x0046bb50
+void swrRace_SpawnFlameAttackByIndex(int racerIndex)
+{
+    swrRace_SpawnFlameAttack(swrScores[racerIndex].obj_test_ptr);
+}
+
 // 0x0046bb30
 void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5)
 {

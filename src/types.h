@@ -3240,10 +3240,11 @@ extern "C"
     {
         rdVector3 hoverPadOffsetA; // 0x00. pod-local hover-pad offset (4th pad of swrRace_UpdateHoverPads)
         rdVector3 hoverPadOffsetB; // 0x0c. 2nd pad offset; the 3rd pad mirrors it in X
-        float unk18[3];
+        rdVector3 sweepCockpitOffset; // 0x18. added to hoverPadOffsetA for the pre-race sweep keyframes (swrObjcMan_UpdatePreRaceSweep)
         rdVector3 cableCockpitAnchor; // 0x24. cockpit end of the engine->cockpit cable quads (swrRace_BuildStretchedQuad), X mirrored per side
         rdVector3 cableEngineAnchor; // 0x30. engine end; X mirrored per side, Z mirrored for the second engine pair
-        float unk3c[4];
+        rdVector3 sweepEngineOffset; // 0x3c. added to hoverPadOffsetB for the sweep's engine keyframe
+        float sweepEndX; // 0x48. X of the sweep's final (chase) keyframe
         float chaseCamTrail;  // 0x4c. chase-camera distance behind the pod (doubled in the far chase view)
         float chaseCamHeight; // 0x50. chase-camera height above the pod
         float unk54[6];

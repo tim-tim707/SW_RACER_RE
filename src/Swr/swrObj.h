@@ -608,7 +608,7 @@ void InitAISettingsForTrack(swrObjJdge*);
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
 
 // Toggles the skybox root node's visibility and sets the debug clear color (best guess).
-void swrObjJdge_ToggleSkyboxVisibility_Maybe(int param_1, unsigned char mode);
+void swrObjJdge_ToggleSkyboxVisibility_Maybe(int unused, unsigned char mode);
 
 // track/level load pipeline (called from swrObjJdge_InitTrack):
 // Selects the track spline by planet/track, loads it, and sets fog/clear color + start camera.

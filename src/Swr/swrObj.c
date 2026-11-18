@@ -539,7 +539,126 @@ void swrObjcMan_RestoreMode(swrObjcMan* cman)
 // 0x00451ef0
 void swrObjcMan_UpdatePreRaceSweep(swrObjcMan* cman)
 {
-    HANG("TODO");
+    rdMatrix44 podXf;
+    rdMatrix44 m;
+    rdVector3 cockpit;
+    rdVector3 engine;
+    rdVector3 chase;
+    rdVector3 eyes[4];
+    rdVector3 focuses[4];
+    rdVector3 focus;
+    rdVector3 eye;
+    rdVector3 dirFrom;
+    rdVector3 dirTo;
+    float sinBlend;
+    float cosBlend;
+    float blend;
+    int stage;
+    int finished = 0;
+
+    swrRace* pod = cman->unkf4_objTest;
+    cman->fov = -1.0f;
+    if (pod != NULL) {
+        rdMatrix_Copy44(&podXf, &pod->transform);
+        podXf.vD.z = pod->unk11_1 + podXf.vD.z;
+        cman->animTimer_ms = (float)(cman->animTimer_ms + swrRace_deltaTimeSecs);
+        int pilot = *pod->score_ptr->pilotId;
+        const swrRacerVisualData* visual = &swrRacer_PodVisualData[pilot];
+        rdVector_Copy3(&cockpit, &visual->hoverPadOffsetA);
+        rdVector_Add3(&cockpit, &cockpit, &visual->sweepCockpitOffset);
+        rdVector_Copy3(&engine, &visual->hoverPadOffsetB);
+        rdVector_Add3(&engine, &engine, &visual->sweepEngineOffset);
+        engine.x = engine.x * 0.3;
+        chase.x = visual->sweepEndX;
+        chase.y = visual->chaseCamTrail;
+        chase.z = visual->chaseCamHeight;
+        chase.z = pod->unk19b4 * 0.75 + chase.z;
+        chase.y = chase.y * -1.0f;
+        rdVector_Scale3(&chase, 0.75f, &chase);
+
+        // four eye/focus keyframes in pod space; the last is the chase-camera position
+        rdVector_Copy3(&eyes[0], &cockpit);
+        eyes[0].x = eyes[0].x - -2.0;
+        eyes[0].y = eyes[0].y - 2.0;
+        eyes[0].z = eyes[0].z - 1.0;
+        if (pilot == SWR_PILOT_NEVA_KEE) {
+            eyes[0].x = eyes[0].x - -2.0;
+            eyes[0].y = eyes[0].y - 2.0;
+            eyes[0].z = eyes[0].z - -4.0;
+        }
+        rdMatrix_Transform3(&eyes[0], &eyes[0], &podXf);
+        rdVector_Copy3(&focuses[0], &cockpit);
+        focuses[0].z = focuses[0].z - 2.0f;
+        rdMatrix_Transform3(&focuses[0], &focuses[0], &podXf);
+        rdVector_Copy3(&eyes[1], &cockpit);
+        eyes[1].x = eyes[1].x - 0.5;
+        eyes[1].y = eyes[1].y - -2.5;
+        eyes[1].z = eyes[1].z - 1.0;
+        if (pilot == SWR_PILOT_NEVA_KEE) {
+            eyes[1].y = eyes[1].y - -2.0;
+            eyes[1].z = eyes[1].z - -4.0;
+        }
+        rdMatrix_Transform3(&eyes[1], &eyes[1], &podXf);
+        rdVector_Copy3(&focuses[1], &cockpit);
+        focuses[1].z = focuses[1].z - 2.0f;
+        rdMatrix_Transform3(&focuses[1], &focuses[1], &podXf);
+        rdVector_Copy3(&eyes[2], &engine);
+        eyes[2].y = eyes[2].y - -5.0f;
+        eyes[2].z = eyes[2].z - -0.5f;
+        rdMatrix_Transform3(&eyes[2], &eyes[2], &podXf);
+        rdVector_Copy3(&focuses[2], &cockpit);
+        rdMatrix_Transform3(&focuses[2], &focuses[2], &podXf);
+        rdVector_Copy3(&eyes[3], &chase);
+        rdMatrix_Transform3(&eyes[3], &eyes[3], &podXf);
+        rdVector_Set3(&focuses[3], 0.0f, 0.0f, chase.z);
+        rdMatrix_Transform3(&focuses[3], &focuses[3], &podXf);
+
+        // 3 s per leg for the first two, 2 s for the last
+        if (cman->animTimer_ms < 3.0) {
+            stage = 0;
+            blend = cman->animTimer_ms * 0.3333333333333333;
+        } else if (cman->animTimer_ms < 6.0) {
+            stage = 1;
+            blend = (cman->animTimer_ms - 3.0) * 0.3333333333333333;
+        } else if (cman->animTimer_ms < 8.0) {
+            stage = 2;
+            blend = (cman->animTimer_ms - 6.0) * 0.5;
+        } else {
+            stage = 2;
+            blend = 1.0f;
+            finished = 1;
+        }
+        if (blend < 0.0)
+            blend = 0.0f;
+        if (blend > 1.0)
+            blend = 1.0f;
+        // ease in/out
+        stdMath_SinCos(blend * 180.0f - 90.0f, &sinBlend, &cosBlend);
+        blend = sinBlend * 0.5f - -0.5f;
+
+        rdVector_Set3(&focus, 0.0f, 0.0f, 0.0f);
+        rdVector_Scale3Add3(&focus, &focus, (float)(1.0 - blend), &focuses[stage]);
+        rdVector_Scale3Add3(&focus, &focus, blend, &focuses[stage + 1]);
+        // orbit the focus point: interpolate yaw, pitch and distance between the two eyes
+        rdVector_Sub3(&dirFrom, &eyes[stage], &focus);
+        rdVector_Sub3(&dirTo, &eyes[stage + 1], &focus);
+        float distFrom = rdVector_Normalize3Acc(&dirFrom);
+        float distTo = rdVector_Normalize3Acc(&dirTo);
+        float yawFrom = stdMath_ArcTan2(-dirFrom.x, dirFrom.y);
+        float yawTo = stdMath_ArcTan2(-dirTo.x, dirTo.y);
+        float pitchFrom = stdMath_ArcSin(dirFrom.z);
+        float pitchTo = stdMath_ArcSin(dirTo.z);
+        rdMatrix_SetRotation44(&m, (yawTo - yawFrom) * blend + yawFrom, (pitchTo - pitchFrom) * blend + pitchFrom, 0.0f);
+        rdVector_Scale3Add3(&eye, &focus, (distTo - distFrom) * blend + distFrom, (rdVector3*)&m.vB);
+        rdMatrix_SetIdentity44(&m);
+        rdVector_Copy3((rdVector3*)&m.vD, &eye);
+        rdMatrix_Copy44(&cman->unk20_mat, &m);
+        rdMatrix_SetIdentity44(&m);
+        rdVector_Copy3((rdVector3*)&m.vD, &focus);
+        rdMatrix_Copy44(&cman->focusTransform_mat, &m);
+    }
+    if (finished)
+        swrObjcMan_CommitStagedCamera(cman, 1);
 }
 
 static void swrObjcMan_SetTranslationMatrix(rdMatrix44* m, const rdVector3* t)
@@ -2695,6 +2814,20 @@ void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
     }
 }
 
+// 0x00433720
+void swrObjHang_OnSelectVehicle_Maybe(void)
+{
+    swrObjHang_SetMenuState(g_objHang2, swrObjHang_STATE_SELECT_VEHICLE);
+    swrControl_menuAcceptGuard = 1;
+}
+
+// 0x00433740
+void swrObjHang_OnSelectPlanet_Maybe(void)
+{
+    swrObjHang_SetUnused();
+    swrObjHang_SetMenuState(g_objHang2, swrObjHang_STATE_SELECT_PLANET);
+}
+
 // 0x004337d0
 void swrObjHang_SetState5_Maybe(void)
 {
@@ -3703,6 +3836,26 @@ void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang)
             rdVector_Copy3(&uiUpgradeInfos[i].vector2, &uiUpgradeInfos2[i].vector1);
             rdVector_Copy3(&uiUpgradeInfos[i].vector3, &uiUpgradeInfos2[i].vector1);
         }
+    }
+}
+
+// 0x0045cd50
+void swrObjHang_GenerateJunkyardStock(swrObjHang* hang)
+{
+    for (int i = 0; i < SWR_JUNKYARD_SLOT_COUNT; i++) {
+        swrObjHang_junkyardStock[i].partType = -1;
+        // the slot's camera framing is only enabled once a part lands in it
+        *(short*)&maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + i].unk1 = -1;
+        swrObjHang_junkyardStock[i].level = 1 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -5.0f);
+        swrObjHang_junkyardStock[i].health = 102 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -129.0f);
+    }
+    for (int part = 0; part < SWR_JUNKYARD_PART_COUNT; part++) {
+        int slot;
+        do {
+            slot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 16.0f);
+        } while (swrObjHang_junkyardStock[slot].partType != -1);
+        swrObjHang_junkyardStock[slot].partType = (char)part;
+        *(short*)&maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot].unk1 = 4;
     }
 }
 
@@ -5699,6 +5852,40 @@ void LoadTrackModels(swrObjJdge* judge)
     HANG("TODO");
 }
 
+// 0x00465840
+void swrObjJdge_GetSpawnTransform(swrObjJdge* judge, rdMatrix44* out, int gridIndex)
+{
+    // starting grid: alternating rows of 4 and 3 pods
+    int rowWidths[10] = { 4, 3, 4, 3, 4, 3, 4, 3, 4, 3 };
+    int numPlayers = judge->num_players;
+
+    swrSpline_EvaluateAtOffset(&judge->cursor, out, 0.0f);
+    out->vD.x = out->vD.x - out->vB.x * 100.0f;
+    out->vD.y = out->vD.y - out->vB.y * 100.0f;
+    out->vD.z = out->vD.z - out->vB.z * 100.0f;
+    int width = rowWidths[0];
+    int unfilled = width - numPlayers;
+    int row = 0;
+    int col = gridIndex;
+    if (col >= width) {
+        int* next = &rowWidths[0];
+        do {
+            next++;
+            col -= width;
+            row++;
+            width = *next;
+            unfilled += width;
+        } while (col >= width);
+    }
+    // the last row is centered on the racers actually in it
+    if (unfilled > 0)
+        width -= unfilled;
+    float back = (float)row * -30.0f;
+    float lateral = ((float)width - 1.0f) * 0.5f * -20.0f + (float)col * 20.0f;
+    rdVector_Scale3Add3((rdVector3*)&out->vD, (rdVector3*)&out->vD, back, (rdVector3*)&out->vB);
+    rdVector_Scale3Add3((rdVector3*)&out->vD, (rdVector3*)&out->vD, lateral, (rdVector3*)&out->vA);
+}
+
 // 0x00465cb0
 void swrObjJdge_InitSplineCursor(swrObjJdge* judge)
 {
@@ -5813,6 +6000,25 @@ void InitAISettingsForTrack(swrObjJdge* judge)
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 {
     HANG("TODO");
+}
+
+// 0x00466e40
+void swrObjJdge_ToggleSkyboxVisibility_Maybe(int unused, unsigned char mode)
+{
+    if ((mode & 4) == 0) {
+        swrRender_frameClearFlags &= ~swrRender_FRAME_CLEAR_COLOR;
+        if (someRootNodeChildNodes[0] != NULL)
+            swrModel_NodeModifyFlags(someRootNodeChildNodes[0], 2, 3, 0x10, 2);
+    } else {
+        // no skybox: clear the frame instead
+        swrRender_frameClearFlags |= swrRender_FRAME_CLEAR_COLOR;
+        if (someRootNodeChildNodes[0] != NULL)
+            swrModel_NodeModifyFlags(someRootNodeChildNodes[0], 2, -4, 0x10, 3);
+    }
+    if ((swrRace_DebugFlag & 0x200) != 0 && swrRace_DebugLevel > 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1100) == 0x1100) {
+        swrRender_frameClearFlags |= swrRender_FRAME_CLEAR_COLOR;
+        SetClearColor(0, 0, 0);
+    }
 }
 
 // 0x00466ec0
