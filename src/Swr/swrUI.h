@@ -57,6 +57,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_PushMenuPage_ADDR (0x00411820)
 #define swrUI_PopMenuPage_ADDR (0x004118b0)
 #define swrUI_ReparentElement_ADDR (0x00411910) // move an element under a new parent
+#define swrUI_BuildMenuPages_ADDR (0x00411950) // build every front-end menu window (main, profile, settings pages, MP)
 #define swrUI_BuildAuxPages_ADDR (0x004121f0) // build aux/overlay windows 0x81-0x89
 #define swrUI_ResetAttractDemoTimer_ADDR (0x00412630)
 #define swrUI_Shutdown_ADDR (0x00412e40) // UI teardown (free tree + sprite materials + hash table)
@@ -244,8 +245,8 @@ int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swr
 int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 
 // Settings sub-screens:
-int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)
-int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
+int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item); // config-profile save/load (window 0x2730)
+int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
 // Multiplayer session-setup page procs:
 int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission
 int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host/create game (window 0x186aa)
@@ -287,6 +288,7 @@ void swrUI_ResetPageStack(void);
 int swrUI_GetPageStackDepth(void);
 swrUI_unk* swrUI_GetCurrentPage(void);
 void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element);
+int swrUI_BuildMenuPages(void);
 void swrUI_BuildAuxPages(void);
 
 // Initializes a UI layout or scale constant global (best guess).

@@ -12,6 +12,8 @@
 #include "swr.h"
 #include "engine_config.h"
 
+#include <General/stdFileUtil.h>
+#include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -304,6 +306,132 @@ void swrUI_ReparentElement(swrUI_unk* parent, swrUI_unk* element)
     swrUI_RunCallbacks2(element, 1);
     element->fun2 = parent->fun2;
     swrUI_Enqueue(parent, element);
+}
+
+static const struct
+{
+    char* name;
+    short x;
+    short y;
+} swrUI_devPhotoNames[] = {
+    { "~c~sMark H.H.", 0x2e, 0x8a },
+    { "~c~sJon", 0x55, 200 },
+    { "~c~sJustin", 0x77, 0x81 },
+    { "~c~sPaul T.", 0x8d, 0x59 },
+    { "~c~sEric", 0x91, 0xd8 },
+    { "~c~sBrett", 0xba, 0xbf },
+    { "~c~sPaul Z.", 200, 0x5f },
+    { "~c~sJacob", 0xdd, 0xcd },
+    { "~c~sLisa", 0xee, 0x68 },
+    { "~c~sSun-Inn", 0x10c, 0x91 },
+    { "~c~sArmando", 0x10f, 0x5d },
+    { "~c~sDuncan", 0x122, 0xd9 },
+    { "~c~sChristina", 0x135, 0x6b },
+    { "~c~sCamela", 0x15b, 199 },
+    { "~c~sMark B.", 0x167, 0x55 },
+    { "~c~sJapeth", 0x17c, 0xb2 },
+    { "~c~sDino", 0x18a, 0xcb },
+    { "~c~sLivia", 0x19c, 0x5d },
+    { "~c~sDarren", 0x1b9, 0x77 },
+    { "~c~sClint", 0x1c6, 0xc2 },
+    { "~c~sAmit", 0x1d2, 0x5c },
+    { "~c~sJim", 0x1fe, 0xb7 },
+    { "~c~sBrad", 0x207, 0x5a },
+    { "~c~sBill", 0x234, 0xd5 },
+    { "~c~sNathan", 0x23c, 0x55 },
+};
+
+// 0x00411950
+int swrUI_BuildMenuPages(void)
+{
+    swrUI_unk* page;
+    int i;
+
+    swrSprite_LoadAllSprites();
+    // window 5: lone Settings + Back page
+    page = swrUI_NewWindow(NULL, NULL, 5, NULL);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_SETTINGS, 6, swrText_Translate("/MONDOTEXT_H_0373/~sSettings"), 0, 0x15e, 200, 0x19, swrUI_FRAME_STYLE_SETTINGS_BUTTON, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x186, 2);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_NAV, NULL);
+    if (page != NULL) {
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a4, 2);
+        swrUI_AddOkButton(page, 0x208, 0x17c);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SPLASH, (swrUI_unk_F2*)swrUI_Menu_Main);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_TOURNAMENT, 6, swrText_Translate("/MONDOTEXT_H_0374/~sSingle Player Tournament"), 0x96, 0x96, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_FREEPLAY, 6, swrText_Translate("/MONDOTEXT_H_0375/~sSingle Player Free Play"), 0x96, 0xbe, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_MULTIPLAYER, 6, swrText_Translate("/MONDOTEXT_H_0376/~sMultiplayer"), 0x96, 0xe6, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_MAIN_SETTINGS, 6, swrText_Translate("/MONDOTEXT_H_0373/~sSettings"), 0, 0x15e, 0xb4, 0x19, swrUI_FRAME_STYLE_SETTINGS_BUTTON, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_MAIN_QUIT, 0, 0x186, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_MAIN_COPYRIGHT, 4, swrText_Translate("/MONDOTEXT_H_0504/~s$LucasArts Entertainment Company LLC. $Lucasfilm Ltd. and #. All Rights Reserved. Used under authorization."), 0x140, 0x1d6, swrUI_VERTICAL, 0);
+        // developer-photo labels (swrUI_Menu_Main shows them instead of the menu)
+        for (i = 0; i < (int)(sizeof(swrUI_devPhotoNames) / sizeof(swrUI_devPhotoNames[0])); i++)
+            swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i, 4, swrUI_devPhotoNames[i].name, swrUI_devPhotoNames[i].x, swrUI_devPhotoNames[i].y, 0, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i, 6, swrText_Translate("/MONDOTEXT_H_0524/~sThe Team"), 0x140, 0x3c, swrUI_VERTICAL, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 1, 4, swrText_Translate("/MONDOTEXT_H_0544/~s%"), 0x12a, 0x12, 0, 0);
+        swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 2, 4, swrText_Translate("/MONDOTEXT_H_0545/~s#"), 0x127, 0x46, 0, 0);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrRace_SelectProfileMenu);
+    if (page != NULL)
+        swrRace_BuildProfileSelectMenu(page);
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_SettingsHub);
+    if (page != NULL) {
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_VIDEO, 6, swrText_Translate("/MONDOTEXT_H_0292/~sVIDEO SETTINGS"), 0x96, 100, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_AUDIO, 6, swrText_Translate("/MONDOTEXT_H_0305/~sAUDIO SETTINGS"), 0x96, 0x8c, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_JOYSTICK, 6, swrText_Translate("/MONDOTEXT_H_0249/~sJOYSTICK SETTINGS"), 0x96, 0xbe, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_MOUSE, 6, swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"), 0x96, 0xe6, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_KEYBOARD, 6, swrText_Translate("/MONDOTEXT_H_0251/~sKEYBOARD SETTINGS"), 0x96, 0x10e, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_FORCE_FEEDBACK, 6, swrText_Translate("/MONDOTEXT_H_0314/~sFORCE FEEDBACK SETTINGS"), 0x96, 0x136, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_NewButton(page, SWR_UI_ID_SETTINGS_LOAD_SAVE, 6, swrText_Translate("/MONDOTEXT_H_0340/~sLOAD/SAVE SETTINGS"), 0x96, 0x168, 0x154, 0x19, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 400, 2);
+    }
+
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_CONFIG_FILES, (swrUI_unk_F2*)swrUI_Menu_SaveLoadConfig);
+    if (page != NULL)
+        swrRace_LoadSaveConfigMenu(page);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_JOYSTICK_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildJoystickMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_MOUSE_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildMouseMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_MOUSE, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_KEYBOARD_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
+    if (page != NULL) {
+        swrConfig_BuildKeyboardMenu(page);
+        swrConfig_RefreshMappingMenu(swrConfig_DEVICE_KEYBOARD, page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_VIDEO_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_VideoSettings);
+    if (page != NULL) {
+        swrConfig_BuildVideoMenu(page);
+        swrConfig_RefreshVideoMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_AUDIO_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_AudioSettings);
+    if (page != NULL) {
+        swrConfig_BuildAudioMenu(page);
+        swrConfig_RefreshAudioMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_ForceFeedback);
+    if (page != NULL) {
+        swrConfig_BuildForceFeedbackMenu(page);
+        swrConfig_RefreshForceFeedbackMenu(page);
+    }
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_RESERVED_KEYS, (swrUI_unk_F2*)swrUI_Menu_ReservedSettings);
+    if (page != NULL)
+        swrRace_ReservedSettingsMenu(page);
+
+    swrMultiplayer_BuildAllMenuScreens();
+    swrUI_BuildAuxPages();
+    return 1;
 }
 
 // 0x004121f0
@@ -5013,6 +5141,159 @@ int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI
     return 0;
 }
 
+// 0x00401af0
+int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
+{
+    unsigned int id = (unsigned int)param;
+    swrUI_unk* focus;
+    char* notice;
+    char name[128];
+    char path[256];
+
+    memset(name, 0, sizeof(name));
+    name[0] = wuRegistry_lpClass[0];
+    if (msg != swrUI_MSG_DESTROY) {
+        if (swrUI_configFilesPage == NULL) {
+            swrUI_configFilesPage = swrUI_GetById(NULL, swrUI_WINDOW_CONFIG_FILES);
+        } else {
+            if (swrUI_configNameEntry == NULL)
+                swrUI_configNameEntry = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_NAME_ENTRY);
+            if (swrUI_configFileList != NULL || (swrUI_configFileList = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_LIST)) != NULL) {
+                swrUI_configPrevSelectedFile = swrUI_configSelectedFile;
+                swrUI_configSelectedFile = swrUI_GetSelectedItem(swrUI_configFileList);
+                if (swrUI_configSelectedFile == NULL) {
+                    swrUI_configSelectedIsPreset = 0;
+                } else {
+                    sprintf(name, "%s", swrUI_configSelectedFile->str_allocated);
+                    swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
+                }
+            }
+        }
+    }
+
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        if (id != 0) {
+            swrMultiplayer_SetInMultiplayer(0);
+            swrUI_RunCallbacksScreenText(swrUI_configNameEntry, wuRegistry_lpClass, 0);
+        }
+        return 0;
+    case swrUI_MSG_DIALOG_RESULT:
+        // "delete this configuration?" answered yes
+        if (id == 0) {
+            sprintf(path, "%s%s", ".\\data\\config\\", name);
+            stdFileUtil_DelTree(path);
+            swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0541/                       Removed settings file."), 2.0f);
+        }
+        return 0;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if (id == 3) { // nav button (swrRace_LoadSaveConfigMenu)
+            swrUI_PopMenuPage();
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_SAVE) {
+            swrUI_RunCallbacks2(swrUI_configNameEntry, 1);
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            swrUI_RunCallbacksScreenText(swrUI_configNameEntry, wuRegistry_lpClass, 0);
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_LOAD) {
+            if (name[0] == '\0') {
+                if (swrUI_configSelectedFile != NULL)
+                    swrUI_GetAllocatedString(swrUI_configNameEntry, name, sizeof(name));
+                if (name[0] == '\0') {
+                    playUISound(-1);
+                    swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0542/                       No file selected."), 2.0f);
+                    return 0;
+                }
+            }
+            if (swrUI_configSelectedIsPreset == 0) {
+                stdConfFile_readAndApplyConf(-1, name, 0);
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS));
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_MOUSE, swrUI_GetById(NULL, swrUI_WINDOW_MOUSE_SETTINGS));
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_KEYBOARD, swrUI_GetById(NULL, swrUI_WINDOW_KEYBOARD_SETTINGS));
+            } else {
+                // pre-installed files only carry joystick mappings
+                stdFnames_ChangeExt(name, "map");
+                stdConfFile_readAndApplyConf(0, name, 1);
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS));
+            }
+            if (swrUI_configSelectedIsPreset == 0) {
+                stdConfFile_readAndApplyConf(-1, name, 0);
+                swrConfig_ReadVideoConfig(name);
+                swrConfig_RefreshVideoMenu(swrUI_GetById(NULL, swrUI_WINDOW_VIDEO_SETTINGS));
+                swrConfig_ReadAudioConfig(name);
+                swrConfig_RefreshAudioMenu(swrUI_GetById(NULL, swrUI_WINDOW_AUDIO_SETTINGS));
+                swrConfig_ReadForceFeedbackConfig(name);
+                swrConfig_RefreshForceFeedbackMenu(swrUI_GetById(NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS));
+            }
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0539/                       Loaded settings file."), 2.0f);
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_REMOVE) {
+            if (swrUI_configSelectedIsPreset != 0) {
+                playUISound(-1);
+                notice = "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name.";
+            } else if (swrUI_configSelectedFile == NULL) {
+                playUISound(-1);
+                notice = "/MONDOTEXT_H_0542/                       No file selected.";
+            } else {
+                swrUI_ShowConfirmDialog(swrUI_configFilesPage, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0533/Are you sure you want to delete this configuration?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 0);
+                return 0;
+            }
+            swrText_ShowTimedMessage(swrText_Translate(notice), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            return 0;
+        }
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_COMMITTED:
+        if (swrUI_configNameEntry->str_allocated[0] == '\0') {
+            playUISound(-1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0008/\t            Enter a filename or press ESC."), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            return 0;
+        }
+        swrUI_configSelectedFile = swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated);
+        if (swrUI_configSelectedFile != NULL) {
+            playUISound(-1);
+            swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
+            swrText_ShowTimedMessage(swrText_Translate(swrUI_configSelectedIsPreset != 0 ? "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name." : "/MONDOTEXT_H_0534/                     Filename already exists."), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            return 0;
+        }
+        sprintf(path, "%s%s", ".\\data\\config\\", swrUI_configNameEntry->str_allocated);
+        stdFileUtil_MkDir(path);
+        swrConfig_WriteMappings(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteVideoConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteAudioConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteForceFeedbackConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+        swrUI_SelectListItem(swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated), 1);
+        swrUI_RunCallbacks2(swrUI_configNameEntry, 0);
+        swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0540/                       Saved settings file."), 2.0f);
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_CANCELLED:
+        swrUI_RunCallbacks2(swrUI_configNameEntry, 0);
+        focus = swrUI_configFileList;
+        if (focus == NULL)
+            focus = swrUI_GetById(swrUI_configFilesPage, 3);
+        swrUI_FocusElement(focus, 1);
+        return 0;
+    case swrUI_MSG_LIST_SELECTION_CHANGED:
+        swrUI_RunCallbacksScreenText(swrUI_configNameEntry, item->str_allocated, 0);
+        swrUI_configLoadButton = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_LOAD);
+        swrUI_FocusElement(swrUI_configLoadButton, 1);
+        return 0;
+    }
+    return 0;
+}
+
 // 0x004030f0
 int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
 {
@@ -5237,6 +5518,22 @@ int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swr
         swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
         swrUI_settingsDirty = 1;
         return 1;
+    }
+    return 0;
+}
+
+// 0x00403d70
+int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
+{
+    swrUI_unk* label;
+
+    if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        if ((unsigned int)param == 3) // nav button (swrRace_ReservedSettingsMenu)
+            swrUI_PopMenuPage();
+    } else if (swrMain_moneyHintUnlocked != 0 && msg != swrUI_MSG_DESTROY && swrUI_moneyHintShown == 0) {
+        label = swrUI_NewLabel(swrUI_GetById(NULL, swrUI_WINDOW_RESERVED_KEYS), 1, 0, swrText_Translate("/MONDOTEXT_H_0334/~s  SHIFT, 4 and F4 shows you the money!, where?  You figure it out!"), 0x28, 400, 0, 0);
+        swrUI_SetColorUnk(label, 0xb4, 0xb4, 0, 0xff);
+        swrUI_moneyHintShown++;
     }
     return 0;
 }

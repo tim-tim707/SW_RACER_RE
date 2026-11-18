@@ -265,7 +265,7 @@ void swrSound_PreloadSfx(int category, int variant, int id);
 void swrSound_PreloadRacerSounds(void);
 
 // Preload the sound set for a scenario/context.
-void swrSound_PreloadSoundSet(int scenario, int param2);
+void swrSound_PreloadSoundSet(int scenario, int track);
 
 // Reset the mixer: reset all channels and re-arm swrSound_Update.
 void swrSound_Reset(void);

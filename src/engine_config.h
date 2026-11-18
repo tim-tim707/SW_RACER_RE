@@ -320,6 +320,9 @@
 #define SWR_UI_ID_FILE_LOAD (0x2735)
 #define SWR_UI_ID_FILE_REMOVE (0x2738)
 #define SWR_UI_ID_CURRENT_PLAYER_LABEL (0x273a)
+#define SWR_UI_ID_PROFILE_CREATE (0x2737) // profile select: CREATE RACER
+#define SWR_UI_ID_PROFILE_NAV (0x2748) // profile select: back nav button
+#define SWR_CONTROL_AXIS_Z (2) // bit index in swrControl_{joystick,mouse}AxisMask: device has a Z axis
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
 #define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrRace_LoadSaveConfigMenu)

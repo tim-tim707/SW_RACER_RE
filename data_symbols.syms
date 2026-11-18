@@ -2087,3 +2087,15 @@ swrUI_audioSettingsClosePending 0x004d55b4 int # back pressed with unsaved chang
 swrUI_sfxVolumeChanged 0x004d55b8 int # sfx slider moved; applied (with a preview sound) on the page's next message
 swrUI_musicVolumeChanged 0x004d55bc int # music slider moved; applied on the page's next message
 swrUI_soundGainChanged 0x004d55c0 int # 3D gain slider moved; applied on the page's next message
+swrUI_configFilesPage 0x004d559c swrUI_unk* # load/save settings page (swrUI_Menu_SaveLoadConfig)
+swrUI_configNameEntry 0x004d5598 swrUI_unk* # its file-name text entry
+swrUI_configFileList 0x004d5590 swrUI_unk* # its settings-file list
+swrUI_configSelectedFile 0x004d5594 swrUI_unk* # selected list item, refreshed on every page message
+swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written, never read
+swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
+swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
+swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
+swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain_ProcessDebugKeys); reserved-keys page then shows the SHIFT+4+F4 money hint
+swrSound_globalPreloadIds 0x004b9008 int[34] # bank ids preloaded for every scene by swrSound_PreloadSoundSet; -1 terminated
+swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx ids preloaded for every racer (swrSound_PreloadRacerSounds)
+swrSound_localRacerPreloadSfxIds 0x004b90c8 int[10] # extra category-1 sfx ids preloaded for local ('Locl') racers
