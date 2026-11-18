@@ -3243,7 +3243,7 @@ extern "C"
         float float20;
         char unk24[4];
         SPRTID pilot_spriteId;
-        char unk2c[4];
+        swrSprite_NAME hudSpriteId; // 0x2c per-racer standings portrait (swrPlayerHUD_LoadRaceHUD)
         MODELID puppet_modelId;
     } swrRacerData; // sizeof(0x34)
 
