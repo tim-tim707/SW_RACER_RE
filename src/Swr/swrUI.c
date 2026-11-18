@@ -16,6 +16,7 @@
 #include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <General/stdMath.h>
+#include <General/stdString.h>
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
 #include <Main/swrControl.h>
@@ -3908,10 +3909,72 @@ int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, s
     return 0;
 }
 
+// Widen a text entry's string, clamped to 0x100 chars; dst holds 0x101 wchar_t.
+static void swrUI_EntryTextToWchar(wchar_t* dst, char* text)
+{
+    int len = strlen(text);
+
+    if (len > 0x100)
+        len = 0x100;
+    stdString_CharToWchar(dst, text, len);
+    dst[len] = L'\0';
+}
+
 // 0x0041ede0
 int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
-    HANG("TODO");
+    // the EXE's buffers are 0x100 wchar_t, one short of the clamp's terminator
+    wchar_t playerName[0x101];
+    wchar_t gameName[0x101];
+    wchar_t password[0x101];
+    swrUI_unk* element;
+    char* text;
+
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        swrMultiplayer_Initialize();
+        swrMultiplayer_FillLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME));
+        swrMultiplayer_FillDefaultGameName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_GAME_NAME));
+        break;
+    case swrUI_MSG_BACK:
+    case swrUI_MSG_PAGE_POPPED:
+        swrMultiplayer_Shutdown();
+        break;
+    case swrUI_MSG_TEXT_ENTRY_CHANGED:
+        if (swrMultiplayer_ValidateGameFields(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME, SWR_UI_ID_MP_CREATE_GAME_NAME, 0) == 0)
+            swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        else
+            swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        break;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param_3 == 3) {
+            swrMultiplayer_Shutdown();
+            swrUI_PopMenuPage();
+        } else if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
+            swrUI_EntryTextToWchar(playerName, swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME)->str_allocated);
+            element = swrUI_GetById(self, SWR_UI_ID_MP_CREATE_GAME_NAME);
+            swrMultiplayer_SetLastGame(element->str_allocated);
+            swrUI_EntryTextToWchar(gameName, element->str_allocated);
+            memset(password, 0, sizeof(password));
+            text = swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PASSWORD)->str_allocated;
+            if (text != NULL)
+                swrUI_EntryTextToWchar(password, text);
+            swrMultiplayer_ClearStateBuffer();
+            swrMultiplayer_maxPlayers = SWR_MAX_RACERS;
+            // the EXE tests DPERR 0x88770118 first, but both failure paths just return
+            if (swrMultiplayer_CreateSession(playerName, gameName, password, wuRegistry_lpClass, 0xb4) != 0)
+                break;
+            swrMultiplayer_ResetSession();
+            swrMultiplayer_InitMessaging();
+            if (stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 1) != 0)
+                break;
+            swrMultiplayer_SaveLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_CREATE_PLAYER_NAME));
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_RACE_SETUP);
+        }
+        break;
+    }
+    return 0;
 }
 
 // 0x0041f330

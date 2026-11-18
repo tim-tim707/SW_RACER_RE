@@ -626,6 +626,7 @@ swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setu
 
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
+swrMultiplayer_maxPlayers 0x004eb3bc int # player-slot capacity; set to 20 before creating/joining a session, bounds the slot scans in ApplyPlayerJoin
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*

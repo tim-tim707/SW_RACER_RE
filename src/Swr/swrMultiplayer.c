@@ -32,6 +32,12 @@ void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
     multiplayer_in_mp = bInMultiplayer;
 }
 
+// 0x0041b700
+int swrMultiplayer_InitMessaging(void)
+{
+    HANG("TODO");
+}
+
 // 0x0041bc20
 char* swrMultiplayer_FormatTimeString_Maybe(float seconds)
 {
@@ -84,6 +90,12 @@ void swrMultiplayer_SetNetworkTick(int value)
 int swrMultiplayer_GetRacerId(int playerIndex)
 {
     return (&multiplayer_racer1_id)[playerIndex];
+}
+
+// 0x0041c4f0
+int swrMultiplayer_ResetSession(void)
+{
+    HANG("TODO");
 }
 
 // 0x0041c5c0
