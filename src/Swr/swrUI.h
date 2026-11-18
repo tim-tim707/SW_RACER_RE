@@ -168,6 +168,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_FramedTextProc_ADDR (0x00417940) // class 0xa (swrUI_NewFramedText; checkable/radio item)
 #define swrUI_3PatchBoxProc_ADDR (0x00417be0) // class 0xb (swrUI_New3PatchBox)
 #define swrUI_RefreshListLayout_ADDR (0x00417ca0) // re-layout / scroll items, draw selection, spawn scrollbar
+#define swrUI_ConfirmDialogProc_ADDR (0x00417f50)
 #define swrUI_DrawWrappedText_ADDR (0x00417fe0)
 #define swrUI_UpdateTimers_ADDR (0x004180c0) // tick all UI timers
 #define swrUI_HandleTextEntryKey_ADDR (0x00418120) // text-entry edit handler (insert/erase/cursor/commit)
@@ -236,11 +237,11 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Front_LoadSelectionsUIElements_ADDR (0x00458250)
 
 // ---- swrUI_Menu_*: F2 page procs for the main-menu / settings screens (0x401-0x403) ----
-int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 
 // Settings sub-screens:
 int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)
@@ -294,7 +295,7 @@ int swrUI_AddSprite(swrUI_unk* ui, int index, int spriteId, int* rect, int flag,
 swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f2);
 swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8);
 swrUI_unk* swrUI_NewButton(swrUI_unk* parent, int id, int font, char* text, int x, int y, int width, int height, int flags, int param10);
-void swrUI_ShowConfirmDialog(swrUI_unk* parent, int id1, int id2, void* unk, char* message, char* yesLabel, char* noLabel, int param8, int param9);
+int swrUI_ShowConfirmDialog(swrUI_unk* parent, int x, int y, char* title, char* message, char* yesLabel, char* noLabel, char* thirdLabel, int modal);
 void swrUI_SetSize(swrUI_unk* ui, int width, int height);
 void swrUI_SetPos(swrUI_unk* ui, int x, int y);
 // Class 3: a positioned/sized screen-text element (text applied via swrUI_RunCallbacksScreenText).
@@ -312,7 +313,7 @@ swrUI_unk* swrUI_NewFramedText(swrUI_unk* parent, int id, int index, char* text,
 // Class 0xb: a 3-slice ("3-patch") sprite box; style (0x10000/0x20000/0x40000/0x80000) picks the sprite set.
 swrUI_unk* swrUI_New3PatchBox(swrUI_unk* parent, int id, int index, char* text, int x, int y, int width, int style, int center, int flags, int sizeUnk);
 // Modal dialog: title label + word-wrapped message + up to 3 buttons, screen-centered (x/y == -1 centers). swrUI_ShowConfirmDialog wraps this.
-swrUI_unk* swrUI_NewDialog(swrUI_unk* parent, int x, int y, char* title, char* message, char* button1, char* button2, char* button3, swrUI_unk_F2* f2);
+swrUI_unk* swrUI_NewDialog(swrUI_unk* parent, int x, int y, char* title, char* message, char* button1, char* button2, char* button3, swrUI_unk_F2 f2);
 // Word-wrap a string to the element's bbox width and draw it line by line (splits on spaces).
 void swrUI_DrawWrappedText(swrUI_unk* ui, char* text, int flag);
 swrUI_unk* swrUI_HitTest(swrUI_unk* root, int cursor_x, int cursor_y);
@@ -331,6 +332,7 @@ int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_DialogProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
+int swrUI_ConfirmDialogProc(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 int swrUI_FramedTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_3PatchBoxProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);
 int swrUI_RaceResultRowProc(swrUI_unk* ui, unsigned int msg, void* param, int param2);

@@ -86,6 +86,12 @@ int swrMultiplayer_GetRacerId(int playerIndex)
     return (&multiplayer_racer1_id)[playerIndex];
 }
 
+// 0x0041c5c0
+unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5)
+{
+    HANG("TODO");
+}
+
 // 0x0041d3b0
 void swrMultiplayer_InitPlayerStatus(int slot)
 {
@@ -622,6 +628,22 @@ void swrMultiplayer_TickRacerListOverlay(void)
         }
     }
     swrMultiplayer_chatLastTickMs = now;
+}
+
+// 0x0041e9d0
+int swrMultiplayer_IsAvailable(void)
+{
+    unsigned int failed;
+
+    // probe: open a throwaway session and tear it down again
+    if (stdComm_Startup() == 0)
+        return 0;
+    if (swrMultiplayer_Initialize() == 0)
+        return 0;
+    failed = swrMultiplayer_CreateSession((wchar_t*)wuRegistry_lpClass, (wchar_t*)wuRegistry_lpClass, (wchar_t*)wuRegistry_lpClass, wuRegistry_lpClass, 0xb4);
+    swrMultiplayer_Shutdown();
+    stdComm_Shutdown();
+    return failed == 0;
 }
 
 // 0x0041e920

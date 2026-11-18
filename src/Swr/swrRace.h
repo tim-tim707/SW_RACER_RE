@@ -248,9 +248,9 @@
 
 int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
 
-void swrRace_ReservedSettingsMenu(swrUI_unk* param_1);
+void swrRace_ReservedSettingsMenu(swrUI_unk* page);
 
-void swrRace_LoadSaveConfigMenu(swrUI_unk* param_1);
+void swrRace_LoadSaveConfigMenu(swrUI_unk* page);
 
 // Builds the profile-select menu list with Create/Remove-Racer and Current-Player entries.
 void swrRace_BuildProfileSelectMenu(swrUI_unk* param_1);

@@ -4604,7 +4604,209 @@ void swrUI_ResetMenuInputBitsets(void)
 // 0x0045ab50
 void swrObjHang_Init(swrObjHang* hang)
 {
-    HANG("TODO");
+    static char* const planetNames[SWR_PLANET_COUNT] = {
+        "/SCREENTEXT_578/~f4~c~sTatooine",
+        "/SCREENTEXT_579/~f4~c~sAndo Prime",
+        "/SCREENTEXT_580/~f4~c~sAquilaris",
+        "/SCREENTEXT_581/~f4~c~sOrd Ibanna",
+        "/SCREENTEXT_582/~f4~c~sBaroonda",
+        "/SCREENTEXT_583/~f4~c~sMon Gazza",
+        "/SCREENTEXT_576/~f4~c~sOovo IV",
+        "/SCREENTEXT_584/~f4~c~sMalastare",
+    };
+    int moonCounts[SWR_PLANET_COUNT];
+    swrPlanetInfo* planet;
+    swrHoloMoon* moon;
+    swrScore* score;
+    double randFactor;
+    double speedBase;
+    double moonIndex;
+    double moonCount;
+    double orbitOffset;
+    float angle;
+    int spriteStart;
+    int planetIdx;
+    int moonIdx;
+    int randInt;
+    int i;
+
+    moonCounts[0] = 2;
+    moonCounts[1] = 1;
+    moonCounts[2] = 1;
+    moonCounts[3] = 2;
+    moonCounts[4] = 3;
+    moonCounts[5] = 3;
+    moonCounts[6] = 0;
+    moonCounts[7] = 3;
+
+    memset(swr_sceneElmos, 0, SWR_SCENE_MODEL_SLOT_COUNT * sizeof(swr_sceneElmos[0]));
+    memset(swr_sceneAnimations, 0, SWR_SCENE_MODEL_SLOT_COUNT * sizeof(swr_sceneAnimations[0]));
+    memset(swr_sceneModels, 0, SWR_SCENE_MODEL_SLOT_COUNT * sizeof(swr_sceneModels[0]));
+    memset(swrScene_ChildNodes, 0, SWR_SCENE_MODEL_SLOT_COUNT * sizeof(swrScene_ChildNodes[0]));
+
+    swrRace_Transition = 0.0f;
+    swrObjHang_holotableActive = 0;
+    swrObjHang_screenTransitionActive = 0;
+    swrObjHang_vehicleStatsFade = 0.0f;
+    swrRace_MenuNavLeftActive = 0;
+    swrRace_MenuNavRightActive = 0;
+    swrRace_MenuMaxSelection = 0;
+    swrRace_MenuSelectedItem = 0;
+    swrObjHang_settledMenuItem = 0;
+    swrObjHang_menuRepeatTimer = 0.0f;
+    swrObjHang_menuRepeatCount = 0;
+    swrObjHang_menuRepeatDir = 0;
+    swrUI_menuScrolled = 0;
+    g_bCircuitIdxInRange = 0;
+    g_CircuitIdxMax = 0;
+
+    // the EXE pushes hang here; the callee takes no arguments
+    swrRace_ResetAllProfiles();
+    swrRace_InitDefaultGameData(&swrRace_saveData);
+    swrRace_BackupGameData();
+    swrObjHang_InitSceneRootNode();
+
+    hang->menuScreen = swrObjHang_STATE_SPLASH;
+    hang->menuScreenPrev = swrObjHang_STATE_SPLASH;
+    hang->activeMenu = -1;
+    hang->flag = 0;
+    hang->unk18 = 0;
+    hang->unk1c = 3;
+    hang->hangar18_part_model = NULL;
+    hang->loc_wattoo_part_model = NULL;
+    hang->loc_junkyard_part_model = NULL;
+    hang->loc_cantina_part_model = NULL;
+    hang->holo_proj02_part_model = NULL;
+    hang->cameraState = HangCameraState_unk_0;
+    hang->roomPrev = -1;
+    hang->room = -1;
+    hang->elmoEntityIndex = -1;
+    rdVector_Set3(&hang->elmoFocusPosition, 0.0f, 0.0f, 0.0f);
+    hang->unk50 = 0;
+    hang->showDeveloperPhoto = 0;
+    hang->unk54 = 0;
+    hang->unk58 = 0;
+    hang->unk5c = 1;
+    hang->winnings.truguts_detail.Truguts4th_normal = 100;
+    hang->winnings.truguts_detail.Truguts4th_fair = 100;
+    hang->winnings.truguts_detail.Truguts1st_normal = 800;
+    hang->winnings.truguts_detail.Truguts2nd_normal = 700;
+    hang->winnings.truguts_detail.Truguts3rd_normal = 600;
+    hang->winnings.truguts_detail.Truguts1st_fair = 1200;
+    hang->winnings.truguts_detail.Truguts2nd_fair = 600;
+    hang->winnings.truguts_detail.Truguts3rd_fair = 300;
+    hang->winnings.truguts_detail.Truguts1st_winnerTakesAll = 2200;
+    hang->winnings.truguts_detail.Truguts2nd_winnerTakesAll = 0;
+    hang->winnings.truguts_detail.Truguts3rd_winnerTakesAll = 0;
+    hang->winnings.truguts_detail.Truguts4th_winnerTakesAll = 0;
+    hang->track_index = 0;
+    hang->circuitIdx = 0;
+    hang->mainMenuSelection = 0;
+    hang->unk60 = 0;
+    hang->unk8a = 4;
+    hang->award_first_rgb = NULL;
+    hang->award_second_rgb = NULL;
+    hang->award_third_rgb = NULL;
+    hang->award_wdw_blue_rgb = NULL;
+    hang->award_wdw_select_blue_rgb = NULL;
+    hang->sprite_whitesquare_rgb = NULL;
+    for (i = 0; i < 3; i++)
+        hang->podiumCharacters[i] = i;
+    swrObjHang_InitRacerList(hang);
+
+    for (i = 0; i < SWR_MAX_RACERS; i++) {
+        score = &swrScores[i];
+        *(int*)&score->time_unk = -1;
+        score->identifier = -1;
+        score->flag = -1;
+        score->localPlayerProfile = NULL;
+        // only the two low bytes are reset
+        ((uint8_t*)&score->sfxChannel)[0] = 0xff;
+        ((uint8_t*)&score->sfxChannel)[1] = 0xff;
+        score->unk14 = -1;
+        score->pilotId = NULL;
+        score->obj_test_ptr = NULL;
+        memset(&score->podStats, 0, sizeof(score->podStats));
+        score->unk58 = 0;
+        score->unk5a = 0;
+        *(short*)&score->results_P1_Position = 0;
+        score->results_P1_total_time = 0.0f;
+        score->results_P1_Lap = 0;
+        score->unk7c = 0;
+        score->results_P1_Lap1 = 0.0f;
+        score->results_P1_Lap2 = 0.0f;
+        score->results_P1_Lap3 = 0.0f;
+        score->results_P1_Lap4 = 0.0f;
+        score->results_P1_Lap5 = 0.0f;
+    }
+
+    // each planet owns a contiguous run of the sun/moon pool
+    spriteStart = 0;
+    for (planetIdx = 0; planetIdx < SWR_PLANET_COUNT; planetIdx++) {
+        planet = &swrPlanetTable[planetIdx];
+        planet->sunMoonSpriteStart = spriteStart;
+        planet->sunMoonSpriteEnd = spriteStart + moonCounts[planetIdx] - 1;
+        spriteStart += moonCounts[planetIdx];
+        if (moonCounts[planetIdx] == 0) {
+            planet->sunMoonSpriteStart = -1;
+            planet->sunMoonSpriteEnd = -2;
+        }
+    }
+
+    // RNG call order matters: it is the shared swrUtils_Rand stream
+    for (planetIdx = 0; planetIdx < SWR_PLANET_COUNT; planetIdx++) {
+        planet = &swrPlanetTable[planetIdx];
+        angle = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+        planet->orientationAngle = angle;
+        if (planetIdx != SWR_PLANET_OOVO_IV && ((angle > 45.0 && angle < 135.0f) || (angle > 225.0 && angle < 315.0f)))
+            planet->orientationAngle = angle + 90.0f;
+        planet->spinAngle = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+        planet->unk14 = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+
+        randFactor = swrUtils_RandFloat();
+        randInt = swrUtils_Rand();
+        speedBase = ((float)randInt * SWR_CTL_RAND_NORM * 10.0 - -5.0) * randFactor;
+        planet->spinSpeed = speedBase;
+        if (planetIdx == SWR_PLANET_OOVO_IV)
+            planet->spinSpeed = speedBase * 5.0f;
+
+        randFactor = swrUtils_RandFloat();
+        randInt = swrUtils_Rand();
+        planet->unk18 = ((float)randInt * SWR_CTL_RAND_NORM * 5.0 - -10.0) * randFactor + planet->spinSpeed;
+
+        for (moonIdx = planet->sunMoonSpriteStart; moonIdx <= planet->sunMoonSpriteEnd; moonIdx++) {
+            moon = &swrObjHang_holoMoons[moonIdx];
+            moonIndex = moonIdx - planet->sunMoonSpriteStart;
+            moonCount = planet->sunMoonSpriteEnd - planet->sunMoonSpriteStart + 1;
+
+            // spread evenly around the planet, jittered within each slice
+            randInt = swrUtils_Rand();
+            moon->angle = 360.0 / moonCount * ((float)randInt * SWR_CTL_RAND_NORM) - moonIndex * -360.0 / moonCount;
+
+            randInt = swrUtils_Rand();
+            speedBase = (float)randInt * SWR_CTL_RAND_NORM * 15.0 - -45.0 - moonIndex * 20.0;
+            moon->speed = swrUtils_RandFloat() * speedBase;
+
+            // outer moons orbit further out
+            orbitOffset = moonIndex * -40.0;
+            randInt = swrUtils_Rand();
+            speedBase = (float)randInt * SWR_CTL_RAND_NORM * 10.0 - -65.0 - orbitOffset;
+            moon->orbit.x = swrUtils_RandFloat() * speedBase;
+            randInt = swrUtils_Rand();
+            speedBase = (float)randInt * SWR_CTL_RAND_NORM * 10.0 - -65.0 - orbitOffset;
+            moon->orbit.y = swrUtils_RandFloat() * speedBase;
+            randFactor = swrUtils_RandFloat();
+            randInt = swrUtils_Rand();
+            moon->orbit.z = ((float)randInt * SWR_CTL_RAND_NORM * 40.0 - -5.0) * randFactor;
+
+            randInt = swrUtils_Rand();
+            moon->scale = ((float)randInt * SWR_CTL_RAND_NORM * 0.009999999999999998 - -0.005 - moonIndex * -0.01) * 15.0f;
+        }
+    }
+
+    for (planetIdx = 0; planetIdx < SWR_PLANET_COUNT; planetIdx++)
+        sprintf(swrPlanetTable[planetIdx].name, swrText_Translate(planetNames[planetIdx]));
+    swrObjHang_hangarUpgradeType = 0;
 }
 
 // 0x0045a040

@@ -170,6 +170,8 @@
 
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
 #define SWR_MAX_RACERS (20)
+#define SWR_PLANET_COUNT (8) // swrPlanetTable entries
+#define SWR_PLANET_OOVO_IV (6) // no suns/moons; spins 5x faster and keeps its rolled tilt
 // swrObjJdge_InitTrack's asset-buffer tally assumes a 4 MiB buffer (swrObjJdge_raceBufferSlack)
 #define SWR_RACE_BUFFER_TALLY_SIZE (0x400000)
 // selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
@@ -293,6 +295,34 @@
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
 #define SWR_UI_ID_BACK_BUTTON (4)
+// main menu (swrUI_Menu_Main)
+#define SWR_UI_ID_MAIN_FREEPLAY (0xc)
+#define SWR_UI_ID_MAIN_MULTIPLAYER (0xd)
+#define SWR_UI_ID_MAIN_TOURNAMENT (0xe)
+#define SWR_UI_ID_MAIN_SETTINGS (0xf)
+#define SWR_UI_ID_MAIN_QUIT (0x10)
+#define SWR_UI_ID_MAIN_COPYRIGHT (1)
+#define SWR_UI_ID_DEV_PHOTO_NAME_FIRST (10000) // developer-photo name labels, shown instead of the menu
+#define SWR_UI_DEV_PHOTO_NAME_COUNT (0x1a)
+// settings hub (swrUI_Menu_SettingsHub)
+#define SWR_UI_ID_SETTINGS_VIDEO (0x1d)
+#define SWR_UI_ID_SETTINGS_AUDIO (0x1e)
+#define SWR_UI_ID_SETTINGS_JOYSTICK (0x1f)
+#define SWR_UI_ID_SETTINGS_MOUSE (0x20)
+#define SWR_UI_ID_SETTINGS_KEYBOARD (0x21)
+#define SWR_UI_ID_SETTINGS_FORCE_FEEDBACK (0x22)
+#define SWR_UI_ID_SETTINGS_LOAD_SAVE (0x23)
+// file-list pages (config files, player profiles)
+#define SWR_UI_ID_FILE_NAME_ENTRY (0x2731)
+#define SWR_UI_ID_FILE_LIST (0x2732)
+#define SWR_UI_ID_FILE_LIST_ITEM (0x2733)
+#define SWR_UI_ID_FILE_SAVE (0x2734)
+#define SWR_UI_ID_FILE_LOAD (0x2735)
+#define SWR_UI_ID_FILE_REMOVE (0x2738)
+#define SWR_UI_ID_CURRENT_PLAYER_LABEL (0x273a)
+#define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
+#define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
+#define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrRace_LoadSaveConfigMenu)
 // clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT (700001)

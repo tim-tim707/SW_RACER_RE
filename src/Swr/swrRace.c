@@ -39,15 +39,101 @@ int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int 
 }
 
 // 0x0040fb50
-void swrRace_ReservedSettingsMenu(swrUI_unk* param_1)
+void swrRace_ReservedSettingsMenu(swrUI_unk* page)
 {
-    HANG("TODO");
+    static char* const keyLines[] = {
+        "/MONDOTEXT_H_0326/~sCAPSLOCK       Cycle Map Indicator",
+        "/MONDOTEXT_H_0327/~sF1             Camera View 1",
+        "/MONDOTEXT_H_0328/~sF2             Camera View 2",
+        "/MONDOTEXT_H_0329/~sF3             Camera View 3",
+        "/MONDOTEXT_H_0330/~sF4             Camera View 4",
+        "/MONDOTEXT_H_0331/~sF5             Cyle Taunts and Send",
+        "/MONDOTEXT_H_0332/~sF6             Random Taunt and Send",
+        "/MONDOTEXT_H_0333/~sF7             Enable Chat Prompt",
+        "/MONDOTEXT_H_0335/~sF12            Save Screenshot",
+        "/MONDOTEXT_H_0336/~sCTRL-F         Toggle Force Feedback On/Off",
+        "/MONDOTEXT_H_0337/~sCTRL-J         Toggle Joystick On/Off",
+        "/MONDOTEXT_H_0338/~sCTRL-M         Toggle Mouse On/Off",
+        "/MONDOTEXT_H_0522/Net play: Press CTRL-Q to quit race.",
+    };
+    swrUI_unk* element;
+    char title[256];
+    int padding[4];
+    int rect[4];
+    unsigned int backWidth;
+    unsigned int panelWidth;
+    int titleWidth;
+    int lineHeight;
+    int x;
+    int y;
+    int i;
+
+    backWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0324/~sBack to Keyboard Settings"), swrText_fontsByIndex[0]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0324/~sBack to Keyboard Settings"), swrText_fontsByIndex[0]);
+    sprintf(title, swrText_Translate("/MONDOTEXT_H_0325/~sRESERVED KEYS"));
+    titleWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0325/~sRESERVED KEYS"), swrText_fontsByIndex[6]);
+    element = swrUI_New3PatchBox(page, 1, 6, title, (((backWidth >> 1) + backWidth) >> 2) + 0x104, 0x7d, titleWidth, swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+    lineHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0325/~sRESERVED KEYS"), swrText_fontsByIndex[0]) + 5;
+    swrUI_AddNavButton(page, 3, 0, 0x1a4, 2);
+
+    swrUI_SetSpriteSelectionBBox_Maybe(padding, 0);
+    panelWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0522/Net play: Press CTRL-Q to quit race."), swrText_fontsByIndex[0]);
+    panelWidth += (panelWidth >> 1) + padding[0];
+    rect[0] = SWR_UI_DESIGN_WIDTH / 2 - (panelWidth >> 1);
+    rect[1] = 0x8c;
+    rect[2] = rect[0] + panelWidth - 1;
+    rect[3] = lineHeight * 15 + padding[1] + 0x8b;
+    swrUI_NewPanel(page, 1, rect, 0);
+
+    x = rect[0] + padding[0];
+    y = padding[1] + 0x8c;
+    for (i = 0; i < (int)(sizeof(keyLines) / sizeof(keyLines[0])); i++) {
+        element = swrUI_NewLabel(page, 1, -1, swrText_Translate(keyLines[i]), x, y, 0, 0);
+        swrUI_SetColorUnk(element, 0, 0xb4, 0, 0xff);
+        y += lineHeight;
+    }
 }
 
 // 0x0040ffe0
-void swrRace_LoadSaveConfigMenu(swrUI_unk* param_1)
+void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
 {
-    HANG("TODO");
+    swrUI_unk* element;
+    char title[256];
+    int listRect[4];
+    int entryRect[4];
+    int buttonWidth;
+    int textHeight;
+    int buttonHeight;
+
+    buttonWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0339/~sRemove"), swrText_fontsByIndex[0]) * 3;
+    textHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0339/~sRemove"), swrText_fontsByIndex[0]);
+    buttonHeight = textHeight * 3;
+    swrUI_AddNavButton(page, 3, 0, 0x1a9, 1);
+    listRect[0] = 0xc3;
+    listRect[1] = 0x8c;
+    listRect[2] = 0x1bc;
+    listRect[3] = 0x153;
+
+    sprintf(title, swrText_Translate("/MONDOTEXT_H_0340/~sLOAD/SAVE SETTINGS"));
+    element = swrUI_New3PatchBox(page, 1, 6, title, 500, 0x3c, swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0340/~sLOAD/SAVE SETTINGS"), swrText_fontsByIndex[6]), swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+
+    element = swrUI_NewList(page, SWR_UI_ID_FILE_LIST, listRect, 0, 0, 0);
+    swrUI_SetListHighlightColor(element, 0xff, 100, 0, 0xff);
+
+    entryRect[0] = listRect[0];
+    entryRect[1] = listRect[3] + 0x14;
+    entryRect[2] = listRect[2];
+    entryRect[3] = listRect[3] + 0x13 + textHeight * 6;
+    element = swrUI_NewTextEntry(page, SWR_UI_ID_FILE_NAME_ENTRY, entryRect, 0, swrUI_TEXT_ENTRY_CARET_TO_END, 0);
+    swrUI_SetMaxLength(element, SWR_UI_CONFIG_NAME_MAX_LENGTH);
+    swrUI_SetColorUnk2(element, 0xff, 100, 0, 0xff);
+    swrUI_RunCallbacks2(element, 0);
+
+    swrUI_NewButton(page, SWR_UI_ID_FILE_LOAD, -1, swrText_Translate("/MONDOTEXT_H_0341/~sLoad"), listRect[0] - 0x96, listRect[1] + 0x28, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, SWR_UI_ID_FILE_REMOVE, -1, swrText_Translate("/MONDOTEXT_H_0339/~sRemove"), listRect[0] - 0x96, listRect[1] + 0x46, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    swrUI_NewButton(page, SWR_UI_ID_FILE_SAVE, -1, swrText_Translate("/MONDOTEXT_H_0342/~sSave"), listRect[0] - 0x96, listRect[1] + 100, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
 }
 
 // 0x00411950
