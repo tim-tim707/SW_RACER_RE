@@ -1321,6 +1321,7 @@ typedef enum swrUISprite
 
 typedef enum swrUI_FLAG
 {
+    swrUI_ANIMATING = 0x1, // sliding toward transition_home_x/y (set by swrUI_StartPageTransition)
     swrUI_HIGHLIGHTED = 0x2, // set/cleared by swrUI_SetHighlightState; swrUI_UpdateElementColor reads it
     swrUI_STATIC = 0x4, // non-interactive static element (set by swrUI_NewLabel); skipped by focus navigation
     swrUI_EDITING = 0x8, // text entry is being edited (swrUI_MSG_SET_EDITING); key-downs go to swrUI_HandleTextEntryKey
@@ -1329,6 +1330,7 @@ typedef enum swrUI_FLAG
     swrUI_VISIBLE = 0x40, // element is visible (swrUI_IsElementVisible walks the parent chain)
     swrUI_RADIO_GROUP_UNK = 0x80, // radio-group marker; swrUI_ClearGroupChecked rewinds to a flagged element whose predecessor leaves the group
     swrUI_DISABLED = 0x100, // grayed-out / non-interactive (swrUI_DisableElement)
+    swrUI_NO_PAGE_TRANSITION = 0x200, // set on labels; swrUI_StartPageTransition leaves them in place
     swrUI_CHECK_SPRITE_UNK = 0x400, // set on the auto-created check-sprite child element (swrUI_SetChecked)
     swrUI_SELECTED = 0x800,
     swrUI_SLIDER_SELECTED = 0x1000, // slider drawn with its _selected sprites (swrUI_SetNumberValue -> BuildSliderSprites state)
@@ -1353,6 +1355,28 @@ typedef enum swrUI_TEXT_ALIGN
     swrUI_TEXT_ALIGN_INDENT_5 = 0x100000, // shift right by five space widths
     swrUI_TEXT_ALIGN_INDENT_1 = 0x200000, // shift right by one space width
 } swrUI_TEXT_ALIGN;
+
+// swrUI_NewScreenText: text_flags bits that pick the label's alignment
+typedef enum swrUI_SCREEN_TEXT_STYLE
+{
+    swrUI_SCREEN_TEXT_INDENT_1 = 0x400000, // label drawn with swrUI_TEXT_ALIGN_INDENT_1
+    swrUI_SCREEN_TEXT_PLAIN = 0x800000, // vertically centered only, element value left untouched
+} swrUI_SCREEN_TEXT_STYLE;
+
+// swrUI_NewFramedText flags2
+typedef enum swrUI_FRAMED_TEXT_FLAGS2
+{
+    swrUI_FRAMED_TEXT_EXPLICIT_VALUE = 0x80000, // low byte is the radio option value (else the group's running index)
+} swrUI_FRAMED_TEXT_FLAGS2;
+
+// swrUI_New3PatchBox style: cap sprites and whether width includes the caps
+typedef enum swrUI_3PATCH_STYLE
+{
+    swrUI_3PATCH_SMALL_CORNER = 0x10000, // sml_undrline tab/strch/corner, width = total
+    swrUI_3PATCH_LARGE_CORNER = 0x20000, // undrline tab/mid_strch/corner, width = total
+    swrUI_3PATCH_SMALL_TAB = 0x40000, // sml_undrline tab/strch/mirrored tab, width = middle
+    swrUI_3PATCH_LARGE_TAB = 0x80000, // undrline tab/mid_strch/mirrored tab, width = middle
+} swrUI_3PATCH_STYLE;
 
 // swrUI_unk.entry_style (high bits of the swrUI_NewTextEntry flags)
 typedef enum swrUI_TEXT_ENTRY_STYLE
@@ -1407,11 +1431,17 @@ typedef enum swrUI_SPRITE_SLOT_FLAG // swrUI_unk2.flag, applied by swrUI_RenderE
 
 typedef enum swrSprite_FLAG // swrSprite.flags
 {
+    swrSprite_FLAG_MIRROR_H = 0x4, // from swrUI_SPRITE_SLOT_MIRROR_H
+    swrSprite_FLAG_MIRROR_V = 0x8, // from swrUI_SPRITE_SLOT_MIRROR_V
+    swrSprite_FLAG_ADDITIVE = 0x800, // from swrUI_SPRITE_SLOT_ADDITIVE
     swrSprite_FLAG_UNK_8000 = 0x8000, // set on the hangar track-grid windows; no reader in the draw path yet
+    swrSprite_FLAG_UNK_10000 = 0x10000, // set every frame on swrUI element sprites and the caret
 } swrSprite_FLAG;
 
 typedef enum swrUI_CLASS // swrUI_unk.widget_class, set by each swrUI_New* ctor
 {
+    swrUI_CLASS_LABEL = 1, // swrUI_NewLabel
+    swrUI_CLASS_BUTTON = 2, // swrUI_NewButton
     swrUI_CLASS_SCREEN_TEXT = 3, // swrUI_NewScreenText
     swrUI_CLASS_LIST = 5, // swrUI_NewList
     swrUI_CLASS_NUMBER_FIELD = 6, // swrUI_NewNumberField (slider + value)
@@ -1428,17 +1458,24 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_HOVER_CHANGED = 1, // fired by swrUI_SetUI4; param 0 = left, 1 = entered
     swrUI_MSG_MOUSE_DOWN = 2, // element pressed; param = x, param2 = y (swrUI_DefaultElementProc focuses it)
     swrUI_MSG_MOUSE_UP = 3, // element released
+    swrUI_MSG_MOUSE2_DOWN = 4, // second-button press (swrUI_SetHighlightState mode 2)
+    swrUI_MSG_MOUSE2_UP = 5,
     swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
     swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
     swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
     swrUI_MSG_SET_TEXT = 10, // swrUI_RunCallbacksScreenText; param = new string
     swrUI_MSG_SET_POS = 0xb, // swrUI_SetPos; param = x, param2 = y
+    swrUI_MSG_SET_SIZE = 0xc, // param = width, param2 = height (swrUI_OnSetElementSize)
+    swrUI_MSG_FOCUS_CHANGED = 0xd, // swrUI_SetFocusedElement; param 0 = lost, 1 = gained
     swrUI_MSG_SET_ACTIVE = 0xe, // swrUI_RunCallbacks2; param = active (page procs reparent + refresh buttons when shown)
     swrUI_MSG_DESTROY = 0x10, // swrUI_FreeElement, before the element is unlinked and freed
+    swrUI_MSG_CLEAR_INTERACTION = 0x11, // drops ANIMATING/HIGHLIGHTED/HOVERED/FOCUSED (swrUI_DefaultElementProc)
     swrUI_MSG_BACK = 0x13, // back/cancel on the current page; popped unless swrUI_suppressBackPop
+    swrUI_MSG_DELETE_PRESSED = 0x14, // Delete released on a screen text; sent to its page with param = element id
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_PAGE_SHOWN = 0x46, // swrUI_PushMenuPage / swrUI_PopMenuPage: page became top of stack; param = depth
     swrUI_MSG_PAGE_POPPED = 0x47, // swrUI_PopMenuPage: page left the stack; param = depth
+    swrUI_MSG_PAGE_TRANSITION = 0x48, // swrUI_StartPageTransition; param2 0 = the page, 1 = each sliding child
     swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
     swrUI_MSG_DIALOG_RESULT = 100, // fired to the confirm dialog's parent by swrUI_ProcessPendingClose; param = swrUI_confirmDialogResult
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent

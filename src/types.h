@@ -1321,6 +1321,14 @@ extern "C"
         char a;              // 0x37
     } swrUI_unk2; // sizeof(0x38) in a [20]
 
+    typedef struct swrUI_ScreenTextValue // second text column drawn by swrUI_ScreenTextProc (swrUI_unk.unk4f4)
+    {
+        int x_offset; // 0x00 offset from the label's left edge; -1 = just right of the element
+        char* text; // 0x04 freed on swrUI_MSG_DESTROY
+        unsigned int align_flags; // 0x08 swrUI_TEXT_ALIGN
+        int font; // 0x0c
+    } swrUI_ScreenTextValue;
+
     typedef struct swrUI_unk
     {
         struct swrUI_unk* prev2;
@@ -1341,7 +1349,9 @@ extern "C"
         int size_unk1;
         int size_unk2;
         char* unk01_10;
-        char unk01_11[12];
+        int transition_home_x; // 0x48 resting position saved by swrUI_StartPageTransition
+        int transition_home_y; // 0x4c
+        int transition_delay; // 0x50 vertical-drop stagger (0, 250, 500, ...)
         int rand_alpha_first; // 0x54 first sprite slot of the alpha-randomize range (swrUI_RandomizeSpriteAlpha)
         int rand_alpha_count; // 0x58 slot count of that range (0 = all 20)
         int sprite_count;
@@ -1367,11 +1377,11 @@ extern "C"
         char b5;
         char a5;
         char* str_allocated; // 0x4d4
-        char unk0_0_119[4];
+        unsigned int text_flags; // 0x4d8 swrUI_TEXT_ALIGN flags for str_allocated (swrUI_MSG_SET_TEXT param2)
         int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
         unsigned int frame_style; // 0x4f0 swrUI_FRAME_STYLE bits (swrUI_BuildHighlightSprites)
-        int unk4f4; // 0x4f4 (written by swrUI_SetValue2_Maybe)
+        int unk4f4; // 0x4f4 class payload pointer (swrUI_SetValue2_Maybe); screen text: swrUI_ScreenTextValue*
         char* value_text; // 0x4f8 secondary value-text (swrUI_SetValueText / swrUI_GetValueText)
         int value; // 0x4fc element value (swrUI_SetValue)
         int unk500;

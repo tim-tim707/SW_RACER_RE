@@ -2036,6 +2036,12 @@ swrUI_textPulse 0x004b5d88 float # advanced by swrUI_DrawText, bounces 40..255; 
 swrUI_textPulseStep 0x004b5d8c float
 swrUI_sliderClickX 0x004d7c5c int # last press position handed to swrUI_HandleSliderClick (swrUI_NumberFieldProc)
 swrUI_sliderClickY 0x004d7c60 int
+swrUI_radioGroupNextValue 0x004d7c50 int # option value the next swrUI_NewFramedText of an open radio group gets
+swrUI_radioGroupOpen 0x004d7c54 int # nonzero between the two swrUI_RADIO_GROUP_UNK items that open/close a radio group
+swrUI_muteNextButtonHoverSound 0x004b5d80 int = 1 # swrUI_ButtonProc: skip the hover sound once (initially set), cleared on the next hover change
+swrUI_pageInitialFocus 0x004d8798 swrUI_unk* # element focused when a page is shown (id 2, else first child); read by swrUI_ProcessMouse
+swrUI_pageTransitionsEnabled 0x004d8bd8 int # set by swrUI_Initialize; gates swrUI_StartPageTransition
+swrUI_pageTransitionActive 0x004d87a8 int # set by swrUI_StartPageTransition, read and cleared by swrUI_StepPageTransition
 stdControlJoystickCapsButtons 0x00eca0f8 DWORD # record's DIDEVCAPS.dwButtons; stride STDCONTROL_JOYSTICK_RECORD_SIZE
 stdControlJoystickCapsPOVs 0x00eca0fc DWORD # record's DIDEVCAPS.dwPOVs; stride STDCONTROL_JOYSTICK_RECORD_SIZE
 stdControlMouseCapsButtons 0x00ecb498 DWORD # mouse DIDEVCAPS.dwButtons (caps struct at 0x00ecb488)
