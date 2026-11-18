@@ -135,6 +135,67 @@ int swrSound_LoadDefaultBank(void)
     return 0;
 }
 
+// 0x00422f00
+int swrSound_LoadIntoSource(stdFile_t file, void* entry)
+{
+    swrSoundDescriptor* desc = (swrSoundDescriptor*)entry;
+    int lockedBytes;
+    void* buffer;
+    size_t read;
+
+    buffer = swrSound_WriteLocked(desc->source, desc->dataSize, &lockedBytes);
+    if (buffer == NULL)
+        return 0;
+    read = stdPlatform_hostServices_ptr->fileRead(file, buffer, lockedBytes);
+    return swrSound_UnlockSource(desc->source, buffer, read) ? 1 : 0;
+}
+
+// Frees idle resident samples, round-robin from swrSound_evictCursor, until bytesNeeded
+// are released; an entry with unk44 set gets one more pass before it is evicted.
+// 0x00422f60
+unsigned int swrSound_EvictSounds(unsigned int bytesNeeded)
+{
+    swrSoundDescriptor* entry;
+    unsigned int index;
+    unsigned int freed;
+    unsigned int pass;
+    int parity;
+    char* bank = (char*)swrSound_bank;
+
+    parity = swrSound_evictPassParity;
+    pass = 0;
+    freed = 0;
+    for (;;) {
+        index = swrSound_evictCursor;
+        entry = (swrSoundDescriptor*)(*(char**)(bank + 0x28) + index * sizeof(swrSoundDescriptor));
+        for (; index < *(uint32_t*)(bank + 0x20); index++, entry++) {
+            if ((entry->flags & swrSoundDescriptor_LOADED) == 0 || (entry->flags & swrSoundDescriptor_STREAMED) != 0)
+                continue;
+            if (Main_sound_unk == 0 && (entry->flags & (swrSoundDescriptor_DUPLICATE | swrSoundDescriptor_ALIAS)) != 0)
+                continue;
+            if (entry->unk40 != 0 || swrSound_GetWavePosition(entry->source, NULL) != 0)
+                continue;
+            if (entry->unk44 != 0) {
+                entry->unk44 = 0;
+                continue;
+            }
+            freed += entry->dataSize;
+            swrSound_UnloadSound(entry);
+            swrSound_evictRecheckFrames = SWR_SOUND_EVICT_RECHECK_FRAMES;
+            if (freed >= bytesNeeded) {
+                swrSound_evictPassParity = parity;
+                swrSound_evictCursor = index + 1;
+                return freed;
+            }
+        }
+        if (pass >= SWR_SOUND_EVICT_MAX_WRAPS)
+            return 0;
+        pass++;
+        parity = parity == 0;
+        swrSound_evictCursor = 0;
+    }
+}
+
 // Load a sound effect: open data\wavs\{22K|11K}\<wave_filename>, parse its WAVE
 // header, allocate a matching IA3dSource and stream the PCM data into it.
 // Returns the ready-to-play source, or NULL on any failure.
@@ -1224,7 +1285,75 @@ void* swrSound_GetEntry(int index)
 // 0x00422ac0
 int swrSound_LoadSound(void* entry)
 {
-    HANG("TODO");
+    swrSoundDescriptor* desc = (swrSoundDescriptor*)entry;
+    char searchPath[512];
+    char path[128];
+    char filePath[128];
+    stdFile_t file = 0;
+    IA3dSource* source;
+    swrSoundDescriptor* current;
+    char* next;
+    int opened = 0;
+
+    if ((desc->flags & swrSoundDescriptor_LOADED) != 0)
+        return 0;
+    if (swrSound_loadedBytes + desc->dataSize > (unsigned int)swrSound_loadBudgetBytes && (desc->flags & swrSoundDescriptor_STREAMED) == 0)
+        swrSound_EvictSounds(desc->dataSize + SWR_SOUND_EVICT_HEADROOM);
+    if ((desc->flags & swrSoundDescriptor_STREAMED) != 0) {
+        source = iA3DSource_ptr;
+    } else {
+        source = swrSound_NewSource(desc->channels, desc->sampleRate, desc->bits, desc->dataSize, (char)swrSound_sourceFlags);
+        if (source == NULL)
+            goto fail;
+        swrSound_loadedBytes += desc->dataSize;
+    }
+    desc->source = source;
+
+    sprintf(searchPath, "%s;%s%s;%s%s", Main_hiRes_sound ? ".\\data\\wavs\\22K;.\\data\\wavs\\22K\\Voice" : ".\\data\\wavs\\11K;.\\data\\wavs\\11K\\Voice;.\\data\\wavs\\22K\\Voice", rootPathName, ".\\data\\wavs\\Music", wuRegistry_lpClass, ".\\data\\wavs\\Voice");
+    next = searchPath;
+    do {
+        next = stdString_CopyBetweenDelimiter(next, path, sizeof(path), ";");
+        if (path[0] != '\0') {
+            // the EXE formats path into itself; a second buffer avoids the overlapping-sprintf UB
+            sprintf(filePath, "%s%c%s", path, '\\', desc->name);
+            file = stdPlatform_hostServices_ptr->fileOpen(filePath, "rb");
+            if (file != 0) {
+                opened = 1;
+                break;
+            }
+        }
+    } while (next != NULL);
+    if (!opened)
+        goto fail;
+
+    if ((desc->flags & swrSoundDescriptor_STREAMED) != 0) {
+        // a later patch wedged this lock in through hops in the function padding (0x004083c1)
+        EnterCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
+        current = (swrSoundDescriptor*)swrSoundStream_entry;
+        if (current != NULL && (current->flags & swrSoundDescriptor_LOADED) != 0)
+            swrSound_UnloadSound(current);
+        swrSoundStream_file = file;
+        swrSoundStream_entry = desc;
+        swrSoundStream_bytesRemaining = desc->dataSize;
+        stdPlatform_hostServices_ptr->fseek(file, (int)desc->dataOffset, 0);
+        swrSoundStream_bytesRemaining -= swrSound_FillStreamBuffer(desc, 0, swrSoundStream_bufferSize);
+        desc->flags |= swrSoundDescriptor_LOADED;
+        LeaveCriticalSection((LPCRITICAL_SECTION)&swrSound_criticalSection);
+        return 1;
+    }
+    stdPlatform_hostServices_ptr->fseek(file, (int)desc->dataOffset, 0);
+    if (swrSound_LoadIntoSource(file, desc) != 0) {
+        desc->flags |= swrSoundDescriptor_LOADED;
+        stdPlatform_hostServices_ptr->fileClose(file);
+        return 1;
+    }
+
+fail:
+    if (file != 0)
+        stdPlatform_hostServices_ptr->fileClose(file);
+    if (desc->source != NULL)
+        swrSound_ReleaseSource(desc->source);
+    desc->source = NULL;
     return 0;
 }
 

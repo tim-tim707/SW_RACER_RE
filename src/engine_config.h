@@ -146,6 +146,9 @@
 
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
+#define SWR_SOUND_EVICT_HEADROOM (0x19000) // swrSound_LoadSound: extra bytes freed beyond the new sample
+#define SWR_SOUND_EVICT_RECHECK_FRAMES (2) // swrSound_EvictSounds -> swrSound_evictRecheckFrames
+#define SWR_SOUND_EVICT_MAX_WRAPS (2) // swrSound_EvictSounds restarts the bank scan at most this many times
 #define SWR_SOUND_DEFAULT_BANK_SIZE (87) // swrSound_defaultBankFiles entries, allocated when sounds.map is missing
 #define SWR_SOUND_HASHTABLE_SIZE (1200) // swrSound_Startup: buckets in swrSoundHashTable
 #define SWR_SOUND_NUM_VOICES (8) // swrSound_voicesRequested entries
