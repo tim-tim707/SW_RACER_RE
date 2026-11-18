@@ -3687,7 +3687,7 @@ void swrObjHang_LoadRoomModels(swrObjHang* hang, float scale)
     rdMatrix_ScaleBasis44(&mat, scale, scale, scale, &mat);
     if (hang->menuScreen != swrObjHang_STATE_LEGAL)
         swrObjHang_CullElmoAssets(1);
-    hang->flag |= 2;
+    hang->flag |= swrObjHang_FLAG_UNK_2;
     swrEvent_AllocateAndLoadObjs('Elmo', SWR_ELMO_POOL_SIZE);
     swrEvent_FreeObjs('Elmo');
 
@@ -4079,7 +4079,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
         swrSound_RewindChannels();
         swrSound_UnloadAll();
         swrObjHang_LoadRoomModels(hang, 1.0f);
-        hang->flag |= 1;
+        hang->flag |= swrObjHang_FLAG_ACTIVE;
         if (hang->demo_mode == 2) {
             hang->demo_mode = 0;
             swrObjHang_InitRacerList(hang);
@@ -4136,7 +4136,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
         swrSound_RewindChannels();
         swrSound_UnloadAll();
         swrObjHang_LoadRoomModels(hang, 1.0f);
-        hang->flag |= 1;
+        hang->flag |= swrObjHang_FLAG_ACTIVE;
         swrObjHang_state2 = swrObjHang_STATE_POST_RACE_INFO;
         swrObjHang_GenerateJunkyardStock(hang);
         swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
@@ -4178,9 +4178,9 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
     case 'Load':
         // called through the one-line thunk at 0x428820
         swrSprite_SetDrawStateWord_Maybe(0x3800);
-        hang->flag &= ~1;
+        hang->flag &= ~swrObjHang_FLAG_ACTIVE;
         swrObjHang_Init(hang);
-        hang->flag |= 5;
+        hang->flag |= swrObjHang_FLAG_ACTIVE | swrObjHang_FLAG_SCREEN_SET_UP;
         swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
         swrObjHang_fadeState = 1;
         hang->unk68_type = 0x15;
@@ -4190,7 +4190,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
         swrObjHang_LoadScreen(hang, 1, 0);
         break;
     case 'Stop':
-        hang->flag &= ~1;
+        hang->flag &= ~swrObjHang_FLAG_ACTIVE;
         break;
     default:
         return 0;
@@ -4202,7 +4202,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
             swrObjHang_LoadScreen(hang, 1, 0);
             return 1;
         }
-        hang->flag &= ~8;
+        hang->flag &= ~swrObjHang_FLAG_CREDITS_PLAYLIST;
         swrObjHang_creditsTrackCursor = 0;
         swrRace_creditsMode = 0;
         hang->demo_mode = 0;
