@@ -143,6 +143,9 @@
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
 
+// swrRace_BuyPitdroidsMenu: truguts per extra pit droid
+#define SWR_PITDROID_PRICE (1000)
+
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
 #define SWR_MAX_RACERS (20)
 // swrObjJdge_InitTrack's asset-buffer tally assumes a 4 MiB buffer (swrObjJdge_raceBufferSlack)

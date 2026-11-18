@@ -2158,7 +2158,63 @@ void swrRace_UpdatePitDroidModels_Maybe(void)
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
-    HANG("TODO");
+    char price[32];
+    char line[32];
+    int top = (int)(swrObjHang_screenSlideOffset - 5.0f);
+    short y = (short)top;
+    int i;
+
+    swrSprite_SetColor(0x7f, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0x7f, 1);
+    swrSprite_SetPos(0x7f, 0xae, y);
+    swrSprite_SetColor(0x81, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x81, 1);
+    swrSprite_SetPos(0x81, 0xb2, y + 0x14);
+    swrSprite_SetColor(0x7c, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7c, 1);
+    swrSprite_SetPos(0x7c, 0xbe, y + 0x17);
+    swrText_CreateTextEntry1(0xc1, top + 0x1a, 0x32, -1, -1, -2, swrText_Translate("/SCREENTEXT_589/~f4~sBuy Pit Droid?"));
+    swrText_CreateTextEntry1(99, top + 0x1e, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_590/~f4~c~sBuy more pit droids to"));
+    swrText_CreateTextEntry1(99, top + 0x26, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_591/~f4~c~smake faster repairs to"));
+    swrText_CreateTextEntry1(99, top + 0x2e, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_592/~f4~c~syour damaged upgrade parts."));
+
+    swrSprite_SetColor(0x76, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x76, 1);
+    swrSprite_SetPos(0x76, 0xc2, y + 0x68);
+    sprintf(price, swrText_Translate("~r~s%d"), SWR_PITDROID_PRICE);
+    sprintf(line, "~f4%s", price);
+    swrText_CreateTextEntry1(0x114, top + 0x6b, 0x32, -1, -1, -2, line);
+    for (i = 0; i < 2; i++) {
+        swrSprite_SetColor(i + 0x74, 0x32, 0xff, 0xff, 0xfe);
+        swrSprite_SetVisible(i + 0x74, 1);
+        swrSprite_SetPos(i + 0x74, 0xdb, y + i * 0xd + 0x7c);
+    }
+    sprintf(price, "~f4%s", swrText_Translate("/SCREENTEXT_251/~sCost"));
+    swrText_CreateTextEntry1(0xc4, top + 0x6b, 0x32, -1, -1, -2, price);
+    swrUI_Front_TextMenu(hang, 0xfc, y + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 0, swrText_Translate("/SCREENTEXT_254/~c~sBUY"));
+    swrUI_Front_TextMenu(hang, 0xfc, y + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 1, swrText_Translate("/SCREENTEXT_257/~c~sCANCEL"));
+    swrText_CreateTextEntry1(0xfe, top + 0xa5, -0x5d, -0x42, 0x11, -2, swrText_Translate("/SCREENTEXT_599/~c~sTruguts"));
+    if (swrObjHang_screenSlideOffset == 20.0f && swrObjHang_cameraMoveMode != 1)
+        swrObjHang_PositionHoloNode(0, 5.0f, (swrObjHang_screenSlideOffset - 6.0f) - 20.5, 1.0f);
+
+    sprintf(price, swrText_Translate("~r~sX %d"), swrRace_truguts);
+    swrText_CreateTextEntry1(0x122, top + 0xb4, 0x32, -1, -1, -2, price);
+    if (swrRace_truguts < SWR_PITDROID_PRICE)
+        swrText_CreateTextEntry1(0x122, top + 0xb4, -1, 0, 0, -2, price);
+
+    // swrRace_upgradeUnaffordable doubles as the BUY(0)/CANCEL(1) cursor; it is pinned to CANCEL when broke
+    for (i = 0; i < hang->num_local_players; i++) {
+        if ((swrUI_localPlayersInputPressedBitset[i] & (swrUI_INPUT_MENU_UP | swrUI_INPUT_MENU_DOWN)) == 0)
+            continue;
+        if (swrRace_truguts < SWR_PITDROID_PRICE) {
+            playUISound(0x4b);
+        } else {
+            swrRace_upgradeUnaffordable = swrRace_upgradeUnaffordable == 0;
+            playUISound(0x58);
+        }
+    }
+    if (swrRace_truguts < SWR_PITDROID_PRICE)
+        swrRace_upgradeUnaffordable = 1;
 }
 
 // 0x0043fe90
