@@ -2270,6 +2270,10 @@ void swrUI_SortListItems(swrUI_unk* list)
     memset(&sorted, 0, sizeof(sorted));
     while (swrUI_CountSelectableItems(list) != 0) {
         lowest = list->next;
+        // unreachable while a selectable item remains; guards the analyzer's NULL path
+        if (lowest == NULL) {
+            break;
+        }
         for (child = list->next; child != NULL; child = child->next2) {
             if (child->widget_class == swrUI_CLASS_LIST_ITEM && (unsigned int)child->unk528 < (unsigned int)lowest->unk528) {
                 lowest = child;

@@ -41,8 +41,6 @@ int swrConfig_WriteMappings(char* dirname)
     }
     flipTable = NULL;
     binding = NULL;
-    axisCount = 0;
-    enabled = 0;
     bindText[0] = '\0';
     for (device = swrConfig_DEVICE_JOYSTICK; device <= swrConfig_DEVICE_KEYBOARD; device++) {
         if (device == swrConfig_DEVICE_JOYSTICK) {
