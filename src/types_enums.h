@@ -1516,6 +1516,17 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
 typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
 {
     swrUI_WINDOW_SPLASH = 0xb, // title splash page (swrObjHang_UpdateSplashScreen)
+    swrUI_WINDOW_SETTINGS = 0x15, // settings hub (swrUI_Menu_SettingsHub)
+    swrUI_WINDOW_VIDEO_SETTINGS = 0x16,
+    swrUI_WINDOW_AUDIO_SETTINGS = 0x17,
+    swrUI_WINDOW_JOYSTICK_SETTINGS = 0x18,
+    swrUI_WINDOW_MOUSE_SETTINGS = 0x19,
+    swrUI_WINDOW_KEYBOARD_SETTINGS = 0x1a,
+    swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS = 0x1b,
+    swrUI_WINDOW_RESERVED_KEYS = 0x1c, // swrRace_ReservedSettingsMenu
+    swrUI_WINDOW_CONFIG_FILES = 0x2730, // load/save settings (swrRace_LoadSaveConfigMenu)
+    swrUI_WINDOW_PROFILE_SELECT = 0x2736, // racer roster / profile select (swrRace_SelectProfileMenu)
+    swrUI_WINDOW_MP_START = 0x186a5, // first multiplayer page
     swrUI_WINDOW_HANGAR_SELECT_VEHICLE = 0x81,
     swrUI_WINDOW_HANGAR_SELECT_PLANET = 0x82,
     swrUI_WINDOW_HANGAR_SELECT_TRACK = 0x83,

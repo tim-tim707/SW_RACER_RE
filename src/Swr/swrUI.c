@@ -7,6 +7,7 @@
 #include "swrRace.h"
 #include "swrSprite.h"
 #include "swrText.h"
+#include "swrConfig.h"
 #include "swr.h"
 #include "engine_config.h"
 
@@ -14,12 +15,16 @@
 #include <General/stdMath.h>
 #include <General/utils.h>
 #include <Primitives/rdVector.h>
+#include <Main/swrControl.h>
+#include <Main/swrMain.h>
+#include <Platform/wuRegistry.h>
 #include <Win95/stdConsole.h>
 
 #include <macros.h>
 #include <ctype.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <engine_config.h>
 
@@ -1078,6 +1083,150 @@ void swrUI_ToggleChecked(swrUI_unk* ui)
     swrUI_SetChecked(ui, (ui->flags & swrUI_CHECKED) == 0);
 }
 
+// 0x004145b0
+int swrUI_ShowConfirmDialog(swrUI_unk* parent, int x, int y, char* title, char* message, char* yesLabel, char* noLabel, char* thirdLabel, int modal)
+{
+    swrUI_unk* dialog;
+    swrUI_unk* element;
+
+    swrUI_confirmDialogDone = 0;
+    swrUI_confirmDialogResult = -1;
+    swrUI_RunCallbacks2(parent, 0);
+    dialog = swrUI_NewDialog(NULL, x, y, title, message, yesLabel, noLabel, thirdLabel, swrUI_ConfirmDialogProc);
+    swrUI_confirmDialog = dialog;
+    if (dialog->next != NULL) {
+        element = swrUI_NextFocusable(dialog->next);
+        if (((uint8_t)element->widget_class & swrUI_CLASS_LIST) == swrUI_CLASS_LIST)
+            element = element->next2;
+        swrUI_FocusElement(element, 1);
+    }
+    swrUI_confirmDialogParent = parent;
+    if (modal != 0) {
+        swrUI_confirmDialogModal = 1;
+        while (swrUI_confirmDialogDone == 0)
+            swrMain_GuiAdvance();
+        swrUI_confirmDialogModal = 0;
+        swrUI_FreeElement(dialog);
+        swrUI_confirmDialog = NULL;
+        swrUI_RunCallbacks2(parent, 1);
+        if (parent->next != NULL) {
+            element = swrUI_NextFocusable(parent->next);
+            if (((uint8_t)element->widget_class & swrUI_CLASS_LIST) == swrUI_CLASS_LIST)
+                element = element->next2;
+            swrUI_FocusElement(element, 1);
+        }
+        swrUI_confirmDialogParent = NULL;
+    }
+    return swrUI_confirmDialogResult;
+}
+
+// 0x004146c0
+swrUI_unk* swrUI_NewDialog(swrUI_unk* parent, int x, int y, char* title, char* message, char* button1, char* button2, char* button3, swrUI_unk_F2 f2)
+{
+    swrUI_unk* dialog;
+    swrUI_unk* list;
+    swrSprite_BBox titleBox;
+    swrSprite_BBox messageBox;
+    swrSprite_BBox buttonsBox;
+    int backdrop[4];
+    unsigned int buttonSpacing;
+    unsigned int buttonWidth;
+    unsigned int labelWidth;
+    int buttonHeight;
+    int buttonX;
+    int buttonY;
+    int buttonIndex;
+    int width;
+    int height;
+    int rowWidth;
+
+    dialog = swrUI_New(parent, 0, 0, NULL, 0, 0, 0, (swrUI_unk_F1)swrUI_DialogProc, f2);
+
+    swrUI_GetPaddedTextBBox((int*)&titleBox, title, 6);
+    height = (int)(titleBox.y2 - titleBox.y) + 1;
+    rowWidth = (int)(titleBox.x2 - titleBox.x) + 1;
+    width = 0;
+    if (rowWidth >= 0)
+        width = rowWidth;
+
+    swrUI_GetButtonBBoxFromText_Maybe((int*)&messageBox, message, 0);
+    height += (int)(messageBox.y2 - messageBox.y) + 1;
+    rowWidth = (int)(messageBox.x2 - messageBox.x) + 1;
+    if (width <= rowWidth)
+        width = rowWidth;
+
+    buttonSpacing = swrUI_GetButtonRowBBox((int*)&buttonsBox, button1, button2, button3, 0);
+    // the button row's height is counted twice
+    height += ((int)(buttonsBox.y2 - buttonsBox.y) + 1) * 2;
+    rowWidth = (int)(buttonsBox.x2 - buttonsBox.x) + 1;
+    if (width <= rowWidth)
+        width = rowWidth;
+
+    swrUI_SetSize(dialog, width, height);
+    if (x == -1)
+        x = (dialog->x - dialog->width + (SWR_UI_DESIGN_WIDTH - 1)) >> 1;
+    if (y == -1)
+        y = (dialog->y - dialog->height + (SWR_UI_DESIGN_HEIGHT - 1)) >> 1;
+    swrUI_SetPos(dialog, x, y);
+
+    backdrop[0] = (unsigned int)(SWR_UI_DESIGN_WIDTH - width) >> 1;
+    backdrop[1] = (unsigned int)(SWR_UI_DESIGN_HEIGHT - height) >> 1;
+    backdrop[2] = width + backdrop[0] - 1;
+    backdrop[3] = height + backdrop[1] - 1;
+    swrUI_AddSprite(dialog, -1, swrSprite_background, backdrop, 1, 0);
+    swrUI_SetSpriteColor(dialog, 0, 0, 0, 0, 0x82);
+
+    swrSprite_MoveBBoxTo(&titleBox, (((int)(titleBox.x - titleBox.x2) + dialog->width - dialog->x) >> 1) + dialog->x, dialog->y + titleBox.y);
+    swrSprite_MoveBBoxTo(&messageBox, (((int)(messageBox.x - messageBox.x2) + dialog->width - dialog->x) >> 1) + dialog->x, titleBox.y2);
+    swrSprite_MoveBBoxTo(&buttonsBox, (((int)(buttonsBox.x - buttonsBox.x2) + dialog->width - dialog->x) >> 1) + dialog->x, messageBox.y2);
+
+    swrUI_NewLabel(dialog, 0, 6, title, titleBox.x + 10, titleBox.y + 10, 0, 0);
+    list = swrUI_NewList(dialog, 0, (int*)&messageBox, 0, swrUI_LIST_NO_SELECTION_FRAME, 0);
+    swrUI_DrawWrappedText(list, message, 1);
+
+    buttonIndex = 0;
+    buttonY = buttonsBox.y + 10;
+    buttonX = buttonsBox.x + 10;
+    buttonWidth = 0;
+    if (button1 != NULL)
+        buttonWidth = swrText_GetStringWidth(button1, swrText_fontsByIndex[0]) * 3;
+    if (button2 != NULL) {
+        labelWidth = swrText_GetStringWidth(button2, swrText_fontsByIndex[0]) * 3;
+        if (buttonWidth <= labelWidth)
+            buttonWidth = labelWidth;
+    }
+    if (button3 != NULL) {
+        labelWidth = swrText_GetStringWidth(button3, swrText_fontsByIndex[0]) * 3;
+        if (buttonWidth <= labelWidth)
+            buttonWidth = labelWidth;
+    }
+    if (buttonWidth <= SWR_UI_DIALOG_MIN_BUTTON_WIDTH)
+        buttonWidth = SWR_UI_DIALOG_MIN_BUTTON_WIDTH;
+
+    // two buttons sit side by side; with a third, the first goes on its own row above the other two
+    if (button1 != NULL) {
+        buttonHeight = swrText_GetStringHeight(button1, swrText_fontsByIndex[0]) * 3;
+        buttonIndex = 1;
+        swrUI_NewButton(dialog, 0, 0, button1, buttonX, buttonY, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        if (button3 != NULL)
+            buttonY += buttonHeight + 10;
+        else
+            buttonX += buttonSpacing + 20;
+    }
+    if (button2 != NULL) {
+        buttonHeight = swrText_GetStringHeight(button2, swrText_fontsByIndex[0]) * 3;
+        swrUI_NewButton(dialog, buttonIndex, 0, button2, buttonX, buttonY, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+        buttonIndex++;
+        buttonX += buttonSpacing + 20;
+    }
+    if (button3 != NULL) {
+        buttonHeight = swrText_GetStringHeight(button3, swrText_fontsByIndex[0]) * 3;
+        swrUI_NewButton(dialog, buttonIndex, 0, button3, buttonX, buttonY, buttonWidth, buttonHeight, swrUI_FRAME_STYLE_WINDOW_BARS, 0);
+    }
+    swrUI_RunCallbacks2(dialog, 1);
+    return dialog;
+}
+
 // 0x00414ab0
 void swrUI_SetValueText(swrUI_unk* ui, char* text, int value)
 {
@@ -1928,6 +2077,12 @@ int swrUI_TextEntryProc(swrUI_unk* ui, unsigned int msg, void* param, int param2
     return swrUI_DefaultElementProc(ui, msg, param, param2);
 }
 
+// 0x00416820
+int swrUI_DialogProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    return swrUI_DefaultElementProc(ui, msg, param, param2);
+}
+
 // 0x00416840
 void swrUI_Enqueue(swrUI_unk* ui1, swrUI_unk* toEnqueue)
 {
@@ -1982,6 +2137,54 @@ void swrUI_ClearElementRefs(swrUI_unk* element)
         swrUI_SetUI5(NULL);
     if (element == swrUI_GetUI6())
         swrUI_SetFocusedElement(NULL);
+}
+
+// 0x00416930
+int swrUI_StepPageTransition(swrUI_unk* element)
+{
+    unsigned int elapsed;
+    int dx;
+    int dy;
+    int stepX;
+    int stepY;
+
+    if (swrUI_pageTransitionStartTime == 0xffffffff)
+        swrUI_pageTransitionStartTime = timeGetTime();
+    elapsed = timeGetTime() - swrUI_pageTransitionStartTime;
+    swrUI_pageTransitionActive = 0;
+    if ((element->flags & swrUI_ANIMATING) == 0)
+        return swrUI_pageTransitionActive;
+
+    if (element->transition_delay != 0) {
+        if ((unsigned int)element->transition_delay < elapsed)
+            elapsed = element->transition_delay;
+        element->transition_delay -= elapsed;
+        return swrUI_pageTransitionActive;
+    }
+
+    dx = element->x - element->transition_home_x;
+    dy = element->y - element->transition_home_y;
+    if (dx == 0 && dy == 0) {
+        element->flags &= ~swrUI_ANIMATING;
+        swrUI_RunCallbacks(element, swrUI_MSG_PAGE_TRANSITION, 0, 1);
+        return swrUI_pageTransitionActive;
+    }
+
+    swrUI_pageTransitionActive = 1;
+    stepX = dx;
+    if (dx != 0) {
+        stepX = dx / 10;
+        if (stepX == 0)
+            stepX = dx < 0 ? -1 : 1;
+    }
+    stepY = dy;
+    if (dy != 0) {
+        stepY = dy / 10;
+        if (stepY == 0)
+            stepY = dy < 0 ? -1 : 1;
+    }
+    swrUI_SetPos(element, element->x - stepX, element->y - stepY);
+    return swrUI_pageTransitionActive;
 }
 
 // 0x00416a40
@@ -4643,4 +4846,159 @@ void swrUI_UpdateElementColor(swrUI_unk* ui)
         swrUI_SetColorUnk(ui, ui->r2, ui->g2, ui->b2, ui->a2);
         swrUI_BuildHighlightSprites(ui, 0);
     }
+}
+
+// 0x00417f50
+int swrUI_ConfirmDialogProc(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
+{
+    unsigned int key;
+
+    switch (msg) {
+    case swrUI_MSG_BACK:
+        swrUI_confirmDialogResult = SWR_UI_DIALOG_RESULT_CANCEL;
+        swrUI_confirmDialogDone = 1;
+        return 1;
+    case swrUI_MSG_KEY_DOWN:
+        swrUI_SetUI5(self);
+        key = (unsigned int)param;
+        if ((key == VK_TAB || (key >= VK_LEFT && key <= VK_DOWN)) && swrUI_textEntryActive == 0) {
+            swrUI_NavigateFocus(self, key);
+            return 0;
+        }
+        break;
+    case swrUI_MSG_KEY_UP:
+        swrUI_ClearUI5();
+        return 0;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        // param = index of the pressed button
+        if ((unsigned int)param <= 2) {
+            swrUI_confirmDialogResult = (int)param;
+            swrUI_confirmDialogDone = 1;
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x00401000
+int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
+{
+    swrUI_unk* page;
+    int i;
+
+    // the developer photo swaps the menu buttons for the team name labels
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_FREEPLAY), g_objHang2->showDeveloperPhoto == 0);
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_TOURNAMENT), g_objHang2->showDeveloperPhoto == 0);
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_MULTIPLAYER), g_objHang2->showDeveloperPhoto == 0);
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_SETTINGS), g_objHang2->showDeveloperPhoto == 0);
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_QUIT), g_objHang2->showDeveloperPhoto == 0);
+    swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_MAIN_COPYRIGHT), g_objHang2->showDeveloperPhoto == 0);
+    for (i = 0; i < SWR_UI_DEV_PHOTO_NAME_COUNT; i++)
+        swrUI_RunCallbacks2(swrUI_GetById(self, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i), g_objHang2->showDeveloperPhoto);
+
+    switch (msg) {
+    case swrUI_MSG_BACK:
+        return 1;
+    case swrUI_MSG_SET_ACTIVE:
+        if (param != NULL) {
+            swrControl_uiInputActive = 0;
+            swrControl_menuAcceptGuard = 0;
+            swrMultiplayer_SetInMultiplayer(0);
+        }
+        return 0;
+    case swrUI_MSG_DIALOG_RESULT:
+        if (swrUI_mainMenuDialog != SWR_UI_ID_MAIN_MULTIPLAYER) {
+            if (swrUI_mainMenuDialog != SWR_UI_ID_MAIN_QUIT)
+                return 0;
+            if (param == NULL) {
+                Main_Shutdown();
+                exit(0);
+            }
+        }
+        swrUI_mainMenuDialog = 0;
+        return 0;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        switch ((int)param) {
+        case SWR_UI_ID_MAIN_FREEPLAY:
+            page = swrUI_GetById(NULL, swrUI_WINDOW_PROFILE_SELECT);
+            swrConfig_RefreshPlayerListMenu_Maybe(page);
+            swrUI_RunCallbacksScreenText(swrUI_GetById(page, 1), swrText_Translate("/MONDOTEXT_H_0000/SINGLE-PLAYER FREEPLAY ~nRACER ROSTER"), 0);
+            swrObjHang_pendingTournamentMode = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_PROFILE_SELECT);
+            return 0;
+        case SWR_UI_ID_MAIN_MULTIPLAYER:
+            swrObjHang_pendingTournamentMode = 0;
+            if (swrMultiplayer_IsAvailable() == 0) {
+                swrUI_ShowConfirmDialog(self, -1, -1, swrText_Translate("/MONDOTEXT_H_0519/~sMultiplayer"), swrText_Translate("/MONDOTEXT_H_0520/~sYou must have IPX installed to play multiplayer"), swrText_Translate("/MONDOTEXT_H_0521/~sOK"), NULL, NULL, 0);
+                swrUI_mainMenuDialog = SWR_UI_ID_MAIN_MULTIPLAYER;
+                return 0;
+            }
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_START);
+            return 0;
+        case SWR_UI_ID_MAIN_TOURNAMENT:
+            page = swrUI_GetById(NULL, swrUI_WINDOW_PROFILE_SELECT);
+            swrConfig_RefreshPlayerListMenu_Maybe(page);
+            swrUI_RunCallbacksScreenText(swrUI_GetById(page, 1), swrText_Translate("/MONDOTEXT_H_0001/SINGLE-PLAYER TOURNAMENT ~nRACER ROSTER"), 0);
+            swrObjHang_pendingTournamentMode = 1;
+            swrUI_PushMenuPage(swrUI_WINDOW_PROFILE_SELECT);
+            return 0;
+        case SWR_UI_ID_MAIN_SETTINGS:
+            swrUI_PushMenuPage(swrUI_WINDOW_SETTINGS);
+            return 0;
+        case SWR_UI_ID_MAIN_QUIT:
+            swrUI_ShowConfirmDialog(swrUI_GetById(NULL, swrUI_WINDOW_SPLASH), -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0523/Are you sure you want to quit the game?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 0);
+            swrUI_mainMenuDialog = SWR_UI_ID_MAIN_QUIT;
+            return 0;
+        }
+        break;
+    }
+    return 0;
+}
+
+// 0x00401960
+int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
+{
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param != NULL)
+            swrMultiplayer_SetInMultiplayer(0);
+    } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
+        switch ((int)param) {
+        case SWR_UI_ID_BACK_BUTTON:
+            swrUI_PopMenuPage();
+            return 0;
+        case SWR_UI_ID_SETTINGS_VIDEO:
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_VIDEO_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_AUDIO:
+            swrUI_audioSettingsSnapshotPending = 1;
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_AUDIO_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_JOYSTICK:
+            swrControl_bindingCaptureActive = 1;
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_JOYSTICK_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_MOUSE:
+            swrControl_bindingCaptureActive = 1;
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_MOUSE_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_KEYBOARD:
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_KEYBOARD_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_FORCE_FEEDBACK:
+            swrConfig_RefreshForceFeedbackMenu(swrUI_GetById(NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS));
+            swrUI_settingsDirty = 0;
+            swrUI_PushMenuPage(swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS);
+            return 0;
+        case SWR_UI_ID_SETTINGS_LOAD_SAVE:
+            swrConfig_RefreshConfigListMenu_Maybe(swrUI_GetById(NULL, swrUI_WINDOW_CONFIG_FILES));
+            swrUI_PushMenuPage(swrUI_WINDOW_CONFIG_FILES);
+            return 0;
+        }
+    }
+    return 0;
 }

@@ -1,8 +1,11 @@
 #include "swrConfig.h"
 
 #include <General/stdConffile.h>
+#include <General/stdFileUtil.h>
+#include <General/stdFnames.h>
 #include <General/stdString.h>
 #include <Main/swrControl.h>
+#include <Platform/wuRegistry.h>
 
 #include "globals.h"
 #include "macros.h"
@@ -756,6 +759,78 @@ void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page)
     swrUI_SetChecked(swrUI_GetById(page, 0x60), swrConfig_FORCE_GFORCES);
     swrUI_SetChecked(swrUI_GetById(page, 0x61), swrConfig_FORCE_ENGINERUMBLE);
     swrConfig_AssignForceValues();
+}
+
+// 0x0040c260
+void swrConfig_RefreshConfigListMenu_Maybe(swrUI_unk* page)
+{
+    swrUI_unk* list;
+    swrUI_unk* item;
+    stdFileSearch* search;
+    stdFileSearchResult result;
+    char path[256];
+
+    list = swrUI_GetById(page, SWR_UI_ID_FILE_LIST);
+    if (list == NULL)
+        return;
+    swrUI_RefreshListSelection(list);
+
+    // saved settings folders, minus the built-in ones
+    search = stdFileUtil_NewFind(".\\data\\config\\", 2, wuRegistry_lpClass);
+    while (stdFileUtil_FindNext(search, &result)) {
+        if (strcmp("default", result.fpath) != 0 && strcmp("current", result.fpath) != 0 && strcmp(".", result.fpath) != 0 && strcmp("..", result.fpath) != 0)
+            swrUI_AddListItem(list, result.fpath, 0, SWR_UI_ID_FILE_LIST_ITEM, 0);
+    }
+    stdFileUtil_DisposeFind(search);
+
+    // stock control maps, drawn in a different colour
+    sprintf(path, "%s%s", rootPathName, ".\\data\\config\\default\\");
+    search = stdFileUtil_NewFind(path, 3, "map");
+    while (stdFileUtil_FindNext(search, &result)) {
+        if (result.is_subdirectory == 0 && strcmp("wheel.map", result.fpath) != 0) {
+            stdFnames_StripExtAndDot(result.fpath);
+            item = swrUI_AddListItem(list, result.fpath, 0, SWR_UI_ID_FILE_LIST_ITEM, 1);
+            swrUI_SetColorUnk2(item, 200, 50, 0, 0xff);
+        }
+    }
+    stdFileUtil_DisposeFind(search);
+}
+
+// 0x0040c4e0
+void swrConfig_RefreshPlayerListMenu_Maybe(swrUI_unk* page)
+{
+    swrUI_unk* list;
+    swrUI_unk* label;
+    stdFileSearch* search;
+    stdFileSearchResult result;
+    char text[128];
+
+    list = swrUI_GetById(page, SWR_UI_ID_FILE_LIST);
+    if (list == NULL)
+        return;
+    swrUI_RefreshListSelection(list);
+
+    search = stdFileUtil_NewFind(".\\data\\player\\", 3, "sav");
+    while (stdFileUtil_FindNext(search, &result)) {
+        if (result.is_subdirectory == 0) {
+            stdFnames_StripExtAndDot(result.fpath);
+            swrUI_AddListItem(list, result.fpath, 0, SWR_UI_ID_FILE_LIST_ITEM, 0);
+        }
+    }
+    swrUI_ClearListSelection(list);
+    stdFileUtil_DisposeFind(search);
+
+    swrUI_RunCallbacks2(swrUI_GetById(page, SWR_UI_ID_FILE_NAME_ENTRY), 0);
+    label = swrUI_GetById(page, SWR_UI_ID_CURRENT_PLAYER_LABEL);
+    if (strlen(swrRace_saveData.profiles[0].name) == 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrText_Translate("/MONDOTEXT_H_0246/-none-"));
+        swrRace_profileLoaded = -1;
+    } else {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrRace_saveData.profiles[0].name);
+        swrRace_profileLoaded = 0;
+        swrUI_SelectListItem(swrUI_FindChildByText(list, swrRace_saveData.profiles[0].name), 1);
+    }
+    swrUI_RunCallbacksScreenText(label, text, 0);
 }
 
 // 0x0040c670

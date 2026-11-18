@@ -15,6 +15,12 @@ void Main_Shutdown(void)
     // TODO
 }
 
+// 0x00424140
+void swrMain_GuiAdvance(void)
+{
+    ((void (*)(void))swrMain_GuiAdvanceFunction)();
+}
+
 // 0x00424150
 void Main_ShutdownError(void)
 {
