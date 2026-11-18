@@ -1482,6 +1482,12 @@ typedef enum stdControlInputItem_FLAG
     stdControlInputItem_FLAG_KEYDOWN = 0x200, // set from WindowsInputItem.keydown (unused by Win32 KF_* bits)
 } stdControlInputItem_FLAG;
 
+typedef enum swrCamera_FLAG // swrCamera_unk.flags (unkCameraArray)
+{
+    swrCamera_FLAG_ACTIVE = 0x1, // the selected camera (swrViewport_SetActiveCamera); cleared on the blend-from camera when a blend ends
+    swrCamera_FLAG_IN_VIEWPORT = 0x2, // a valid viewport uses this camera this frame (swrViewport_UpdateCameras)
+} swrCamera_FLAG;
+
 typedef enum swrControlBinding_FLAG
 {
     swrControlBinding_FLAG_ANALOG = 0x1, // feeds the action's *AxisInput value

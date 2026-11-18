@@ -65,7 +65,7 @@ void swrViewport_UpdateCameras()
     short v;
 
     for (i = 0; i < SWR_NUM_CAMERAS; i++) {
-        unkCameraArray[i].flags &= ~2u;
+        unkCameraArray[i].flags &= ~swrCamera_FLAG_IN_VIEWPORT;
     }
     viewport = NULL;
     for (v = 0; v < swrViewport_GetNumViewports(); v++) {
@@ -73,14 +73,14 @@ void swrViewport_UpdateCameras()
         if (viewport != NULL) {
             cameraIndex = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport);
             if ((swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID) != 0 && cameraIndex >= 0 && cameraIndex < SWR_NUM_CAMERAS) {
-                unkCameraArray[cameraIndex].flags |= 2;
+                unkCameraArray[cameraIndex].flags |= swrCamera_FLAG_IN_VIEWPORT;
             }
         }
     }
 
     for (i = 0; i < SWR_NUM_CAMERAS; i++) {
         cam = &unkCameraArray[i];
-        if (cam->behaviorType == 0 || (cam->flags & 3) == 0) {
+        if (cam->behaviorType == 0 || (cam->flags & (swrCamera_FLAG_ACTIVE | swrCamera_FLAG_IN_VIEWPORT)) == 0) {
             continue;
         }
         // lightningpirate's CE freecam NOPs this matrix store (0x00429602-0x0042963d)

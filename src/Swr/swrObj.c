@@ -10991,7 +10991,7 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport)
             swrModel_NodeModifyFlags(unkCameraArray[swrCam_blendToIndex].blendNode, 2, -2, 0x10, 3);
         }
         swrViewport_SetActiveCamera(swrCam_blendToIndex);
-        unkCameraArray[swrCam_blendFromIndex].flags &= ~1u;
+        unkCameraArray[swrCam_blendFromIndex].flags &= ~swrCamera_FLAG_ACTIVE;
     }
 }
 
