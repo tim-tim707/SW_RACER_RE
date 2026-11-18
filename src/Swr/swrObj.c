@@ -10410,14 +10410,14 @@ void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions
 // 0x0047d890
 void swrObjTrig_InitColorBands_Maybe(void)
 {
-    float minY;
-    float maxY;
-    float minX;
-    float maxX;
+    // the original leaves these uninitialized for other layouts; its only caller passes 1 or 2
+    float minY = 0.0f;
+    float maxY = 0.0f;
+    float minX = 0.0f;
+    float maxX = 0.0f;
     float rowHeight;
     float columnWidth;
 
-    // faithful: the bounds stay uninitialized for any layout other than 1 or 2
     if (swrObjTrig_regionGridLayout == 1) {
         minY = -8500.0f;
         maxY = 3500.0f;
