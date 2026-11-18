@@ -180,14 +180,14 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_SetSpriteOffset_ADDR (0x00419030)
 #define swrUI_GetFrameTextureDim_ADDR (0x00419070) // pick a window-frame sprite by flag bits, return its texture dims
 #define swrUI_RandomizeSpriteAlpha_ADDR (0x00419140) // randomize alpha over a range of an element's sprites
-#define swrUI_Menu_MpSelectVehicle_ADDR (0x004191f0)
-#define swrUI_Menu_MpSelectPlanet_ADDR (0x00419390)
-#define swrUI_Menu_MpPage83_ADDR (0x004194c0)
-#define swrUI_Menu_MpPage84_ADDR (0x00419570)
-#define swrUI_Menu_MpPage88_ADDR (0x00419620)
-#define swrUI_Menu_MpPage89_ADDR (0x004196b0)
-#define swrUI_Menu_MpPage85_ADDR (0x00419700)
-#define swrUI_Menu_MpPage86_ADDR (0x00419770)
+#define swrUI_Menu_HangarSelectVehicle_ADDR (0x004191f0)
+#define swrUI_Menu_HangarSelectPlanet_ADDR (0x00419390)
+#define swrUI_Menu_HangarSelectTrack_ADDR (0x004194c0)
+#define swrUI_Menu_HangarMainMenu_ADDR (0x00419570)
+#define swrUI_Menu_HangarLookAtVehicle_ADDR (0x00419620)
+#define swrUI_Menu_HangarUnused89_Maybe_ADDR (0x004196b0)
+#define swrUI_Menu_HangarWatto_ADDR (0x00419700)
+#define swrUI_Menu_HangarJunkyard_Maybe_ADDR (0x00419770)
 #define swrUI_SetSpriteSelectionBBox_Maybe_ADDR (0x004197f0)
 #define swrUI_BuildPanelFrame_ADDR (0x00419830) // build the panel's 9-slice background sprites
 #define swrUI_BuildSliderSprites_ADDR (0x00419db0) // render a slider/scrollbar (track/fill/thumb/ticks) from its value
@@ -245,24 +245,25 @@ int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param_3, s
 // Settings sub-screens:
 int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)
 int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
-// Multiplayer menu page procs (session setup + the hangar MP nav-overlay windows 0x81-0x89):
+// Multiplayer session-setup page procs:
 int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission
 int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host/create game (window 0x186aa)
 int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // join a game + name entry (window 0x186ab)
 int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // track preview + start, host-gated
 int swrUI_Menu_MpRacerList(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x81: sets SELECT_VEHICLE + RacerPick
-int swrUI_Menu_MpSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x82: sets SELECT_PLANET
-// Thin MP hangar nav-overlay handlers (windows 0x83-0x89; reparent to container 0x30d51, feed nav input):
-int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_MpPage86(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+// Hangar nav-overlay page procs (swrUI_BuildAuxPages; shown per hangar screen by swrObjHang_SetMenuState,
+// reparented under swrUI_WINDOW_HANGAR_NAV for the shared OK/Back buttons; arrows feed menu input):
+int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x81: sets SELECT_VEHICLE + RacerPick
+int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x82: sets SELECT_PLANET
+int swrUI_Menu_HangarSelectTrack(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_HangarMainMenu(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_HangarWatto(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_HangarJunkyard_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // built under the Watto id 0x85, not 0x87
 
 // Writes a sprite selection rectangle, all-zero when collapsed (best guess).
 void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed);
-int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_HangarLookAtVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_HangarUnused89_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x89: no hangar screen maps to it
 void swrUI_UpdateMouseState(void);
 void swrUI_PushMenuPage(int pageId);
 void swrUI_PopMenuPage(void);

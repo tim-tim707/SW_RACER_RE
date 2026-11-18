@@ -202,6 +202,8 @@
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
+#define SWR_ASSET_BUFFER_REGION_A_SIZE (0x4b000) // swrAssetBuffer_ReserveRegionA_Maybe, plus 0x40 alignment slack
+#define SWR_ASSET_BUFFER_REGION_B_SIZE (0x10000) // swrAssetBuffer_ReserveRegionB_Maybe, plus 0x40 alignment slack
 // swrModel_LoadTextureDataAndPalette: pixel data and palette each start on a 64-byte boundary;
 // the free-space check reserves room for both alignment pads
 #define SWR_TEXTURE_DATA_ALIGN (64)
@@ -290,6 +292,17 @@
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
 #define SWR_UI_ID_BACK_BUTTON (4)
+// clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
+#define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)
+#define SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT (700001)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_LEFT (700002)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_RIGHT (700003)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_UP (700004)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_DOWN (700005)
+#define SWR_UI_ID_HANGAR_WATTO_ARROW_LEFT (700006)
+#define SWR_UI_ID_HANGAR_WATTO_ARROW_RIGHT (700007)
+#define SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT (700008)
+#define SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT (700009)
 #define SWR_UI_TEXT_ENTRY_STYLE_MASK (0xffff0000) // flag bits swrUI_NewTextEntry keeps as entry_style
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
