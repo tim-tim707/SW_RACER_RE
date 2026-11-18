@@ -120,6 +120,7 @@ Main_force_feedback 0x004b4938 int = 1
 swrConfig_defaultForceConfig 0x004b4ae8 int[8] = { 3, 3, 2, 2, 2, 2, 1, 1 }
 
 swrUI_unk_ptr 0x004b5d74 swrUI_unk*
+swrUI_confirmDialogDone 0x004b5d7c int = 1 # cleared by swrUI_ShowConfirmDialog, set when the dialog is answered
 
 swrMultiplayer_proxyPlayer 0x004b6714 int = -1 # player the host last sent a 'prxy' proxy event to (-1 = none)
 Main_nut_delay_ms 0x004b6718 int = 32
@@ -539,6 +540,7 @@ currentPlayer_Test 0x004d78a8 swrRace*
 rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
+swrRace_screenshotKeyHeld 0x004d79e8 int # F12 held last poll (swrRace_PollScreenshotKey edge detect)
 
 swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_caretY 0x004d7c4c int
@@ -1515,6 +1517,7 @@ swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
 swrSprite_colorApplied 0x00e99764 int
+swrText_hasBoldCode 0x00e99768 int # 1 when the string being rendered contains "~b" (swrText_RenderString; read by swrText_DrawString)
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
@@ -1533,6 +1536,10 @@ oneOver255f 0x004acca0 float
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
+swrUI_confirmDialogResult 0x004d87ac int # answer of the confirm dialog, -1 while open; forwarded with msg 100 to swrUI_confirmDialogParent
+swrUI_confirmDialogModal 0x004d87b0 int # 1 while swrUI_ShowConfirmDialog runs its own GUI loop
+swrUI_confirmDialog 0x004d87b4 swrUI_unk* # open confirm dialog (swrUI_ShowConfirmDialog)
+swrUI_confirmDialogParent 0x004d87b8 swrUI_unk* # element the confirm dialog answers to
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
 swrUI_inputSuppressFlags 0x004d8bd0 int # swrUI_INPUT_SUPPRESS one-shot bits; low byte only is ever written

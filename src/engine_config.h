@@ -147,6 +147,12 @@
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
 #define SWR_SOUND_DEFAULT_BANK_SIZE (87) // swrSound_defaultBankFiles entries, allocated when sounds.map is missing
 #define SWR_SOUND_HASHTABLE_SIZE (1200) // swrSound_Startup: buckets in swrSoundHashTable
+#define SWR_SOUND_NUM_VOICES (8) // swrSound_voicesRequested entries
+#define SWR_SOUND_VOLUME_SCALE (1.0f / 255.0f) // 0..255 volume byte -> gain (0x004ac474)
+#define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
+#define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx
+#define SWR_SOUND_PAN_POSITIONAL (-999) // swrSound.pan: 3D positional, use pos
+#define SWR_SOUND_PAN_CENTER (0x40) // swrSound.pan forced in mono
 
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
@@ -283,6 +289,7 @@
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
+#define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
 #define SWR_UI_DISABLED_TEXT_ALPHA (100) // swrUI_DrawText alpha for disabled elements
 #define SWR_UI_FONT_LOW_BASELINE (6) // swrUI_DrawText draws font 6 this many pixels lower
 #define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this

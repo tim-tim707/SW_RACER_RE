@@ -12,6 +12,8 @@
 #include "swr.h"
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
+#include <Engine/sithRender.h>
+#include <Platform/stdControl.h>
 #include "macros.h"
 #include "swrRender.h"
 #include "engine_config.h"
@@ -8791,4 +8793,16 @@ void swrRace_PoddAnimateEngines(swrRace* player)
         rdMatrix_Copy44(&player->engineXfL2, &m);
     }
     swrRace_AnimateEngineWobble(player);
+}
+
+// 0x00410430
+void swrRace_PollScreenshotKey(void)
+{
+    if (stdControl_ReadKey(DIK_F12, NULL) != 0 && swrRace_screenshotKeyHeld == 0) {
+        playUISound(0x46);
+        sithRender_MakeScreenShot("snap_");
+        swrRace_screenshotKeyHeld = 1;
+        return;
+    }
+    swrRace_screenshotKeyHeld = 0;
 }
