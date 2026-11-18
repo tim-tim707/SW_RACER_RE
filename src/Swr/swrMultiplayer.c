@@ -312,6 +312,14 @@ DPID swrMultiplayer_GetPlayerDpid(unsigned int playerNum)
     return -1;
 }
 
+// 0x00420c40
+void swrMultiplayer_SetRaceButtonToggle(swrUI_unk* page, int* pair)
+{
+    // pair[0] = player slot, pair[1] = ready flag
+    multiplayer_race_button_toggle[pair[0]] = pair[1];
+    swrMultiplayer_UpdateStartButtonState(page);
+}
+
 // 0x00420c60
 void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
 {

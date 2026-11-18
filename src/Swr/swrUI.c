@@ -33,6 +33,47 @@
 #include <string.h>
 #include <engine_config.h>
 
+// 0x004083d0
+void swrUI_UpdateMouseState(void)
+{
+    int accept;
+    int changed;
+    int x;
+    int y;
+
+    swrUI_inputChangeFlags = 0;
+    if (swrControl_acceptPressedEdge != 0 && (swrControl_menuAcceptGuard == 0 || swrControl_menuAcceptPressedEdge == 0))
+        accept = 1;
+    else
+        accept = 0;
+    // faithful: the cancel edge is tested as a 16-bit value (NEG AX)
+    swrUI_menuButtonState = (accept ? swrUI_INPUT_ACCEPT : 0) | ((short)swrControl_cancelPressedEdge != 0 ? swrUI_INPUT_CANCEL : 0);
+    if (swrUI_menuButtonState != swrUI_menuButtonStatePrev) {
+        changed = swrUI_menuButtonState ^ swrUI_menuButtonStatePrev;
+        swrUI_inputChangeFlags = swrUI_INPUT_BUTTONS_CHANGED;
+        if (changed & swrUI_INPUT_ACCEPT)
+            swrUI_inputChangeFlags = swrUI_INPUT_BUTTONS_CHANGED | swrUI_INPUT_ACCEPT;
+        if (changed & swrUI_INPUT_CANCEL)
+            swrUI_inputChangeFlags |= swrUI_INPUT_CANCEL;
+    }
+    swrUI_menuButtonStatePrev = swrUI_menuButtonState;
+
+    stdConsole_GetCursorPos(&x, &y);
+    g_mouse_x = x;
+    g_mouse_y = y;
+    if (x != g_mouse_x2 || y != g_mouse_y2)
+        swrUI_inputChangeFlags |= swrUI_INPUT_CURSOR_MOVED | swrUI_INPUT_MOVED;
+    g_mouse_x2 = x;
+    g_mouse_y2 = y;
+
+    swrUI_joyAxisX = swrControl_joystickAxes[0];
+    swrUI_joyAxisY = swrControl_joystickAxes[1];
+    if (swrControl_joystickAxes[0] != swrUI_joyAxisXPrev || swrControl_joystickAxes[1] != swrUI_joyAxisYPrev)
+        swrUI_inputChangeFlags |= swrUI_INPUT_AXIS_MOVED | swrUI_INPUT_MOVED;
+    swrUI_joyAxisXPrev = swrControl_joystickAxes[0];
+    swrUI_joyAxisYPrev = swrControl_joystickAxes[1];
+}
+
 // 0x00408640
 void swrUI_UpdateProgressBar(int progressPercent)
 {
@@ -89,6 +130,12 @@ void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
     swrUI_UpdateProgressBar(0);
+}
+
+// 0x00411120
+void swrUI_BroadcastToWindows(int forward2, int forward3)
+{
+    swrUI_BroadcastToWindowsRecurse(swrUI_unk_ptr, forward2, forward3);
 }
 
 // 0x00411140
@@ -1711,6 +1758,118 @@ void swrUI_ClearUI5(void)
     swrUI_SetUI5(NULL);
 }
 
+// 0x00415020
+void swrUI_RenderTree(swrUI_unk* node)
+{
+    swrUI_unk* it;
+    int animating = 0;
+    int stepping = 0;
+
+    if (multiplayer_in_mp != 0)
+        swrUI_ResetAttractDemoTimer();
+    if (node == NULL)
+        node = swrUI_unk_ptr;
+    for (it = node; it != NULL; it = it->next2) {
+        if ((it->flags & swrUI_VISIBLE) && (it->flags & swrUI_ANIMATING))
+            animating++;
+    }
+    for (it = node; it != NULL; it = it->next2) {
+        if (it->flags & swrUI_VISIBLE) {
+            stepping |= swrUI_StepPageTransition(it);
+            swrUI_RenderElementSprites(it);
+            swrUI_RunCallbacks(it, swrUI_MSG_UPDATE, 0, 0);
+        }
+    }
+    // the last sliding sibling just arrived: notify the parent page
+    if (stepping == 0 && animating != 0 && node->prev != NULL)
+        swrUI_RunCallbacks(node->prev, swrUI_MSG_PAGE_TRANSITION, 0, 0);
+    for (; node != NULL; node = node->next2) {
+        if ((node->flags & swrUI_VISIBLE) && node->next != NULL)
+            swrUI_RenderTree(node->next);
+    }
+}
+
+// 0x00415400
+void swrUI_ProcessMouse(void)
+{
+    swrUI_unk* hit;
+    swrUI_unk* target;
+    swrUI_unk* page;
+    unsigned int motion;
+    int x;
+    int y;
+
+    swrUI_UpdateTimers();
+    swrText_ClearEntryClipRects();
+    if (swrUI_unk_ptr == NULL || !swrUI_IsElementVisible(swrUI_unk_ptr))
+        return;
+    swrUI_RenderTree(swrUI_unk_ptr);
+    swrUI_DrawCaret();
+    if (swrUI_pageTransitionActive != 0) {
+        swrUI_refocusPending = 1;
+        return;
+    }
+    if (swrUI_refocusPending != 0) {
+        swrUI_FocusElement(swrUI_pageInitialFocus, 1);
+        swrUI_refocusPending = 0;
+    }
+    if (swrSprite_IsCursorVisible()) {
+        swrUI_UpdateMouseState();
+        if (swrUI_inputSuppressFlags & swrUI_INPUT_SUPPRESS_MOUSE_FRAME) {
+            swrUI_inputSuppressFlags &= ~swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
+            return;
+        }
+        x = g_mouse_x;
+        y = g_mouse_y;
+        hit = swrUI_HitTest(swrUI_unk_ptr, x, y);
+        // faithful: a disabled element under the cursor also skips swrUI_ProcessPendingClose
+        if (hit != NULL && (hit->flags & swrUI_DISABLED))
+            return;
+        if (hit != swrUI_GetUI4()) {
+            swrUI_SetUI4(hit);
+            if (swrUI_textEntryActive == 0)
+                swrUI_SetFocusedElement(hit);
+        }
+        target = swrUI_GetUI5();
+        if (target == NULL)
+            target = hit;
+        if (swrUI_inputChangeFlags & swrUI_INPUT_CURSOR_MOVED) {
+            swrUI_ResetAttractDemoTimer();
+            swrUI_RunCallbacks(target, swrUI_MSG_MOUSE_MOVE, x, y);
+        }
+        if (swrUI_inputChangeFlags & swrUI_INPUT_BUTTONS_CHANGED) {
+            if (swrUI_inputChangeFlags & swrUI_INPUT_ACCEPT)
+                swrUI_RunCallbacks(target, (swrUI_menuButtonState & swrUI_INPUT_ACCEPT) ? swrUI_MSG_MOUSE_DOWN : swrUI_MSG_MOUSE_UP, x, y);
+            if (swrUI_inputChangeFlags & swrUI_INPUT_CANCEL)
+                swrUI_RunCallbacks(target, (swrUI_menuButtonState & swrUI_INPUT_CANCEL) ? swrUI_MSG_MOUSE2_DOWN : swrUI_MSG_MOUSE2_UP, x, y);
+            if (swrUI_textEntryActive == 0) {
+                motion = swrUI_inputChangeFlags & (swrUI_INPUT_CURSOR_MOVED | swrUI_INPUT_UNK_40000000 | swrUI_INPUT_AXIS_MOVED);
+                if (swrControl_acceptPressedEdge != 0)
+                    swrUI_RunCallbacks(swrUI_GetCurrentPage(), swrUI_MSG_ACCEPT, motion, 0);
+                if (swrControl_cancelPressedEdge != 0) {
+                    if ((swrUI_inputSuppressFlags & swrUI_INPUT_SUPPRESS_CANCEL) == 0) {
+                        if ((g_objHang2->menuScreen == swrObjHang_STATE_SELECT_VEHICLE && g_objHang2->activeMenu == -1) || g_objHang2->menuScreen == swrObjHang_STATE_SPLASH) {
+                            page = swrUI_confirmDialog;
+                            if (page == NULL)
+                                page = swrUI_GetCurrentPage();
+                            swrUI_RunCallbacks(page, swrUI_MSG_BACK, motion, 0);
+                        }
+                    } else {
+                        swrUI_inputSuppressFlags &= ~swrUI_INPUT_SUPPRESS_CANCEL;
+                    }
+                }
+            }
+            if (swrControl_acceptPressedEdge != 0 && target != NULL && (target->flags & swrUI_EDITING) == 0)
+                swrUI_RunCallbacks(target, swrUI_MSG_SET_EDITING, 1, target->id);
+        }
+        if (swrUI_inputChangeFlags & swrUI_INPUT_AXIS_MOVED) {
+            swrUI_ResetAttractDemoTimer();
+            swrUI_ProcessNavAxis();
+        }
+    }
+    swrUI_ProcessPendingClose();
+}
+
 // 0x00415640
 int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
 {
@@ -2432,6 +2591,30 @@ void swrUI_NavigateFocus(swrUI_unk* element, int vk)
     }
 }
 
+// 0x00416bd0
+void swrUI_ProcessNavAxis(void)
+{
+    int navX;
+    int navY;
+
+    // swrUI_QuantizeNavAxis: -2 = full left/up, -1 = slight, 2 = slight right/down, 1 = full
+    swrUI_QuantizeNavAxis(swrUI_joyAxisX, swrUI_joyAxisY, &navX, &navY);
+    if (navX != swrUI_navAxisXPrev) {
+        if (navX < 0 && swrUI_navAxisXPrev < 0)
+            swrUI_HandleKeyEvent2((void*)VK_LEFT, navX == -2);
+        if (navX > 0 && swrUI_navAxisXPrev > 0)
+            swrUI_HandleKeyEvent2((void*)VK_RIGHT, navX == 1);
+    }
+    if (navY != swrUI_navAxisYPrev) {
+        if (navY < 0 && swrUI_navAxisYPrev < 0)
+            swrUI_HandleKeyEvent2((void*)VK_UP, navY == -2);
+        if (navY > 0 && swrUI_navAxisYPrev > 0)
+            swrUI_HandleKeyEvent2((void*)VK_DOWN, navY == 1);
+    }
+    swrUI_navAxisXPrev = navX;
+    swrUI_navAxisYPrev = navY;
+}
+
 // 0x00416cc0
 void swrUI_QuantizeNavAxis(float x, float y, int* outX, int* outY)
 {
@@ -2449,9 +2632,9 @@ void swrUI_QuantizeNavAxis(float x, float y, int* outX, int* outY)
 }
 
 // 0x00416D70
-int swrUI_HandleKeyEvent2(void* forward2, int)
+int swrUI_HandleKeyEvent2(void* forward2, int pressed)
 {
-    HANG("TODO");
+    return swrUI_HandleKeyEvent((int)forward2, pressed);
 }
 
 // 0x00416d90
@@ -3603,6 +3786,43 @@ void swrUI_HandleSliderClick(swrUI_unk* slider, int mouseX, int mouseY)
         swrUI_HandleSliderKey(slider, VK_SUBTRACT);
     if (increase)
         swrUI_HandleSliderKey(slider, VK_ADD);
+}
+
+// 0x0041aa40
+void swrUI_BroadcastToWindowsRecurse(swrUI_unk* node, int forward2, int forward3)
+{
+    for (; node != NULL; node = node->next2) {
+        if ((node->flags & swrUI_VISIBLE) == 0)
+            continue;
+        if (node->next != NULL)
+            swrUI_BroadcastToWindowsRecurse(node->next, forward2, forward3);
+        if (node->widget_class == swrUI_CLASS_WINDOW)
+            swrUI_RunCallbacks(node, swrUI_MSG_MP_UPDATE, forward2, forward3);
+    }
+}
+
+// 0x0041abb0
+swrUI_unk* swrUI_CreateRaceResultRow(int id)
+{
+    swrUI_unk* ui = swrUI_New(NULL, id, -1, NULL, 0, 0, 0, (swrUI_unk_F1)swrUI_RaceResultRowProc, NULL);
+    swrUI_SetSize(ui, 500, 50);
+    ui->widget_class = swrUI_CLASS_LIST_ITEM;
+    ui->flags |= swrUI_STATIC | swrUI_NO_PAGE_TRANSITION;
+    return ui;
+}
+
+// 0x0041ac00
+int swrUI_RaceResultRowProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
+{
+    if (msg == swrUI_MSG_UPDATE)
+        swrUI_DrawRaceResultRow(ui);
+    return swrUI_DefaultElementProc(ui, msg, param, param2);
+}
+
+// 0x0041ac30
+void swrUI_DrawRaceResultRow(swrUI_unk* row)
+{
+    HANG("TODO");
 }
 
 // 0x0041af00

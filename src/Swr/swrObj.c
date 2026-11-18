@@ -12421,6 +12421,27 @@ void swrScene_LoadPreviewModel(void)
     swrViewport_SetRootNodeForAllViewports(&someRootNode);
 }
 
+// 0x00448f40
+void swrScene_LoadObjects(void)
+{
+    swrSound_SetSpatialOrigin_Maybe(50.0f, 300.0f);
+    swrAssetBuffer_ReserveRegionA_Maybe();
+    swrAssetBuffer_ReserveRegionB_Maybe();
+    ResetModelPreviewState_Maybe();
+    if (swrScene_previewModelId == -1) {
+        swrEvent_AllocateAndLoadObjs('cMan', SWR_SCENE_CMAN_COUNT);
+        swrEvent_AllocateAndLoadObjs('Jdge', 1);
+        swrEvent_AllocateAndLoadObjs('Hang', 1);
+    } else {
+        swrScene_LoadPreviewModel();
+    }
+    GameSettingFlags &= ~GAME_SETTING_UNK_800;
+    SetClearColor(0, 0, 0);
+    SetFogParameters(SWR_SCENE_FOG_START, SWR_SCENE_FOG_END, 0xff, 0xff, 0xff, 0xff);
+    swrScene_objectsLoaded = 1;
+    GameSettingFlags |= GAME_SETTING_UNK_1;
+}
+
 // 0x004292b0
 void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out)
 {
@@ -12492,6 +12513,64 @@ int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior)
             return 1;
     }
     return 0;
+}
+
+// 0x00428830
+void swrCam_CamState_InitMatrices(void)
+{
+    for (int i = 0; i < SWR_NUM_CAMERAS; i++) {
+        swrCamera_unk* cam = &unkCameraArray[i];
+        cam->transform.vA.x = 1.0f;
+        cam->transform.vA.y = 0.0f;
+        cam->transform.vA.z = 0.0f;
+        cam->transform.vA.w = 0.0f;
+        cam->transform.vB.x = 0.0f;
+        cam->transform.vB.y = 1.0f;
+        cam->transform.vB.z = 0.0f;
+        cam->transform.vB.w = 0.0f;
+        cam->transform.vC.x = 0.0f;
+        cam->transform.vC.y = 0.0f;
+        cam->transform.vC.z = 1.0f;
+        cam->transform.vC.w = 0.0f;
+        cam->transform.vD.x = 0.0f;
+        cam->transform.vD.y = 0.0f;
+        cam->transform.vD.z = 0.0f;
+        cam->transform.vD.w = 1.0f;
+        cam->matrixSource = NULL;
+        cam->behaviorType = 0;
+        cam->localOffset.x = 0.0f;
+        cam->localOffset.y = 0.0f;
+        cam->localOffset.z = 0.0f;
+    }
+    swrCam_blendFlags &= ~1;
+    currentUnkCameraStructPtr = unkCameraArray;
+    unkCameraArrayIndex = 0;
+    swrCam_blendFromIndex = 0;
+    swrCam_blendToIndex = 0;
+    swrCam_blendTime = 0.0f;
+    swrCam_blendDuration = SWR_CAM_BLEND_DEFAULT_DURATION;
+    swrCam_lookAtMode = 0;
+    swrCam_lookAtTarget = NULL;
+    rdMatrix44_unk2.vA.x = 1.0f;
+    rdMatrix44_unk2.vA.y = 0.0f;
+    rdMatrix44_unk2.vA.z = 0.0f;
+    rdMatrix44_unk2.vA.w = 0.0f;
+    rdMatrix44_unk2.vB.x = 0.0f;
+    rdMatrix44_unk2.vB.y = 1.0f;
+    rdMatrix44_unk2.vB.z = 0.0f;
+    rdMatrix44_unk2.vB.w = 0.0f;
+    rdMatrix44_unk2.vC.x = 0.0f;
+    rdMatrix44_unk2.vC.y = 0.0f;
+    rdMatrix44_unk2.vC.z = 1.0f;
+    rdMatrix44_unk2.vC.w = 0.0f;
+    rdMatrix44_unk2.vD.x = 0.0f;
+    rdMatrix44_unk2.vD.y = 0.0f;
+    rdMatrix44_unk2.vD.z = 0.0f;
+    rdMatrix44_unk2.vD.w = 1.0f;
+    swrCam_unusedOffset.x = 0.0f;
+    swrCam_unusedOffset.y = 0.0f;
+    swrCam_unusedOffset.z = 0.0f;
+    swrCam_CamState_SetFlags(1, swrCamera_FLAG_UNK_4);
 }
 
 // 0x00428a40
