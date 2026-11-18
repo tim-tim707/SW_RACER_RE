@@ -4930,4 +4930,10 @@ typedef enum rdClip_FaceStatus
     rdClip_FaceStatus_DEGENERATE = 0x40,
 } rdClip_FaceStatus;
 
+// a3dCaps_hardware.dwFlags bits (swrSound_GetHardwareFlags)
+typedef enum swrSound_HARDWARE
+{
+    swrSound_HARDWARE_A3D = 0x8, // the audio settings page reports "A3D" instead of "DIRECTSOUND"
+} swrSound_HARDWARE;
+
 #endif // TYPES_ENUMS_H

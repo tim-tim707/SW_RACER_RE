@@ -73,6 +73,10 @@ swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
 
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 
+swrUI_hiResSoundToggled 0x004b2044 uint8_t = 1 # set when the audio page toggles hi-res sound; never read
+swrUI_audioSnapshotHiResSound 0x004b204c int = 1 # Main_hiRes_sound on entering audio settings; OK restarts the sound system if it changed
+swrUI_audioSnapshotSound 0x004b2050 int = 1 # Main_sound on entering audio settings
+swrUI_forceFeedbackMissingShown 0x004b2054 uint8_t = 1 # set by swrUI_Menu_ForceFeedback when FF is toggled with no device; never read
 swrConfig_FORCE_ENABLED 0x004b2910 int
 swrControl_forceFeedbackAvailable 0x004b2914 int
 
@@ -2070,3 +2074,16 @@ swrText_glyphUnk01 0x00e99760 int # glyph byte 1 (0 for fonts whose first int is
 swrUI_settingsDirty 0x004d554c int # a settings page has unsaved changes; its back handler asks to save
 swrUI_audioSettingsSnapshotPending 0x004d556c int # set on entering audio settings; the page proc then snapshots Main_sound / Main_hiRes_sound
 swrUI_mainMenuDialog 0x004d5570 int # which confirm dialog swrUI_Menu_Main has open (SWR_UI_ID_MAIN_MULTIPLAYER / SWR_UI_ID_MAIN_QUIT), 0 = none
+swrUI_forceFeedbackPage 0x004d5540 swrUI_unk* # force feedback settings page (swrUI_Menu_ForceFeedback)
+swrUI_videoSettingsPage 0x004d5548 swrUI_unk* # video settings page (swrUI_Menu_VideoSettings)
+swrUI_forceFeedbackPageId 0x004d5554 int # written by swrUI_Menu_ForceFeedback, never read
+swrUI_videoSettingsPageId 0x004d5558 int # written by swrUI_Menu_VideoSettings, never read
+swrUI_noticeDurationUnused 0x004d5564 float # set to 2.1 next to several swrText_ShowTimedMessage calls; never read
+swrUI_videoSettingsClosePending 0x004d55b0 int # back pressed with unsaved changes: leave the page once the save dialog is answered
+swrUI_forceFeedbackClosePending 0x004d55c4 int # same, force feedback page
+swrUI_audioSettingsPage 0x004d553c swrUI_unk* # audio settings page (swrUI_Menu_AudioSettings)
+swrUI_audioSettingsPageId 0x004d5560 int # written by swrUI_Menu_AudioSettings, never read
+swrUI_audioSettingsClosePending 0x004d55b4 int # back pressed with unsaved changes: leave the page once the save dialog is answered
+swrUI_sfxVolumeChanged 0x004d55b8 int # sfx slider moved; applied (with a preview sound) on the page's next message
+swrUI_musicVolumeChanged 0x004d55bc int # music slider moved; applied on the page's next message
+swrUI_soundGainChanged 0x004d55c0 int # 3D gain slider moved; applied on the page's next message

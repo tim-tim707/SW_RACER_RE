@@ -239,9 +239,9 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 // ---- swrUI_Menu_*: F2 page procs for the main-menu / settings screens (0x401-0x403) ----
 int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
-int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
+int swrUI_Menu_VideoSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
+int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 
 // Settings sub-screens:
 int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)

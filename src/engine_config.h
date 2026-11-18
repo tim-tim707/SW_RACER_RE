@@ -170,6 +170,8 @@
 
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
 #define SWR_MAX_RACERS (20)
+#define SWR_PLANET_COUNT (8) // swrPlanetTable entries
+#define SWR_PLANET_OOVO_IV (6) // no suns/moons; spins 5x faster and keeps its rolled tilt
 // swrObjJdge_InitTrack's asset-buffer tally assumes a 4 MiB buffer (swrObjJdge_raceBufferSlack)
 #define SWR_RACE_BUFFER_TALLY_SIZE (0x400000)
 // selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
