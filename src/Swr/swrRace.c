@@ -7597,9 +7597,125 @@ void swrRace_ApplyPartSinkOffset(swrRace* player)
 }
 
 // 0x0046d7a0
-void swrRace_PlayEngineSounds(swrRace* player, float param_2)
+void swrRace_PlayEngineSounds(swrRace* player, float gain)
 {
-    HANG("TODO");
+    swrScore* score;
+    float pitchScale;
+    float speedRatio;
+    float downThreshold;
+    float upThreshold;
+    float pitch;
+    float volume;
+    int muted;
+    int numLocal;
+    int local;
+    int gear;
+    short oldGear;
+    short newGear;
+    int sfx;
+
+    muted = 0;
+    // heavier pods get a lower engine pitch
+    pitchScale = (1.0f - (swrRacer_PodHandlingData[*player->score_ptr->pilotId].bumpMass - 50.0f) * 0.04347826f) * 0.5f - -0.75f;
+    swrSound_UpdateEngineAudio(PlanetID, PlanetTrackNumber, swrRace_LapProgress(&player->splineCursor), player->speedValue);
+    if (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD))
+        muted = 1;
+    score = player->score_ptr;
+    numLocal = NumLocalPlayers();
+    if (numLocal == 0) {
+        local = 0;
+    } else {
+        local = GetLocalPlayerNumberFromScore(score);
+        if (local < 0)
+            return;
+    }
+    speedRatio = player->speedValue / score->podStats.maxSpeed;
+    if ((player->flags0 & swrObjTest_FLAG0_STATE_MASK) != swrObjTest_FLAG0_RACING) {
+        swrRace_engineGear[local] = 0;
+        swrRace_brakeSfxTimer[local] = 1.0f;
+        swrRace_boostStartSfxPlayed = 0;
+    }
+
+    // engine "gear" 0..3 follows speed / max speed with a 0.1 hysteresis
+    gear = swrRace_engineGear[local];
+    downThreshold = swrRace_engineGearThresholds[gear] - 0.1f;
+    if (downThreshold < 0.0f)
+        downThreshold = 0.0f;
+    oldGear = (short)swrRace_engineGear[local];
+    upThreshold = swrRace_engineGearThresholds[gear + 1] - -0.1f;
+    if (speedRatio < downThreshold)
+        swrRace_engineGear[local] = gear - 1;
+    if (speedRatio > upThreshold)
+        swrRace_engineGear[local]++;
+    if (swrRace_engineGear[local] < 0)
+        swrRace_engineGear[local] = 0;
+    if (swrRace_engineGear[local] > SWR_ENGINE_SFX_MAX_GEAR)
+        swrRace_engineGear[local] = SWR_ENGINE_SFX_MAX_GEAR;
+    newGear = (short)swrRace_engineGear[local];
+    sfx = (short)(swrRace_engineGear[local] + (local == 0 ? 0xaa : 0xb0));
+
+    if (sfx >= 0) {
+        pitch = (swrRace_engineGearPitch[newGear][0] + swrRace_engineGearPitch[newGear][1]) * 0.5f;
+        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f)
+            swrUtils_Rand(); // result unused
+        pitch = pitchScale * pitch;
+        if (player->flags1 & swrObjTest_FLAG1_EXPLODING) {
+            pitch = pitch * 1.5f;
+        } else if (player->flags1 & swrObjTest_FLAG1_AIRBORNE) {
+            pitch = 0.25f;
+            sfx = local != 0 ? 0xb5 : 0xaf;
+        }
+        if (!muted)
+            swrSound_PlaySpatialRange(sfx, 6, pitch, gain, (rdVector3*)&player->transform.vD, 1, 0, 20.0f, 500.0f);
+    }
+
+    if ((player->flags1 & swrObjTest_FLAG1_BOOST_START) && swrRace_boostStartSfxPlayed == 0) {
+        swrRace_boostStartSfxPlayed = 1;
+        swrUtils_Rand(); // result unused
+        if (!muted)
+            swrSound_PlaySpatialRange(0x72, 7, 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+    }
+
+    // throttle above half: extra engine layer, single local player only
+    if (player->throttle > 0.5f && numLocal == 1) {
+        pitch = pitchScale * 0.2f;
+        sfx = local != 0 ? 0xb4 : 0xae;
+        volume = gain * 1.3f;
+        if (volume > 1.0f)
+            volume = 1.0f;
+        if (player->flags1 & swrObjTest_FLAG1_AIRBORNE)
+            volume = volume * 0.3f;
+        if (!muted)
+            swrSound_PlaySpatialRange(sfx, 6, pitch, volume, (rdVector3*)&player->transform.vD, 1, 0, 10.0f, 500.0f);
+    }
+
+    // brake on/off one-shots, rate-limited by a 1 s ramp
+    if (player->flags0 & swrObjTest_FLAG0_BRAKING) {
+        if (swrRace_brakeSfxTimer[local] == 1.0f && !muted)
+            swrSound_PlaySpatialRange(0x80, 6, pitchScale * 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+        swrRace_brakeSfxTimer[local] = swrRace_brakeSfxTimer[local] - swrRace_deltaTimeSecs;
+        if (swrRace_brakeSfxTimer[local] < 0.0f)
+            swrRace_brakeSfxTimer[local] = 0.0f;
+    } else {
+        if (swrRace_brakeSfxTimer[local] == 0.0f && !muted)
+            swrSound_PlaySpatialRange(0x7f, 6, pitchScale * 0.25f, gain, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+        swrRace_brakeSfxTimer[local] = swrRace_brakeSfxTimer[local] + swrRace_deltaTimeSecs;
+        if (swrRace_brakeSfxTimer[local] > 1.0f)
+            swrRace_brakeSfxTimer[local] = 1.0f;
+    }
+
+    if (oldGear > newGear) {
+        swrUtils_Rand(); // results unused
+        swrUtils_Rand();
+        return;
+    }
+    if (oldGear < newGear) {
+        // gear-up whoosh with a random pitch (0.1..0.25) and gain (0.3..0.6)
+        pitch = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1 - -0.15) * pitchScale;
+        volume = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.30000000000000004 - -0.5) * gain;
+        if (!muted)
+            swrSound_PlaySpatialRange(0x7a, 6, pitch, volume, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
+    }
 }
 
 // 0x0046dea0

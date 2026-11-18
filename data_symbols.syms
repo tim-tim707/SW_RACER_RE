@@ -183,6 +183,10 @@ swrSound_currentMusicId 0x004b8748 int # track id currently streaming; cleared t
 swrMusicTrackTable 0x004b8750 int16_t[8][3]
 swrMusicPlanetIntroTable 0x004b8780 int16_t[12] # 8 planets, then 4 x -1 (swrSound_SelectPlanetIntroMusic indexes it % 12)
 swrSfxPreloadSets 0x004b8fa8 swrSfxCue*[24]
+swrSound_ambientCallTimer 0x004b8798 float # seconds to the next random Baroonda ambient call (sound 0x24, tracks 0..2); 10 at boot
+swrSound_cueRetriggerTimer 0x004b879c float # seconds to the next replay of a swrSfxCue_FLAG_PERIODIC cue; 5 at boot
+swrSfxCuesAndoPrimeTrack3 0x004b8928 swrSfxCue[8] # 7 cues + terminator; swrSound_UpdateEngineAudio list for planet 1 track 3
+swrSfxCuesBaroondaTrack3 0x004b8cc8 swrSfxCue[4] # 3 cues + terminator; planet 4 track 3
 swrSound_savedTrackMusicId 0x004b9090 int # last track queued by swrSound_SelectTrackMusic; re-queued on restore
 
 swrSprite_SpriteCount 0x004b91b8 int
@@ -1819,6 +1823,11 @@ swrControl_ffBoostActive 0x004d78c8 int # START_BOOST played, END_BOOST pending
 swrControl_ffPrevTilt 0x004d78c4 float # last frame tiltManualMult (ROLL_LEFT fires on sign change)
 swrRace_debugTauntRequest 0x004d79e0 int # debug key F5/F6 force-taunt/flame-attack latch; consumed+cleared in swrRace_UpdatePlayerControl
 swrRace_engineDamageSteeringPenalty 0x0050cae4 float # last engine-damage steering-pull magnitude (telemetry stash)
+swrRace_engineGear 0x0050cae8 int[4] # per local player engine-sound gear 0..3 (swrRace_PlayEngineSounds)
+swrRace_boostStartSfxPlayed 0x0050cb00 int # boost-start sound 0x72 already played this race
+swrRace_brakeSfxTimer 0x004c7a58 float[4] # per local player 0..1 ramp: brake-on sound at 1, brake-off sound at 0
+swrRace_engineGearThresholds 0x004c7a70 float[5] # speed / maxSpeed gear boundaries {0, .25, .5, .75, 1}
+swrRace_engineGearPitch 0x004c7a88 float[4][2] # per gear pitch pair, averaged
 
 stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 

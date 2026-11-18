@@ -1324,6 +1324,83 @@ release:
 
 // Arms the per-variant (categories 0-1) or per-category cooldown timer for a just-played sfx, set
 // to the sound's length (+1.0s; category 2 uses its own per-id source +0.25s).
+// 0x00427b20
+void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress, float speed)
+{
+    swrSfxCue* cue;
+    float start;
+    float end;
+    float progress;
+    float frac;
+    float gain;
+    int played;
+
+    // Baroonda (planet 4), tracks 0..2: random ambient call every 10..30 s
+    if (planetId == 4 && trackNumber < 3) {
+        swrSound_ambientCallTimer = swrSound_ambientCallTimer - swrRace_deltaTimeSecs;
+        if (swrSound_ambientCallTimer <= 0.0f) {
+            int roll = swrUtils_Rand();
+            swrSound_ambientCallTimer = (float)roll * SWR_CTL_RAND_NORM * 20.0f - -10.0f;
+            playASound(0x24, 6, 0.25f, 1.0f, 0);
+        }
+    }
+    if (trackNumber == 3) {
+        if (planetId == 1)
+            cue = swrSfxCuesAndoPrimeTrack3;
+        else if (planetId == 4)
+            cue = swrSfxCuesBaroondaTrack3;
+        else
+            cue = *(swrSfxCue**)&lapProgress; // faithful: reuses the progress argument's bits as the list pointer
+    } else {
+        cue = swrSfxPreloadSets[planetId * 3 + trackNumber];
+    }
+    if (cue == NULL || cue->startProgress < 0.0f)
+        return;
+
+    // only the first cue whose range contains the progress plays
+    played = 0;
+    do {
+        if (played != 0)
+            return;
+        start = cue->startProgress;
+        end = cue->endProgress;
+        progress = lapProgress;
+        if (end < start) {
+            // range wraps the start/finish line
+            if (lapProgress < start)
+                progress = lapProgress - -1.0f;
+            end = end - -1.0f;
+        }
+        if (start < end) {
+            frac = (progress - start) / (end - start);
+            if (frac > 0.0f && frac < 1.0f) {
+                played = 1;
+                if (cue->flags & swrSfxCue_FLAG_PERIODIC) {
+                    swrSound_cueRetriggerTimer = swrSound_cueRetriggerTimer - swrRace_deltaTimeSecs;
+                    if (swrSound_cueRetriggerTimer <= 0.0f) {
+                        int roll = swrUtils_Rand();
+                        swrSound_cueRetriggerTimer = (float)roll * SWR_CTL_RAND_NORM * 10.0f - -5.0f;
+                        playASound(cue->soundId, 6, 0.25f, 1.0f, 0);
+                    }
+                } else {
+                    // fade in over the first quarter of the range, out over the last
+                    if (frac < 0.25f)
+                        gain = frac * 4.0f;
+                    else if (frac <= 0.75f)
+                        gain = 1.0f;
+                    else
+                        gain = (1.0f - frac) * 4.0f;
+                    if (cue->soundId == 5)
+                        gain = gain * 0.8f;
+                    if (gain > 0.0f)
+                        playASound(cue->soundId, 6, 0.25f, gain, 1);
+                }
+            }
+        }
+        cue++;
+    } while (cue->startProgress >= 0.0f);
+}
+
 // 0x00427530
 void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int id)
 {

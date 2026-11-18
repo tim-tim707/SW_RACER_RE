@@ -168,6 +168,7 @@
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
+#define SWR_ENGINE_SFX_MAX_GEAR (3) // swrRace_engineGear range 0..3 (swrRace_PlayEngineSounds)
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)

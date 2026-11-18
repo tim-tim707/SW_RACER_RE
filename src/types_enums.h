@@ -4249,6 +4249,11 @@ typedef enum swrSoundDescriptor_FLAG
     swrSoundDescriptor_STREAMED = 0x8, // large sound streamed from disk
 } swrSoundDescriptor_FLAG;
 
+typedef enum swrSfxCue_FLAG
+{
+    swrSfxCue_FLAG_PERIODIC = 0x1, // replay at a random 5..15 s interval instead of a gain-ramped loop
+} swrSfxCue_FLAG;
+
 typedef enum SithPuppetMoveMode
 {
     SITHPUPPET_MOVEMODE_NORMAL = 0,

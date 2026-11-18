@@ -459,7 +459,7 @@ void swrRace_HandleDeathSnap(swrRace* player);
 // Handles the respawn-pod flag (flags0 0x1000): clears it and resets race state.
 void swrRace_HandleRespawnFlag(swrRace* player);
 // Detailed per-frame engine audio: RPM/gear-based engine sounds, boost and scrape SFX.
-void swrRace_PlayEngineSounds(swrRace* player, float param_2);
+void swrRace_PlayEngineSounds(swrRace* player, float gain);
 // Tilts the engine transforms from pitch (0x2fc) and tilt angle (0x204).
 void swrRace_TiltEngines(swrRace* player);
 // Spins the engine transforms during a spinout/explosion (flags1 0x8000/0x10000).
