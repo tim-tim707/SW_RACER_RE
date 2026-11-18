@@ -3,6 +3,7 @@
 #include "swrLoader.h"
 #include "types_enums.h"
 #include "macros.h"
+#include "engine_config.h"
 #include "swrAssetBuffer.h"
 #include "globals.h"
 #include "swr.h"
@@ -413,6 +414,12 @@ void swrSpline_CursorSeekToProgress(void* cursor, int progress)
 // March the cursor along the spline until the point projects onto the segment between the
 // current sample and the next (advance while the point is ahead of the tangent plane,
 // then back off by fine steps), mapping a world position to a spline parameter.
+// 0x0047ea20
+void swrSpline_BakeSampleTrackMesh(void* cursor, float samplesPerNode, swrModel_Node* trackModel, unsigned short* order)
+{
+    HANG("TODO");
+}
+
 // 0x0047eb60
 void swrSpline_ProjectPoint(void* cursor, rdVector3* point)
 {
@@ -456,6 +463,12 @@ void swrSpline_ProjectPoint(void* cursor, rdVector3* point)
 // Walk every forward path through the spline graph (node -> next branches, up to 3 levels
 // deep for multi-segment types), subdividing each into fixed 1/step increments and invoking
 // callback(cursor, step, arg3, arg4) at each sample.
+// 0x0047ece0
+void swrSpline_ValidateSampleTrackMesh(void* cursor, float samplesPerNode)
+{
+    HANG("TODO");
+}
+
 // 0x0047ee20
 void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* arg4, void* callback)
 {
@@ -508,6 +521,12 @@ void swrSpline_ForEachSample(swrSpline* spline, float step, void* arg3, void* ar
 // (.x = arc-length progress, .y = segment delta) and, at +0xfc, the baked sample->track-mesh
 // table (10 mesh pointers per node, written by swrSpline_BakeSampleTrackMesh, read by
 // swrRace_GetTrackMeshAtCursor). Clear both for one node.
+// 0x0047f470
+void swrSpline_BuildProgressTable(swrSpline* spline, float segmentLength, unsigned short* order)
+{
+    HANG("TODO");
+}
+
 // 0x0047f6c0
 void swrSpline_ResetNodeProgress(int nodeIndex)
 {
@@ -542,5 +561,29 @@ int swrSpline_CollectNearbyPoints(swrSpline* spline, float* center, float range,
 // 0x0047f6f0
 void swrSpline_Build(swrSpline* spline, struct swrModel_Node* trackModel)
 {
-    HANG("TODO");
+    unsigned short order[SWR_SPLINE_MAX_SEGMENTS];
+    int i;
+
+    swrSpline_finishNodeIdx = -1;
+    if (spline == NULL || (int)spline->num_segments > SWR_SPLINE_MAX_SEGMENTS)
+        return;
+    if (spline->control_points[0].prev_count == 0) {
+        swrSpline_finishNodeIdx = -2;
+        for (i = 0; i < (int)spline->num_control_points; i++) {
+            swr_noop4();
+            // -3 is never stored in retail, so this reset is dead
+            if (swrSpline_finishNodeIdx == -3 && spline->control_points[i].next_count == 0)
+                swrSpline_ResetNodeProgress(i);
+        }
+    } else {
+        for (i = 0; i < (int)spline->num_control_points; i++) {
+            swr_noop4();
+            if (spline->control_points[i].next_count == 0)
+                swrSpline_ResetNodeProgress(i);
+        }
+    }
+    swrSpline_BuildProgressTable(spline, 100.0f, order);
+    swrSpline_ForEachSample(spline, 10.0f, trackModel, order, swrSpline_BakeSampleTrackMesh);
+    if (swrSpline_validateSampleMeshes != 0)
+        swrSpline_ForEachSample(spline, 10.0f, NULL, NULL, swrSpline_ValidateSampleTrackMesh);
 }

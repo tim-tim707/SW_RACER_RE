@@ -169,6 +169,9 @@
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
 #define SWR_ENGINE_SFX_MAX_GEAR (3) // swrRace_engineGear range 0..3 (swrRace_PlayEngineSounds)
+#define SWR_LZSS_WINDOW_SIZE (0x1000) // swrLoader_DecompressLZSS ring buffer, placed just before the input
+#define SWR_MESH_MATERIAL_PROP_TEXTURE (2) // swrModel_MeshMaterialSetTexture property id
+#define SWR_SPLINE_MAX_SEGMENTS (250) // swrSpline_Build skips larger splines; size of its progress-order table
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)

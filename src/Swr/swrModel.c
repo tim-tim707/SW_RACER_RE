@@ -934,7 +934,19 @@ void swrModel_UpdateAxisAngleAnimation(swrModel_Animation* anim)
 // 0x00426080
 void swrModel_UpdateTextureFlipbookAnimation(swrModel_Animation* anim)
 {
-    HANG("TODO");
+    int index = anim->key_frame_index;
+    swrModel_MaterialTexture* texture;
+    swrModel_MeshMaterial** material;
+
+    if (anim->animation_time <= anim->key_frame_times[index + 1])
+        texture = anim->key_frame_textures[index];
+    else
+        texture = anim->key_frame_textures[index + 1];
+    material = anim->flipbook_materials;
+    if (material == NULL)
+        return;
+    for (; *material != NULL; material++)
+        swrModel_MeshMaterialSetTexture(*material, SWR_MESH_MATERIAL_PROP_TEXTURE, texture);
 }
 
 // 0x004260F0
@@ -1748,6 +1760,13 @@ swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 // Classifies a mesh material's collision facing from its swrModel_MeshMaterial::type bits, telling
 // the ray test which face sides to accept: -1 = no material (or not enabled), 0 = double-sided,
 // 1 = front-facing one-sided (0x8), 2/3 = mirrored one-sided (0x40, +1 when also front-facing).
+// 0x00431860
+void swrModel_MeshMaterialSetTexture(swrModel_MeshMaterial* material, int property, swrModel_MaterialTexture* texture)
+{
+    if (property == SWR_MESH_MATERIAL_PROP_TEXTURE)
+        material->material_texture = texture;
+}
+
 // 0x00431880
 int swrModel_ClassifyMaterialFacing(swrModel_MeshMaterial* material, int enable)
 {

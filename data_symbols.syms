@@ -443,6 +443,7 @@ swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1
 
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
+swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float

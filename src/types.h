@@ -1778,11 +1778,13 @@ extern "C"
             rdVector3* key_frame_translations; // type 0x9
             float* key_frame_uv_x_offsets; // type 0xB
             float* key_frame_uv_y_offsets; // type 0xC
+            struct swrModel_MaterialTexture** key_frame_textures; // type 0x2 (texture flipbook)
         };
         union
         {
             swrModel_NodeTransformed* node_ptr; // if type == 0x8 or type == 0x9 or type == 0xA
             swrModel_MeshMaterial* material_ptr; // if type == 0xB or type == 0xC
+            swrModel_MeshMaterial** flipbook_materials; // type 0x2: NULL-terminated list retextured each frame
         };
         uint32_t unk11;
     } swrModel_Animation;
