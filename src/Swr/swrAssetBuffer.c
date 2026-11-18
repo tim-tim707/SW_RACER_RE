@@ -101,3 +101,11 @@ void swrAssetBuffer_InvalidateTexturesBelow(char* ptr)
             texture_buffer[i] = NULL;
     }
 }
+
+// 0x00448d10
+void swrAssetBuffer_GetStats(int* out1, int* out2, int* out3)
+{
+    *out1 = assetBufferUnknownStats1;
+    *out3 = assetBufferUnknownStats4;
+    *out2 = assetBufferUnknownStats2;
+}

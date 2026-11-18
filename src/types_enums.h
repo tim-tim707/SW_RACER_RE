@@ -66,6 +66,7 @@ typedef enum swrVehicleReaction
 // GameSettingFlags @ 0x00e996dc: global render/gameplay setting bits.
 typedef enum GameSettingFlag
 {
+    GAME_SETTING_STEREO_PAN = 0x8, // swrSound_PlaySpatial pans sfx by their side of the listener
     GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
@@ -478,7 +479,9 @@ typedef enum swrObjcMan_VIEWFLAGS
 {
     swrObjcMan_VIEWFLAGS_FOG_DISTANCE = 0x1, // the surface sets the fog end distance (swrModel_Behavior_FOGFLAG_DISTANCE)
     swrObjcMan_VIEWFLAGS_FOG_START = 0x2, // the surface's fog start is > 0
+    swrObjcMan_VIEWFLAGS_NO_SKYBOX = 0x4, // hide the skybox and clear the frame (swrObjJdge_ToggleSkyboxVisibility_Maybe)
     swrObjcMan_VIEWFLAGS_NO_WEATHER = 0x8, // swrWeather_Disable instead of Enable
+    swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR = 0x10, // jump fog_rgb to its target instead of stepping (consumed while fog is on)
 } swrObjcMan_VIEWFLAGS;
 
 // swrModel_Behavior.fog_flags

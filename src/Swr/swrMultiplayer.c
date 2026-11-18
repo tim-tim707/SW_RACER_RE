@@ -230,6 +230,22 @@ void swrMultiplayer_SaveLastPlayerName(swrUI_unk* field)
     wuRegistry_SetString("Last Player", name);
 }
 
+// 0x00420b80
+void swrMultiplayer_FillDefaultGameName(swrUI_unk* field)
+{
+    char name[256];
+    char defaultName[256];
+    DWORD size;
+
+    memset(name, 0, sizeof(name));
+    size = sizeof(name);
+    GetComputerNameA(name, &size);
+    sprintf(defaultName, swrText_Translate("/MONDOTEXT_H_0426/%s's Game"), name);
+    memset(name, 0, sizeof(name));
+    wuRegistry_GetString("Last Game", name, sizeof(name), defaultName);
+    swrUI_RunCallbacksScreenText(field, name, 0);
+}
+
 // 0x00420c20
 void swrMultiplayer_SetLastGame(char* str)
 {

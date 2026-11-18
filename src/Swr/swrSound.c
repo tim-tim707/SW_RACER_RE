@@ -7,15 +7,19 @@
 #include "swrObj.h"   // NumLocalPlayers
 #include "swrConfig.h"
 #include "swrUI.h"
+#include "swrCam.h"
 
 #include <engine_config.h>
 #include <macros.h>
 
 #include <General/stdConffile.h>
+#include <General/stdMath.h>
 #include <General/stdHashTable.h>
 #include <General/stdString.h>
 #include <General/utils.h> // swrUtils_Rand
 #include <Platform/a3d.h>
+#include <Primitives/rdMatrix.h>
+#include <Primitives/rdVector.h>
 #include <Win95/Window.h>
 
 #include <stdio.h> // sprintf
@@ -1431,7 +1435,67 @@ int swrSound_IsLoopingSfxId_Maybe(int soundId)
 // 0x00426d80
 void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, rdVector3* position, int param6, unsigned int flags)
 {
-    HANG("TODO");
+    int alwaysPanned[9] = { 0x7f, 0x80, 0x72, 0x79, 0x7a, 0xaa, 0xab, 0xac, 0xad };
+    rdMatrix44 listener;
+    rdVector4 listenerPlane;
+    rdVector3 offset;
+    rdVector3 side;
+    unsigned int i;
+    float distSq;
+    float attenuation;
+    float pan;
+    float volume;
+
+    if ((int)flags >= 0) {
+        for (i = 0; i < 9; i++) {
+            if (soundId == alwaysPanned[i])
+                break;
+        }
+        if (i == 9 && Sound_enabled_3d != 0) {
+            if (gain > 0.0f)
+                playASoundImpl(soundId, param2, param3, gain, -999, param6, param6 != 0 ? 0 : flags, (int*)position);
+            return;
+        }
+    }
+
+    swrCam_PickNearestSplitCameraTransform_Maybe(&listener, &position->x);
+    rdVector_Point3ToPerspective3(&listenerPlane, (rdVector3*)&listener.vC, (rdVector3*)&listener.vD);
+    offset.x = position->x - listener.vD.x;
+    offset.y = position->y - listener.vD.y;
+    offset.z = position->z - listener.vD.z;
+    distSq = offset.z * offset.z + offset.y * offset.y + offset.x * offset.x;
+    if (distSq >= swrSound_spatialMaxDist * swrSound_spatialMaxDist)
+        return;
+
+    attenuation = 1.0f;
+    if (swrSound_spatialMinDist * swrSound_spatialMinDist < distSq) {
+        attenuation = 1.0 - (stdMath_Sqrt(distSq) - swrSound_spatialMinDist) / (swrSound_spatialMaxDist - swrSound_spatialMinDist);
+        if (attenuation < 0.01)
+            return;
+        if (attenuation > 1.0)
+            attenuation = 1.0f;
+    }
+
+    pan = 0.0f;
+    if ((GameSettingFlags & GAME_SETTING_STEREO_PAN) != 0) {
+        ProjectPointOntoPlane(&listenerPlane.x, position, &offset);
+        offset.x = offset.x - listener.vD.x;
+        offset.y = offset.y - listener.vD.y;
+        offset.z = offset.z - listener.vD.z;
+        if (offset.x >= 0.01f || -offset.x >= 0.01f || offset.y >= 0.01 || -offset.y >= 0.01) {
+            rdVector_Normalize3Acc(&offset);
+            rdVector_Cross3(&side, &offset, (rdVector3*)&listener.vB);
+            pan = rdVector_Len3(&side);
+            if (side.x * listener.vC.x + side.y * listener.vC.y + side.z * listener.vC.z < 0.0f)
+                pan = -pan;
+        }
+    }
+
+    volume = attenuation * gain;
+    if (volume <= 0.0f)
+        return;
+    // faithful: the voice is positioned at rdVector_sound_pos, not at position
+    playASoundImpl(soundId, param2, param3, volume, (short)(int)(pan * 45.0f - -64.0f), param6, 0, (int*)&rdVector_sound_pos);
 }
 
 // 0x00426d10

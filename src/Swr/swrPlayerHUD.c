@@ -6,6 +6,7 @@
 
 #include <Primitives/rdVector.h>
 #include <engine_config.h>
+#include <macros.h>
 
 // 0x0042cb00
 void swrPlayerHUD_RenderWorldSprites(void* viewport)
@@ -47,4 +48,10 @@ void swrPlayerHUD_RenderWorldSprites(void* viewport)
 void swrPlayerHUD_Enable(void)
 {
     InRaceSpritesEnabled = 1;
+}
+
+// 0x00464630
+void swrPlayerHUD_LoadRaceHUD(int hudType, int weatherLevel, int racerData)
+{
+    HANG("TODO");
 }

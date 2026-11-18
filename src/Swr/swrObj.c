@@ -453,9 +453,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
         goto updateLightFlags;
 
     if ((behavior->unk1 & 2) != 0)
-        cman->fog_flag |= 4;
+        cman->fog_flag |= swrObjcMan_VIEWFLAGS_NO_SKYBOX;
     if ((behavior->unk1 & 4) != 0)
-        cman->fog_flag &= ~4;
+        cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_NO_SKYBOX;
 
     if ((behavior->fog_flags & swrModel_Behavior_FOGFLAG_DISTANCE) != 0) {
         cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_DISTANCE;
@@ -474,9 +474,9 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
             cman->fog_flag |= swrObjcMan_VIEWFLAGS_FOG_START;
         else
             cman->fog_flag &= ~swrObjcMan_VIEWFLAGS_FOG_START;
-        cman->unk2e0 = (float)(short)behavior->fog_start;
-        if (cman->unk2e0 > 999.0f)
-            cman->unk2e0 = 999.0f;
+        cman->fogStartDistTarget = (float)(short)behavior->fog_start;
+        if (cman->fogStartDistTarget > 999.0f)
+            cman->fogStartDistTarget = 999.0f;
         cman->fog_r_target = behavior->fog_color[0];
         cman->fog_g_target = behavior->fog_color[1];
         cman->fog_b_target = behavior->fog_color[2];
@@ -1059,10 +1059,141 @@ void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman)
     swrModel_NodeSetTransform((swrModel_NodeTransformed*)pod->guideArrowNode, &arrow);
 }
 
+static void swrObjcMan_StepFogChannel(unsigned int* channel, int target)
+{
+    int value = (int)*channel;
+    if (value > target) {
+        *channel = (int)(value - swrRace_deltaTimeSecs * 195.0);
+        if ((int)*channel < target)
+            *channel = target;
+    } else if (value < target) {
+        *channel = (int)(value + swrRace_deltaTimeSecs * 195.0);
+        if ((int)*channel > target)
+            *channel = target;
+    }
+}
+
 // 0x004538d0
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
 {
-    HANG("TODO");
+    float nearClip;
+    float farClip;
+    float fov;
+    float camParam6;
+    int fogEnabled;
+    int fogStartInt;
+    unsigned int flags;
+    double step;
+    swrViewportFog* viewportFog;
+
+    if (swrObjcMan_holdClipPlanes != 0) {
+        nearClip = swrObjcMan_heldNearClip;
+        farClip = swrObjcMan_heldFarClip;
+    } else {
+        if ((cman->fog_flag & swrObjcMan_VIEWFLAGS_FOG_DISTANCE) == 0) {
+            farClip = -1.0f;
+        } else {
+            if (cman->fogDistTarget > 0.0f) {
+                if (cman->fogDist > cman->fogDistTarget) {
+                    step = cman->fogDist - swrRace_deltaTimeSecs * 2000.0;
+                    cman->fogDist = step;
+                    if (step < cman->fogDistTarget) {
+                        cman->fogDist = cman->fogDistTarget;
+                        cman->fogDistTarget = -1.0f;
+                    }
+                } else {
+                    step = cman->fogDist - swrRace_deltaTimeSecs * -2000.0;
+                    cman->fogDist = step;
+                    if (step > cman->fogDistTarget) {
+                        cman->fogDist = cman->fogDistTarget;
+                        cman->fogDistTarget = -1.0f;
+                    }
+                }
+            }
+            farClip = cman->fogDist;
+        }
+        nearClip = cman->nearClip;
+        swrObjcMan_heldNearClip = nearClip;
+        swrObjcMan_heldFarClip = farClip;
+    }
+
+    if (swrObjcMan_holdFov != 0) {
+        fov = swrObjcMan_heldFov;
+    } else {
+        fov = cman->fov;
+        swrObjcMan_heldFov = fov;
+    }
+
+    camParam6 = cman->unk2b8;
+    if (swrObjcMan_holdFog != 0) {
+        fogEnabled = swrObjcMan_heldFogEnabled;
+        fogStartInt = swrObjcMan_heldFogStart;
+    } else {
+        fogEnabled = cman->fog_flag & swrObjcMan_VIEWFLAGS_FOG_START;
+        if (fogEnabled != 0 && cman->fogStartDistTarget >= 0.0f) {
+            if (cman->fogStartDist > cman->fogStartDistTarget) {
+                step = cman->fogStartDist - swrRace_deltaTimeSecs * 5.0;
+                cman->fogStartDist = step;
+                if (step < cman->fogStartDistTarget) {
+                    cman->fogStartDist = cman->fogStartDistTarget;
+                    cman->fogStartDistTarget = -1.0f;
+                }
+            } else {
+                step = cman->fogStartDist - swrRace_deltaTimeSecs * -5.0;
+                cman->fogStartDist = step;
+                if (step > cman->fogStartDistTarget) {
+                    cman->fogStartDist = cman->fogStartDistTarget;
+                    cman->fogStartDistTarget = -1.0f;
+                }
+            }
+        }
+        fogStartInt = (int)cman->fogStartDist;
+        swrObjcMan_heldFogEnabled = fogEnabled;
+        swrObjcMan_heldFogStart = fogStartInt;
+    }
+
+    if (fov >= 0.0 || camParam6 >= 0.0 || nearClip >= 0.0 || farClip >= 0.0) {
+        if (swrObjJdge_splitscreenWideFov != 0 && (swrViewport_array[2].flag & 1) != 0)
+            swrViewport_SetCameraParameters(cman->metaCamIndex_count, 120.0f, -1.0f, nearClip, farClip, camParam6);
+        else
+            swrViewport_SetCameraParameters(cman->metaCamIndex_count, fov, -1.0f, nearClip, farClip, camParam6);
+    }
+
+    flags = cman->fog_flag;
+    if ((flags & swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR) != 0) {
+        cman->fog_r = cman->fog_r_target;
+        cman->fog_g = cman->fog_g_target;
+        cman->fog_b = cman->fog_b_target;
+    } else {
+        swrObjcMan_StepFogChannel(&cman->fog_r, (int)cman->fog_r_target);
+        swrObjcMan_StepFogChannel(&cman->fog_g, (int)cman->fog_g_target);
+        swrObjcMan_StepFogChannel(&cman->fog_b, (int)cman->fog_b_target);
+    }
+
+    // faithful: the color snap request is only consumed while fog is on
+    if (fogEnabled != 0) {
+        cman->fog_flag = flags & ~swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR;
+        rdModel_SetFogEnabled_Maybe(1);
+        SetFogParameters(fogStartInt, 1000, cman->fog_r, cman->fog_g, cman->fog_b, 0xff);
+        SetClearColor(cman->fog_r, cman->fog_g, cman->fog_b);
+    } else {
+        rdModel_SetFogEnabled_Maybe(0);
+    }
+    swrObjJdge_ToggleSkyboxVisibility_Maybe((int)&cman->unk20_mat.vD, cman->fog_flag);
+
+    if (swrObjJdge_splitscreenActive == 0)
+        return;
+    viewportFog = &swrPlayerHUD_viewportFog[cman->metaCamIndex_count];
+    viewportFog->skyboxVisible = (cman->fog_flag & swrObjcMan_VIEWFLAGS_NO_SKYBOX) == 0;
+    if (fogEnabled == 0) {
+        viewportFog->enabled = 0;
+        return;
+    }
+    viewportFog->enabled = 1;
+    viewportFog->start = fogStartInt;
+    viewportFog->r = cman->fog_r;
+    viewportFog->g = cman->fog_g;
+    viewportFog->b = cman->fog_b;
 }
 
 // 0x00453e00
@@ -5846,10 +5977,121 @@ void* GetTrackModelRoot(void)
     return someRootNodeChildNodes[3];
 }
 
+// 0x00464b90
+void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model)
+{
+    HANG("TODO");
+}
+
+// 0x004651a0
+void swrModel_LoadBeamAndSparkModels(void)
+{
+    swrModel_Header* header;
+
+    header = swrModel_LoadFromId(MODELID_beamanim_vlec);
+    swrModel_LoadAllAnimationsOfModel(header);
+    swrModel_beamTemplateNode = header->entries[0].node;
+    header = swrModel_LoadFromId(MODELID_sparky_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    swrModel_sparkTemplateNode = header->entries[0].node->children.nodes[0];
+}
+
 // 0x00465510
 void LoadTrackModels(swrObjJdge* judge)
 {
-    HANG("TODO");
+    swrModel_Header* header;
+    swrModel_Animation** anims;
+    int i;
+    int viewFlags6;
+    int stackField;
+
+    memset(someRootNodeChildNodes, 0, sizeof(someRootNodeChildNodes));
+    swrModel_NodeInit(&someRootNode, NODE_BASIC);
+    someRootNode.num_children = 15;
+    someRootNode.children.nodes = someRootNodeChildNodes;
+
+    swrObjJdge_trackModelBufferBytes = (int)swrAssetBuffer_GetBuffer();
+    swr_noop4();
+    header = swrModel_LoadFromId(judge->unk1b0_modelId);
+    anims = swrModel_LoadAllAnimationsOfModel(header);
+    someRootNodeChildNodes[0] = header->entries[2].node;
+    someRootNodeChildNodes[3] = header->entries[0].node;
+    if (swrObjJdge_splitscreenActive != 0)
+        swrObjJdge_splitSkyboxNode = someRootNodeChildNodes[0];
+    swrAssetBuffer_GetStats(&swrObjJdge_trackAssetStats1, &swrObjJdge_trackAssetStats2, &swrObjJdge_trackAssetStats4);
+    swrObjJdge_trackModelBufferBytes = (int)swrAssetBuffer_GetBuffer() - swrObjJdge_trackModelBufferBytes;
+
+    swrObjToss_AddDustKickModelsToScene();
+    swrObjSmok_AddFireballModelsToScene();
+    AddFireballToModelScene();
+    swrObjJdge_SetupTrackEnvironment(judge, (int*)anims, (int)header);
+    swrModel_LoadAllLightStreaks(header);
+
+    if (judge->planetId == 4 && judge->planet_track_number == 0) {
+        header = swrModel_LoadFromId(MODELID_beachanim_vlec);
+        swrModel_LoadAllAnimationsOfModel(header);
+        someRootNodeChildNodes[2] = header->entries[0].node;
+        if (header->entries[0].node != NULL)
+            swrModel_NodeModifyFlags(header->entries[0].node, 2, 3, 0x10, 2);
+    } else {
+        someRootNodeChildNodes[2] = NULL;
+    }
+    swrModel_LoadBeamAndSparkModels();
+
+    header = swrModel_LoadFromId(MODELID_lightset_vlec);
+    someRootNodeChildNodes[9] = header->entries[0].node;
+    for (i = 0; i < 6; i++) {
+        judge->splineMarkers[i] = header->entries[0].node->children.nodes[i];
+        if (judge->splineMarkers[i] != NULL)
+            swrModel_NodeModifyFlags(judge->splineMarkers[i], 2, -4, 0x10, 3);
+    }
+
+    header = swrModel_LoadFromId(MODELID_gate01_part);
+    swrModel_LoadAllAnimationsOfModel(header);
+    someRootNodeChildNodes[8] = header->entries[0].node;
+    if (someRootNodeChildNodes[8] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[8], 2, -4, 0x10, 3);
+    judge->unk28_model = header->entries[0].node;
+
+    someRootNodeChildNodes[13] = swrModel_LoadFromId(MODELID_white_arrow_part)->entries[0].node;
+    if (someRootNodeChildNodes[13] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[13], 2, -4, 0x10, 3);
+    someRootNodeChildNodes[14] = swrModel_LoadFromId(MODELID_white_arrow_part)->entries[0].node;
+    if (someRootNodeChildNodes[14] != NULL)
+        swrModel_NodeModifyFlags(someRootNodeChildNodes[14], 2, -4, 0x10, 3);
+    judge->unk30 = (int)someRootNodeChildNodes[3];
+
+    swrModel_NodeInit(&swrObjJdge_podRootNode, NODE_BASIC);
+    swrObjJdge_podRootNode.num_children = 0;
+    swrObjJdge_podRootNode.children.nodes = swrObjJdge_podRootChildren;
+    someRootNodeChildNodes[10] = &swrObjJdge_podRootNode;
+    swrModel_NodeInit(&swrObjJdge_podMirrorRootNode, NODE_BASIC);
+    swrObjJdge_podMirrorRootNode.num_children = 0;
+    swrObjJdge_podMirrorRootNode.children.nodes = swrObjJdge_podMirrorRootChildren;
+    someRootNodeChildNodes[1] = &swrObjJdge_podMirrorRootNode;
+
+    swrObjJdge_AddTriggersToScene(judge);
+    swrViewport_SetRootNodeForAllViewports(&someRootNode);
+
+    viewFlags6 = 0x16;
+    stackField = 0x10;
+    if (judge->planet_track_number == 1) {
+        viewFlags6 = 0x26;
+        stackField = 0x20;
+    }
+    if (judge->planet_track_number == 2) {
+        viewFlags6 = 0x46;
+        stackField = 0x40;
+    }
+    if (judge->planet_track_number == 3) {
+        viewFlags6 = 0x16;
+        stackField = 0x10;
+    }
+    swrViewport_SetNodeFlagsForAllViewports(4, 0xffffff00);
+    swrViewport_SetNodeFlagsForAllViewports(3, 0xffffff00);
+    swrViewport_SetNodeFlagsForAllViewports(6, viewFlags6);
+    rdMatrixStack_SetField_Maybe(5, stackField | 2);
+    swr_noop2();
 }
 
 // 0x00465840
@@ -5996,10 +6238,100 @@ void InitAISettingsForTrack(swrObjJdge* judge)
     }
 }
 
+// 0x00465d50
+void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
+{
+    HANG("TODO");
+}
+
+// 0x004663e0
+void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores)
+{
+    HANG("TODO");
+}
+
 // 0x00466BD0
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 {
-    HANG("TODO");
+    swrScore* score;
+    int i;
+
+    rdroid_g_curRenderOptions2 = 0;
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_prevRacePositions[i] = i;
+    swrAssetBuffer_ResetToIndex(1);
+    swrObjJdge_raceBufferStart = swrAssetBuffer_GetBuffer();
+    swrObjJdge_splineBufferBytes = 0;
+    lowMemoryRacerCount = 0;
+    swr_noop2();
+    swrModel_ClearSceneAnimations();
+    swrWeather_ResetParticles();
+    ResetLightStreakSprites();
+    ResetSunAndLensFlareSprites();
+    ResetPlayerSpriteValues();
+
+    judge->camSweepState = NULL;
+    swrScoresPtr = scores;
+    firstLocalPlayer = NULL;
+    secondLocalPlayer = NULL;
+    thirdLocalPlayer = NULL;
+    fourthLocalPlayer = NULL;
+    numLocalPlayers = 0;
+    for (i = 0; i < judge->num_players; i++) {
+        score = &scores[i];
+        if (score->identifier != 'Locl')
+            continue;
+        numLocalPlayers++;
+        if (firstLocalPlayer == NULL)
+            firstLocalPlayer = score;
+        else if (secondLocalPlayer == NULL)
+            secondLocalPlayer = score;
+        else if (thirdLocalPlayer == NULL)
+            thirdLocalPlayer = score;
+        else if (fourthLocalPlayer == NULL)
+            fourthLocalPlayer = score;
+    }
+
+    swrModel_Node1 = NULL;
+    swrModel_Node3 = NULL;
+    swrModel_Node2 = NULL;
+    swrModel_Node4 = NULL;
+    swrObjJdge_splitscreenActive = 0;
+    swrObjJdge_splitscreenWideFov = 0;
+    if (numLocalPlayers > 1) {
+        swrObjJdge_singleLocalViewport = 0;
+        swrObjJdge_splitscreenActive = 1;
+        if (judge->planetId == 6)
+            swrObjJdge_splitscreenWideFov = 1;
+    }
+    if (judge->planetId == 3 && judge->planet_track_number == 2)
+        swrObjTrig_regionGridLayout = 1;
+    else if (judge->planetId == 1 && judge->planet_track_number == 0)
+        swrObjTrig_regionGridLayout = 2;
+    else
+        swrObjTrig_regionGridLayout = 0;
+
+    LoadTrackModels(judge);
+    swrPlayerHUD_LoadRaceHUD(judge->planetId, judge->planet_track_number, (int)judge);
+    LoadTrackSpline(judge);
+    swrObjJdge_SetupStartingGrid(judge);
+    InitPrimaryLight();
+    InitAISettingsForTrack(judge);
+    swrObjJdge_SpawnRacers(judge, scores);
+    swrSound_ResetMusic();
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrSound_ClearSfxFlag(i, 0xff0000);
+
+    swrObjJdge_raceBufferEnd = swrAssetBuffer_GetBuffer();
+    swrObjJdge_raceBufferFree = swrAssetBuffer_RemainingSize();
+    swrObjJdge_raceBufferOtherBytes = swrObjJdge_raceBufferEnd - swrObjJdge_raceBufferStart;
+    swrObjJdge_raceBufferSlack = SWR_RACE_BUFFER_TALLY_SIZE - swrObjJdge_raceBufferOtherBytes - swrObjJdge_raceBufferFree;
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrObjJdge_raceBufferOtherBytes -= swrObjJdge_racerBufferBytes[i];
+    swrObjJdge_raceBufferOtherBytes -= swrObjJdge_testObjBufferBytes + swrObjJdge_splineBufferBytes + swrObjJdge_trackModelBufferBytes;
+    swrAssetBuffer_CheckOverflow();
+    // faithful: the original returns CheckOverflow's leftover EAX; the only caller ignores it
+    return 0;
 }
 
 // 0x00466e40
