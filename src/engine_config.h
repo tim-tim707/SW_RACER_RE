@@ -148,6 +148,10 @@
 #define SWR_SOUND_DEFAULT_BANK_SIZE (87) // swrSound_defaultBankFiles entries, allocated when sounds.map is missing
 #define SWR_SOUND_HASHTABLE_SIZE (1200) // swrSound_Startup: buckets in swrSoundHashTable
 #define SWR_SOUND_NUM_VOICES (8) // swrSound_voicesRequested entries
+#define SWR_CAM_HALF_TURN (180.0f) // swrCam_CamState_ApplyToViewport angle unwrapping (0x004ac4fc)
+#define SWR_CAM_FULL_TURN (360.0f) // (0x004ac500)
+#define SWR_NUM_CAMERAS (32) // unkCameraArray entries
+#define SWR_CAM_LOOKAHEAD_SCALE (40.0) // swrViewport_UpdateCameras behavior 4: look-ahead per |forward.z| (0x004ac510)
 #define SWR_SOUND_VOLUME_SCALE (1.0f / 255.0f) // 0..255 volume byte -> gain (0x004ac474)
 #define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
 #define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx

@@ -1690,7 +1690,15 @@ swrPlayerHUD_worldSpritePixelX 0x00e9a8a0 int[16] # last projected screen x, -10
 swrPlayerHUD_worldSpriteDepth 0x00e9a8e0 float[16] # z-buffer depth sampled by swrPlayerHUD_SampleOcclusion
 swrPlayerHUD_worldSpritePixelY 0x00e9a920 int[16]
 
+swrCam_blendFromIndex 0x00e9b9c4 short # camera blend (swrCam_CamState_ApplyToViewport): unkCameraArray index blended from
+swrCam_blendToIndex 0x00e9b9c6 short # unkCameraArray index blended to; becomes the active camera when the blend ends
+swrCam_blendFromYPR 0x00e9b9c8 rdVector3 # last frame's from-camera yaw/roll/pitch, for +/-180 unwrapping
+swrCam_blendToYPR 0x00e9b9d4 rdVector3 # last frame's to-camera yaw/roll/pitch
+swrCam_blendTime 0x00e9b9e0 float # seconds into the blend
+swrCam_blendDuration 0x00e9b9e4 float # blend length in seconds (10 after swrCam_CamState_InitMatrices)
 rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
+swrCam_lookAtMode 0x00e9ba40 short # blend look-at target kind: 0 = rdMatrix44*, 1 = rdVector3*, else swrCam_CamState_GetOffsetTransform mode
+swrCam_lookAtTarget 0x00e9ba44 void* # blend look-at target, NULL = interpolate the cameras' angles
 
 sound_3d_gain_adjust 0x00e9e048 float
 

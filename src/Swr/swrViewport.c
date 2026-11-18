@@ -9,6 +9,8 @@
 #include <Unknown/rdMatrixStack.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrText.h>
+#include <Swr/swrCam.h>
+#include <engine_config.h>
 
 // 0x00428B40
 void swrViewport_SetCameraIndex(short a1, swrViewport* mesh)
@@ -44,13 +46,140 @@ void swrViewport_SetActiveCamera(short cameraIndex)
     swrViewport_cameraApplied = 0;
 }
 
-// Deferred: decoded, but it calls swrCam_CamState_GetOffsetTransform /
-// swrCam_CamState_ApplyToViewport and BuildLookAtTransform, which are not
-// reimplemented yet, so a real body would not link into dinput_hook.
 // 0x00429540
 void swrViewport_UpdateCameras()
 {
-    HANG("TODO");
+    swrCamera_unk* cam;
+    swrViewport* viewport;
+    swrViewport* active;
+    swrTranslationRotation lookFrom;
+    rdMatrix44 rotation;
+    rdMatrix44 source;
+    rdMatrix44 view;
+    rdVector3 offset;
+    rdVector3 ypr;
+    rdVector3 lookAt;
+    float spread;
+    int cameraIndex;
+    int i;
+    short v;
+
+    for (i = 0; i < SWR_NUM_CAMERAS; i++) {
+        unkCameraArray[i].flags &= ~2u;
+    }
+    viewport = NULL;
+    for (v = 0; v < swrViewport_GetNumViewports(); v++) {
+        viewport = swrViewport_Get(v);
+        if (viewport != NULL) {
+            cameraIndex = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport);
+            if ((swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID) != 0 && cameraIndex >= 0 && cameraIndex < SWR_NUM_CAMERAS) {
+                unkCameraArray[cameraIndex].flags |= 2;
+            }
+        }
+    }
+
+    for (i = 0; i < SWR_NUM_CAMERAS; i++) {
+        cam = &unkCameraArray[i];
+        if (cam->behaviorType == 0 || (cam->flags & 3) == 0) {
+            continue;
+        }
+        // lightningpirate's CE freecam NOPs this matrix store (0x00429602-0x0042963d)
+        if (cam->sourceType == 0) {
+            cam->transform = *(rdMatrix44*)cam->matrixSource;
+        } else if (cam->sourceType == 1) {
+            rdMatrix_SetTransform44(&cam->transform, (swrTranslationRotation*)cam->matrixSource);
+        } else {
+            swrCam_CamState_GetOffsetTransform(cam->sourceType, (swrModel_NodeTransformed*)cam->matrixSource, &cam->transform);
+        }
+        offset = cam->posOffset;
+        if (offset.x != 0.0f || offset.y != 0.0f || offset.z != 0.0f) {
+            rdMatrix_Multiply3(&offset, &offset, &cam->transform);
+            cam->transform.vD.x = offset.x + cam->transform.vD.x;
+            cam->transform.vD.y = offset.y + cam->transform.vD.y;
+            cam->transform.vD.z = offset.z + cam->transform.vD.z;
+        }
+        ypr = cam->rotationYPR;
+        if (ypr.x != 0.0f || ypr.y != 0.0f || ypr.z != 0.0f) {
+            rdMatrix_SetRotation44(&rotation, ypr.x, ypr.y, ypr.z);
+            rdMatrix_Multiply44Acc(&cam->transform, &rotation);
+        }
+        if (cam->behaviorType != 2 && cam->behaviorType != 3 && cam->behaviorType != 4) {
+            continue;
+        }
+        rdMatrix_ExtractTransform(&cam->transform, &lookFrom);
+        if (cam->offsetMode == 1) {
+            lookAt.x = cam->localOffset.x + ((rdVector3*)cam->offsetSource)->x;
+            lookAt.y = cam->localOffset.y + ((rdVector3*)cam->offsetSource)->y;
+            lookAt.z = cam->localOffset.z + ((rdVector3*)cam->offsetSource)->z;
+        } else {
+            if (cam->offsetMode == 0) {
+                source = *(rdMatrix44*)cam->offsetSource;
+            } else {
+                swrCam_CamState_GetOffsetTransform(cam->offsetMode, (swrModel_NodeTransformed*)cam->offsetSource, &source);
+            }
+            lookAt.x = cam->localOffset.x + source.vD.x;
+            lookAt.y = cam->localOffset.y + source.vD.y;
+            lookAt.z = cam->localOffset.z + source.vD.z;
+            if (cam->behaviorType == 4) {
+                // look further along the source's forward axis the steeper it points
+                spread = source.vB.z < 0.0f ? -source.vB.z : source.vB.z;
+                lookAt.x = (spread * SWR_CAM_LOOKAHEAD_SCALE - -1.0) * source.vB.x + lookAt.x;
+                lookAt.y = (spread * SWR_CAM_LOOKAHEAD_SCALE - -1.0) * source.vB.y + lookAt.y;
+                lookAt.z = (spread * SWR_CAM_LOOKAHEAD_SCALE - -1.0) * source.vB.z + lookAt.z;
+            }
+        }
+        BuildLookAtTransform((rdVector3*)&cam->transform.vD, &lookAt, &cam->transform, &lookFrom, lookFrom.yaw_roll_pitch.z);
+        if (cam->behaviorType == 3) {
+            if (cam->sourceType == 0) {
+                *(rdMatrix44*)cam->matrixSource = cam->transform;
+            } else if (cam->sourceType == 1) {
+                ((swrTranslationRotation*)cam->matrixSource)->yaw_roll_pitch = lookFrom.yaw_roll_pitch;
+            }
+        }
+    }
+
+    if (swrViewport_GetNumViewports() == 0) {
+        active = swrViewport_active;
+        if (unkCameraArrayIndex == -1) {
+            swrCam_CamState_ApplyToViewport(active);
+        } else {
+            if (swrViewport_cameraApplied == 0) {
+                swrViewport_cameraApplied = 1;
+            }
+            view = unkCameraArray[unkCameraArrayIndex].transform;
+            if (active == NULL) {
+                return;
+            }
+            swrViewport_SetMat3(active, &view);
+        }
+        if (active != NULL) {
+            swrViewport_ExtractViewTransform(active, &translation_unk, &rotation_unk);
+        }
+        return;
+    }
+    for (i = 0; i < swrViewport_GetNumViewports(); i++) {
+        viewport = swrViewport_Get(i);
+        if (viewport == NULL) {
+            continue;
+        }
+        cameraIndex = (int)swrModel_MeshGetBehavior((swrModel_Mesh*)viewport);
+        if ((swrModel_NodeGetFlags((swrModel_Node*)viewport) & swrViewport_FLAGS_CAMERA_VALID) == 0) {
+            continue;
+        }
+        if (cameraIndex == -1) {
+            swrCam_CamState_ApplyToViewport(viewport);
+        } else {
+            if (swrViewport_cameraApplied == 0) {
+                swrViewport_cameraApplied = 1;
+            }
+            view = unkCameraArray[cameraIndex].transform;
+            swrViewport_SetMat3(viewport, &view);
+        }
+    }
+    // the last swrViewport_Get result, NULL when the last index had no viewport
+    if (viewport != NULL) {
+        swrViewport_ExtractViewTransform(viewport, &translation_unk, &rotation_unk);
+    }
 }
 
 // Projects a world (or camera-relative) point through the current model MVP into
