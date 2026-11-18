@@ -195,7 +195,7 @@ typedef enum swrObjElmo_KIND
     swrObjElmo_KIND_WATTO = 3,
     swrObjElmo_KIND_DEWBACK = 4,
     swrObjElmo_KIND_RONTO = 5,
-    swrObjElmo_KIND_UNUSED_6 = 6, // never loaded in retail; SetAnimState and UpdateMovement skip it
+    swrObjElmo_KIND_HOLO_PROJECTOR = 6, // hangar holo projector (swrObjHang_LoadRoomModels); SetAnimState and UpdateMovement skip it
     swrObjElmo_KIND_BARTENDER = 7,
     swrObjElmo_KIND_C3PO = 8,
     swrObjElmo_KIND_JARJAR = 9,
@@ -1464,7 +1464,7 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
 typedef enum swrObjHang_FLAG // swrObjHang.flag
 {
     swrObjHang_FLAG_ACTIVE = 0x1, // F0/F2/SetMenuState only run while set; F4 sets it on 'Fini'/'Strt', clears on 'Stop'
-    swrObjHang_FLAG_UNK_2 = 0x2, // swrObjHang_F0 clears it each frame; no setter found in the binary
+    swrObjHang_FLAG_UNK_2 = 0x2, // set by swrObjHang_LoadRoomModels; swrObjHang_F0 clears it each frame
     swrObjHang_FLAG_SCREEN_SET_UP = 0x4, // screen assets + scene built (SetMenuState, F4 init)
     swrObjHang_FLAG_CREDITS_PLAYLIST = 0x8, // StartRace takes the track from the end-credits playlist
 } swrObjHang_FLAG;

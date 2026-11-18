@@ -6,6 +6,7 @@
 #include "swrObj.h"
 #include "swrViewport.h"
 #include "swrSprite.h"
+#include "swrText.h"
 
 #include <Engine/rdMaterial.h>
 #include <engine_config.h>
@@ -1498,6 +1499,39 @@ void ResetSunAndLensFlareSprites(void)
     sunSpriteIds[1] = -1;
 }
 
+// 0x0042c2e0
+void SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+{
+    if (index < 0 || index >= 2)
+        return;
+    sunSpriteIds[index] = spriteId;
+    sun_sprite_position[index].x = position[0];
+    sun_sprite_position[index].y = position[1];
+    sun_sprite_position[index].z = position[2];
+    sunSpriteScale[index] = scale;
+    sun_prevOcclusionSampleX[index] = -1000;
+    sun_occlusionSampleX[index] = -1000;
+    sun_screenX[index] = -1000;
+    sunSpriteColors[index * 4 + 0] = r;
+    sunSpriteColors[index * 4 + 1] = g;
+    sunSpriteColors[index * 4 + 2] = b;
+    sunSpriteColors[index * 4 + 3] = a;
+}
+
+// 0x0042c380
+void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b)
+{
+    if (sunIndex < 0 || sunIndex >= 2 || flareIndex < 0 || flareIndex >= 8)
+        return;
+    int slot = flareIndex + sunIndex * 8;
+    lensFlareSize[slot] = size;
+    lensFlareSpriteIds[slot] = spriteId;
+    lensFlareSpread[slot] = spread;
+    lensFlareColors[slot * 3 + 0] = r;
+    lensFlareColors[slot * 3 + 1] = g;
+    lensFlareColors[slot * 3 + 2] = b;
+}
+
 // 0x0042C460
 void ResetLightStreakSprites()
 {
@@ -1533,13 +1567,68 @@ void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 // 0x0042C7A0
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText)
 {
-    HANG("TODO");
+    int y = (int)((float)screen_y / swrDisplay_screenHeight * 240.0f);
+    int x = (int)((float)screen_x / swrDisplay_screenWidth * 320.0f);
+    swrText_CreateTextEntry1(x, y, r, g, b, a, screenText);
 }
 
 // 0x0042C800
 void UpdateLightStreakSprites(swrViewport* a1)
 {
-    HANG("TODO");
+    int i;
+    int slot;
+    float screenX, screenY, depth, w;
+    float glowScale, alpha, angle;
+
+    for (i = 0; i < 10; i++) {
+        swrSprite_SetVisible(lightStreakSpriteIDs1[i], 0);
+        swrSprite_SetVisible(lightStreakSpriteIDs2[i], 0);
+    }
+
+    slot = 0;
+    for (i = 0; i < 40; i++) {
+        light_streak_pixel_pos_x[i] = -1000;
+        light_streak_pixel_pos_y[i] = -1000;
+        if (!light_streak_valid[i])
+            continue;
+        if (!(rdVector_Dist3(&light_streak_positions[i], &rdVector_model_translation) < swrPlayerHUD_lightStreakParam))
+            continue;
+        alpha = GetPauseState() != 0 ? 128.0f : 255.0f;
+        swrViewport_ProjectToScreen(a1, (rdVector4*)&light_streak_positions[i], &screenX, &screenY, &depth, &w, 0);
+        if (!(screenX > 0.0f))
+            continue;
+        glowScale = w > 0.1f ? 100.0f / w : 1000.0f;
+        if (glowScale > 2.0f)
+            glowScale = 2.0f;
+        if (!((float)swrDisplay_screenWidth > screenX) || !(screenY > 0.0f) || !((float)swrDisplay_screenHeight > screenY))
+            continue;
+        light_streak_pixel_pos_x[i] = (int)screenX;
+        light_streak_pixel_pos_y[i] = (int)screenY;
+        if (light_streak_depth_values[i] == -1000.0f)
+            continue;
+        if (!(depth < 0.0f) && !(depth < light_streak_depth_values[i]))
+            continue;
+        angle = (lightStreak_rotationPivotX - screenX) * lightStreak_rotationScale;
+        if (slot >= 10)
+            continue;
+        if (lightStreakSpriteIDs1[slot] != -1) {
+            short id = lightStreakSpriteIDs1[slot];
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPosF(id, (int)screenX, (int)screenY);
+            swrSprite_SetRotation(id, angle);
+            swrSprite_SetDim(id, 1.0f, 1.0f);
+            swrSprite_SetColor(id, 0xff, 0xff, 0xff, (uint8_t)(int)alpha);
+        }
+        if (lightStreakSpriteIDs2[slot] != -1) {
+            short id = lightStreakSpriteIDs2[slot];
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPosF(id, (int)screenX, (int)screenY);
+            swrSprite_SetRotation(id, angle);
+            swrSprite_SetDim(id, glowScale, glowScale);
+            swrSprite_SetColor(id, 0xff, 0xff, 0xff, (uint8_t)(int)alpha);
+        }
+        slot++;
+    }
 }
 
 // 0x0042D510

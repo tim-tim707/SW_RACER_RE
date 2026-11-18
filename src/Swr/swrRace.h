@@ -498,7 +498,7 @@ void swrRace_UpdateAutopilotControl(swrRace* player);
 
 // Fills the HUD boost-bar colors and fill from boostIndicatorStatus: 0 = green speed fill
 // (speed / (0.75 * maxSpeed)), 1 = orange boost-charge fill, 2 = yellow ready (full).
-void swrRace_GetBoostBarColor(int player, uint8_t* outRgb, uint8_t* outRgba, float* outFill);
+void swrRace_GetBoostBarColor(swrRace* pod, uint8_t* outRgb, uint8_t* outRgba, float* outFill);
 // Human player control: maps input to turn/pitch/brake/boost, drives force
 // feedback and tilt, and sets projTurnRate/pitch/throttle.
 void swrRace_UpdatePlayerControl(swrRace* player);

@@ -110,6 +110,7 @@
 #define swrObjHang_BuildRosterMultiplayer_ADDR (0x0045b610)
 #define swrObjHang_BuildRosterSinglePlayer_ADDR (0x0045b7d0)
 #define swrObjHang_FindPlayerRacerSlot_ADDR (0x0045bab0)
+#define swrObjHang_LoadRoomModels_ADDR (0x0045bb80)
 #define swrObjHang_InitRacerList_ADDR (0x0045bd90)
 #define swrObjHang_NavigateMenu_ADDR (0x0045bde0)
 #define swrObjHang_FocusMenuItem_ADDR (0x0045bee0)
@@ -511,6 +512,9 @@ void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang);
 void swrObjHang_Init(swrObjHang* hang);
 // Sub-init: selection/cursor state plus the 23-entry racer index list (the opponent roster).
 void swrObjHang_InitRacerList(swrObjHang* hang);
+// Loads the hangar / Watto / junkyard / cantina room models (scaled by scale) and the holo
+// projector puppet, then the front-end UI sprites. Called by swrObjHang_F4 on Abrt / Fini.
+void swrObjHang_LoadRoomModels(swrObjHang* hang, float scale);
 // Depth-sort the racer icons orbiting a planet and assign their name-label sprite ids so the
 // front icons draw over the back ones.
 void swrObjHang_OrderHoloRacerIcons(int planetIdx);
@@ -583,7 +587,7 @@ void swrObjJdge_F3(swrObjJdge* jdge);
 int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 
 // Sets up the eight lens-flare sprites with descending sizes and colors.
-void swrObjJdge_SetupLensFlareSprites(int param_1, int baseSprite, float scale);
+void swrObjJdge_SetupLensFlareSprites(int sunIndex, int baseSprite, float scale);
 
 int SetPlanetIdAndTrackNumber(int, int);
 
@@ -641,7 +645,7 @@ void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll);
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
 
 // Draws a player's speed-dial gauge, boost text, and net-play prompt on the HUD (best guess).
-void swrObjJdge_DrawSpeedDialHud_Maybe(int racer, int score, short x, short y, int playerIdx);
+void swrObjJdge_DrawSpeedDialHud_Maybe(swrObjJdge* jdge, swrRace* pod, short x, short y, int playerIdx);
 // Draws a centered HUD meter sprite (id 0x1a) sized/colored by a race metric (_DAT_00e9824c),
 // hidden below threshold. Exact metric uncertain (boost/charge-like bar).
 void swrObjJdge_DrawHudBar(void);

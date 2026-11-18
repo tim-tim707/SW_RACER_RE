@@ -81,11 +81,10 @@ void swrPlayerHUD_SampleOcclusion(void);
 // swrPlayerHUD_RenderViewport. Interleaves swrSprite render-all passes (modes 1/2/3).
 void swrPlayerHUD_RenderAllViewports(void);
 
-// Loads the per-track HUD element sprites and configures the weather subsystem
-// (enable/color/velocity/cap/stretch) for the given HUD type + weather level.
-// hudType selects the layout (cockpit variants, etc.); weatherLevel selects
-// none/light/heavy precipitation. Called by swrPlayerHUD_LoadRaceHUD.
-void swrPlayerHUD_SetupTrackOverlay(int hudType, int weatherLevel);
+// Loads the per-planet sun / lens-flare / light-streak sprites and configures the weather
+// subsystem (snow on planet 1, rain on planet 4, except track 3) for the given planet +
+// track number. Called by swrPlayerHUD_LoadRaceHUD.
+void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber);
 
 // Master race-HUD loader: resets all sprites, loads speedometer / engine / starting
 // grid / placement-flag sprites, then calls swrPlayerHUD_SetupTrackOverlay.

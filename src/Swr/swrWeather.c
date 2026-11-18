@@ -12,6 +12,15 @@ void swrWeather_SetVelocity(float vx, float vy)
     swrWeather_velocityY = vy;
 }
 
+// 0x0042d3e0
+void swrWeather_SetColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+    swrWeather_particleColor[0] = r;
+    swrWeather_particleColor[1] = g;
+    swrWeather_particleColor[2] = b;
+    swrWeather_particleColor[3] = a;
+}
+
 // 0x0042d410
 void swrWeather_SetParticleCap(int max)
 {
@@ -38,6 +47,12 @@ void swrWeather_Disable(void)
 void swrWeather_Enable(void)
 {
     swrWeather_enabled = 1;
+}
+
+// 0x0042d460
+void swrWeather_SetParticleSpriteId(int slot, int spriteId)
+{
+    swrWeather_particleSpriteIds[slot] = spriteId;
 }
 
 // 0x0042d470
