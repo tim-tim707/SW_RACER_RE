@@ -6,6 +6,9 @@
 #include "swr.h"
 #include "swrLoader.h"
 #include "swrUI.h"
+#include "swrObj.h"
+#include "swrText.h"
+#include <General/utils.h>
 
 #include <Engine/rdMaterial.h>
 #include <Raster/rdCache.h>
@@ -963,6 +966,12 @@ void swrSprite_InitDrawing()
     swrSprite_SetViewport(0, swrDisplay_screenWidth - 1, 0, swrDisplay_screenHeight - 1);
 }
 
+// 0x00428820
+void swrSprite_SetDrawStateWord2_Maybe(unsigned int value)
+{
+    swrSprite_SetDrawStateWord_Maybe(value);
+}
+
 // 0x0044f630
 void swrSprite_SetDrawStateWord_Maybe(unsigned int value)
 {
@@ -991,7 +1000,52 @@ int AddDotToMiniMap(char type, short x, short y)
 // 0x0044FF30
 void RenderMiniMapDotsAndCrosses()
 {
-    HANG("TODO");
+    float trackFlicker;
+    float markerFlicker;
+    char glyph;
+    char type;
+    char prevType;
+    int i;
+
+    if (GetPauseState() == 0) {
+        trackFlicker = swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
+        markerFlicker = swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
+    } else {
+        trackFlicker = 0.78f;
+        markerFlicker = 0.83f;
+    }
+    if (numMiniMapPositions == 0)
+        return;
+
+    swrText_SetFont(0);
+    swrText_SetupGlyph('.');
+    glyph = '.';
+    swrSprite_setCurrentSpriteColor(0, 0xff, 0, (uint8_t)(int)(miniMapAlpha * trackFlicker * 255.0f));
+    prevType = swrMiniMapDot_TRACK;
+    for (i = 0; i < numMiniMapPositions; i++) {
+        type = miniMapDotTypes[i];
+        if (type != prevType) {
+            prevType = type;
+            if (type == swrMiniMapDot_START_LINE) {
+                swrSprite_setCurrentSpriteColor(0, 0xff, 0xff, (uint8_t)(int)(miniMapAlpha * 255.0f));
+            } else if (type == swrMiniMapDot_RIVAL) {
+                swrSprite_setCurrentSpriteColor(0xff, 0xff, 0, (uint8_t)(int)(miniMapAlpha * markerFlicker * 255.0f));
+            } else {
+                // faithful: retail range-checks types 3..4 here, but the test can never fail
+                if (glyph != 'X') {
+                    swrText_SetupGlyph('X');
+                    glyph = 'X';
+                }
+                if (type == swrMiniMapDot_RIVAL_CROSS)
+                    swrSprite_setCurrentSpriteColor(0, 0, 0xff, (uint8_t)(int)(miniMapAlpha * 255.0f));
+                else
+                    swrSprite_setCurrentSpriteColor(0x64, 0xff, 0x64, (uint8_t)(int)(miniMapAlpha * markerFlicker * 255.0f));
+            }
+        }
+        swrText_DrawGlyph(miniMapPositions[i][0], miniMapPositions[i][1], 'p');
+    }
+    swr_noop2();
+    numMiniMapPositions = 0;
 }
 
 // 0x0044F670

@@ -298,6 +298,12 @@ void swrText_SetCurrentFont(int fontIndex)
     swrText_currentFont = swrText_fontsByIndex[index];
 }
 
+// 0x0042d900
+void swrText_SetFont(int fontIndex)
+{
+    swrText_SetCurrentFont(fontIndex);
+}
+
 // 0x0042ddf0
 void swrText_BindFontPage(void* font, int page)
 {
@@ -702,6 +708,85 @@ void swrText_RenderString(char* text)
     }
     currentTextPosX = previousTextPosX;
     currentTextPosY = previousTextPosY;
+}
+
+// 0x0042edc0
+void swrText_SetupGlyph(char c)
+{
+    swrFont* font;
+    swrTextGlyph* glyph;
+    int page;
+
+    rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+    swrSprite_colorApplied = 1;
+    if (c == '_')
+        c = ' ';
+    font = swrText_currentFont;
+    // fonts without lowercase glyphs draw lowercase as uppercase
+    if (c >= 'a' && c <= 'z' && font->lastChar < 'a')
+        c = c + ('A' - 'a');
+    page = -2;
+    if (font->glyphs != NULL && c >= font->firstChar && c <= font->lastChar) {
+        glyph = &font->glyphs[c - font->firstChar];
+        if (glyph->u != -1) {
+            swrText_glyphOriginX = glyph->originX;
+            page = glyph->page;
+            swrText_glyphOriginY = glyph->originY;
+            swrText_glyphWidth = glyph->width;
+            swrText_glyphHeight = glyph->height;
+            swrText_glyphU = glyph->u;
+            swrText_glyphV = glyph->v;
+            if (font->unk00 == 0)
+                swrText_glyphUnk01 = glyph->unk01;
+            else
+                swrText_glyphUnk01 = 0;
+        }
+    }
+    if (page >= 0)
+        swrText_BindFontPage(font, page);
+}
+
+static void swrText_EmitGlyphQuad(short x, short y)
+{
+    // faithful: retail also pushes swrText_glyphUnk01 as a 9th argument, which rdProcEntry_Add2DQuad2 ignores
+    rdProcEntry_Add2DQuad2(x, y, swrText_glyphOriginX, swrText_glyphOriginY, swrText_glyphWidth, swrText_glyphHeight, swrText_glyphU, swrText_glyphV);
+}
+
+// 0x0042eeb0
+void swrText_DrawGlyph(short x, short y, char style)
+{
+    short left = x - (short)(swrText_glyphWidth / 2);
+    short top = (short)(swrText_glyphHeight / 2) + y;
+
+    if (style == 'o') {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitGlyphQuad(left - 1, top - 1);
+        swrText_EmitGlyphQuad(left + 1, top + 1);
+        swrText_EmitGlyphQuad(left + 1, top - 1);
+        swrText_EmitGlyphQuad(left - 1, top + 1);
+        swrText_EmitGlyphQuad(left - 1, top);
+        swrText_EmitGlyphQuad(left + 1, top);
+        swrText_EmitGlyphQuad(left, top - 1);
+        swrText_EmitGlyphQuad(left, top + 1);
+    } else if (style == 's') {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitGlyphQuad(left + 1, top + 1);
+    } else if (style == 'f') {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitGlyphQuad(left - 1, top);
+        swrText_EmitGlyphQuad(left + 1, top);
+        swrText_EmitGlyphQuad(left, top - 1);
+        swrText_EmitGlyphQuad(left, top + 1);
+    }
+    if (style == 'o' || style == 's' || style == 'f') {
+        rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+        swrSprite_colorApplied = 1;
+    }
+    if (swrSprite_colorApplied == 0) {
+        rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+        swrSprite_colorApplied = 1;
+    }
+    swrText_EmitGlyphQuad(left, top);
 }
 
 // 0x0042e0e0

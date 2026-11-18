@@ -352,6 +352,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_FLAT_CACHE = 0x400000, // flat-ground raycast cache valid
     swrObjTest_FLAG1_ON_FLAT = 0x800000, // Flat terrain
     swrObjTest_FLAG1_RESPAWN_RELIGHT = 0x200000, // one-shot when respawn invincibility expires; cMan reloads terrain lighting/fog, then clears it
+    swrObjTest_FLAG1_CABLES_DEFORMED = 0x1000000, // set by swrRace_PoddAnimateVariousThings once the front engine cables get the sway deform (lodDistance <= 50)
     swrObjTest_FLAG1_FINISHED = 0x2000000, // race complete
     swrObjTest_FLAG1_FORCE_GROUND = 0x4000000, // gates the full ground/spline update
     swrObjTest_FLAG1_GROUNDED = 0x8000000, // grounded
@@ -360,6 +361,16 @@ typedef enum swrObjTest_FLAG1
     // flags1 bits a 'REMO' pod takes from its state packets (swrObjTest_F3)
     swrObjTest_FLAG1_REMOTE_SYNCED = swrObjTest_FLAG1_ON_LAVA | swrObjTest_FLAG1_ON_FLAT | swrObjTest_FLAG1_FINISHED | swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_GROUNDED,
 } swrObjTest_FLAG1;
+
+// miniMapDotTypes: what swrObjJdge's minimap plotted (AddDotToMiniMap), drawn by RenderMiniMapDotsAndCrosses
+typedef enum swrMiniMapDot
+{
+    swrMiniMapDot_TRACK = 0, // track spline point ('.')
+    swrMiniMapDot_START_LINE = 1, // start-line marker ('.')
+    swrMiniMapDot_RIVAL = 2, // rival pod in the far minimap (flickering '.')
+    swrMiniMapDot_RIVAL_CROSS = 3, // rival pod in the near minimap ('X')
+    swrMiniMapDot_PLAYER_CROSS = 4, // local player (flickering 'X')
+} swrMiniMapDot;
 
 typedef enum rdCameraProjectType
 {
@@ -616,6 +627,19 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_VEHICLE_SELECT_INTRO = 18,// swrObjHang_UpdateVehicleSelectIntro (holo-planet intro)
     swrObjHang_STATE_MP_OTHER_SCREEN = 19,     // broadcast-only: MP host is on a screen other than main/planet/track
 } swrObjHang_STATE;
+
+// swrObjHang_mainMenuItems entries: one row of the hangar main menu (swrRace_MainMenu)
+typedef enum swrObjHang_MAINMENU_ITEM
+{
+    swrObjHang_MAINMENU_START_RACE = 0,
+    swrObjHang_MAINMENU_INSPECT_VEHICLE = 1,
+    swrObjHang_MAINMENU_VEHICLE_UPGRADES = 2,
+    swrObjHang_MAINMENU_BUY_PARTS = 3,
+    swrObjHang_MAINMENU_JUNKYARD = 4,
+    swrObjHang_MAINMENU_BUY_PIT_DROIDS = 5,
+    swrObjHang_MAINMENU_CHANGE_VEHICLE = 6,
+    swrObjHang_MAINMENU_OPTIONS = 7, // never added to the list
+} swrObjHang_MAINMENU_ITEM;
 
 // swrRace_Explode side argument: which engine the explosion bursts from
 typedef enum swrRace_EXPLODE_SIDE

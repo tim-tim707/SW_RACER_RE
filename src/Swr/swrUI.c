@@ -3806,7 +3806,32 @@ void swrUI_Front_LoadUIElements(void)
 // 0x00457fd0
 void swrUI_Front_LoadWindowUIElements(void)
 {
-    HANG("TODO");
+    swrSpriteTexture* tex;
+    int id;
+
+    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+    for (id = 0x90; id < 0xa2; id++) {
+        swrSprite_NewSprite((short)id, tex);
+        swrSprite_SetFlag((short)id, 0x2000);
+    }
+    tex = swrSprite_LoadTexture_(swrSprite_sml_wdw_blue_rgb);
+    for (id = 0x62; id < 0x69; id++)
+        swrSprite_NewSprite((short)id, tex);
+    tex = swrSprite_LoadTexture_(swrSprite_sml_window_ylw_rgb);
+    for (id = 0x6a; id < 0x71; id++)
+        swrSprite_NewSprite((short)id, tex);
+    tex = swrSprite_LoadTexture_(swrSprite_lrg_wdw_blue_rgb);
+    swrSprite_NewSprite(0x69, tex);
+    tex = swrSprite_LoadTexture_(swrSprite_lrg_window_ylw_rgb);
+    swrSprite_NewSprite(0x71, tex);
+    tex = swrSprite_LoadTexture_(swrSprite_select_sml_rgb);
+    swrSprite_NewSprite(0x72, tex);
+    tex = swrSprite_LoadTexture_(swrSprite_lrg_wdw_select_blue_rgb);
+    swrSprite_NewSprite(0x73, tex);
+    for (id = 0x62; id < 0x74; id++) {
+        swrSprite_SetFlag((short)id, 0x2000);
+        swrSprite_SetFlag((short)id, swrSprite_FLAG_UNK_8000);
+    }
 }
 
 // 0x004580e0

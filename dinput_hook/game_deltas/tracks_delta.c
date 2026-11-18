@@ -115,7 +115,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
     swrText_CreateTextEntry1(160, 40, 255, 255, 255, 255, entryText);
 
     iVar8 = -1;
-    DAT_0050c480 = 0;
+    swrObjHang_mainMenuChangeVehicle = 0;
     if (swrObjHang_menuJustEntered != 0) {
         swrObjHang_menuJustEntered = 0;
         if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_TRACK) {
@@ -124,7 +124,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
 
         rdVector_Sub3(&local_6c, (rdVector3 *) &swrObjHang_cameraMatrix.vD, (rdVector3*) &swrObjHang_holoCameraMatrix.vD);
         fVar9 = rdVector_Len3(&local_6c);
-        DAT_0050c11c = (float) fVar9;
+        swrObjHang_orbitDistance = (float) fVar9;
         rdVector_Normalize3Acc(&local_6c);
         fVar9 = stdMath_ArcTan2(-local_6c.x, local_6c.y);
         gamma_unk = fVar9;
@@ -145,50 +145,50 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         }
 
         cVar7 = 1;
-        DAT_0050c308[0] = 0;
-        DAT_0050c308[1] = 0xff;
-        DAT_0050c308[2] = 0xff;
-        DAT_0050c308[3] = 0xff;
-        DAT_0050c308[4] = 0xff;
-        DAT_0050c308[5] = 0xff;
-        DAT_0050c308[6] = 0xff;
-        DAT_0050c308[7] = 0xff;
-        DAT_0050c308[8] = 0xff;
-        DAT_0050c308[9] = 0xff;
-        DAT_0050c308[10] = 0xff;
-        DAT_0050c308[11] = 0xff;
+        swrObjHang_mainMenuItems[0] = 0;
+        swrObjHang_mainMenuItems[1] = 0xff;
+        swrObjHang_mainMenuItems[2] = 0xff;
+        swrObjHang_mainMenuItems[3] = 0xff;
+        swrObjHang_mainMenuItems[4] = 0xff;
+        swrObjHang_mainMenuItems[5] = 0xff;
+        swrObjHang_mainMenuItems[6] = 0xff;
+        swrObjHang_mainMenuItems[7] = 0xff;
+        swrObjHang_mainMenuItems[8] = 0xff;
+        swrObjHang_mainMenuItems[9] = 0xff;
+        swrObjHang_mainMenuItems[10] = 0xff;
+        swrObjHang_mainMenuItems[11] = 0xff;
 
         if (hang->num_local_players == 1) {
-            DAT_0050c308[0] = 0;
-            DAT_0050c308[1] = 1;
-            DAT_0050c308[2] = 0xff;
-            DAT_0050c308[3] = 0xff;
+            swrObjHang_mainMenuItems[0] = 0;
+            swrObjHang_mainMenuItems[1] = 1;
+            swrObjHang_mainMenuItems[2] = 0xff;
+            swrObjHang_mainMenuItems[3] = 0xff;
             cVar7 = 2;
         }
 
         cVar3 = cVar7;
         if (hang->isTournamentMode) {
-            DAT_0050c308[cVar7] = 2;
-            DAT_0050c308[(char) (cVar7 + 1)] = 3;
+            swrObjHang_mainMenuItems[cVar7] = 2;
+            swrObjHang_mainMenuItems[(char) (cVar7 + 1)] = 3;
             cVar3 = cVar7 + 3;
-            DAT_0050c308[(char) (cVar7 + 2)] = 4;
+            swrObjHang_mainMenuItems[(char) (cVar7 + 2)] = 4;
             if (swrRace_nbPitDroids < 4) {
                 iVar6 = (int) cVar3;
                 cVar3 = cVar7 + 4;
-                DAT_0050c308[iVar6] = 5;
+                swrObjHang_mainMenuItems[iVar6] = 5;
             }
         }
 
-        DAT_0050c524 = cVar3 + 1;
-        DAT_0050c308[cVar3] = 6;
+        swrObjHang_mainMenuItemCount = cVar3 + 1;
+        swrObjHang_mainMenuItems[cVar3] = 6;
     }
 
     swrText_CreateColorlessEntry1(160, 25, swrText_Translate(g_pTxtMainMenu));
 
     uint16_t PosY = 80;
-    for (uint8_t i = 0; i < DAT_0050c524; i++) {
+    for (uint8_t i = 0; i < swrObjHang_mainMenuItemCount; i++) {
         const char *pMenuEntry = NULL;
-        switch (DAT_0050c308[i]) {
+        switch (swrObjHang_mainMenuItems[i]) {
             case 0: {
                 pMenuEntry = swrText_Translate(g_pTxtStartRace);
                 break;
@@ -234,7 +234,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
         if ((swrUI_localPlayersInputPressedBitset[i] & 0x8000) != 0) {
             cVar7 = hang->mainMenuSelection + 1;
             hang->mainMenuSelection = cVar7;
-            if ((DAT_0050c524 - 1) < cVar7) {
+            if ((swrObjHang_mainMenuItemCount - 1) < cVar7) {
                 hang->mainMenuSelection = 0;
             }
             FUN_00440550(0x58);
@@ -243,13 +243,13 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             cVar7 = hang->mainMenuSelection + -1;
             hang->mainMenuSelection = cVar7;
             if (cVar7 < 0) {
-                hang->mainMenuSelection = DAT_0050c524 + -1;
+                hang->mainMenuSelection = swrObjHang_mainMenuItemCount + -1;
             }
             FUN_00440550(88);
         }
         if (stdControl_ReadKey(56, 0) != 0 || stdControl_ReadKey(184, 0) != 0 ||
             stdControl_ReadKey(42, 0) != 0 || stdControl_ReadKey(54, 0) != 0) {
-            fVar2 = DAT_0050c11c;
+            fVar2 = swrObjHang_orbitDistance;
             bVar1 = false;
             swrObjHang_cameraMoveMode = 0;
             if (swrControl_aPlayerAxisX[i] > 0.1f || swrControl_aPlayerAxisX[i] < -0.1) {
@@ -268,12 +268,13 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
             }
             if (bVar1) {
                 rdMatrix_SetRotation44(&local_40, gamma_unk, alpha_unk, 0);
-                rdVector_Scale3Add3((rdVector3*) &swrObjHang_holoCameraMatrix.vD, (rdVector3 *) &swrObjHang_cameraMatrix.vD,
-                                    -DAT_0050c11c, (rdVector3 *) &local_40.vB);
-                if (DAT_0050c11c != fVar2) {
+                rdVector_Scale3Add3((rdVector3 *) &swrObjHang_holoCameraMatrix.vD,
+                                    (rdVector3 *) &swrObjHang_cameraMatrix.vD,
+                                    -swrObjHang_orbitDistance, (rdVector3 *) &local_40.vB);
+                if (swrObjHang_orbitDistance != fVar2) {
                     fVar9 = rdVector_Dist3((rdVector3 *) &swrObjHang_cameraMatrix.vD,
                                            (rdVector3*) &swrObjHang_holoCameraMatrix.vD);
-                    DAT_0050c11c = (float) fVar9;
+                    swrObjHang_orbitDistance = (float) fVar9;
                 }
                 rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
             }
@@ -312,7 +313,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                     return;
                 }
             } else {
-                switch (DAT_0050c308[hang->mainMenuSelection]) {
+                switch (swrObjHang_mainMenuItems[hang->mainMenuSelection]) {
                     case 1: {
                         swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
                         iVar8 = Hangar;
@@ -348,7 +349,7 @@ void swrRace_MainMenu_delta(swrObjHang *hang) {
                         swrObjHang_state2 = swrObjHang_STATE_SELECT_VEHICLE;
                         hang->current_player_for_vehicle_selection = i;
                         iVar8 = Cantina;
-                        DAT_0050c480 = 1;
+                        swrObjHang_mainMenuChangeVehicle = 1;
                         break;
                     }
                     case 7: {

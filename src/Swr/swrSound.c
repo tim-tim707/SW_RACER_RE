@@ -1919,6 +1919,12 @@ void swrSound_ResetMusic(void)
     swrSound_delayedSfxId = -1;
 }
 
+// 0x00427d90
+void swrSound_PreloadSoundSet(int scenario, int param2)
+{
+    HANG("TODO");
+}
+
 // 0x00427ad0
 unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet)
 {

@@ -85,6 +85,7 @@
 #define swrSprite_Draw_ADDR (0x0044F160)
 #define swrSprite_ResetCurrentMaterial_ADDR (0x0044F5F0)
 #define swrSprite_InitDrawing_ADDR (0x0044F600)
+#define swrSprite_SetDrawStateWord2_Maybe_ADDR (0x00428820)
 #define swrSprite_SetDrawStateWord_Maybe_ADDR (0x0044f630)
 #define swrSprite_GetUIScale_ADDR (0x0044F640)
 
@@ -183,6 +184,8 @@ void swrSprite_InitDrawing();
 
 // Stores a 16-bit sprite draw-state global (best guess).
 void swrSprite_SetDrawStateWord_Maybe(unsigned int value);
+// Thunk to swrSprite_SetDrawStateWord_Maybe.
+void swrSprite_SetDrawStateWord2_Maybe(unsigned int value);
 
 // Computes the 2D UI scale factors from the current framebuffer size.
 // out_xscale = screenWidth / 640, out_yscale = screenHeight / 480 (independent).

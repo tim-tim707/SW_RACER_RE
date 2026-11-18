@@ -469,7 +469,7 @@ void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state);
 
 void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale);
 
-void DrawTrackPreview(void* unused, int TrackID, float param_3);
+void DrawTrackPreview(void* unused, int trackId, float scale);
 
 void swrObjHang_F0(swrObjHang* hang);
 
@@ -763,7 +763,7 @@ void swrObjTest_F0(swrRace* player);
 
 void swrObjTest_F3(swrRace* player);
 
-void swrRace_PoddAnimateVariousThings(swrRace* arg0);
+void swrRace_PoddAnimateVariousThings(swrRace* player);
 
 // Display-pod animator used outside racing: hangar "inspect vehicle"
 // (swrObjHang_UpdateLookAtVehicle), the vehicle-select menu (swrRace_SelectVehicle) and the

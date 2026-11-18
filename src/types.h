@@ -3269,7 +3269,9 @@ extern "C"
         float sweepEndX; // 0x48. X of the sweep's final (chase) keyframe
         float chaseCamTrail;  // 0x4c. chase-camera distance behind the pod (doubled in the far chase view)
         float chaseCamHeight; // 0x50. chase-camera height above the pod
-        float unk54[6];
+        rdVector3 exhaustOffset; // 0x54. engine-local exhaust plume anchor (X mirrored for the left engine; swrRace_PoddAnimateVariousThings)
+        float exhaustGlowScale; // 0x60. engine-glow billboard scale, x0.01
+        float unk64[2];
     } swrRacerVisualData; // sizeof(0x6c)
 
     // see swrText_CreateEntry. swrTextEntries[1|2]Pos should be swrTextEntryInfo
@@ -3288,9 +3290,14 @@ extern "C"
     // remaining bytes hold the UV / page metadata used by swrText_SetupGlyph.
     typedef struct swrTextGlyph
     {
-        short unk00; // 0x00
+        char page; // 0x00 glyph-page material index (swrText_BindFontPage)
+        char unk01; // 0x01 copied to swrText_glyphUnk01 by swrText_SetupGlyph; never consumed
         short advance; // 0x02 horizontal advance width, in pixels
-        char unk04[0xa]; // 0x04 UV / page metadata
+        short originY; // 0x04 subtracted from the draw y (rdProcEntry_Add2DQuad2)
+        short originX; // 0x06 subtracted from the draw x
+        short u; // 0x08 texel column on the page; -1 = no glyph for this code
+        short v; // 0x0a texel row on the page
+        short width; // 0x0c glyph width, in pixels
         short height; // 0x0e glyph height, in pixels
     } swrTextGlyph; // sizeof(0x10)
 
@@ -3299,7 +3306,7 @@ extern "C"
     // above 0x96 are remapped to the extended (accented) glyph table via the compose tables.
     typedef struct swrFont
     {
-        char unk00[4]; // 0x00
+        int unk00; // 0x00 nonzero: swrText_SetupGlyph ignores the glyphs' unk01 byte
         int pageCount; // 0x04 number of glyph-page materials
         swrMaterial* pages[20]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
         char unk58[2]; // 0x58
