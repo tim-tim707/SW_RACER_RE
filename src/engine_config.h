@@ -143,6 +143,9 @@
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
 
+// swrRace_BuyPitdroidsMenu: truguts per extra pit droid
+#define SWR_PITDROID_PRICE (1000)
+
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
 #define SWR_MAX_RACERS (20)
 // swrObjJdge_InitTrack's asset-buffer tally assumes a 4 MiB buffer (swrObjJdge_raceBufferSlack)
@@ -177,6 +180,10 @@
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
+// swrModel_LoadTextureDataAndPalette: pixel data and palette each start on a 64-byte boundary;
+// the free-space check reserves room for both alignment pads
+#define SWR_TEXTURE_DATA_ALIGN (64)
+#define SWR_TEXTURE_LOAD_HEADROOM (0x80)
 // swrModel_RegisterRootMaterial (0x00408fb0): swrModel3_root_materials entries (0x2000-byte block)
 #define SWR_ROOT_MATERIAL_CAPACITY (0x800)
 

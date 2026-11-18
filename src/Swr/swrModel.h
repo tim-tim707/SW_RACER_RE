@@ -243,7 +243,7 @@ void swrModel_AnimationSetLoopTransitionSpeed(swrModel_Animation* anim, float tr
 swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node);
 void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7);
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
-void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int a2, int a3, float a4, float width, float a6, uint8_t r, uint8_t g, uint8_t b);
+void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int x, int y, float size, float spread, float intensity, uint8_t r, uint8_t g, uint8_t b);
 void UpdateSunAndLensFlareSprites2(int a1, int a2, int a3);
 void UpdateSunAndLensFlareSprites(swrViewport* a1);
 

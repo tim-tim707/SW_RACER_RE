@@ -532,7 +532,7 @@ void swrRace_HandleWallScrapeHit(swrRace* player);
 // pod init + death/scrape/collision-toggle helpers:
 // Initializes a pod for a race: loads stats from the racer data, sets the spawn
 // transform, resets all runtime state, and refreshes model nodes.
-void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int param_5, float* spawnTransform, int param_7, int param_8, int param_9, int param_10);
+void swrRace_Init(swrRace* player, swrSpline* spline, swrModel_Node** partNodes, swrModel_Node* collisionModel, int lightIndex, float* spawnTransform, int gridPos, int racerCount, int localPlayerCount, int duplicatePods);
 // Death/explosion sequence: 'Deth' camera event, explosion + debris + sounds,
 // engine-health reset and rumble (AI pods are placed back on track instead).
 void swrRace_HandleDeathExplosion(swrRace* player);

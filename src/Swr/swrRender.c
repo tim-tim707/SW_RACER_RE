@@ -136,13 +136,38 @@ void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrMod
 // 0x0044C440
 char rdModel_ApplyNodeSettings(char flags, short light_index)
 {
-    HANG("TODO");
+    char applied = 0;
+
+    if ((flags & swrModel_NODEFLAGS5_NO_FRUSTUM_CULL) != 0 && rdModel_frustumCullEnabled != 0) {
+        rdModel_frustumCullEnabled = 0;
+        applied = swrModel_NODEFLAGS5_NO_FRUSTUM_CULL;
+    }
+    if ((flags & swrModel_NODEFLAGS5_MIRRORED) != 0) {
+        rdModel_mirroredWinding = rdModel_mirroredWinding == 0;
+        applied |= swrModel_NODEFLAGS5_MIRRORED;
+    }
+    if ((flags & swrModel_NODEFLAGS5_LIGHT_INDEX) != 0 && rdModel_LightSelected == 0) {
+        rdModel_LightSelected = 1;
+        rdModel_LightingEnabled = 1;
+        rdModel_CurrentLightIndex = light_index + 1;
+        rdModel_CurrentLightNum = numEnabledLights[light_index];
+        applied |= swrModel_NODEFLAGS5_LIGHT_INDEX;
+    }
+    return applied;
 }
 
 // 0x0044C4C0
 void rdModel_RevertNodeSettings(char state)
 {
-    HANG("TODO");
+    if ((state & swrModel_NODEFLAGS5_MIRRORED) != 0)
+        rdModel_mirroredWinding = rdModel_mirroredWinding == 0;
+    if ((state & swrModel_NODEFLAGS5_NO_FRUSTUM_CULL) != 0)
+        rdModel_frustumCullEnabled = 1;
+    if ((state & swrModel_NODEFLAGS5_LIGHT_INDEX) != 0) {
+        rdModel_LightSelected = 0;
+        rdModel_LightingEnabled = 0;
+        rdCamera_SetLights(0, 1);
+    }
 }
 
 // 0x0044c510
@@ -364,4 +389,11 @@ short SetClearColor(short r, short g, short b)
     backBufferClearColor[1] = g;
     backBufferClearColor[2] = b;
     return r;
+}
+
+// 0x00433680
+void rdModel_SetForceFlatNormals_Maybe(int enable)
+{
+    if (enable != 0)
+        rdModel_flatNormalsClearFlag = 0;
 }

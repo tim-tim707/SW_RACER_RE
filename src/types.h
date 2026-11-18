@@ -636,8 +636,8 @@ extern "C"
         rdVector3 cockpitSpringPos; // 0x1e48. cockpit lag-spring position state
         rdVector3 cockpitSpringVel; // 0x1e54. cockpit lag-spring velocity state (stdMath_Decelerator)
         float cockpitPitchPrev; // 0x1e60. previous frame's forward-axis . world_gravity, drives the cockpit pitch lag (PoddAnimateEngines)
-        int unk1e64_flag; // 0x1e64. float bits: pod footprint half-extent X from the shadow node AABB (default 2.0, Neva Kee 3.0); also the engine-proximity push radius
-        int unk1e68_flag; // 0x1e68. float bits: half-extent Y (default 2.0, Neva Kee 5.0)
+        float footprintX; // 0x1e64. pod footprint half-extent X from the shadow node AABB (default 2.0, Neva Kee 3.0); also the engine-proximity push radius
+        float footprintY; // 0x1e68. half-extent Y (default 2.0, Neva Kee 5.0)
         int orthoRenormCounter; // 0x1e6c. every 8 frames UpdateTurn2 re-normalizes the transform basis vectors
         struct swrScore* score_ptr;
         char unk1e74[64];

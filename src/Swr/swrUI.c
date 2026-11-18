@@ -3267,3 +3267,21 @@ void swrUI_BuildEditSelectionSprites(int a1, swrUI_unk* ui, int* rect)
     ui->rand_alpha_first = 0;
     ui->rand_alpha_count = 3;
 }
+
+// 0x004172f0
+void swrUI_UpdateElementColor(swrUI_unk* ui)
+{
+    if ((ui->flags & 2) != 0) {
+        swrUI_SetColorUnk(ui, ui->r4, ui->g4, ui->b4, ui->a4);
+        swrUI_BuildHighlightSprites(ui, 0);
+    } else if ((ui->flags & swrUI_FOCUSED) != 0) {
+        swrUI_SetColorUnk(ui, ui->r5, ui->g5, ui->b5, ui->a5);
+        swrUI_BuildHighlightSprites(ui, 1);
+    } else if ((ui->flags & swrUI_HOVERED) != 0) {
+        swrUI_SetColorUnk(ui, ui->r3, ui->g3, ui->b3, ui->a3);
+        swrUI_BuildHighlightSprites(ui, 1);
+    } else {
+        swrUI_SetColorUnk(ui, ui->r2, ui->g2, ui->b2, ui->a2);
+        swrUI_BuildHighlightSprites(ui, 0);
+    }
+}

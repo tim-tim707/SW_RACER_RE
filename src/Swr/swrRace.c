@@ -1172,7 +1172,163 @@ void swrRace_ResultsMenu(swrObjHang* hang)
 // 0x0043b240
 void swrRace_CourseSelectionMenu(void)
 {
-    HANG("TODO");
+    char text[256];
+    swrObjHang* hang = g_objHang2;
+    char* label;
+    int r;
+    int g;
+    int b;
+    int width;
+    int labelWidth;
+    int planetSprite;
+    int selected;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_FocusMenuItem(hang, 0x25, -1, 0);
+        swrObjHang_courseTrackChosen = 0;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET)
+            swrRace_Transition = 1.0f;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE || hang->menuScreenPrev == swrObjHang_STATE_SPLASH)
+            hang->circuitIdx = 0;
+        swrUI_Front_HandleCircuits(hang);
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE || hang->menuScreenPrev == swrObjHang_STATE_SPLASH) {
+            swrRace_MenuSelectedItem = 0;
+            // tournament: start on the circuit's last track when it is already unlocked
+            if (hang->isTournamentMode != 0 && isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1) != 0)
+                swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
+        } else {
+            swrUI_Front_SeekToCurrentTrack_Maybe(hang);
+        }
+        swrObjHang_InitTrackSprites(hang, 1);
+        swrObjHang_courseShownPlanet = g_aTrackInfos[hang->track_index].PlanetIdx;
+        swrObjHang_courseShownCircuit = hang->circuitIdx;
+    }
+
+    if (swrObjHang_courseTrackChosen != 0) {
+        swrObjHang_StepTransition(-3.3f);
+    } else if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem) {
+        swrObjHang_courseShownPlanet = g_aTrackInfos[hang->track_index].PlanetIdx;
+        swrObjHang_courseShownCircuit = hang->circuitIdx;
+        swrObjHang_StepTransition(3.3f);
+    }
+
+    selected = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+    hang->track_index = (char)g_aTrackIDs[hang->circuitIdx * 7 + selected];
+    if (swrRace_Transition > 0.0f)
+        DrawHoloPlanet(hang, swrObjHang_courseShownPlanet, swrRace_Transition * 0.5);
+    if (swrObjHang_courseTrackChosen != 0)
+        return;
+
+    if (g_aTrackInfos[hang->track_index].trackID == -1 || g_aTrackInfos[hang->track_index].splineID == -1) {
+        sprintf(text, swrText_Translate(g_pTxtPlanetNotLoaded));
+        b = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        g = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        r = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        swrText_CreateTextEntry1(0xa0, 0xcd, r, g, b, -1, text);
+    }
+    sprintf(text, swrText_Translate(g_pTxtPartNameFormat), swrUI_Front_GetTrackNameFromId(hang->track_index));
+    swrText_CreateTextEntry1(0xa0, 0x36, 0, -1, 0, -1, text);
+    labelWidth = swrText_GetStringWidthByFont(text, 0);
+    width = swrText_GetStringWidthByFont(text, 0);
+    // faithful: the original also pushes labelWidth as a third argument the callee never reads
+    swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - width * 0.5), 0x37);
+    (void)labelWidth;
+
+    switch (hang->circuitIdx) {
+    case 0:
+        swrText_CreateTextEntry1(0xa0, 0x22, 0x32, -1, -1, -1, swrText_Translate(g_pTxtCircuitAmateur));
+        break;
+    case 1:
+        swrText_CreateTextEntry1(0xa0, 0x22, 0x44, -1, 0x3e, -1, swrText_Translate(g_pTxtCircuitSemiPro));
+        break;
+    case 2:
+        swrText_CreateTextEntry1(0xa0, 0x22, -0x5d, -0x42, 0x11, -1, swrText_Translate(g_pTxtCircuitGalactic));
+        break;
+    case 3:
+        swrText_CreateTextEntry1(0xa0, 0x22, -0x63, 0x59, 0x20, -1, swrText_Translate(g_pTxtCircuitInvitational));
+        break;
+    }
+
+    if (hang->isTournamentMode != 0)
+        label = swrText_Translate(g_pTxtTournament);
+    else if (hang->timeAttackMode != 0)
+        label = swrText_Translate(g_pTxtTimeAttack);
+    else if (hang->num_local_players == 2)
+        label = swrText_Translate(g_pTxt2Player);
+    else
+        label = swrText_Translate(g_pTxtFreePlay);
+    sprintf(text, label);
+    swrText_CreateTextEntry1(0xa0, 0x18, 0x32, -1, -1, -1, text);
+
+    DrawTracks(hang, swrObjHang_courseShownCircuit);
+    planetSprite = (char)g_aTrackInfos[hang->track_index].PlanetIdx + 0x45;
+    swrSprite_SetVisible(planetSprite, 1);
+    swrSprite_SetPos(planetSprite, 0xa0, 0x91);
+    swrSprite_SetDim(planetSprite, 1.0f, 1.0f);
+    swrSprite_SetColor(planetSprite, 0xff, 0xff, 0xff, 0xff);
+    swrText_CreateTextEntry1(0xe0, 0x8a, 0, -1, 0, -1, swrPlanetTable[(char)g_aTrackInfos[hang->track_index].PlanetIdx].name);
+    swrRace_DrawScrollbar(0x2d, 0x54, 0x1e);
+    if (swrObjHang_courseTrackChosen != 0)
+        return;
+
+    swrObjHang_NavigateVehicleSelect(0, 1.0f, 1);
+    // faithful: the original's per-player loop bound stops after player 1
+    if (swrMultiplayer_menuOverlayActive == 0) {
+        if (swrControl_menuAcceptPressedEdge != 0 && (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0)) {
+            if (multiplayer_enabled != 0) {
+                swrUI_PopMenuPage();
+                return;
+            }
+            if (swrObjHang_menuAcceptLock != 0)
+                return;
+            playUISound(0x54);
+            swrObjHang_InitTrackSprites(hang, 0);
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_TRACK);
+            swrObjHang_courseTrackChosen = 1;
+            return;
+        }
+        if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
+            if (multiplayer_enabled != 0) {
+                swrUI_PopMenuPage();
+                return;
+            }
+            playUISound(0x4d);
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_IsHost() != 0)
+                return;
+            swrObjHang_InitTrackSprites(hang, 0);
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_VEHICLE);
+            return;
+        }
+    }
+    if (swrObjHang_courseShownCircuit == hang->circuitIdx) {
+        if ((swrUI_localPlayersInputPressedBitset[0] & swrUI_INPUT_MENU_DOWN) != 0) {
+            if (hang->circuitIdx < g_CircuitIdxMax) {
+                hang->circuitIdx++;
+                swrObjHang_settledMenuItem = -1;
+                playUISound(0x58);
+                swrUI_Front_HandleCircuits(hang);
+            } else {
+                playUISound(0x4b);
+            }
+        }
+        if ((swrUI_localPlayersInputPressedBitset[0] & swrUI_INPUT_MENU_UP) != 0) {
+            if (hang->circuitIdx > 0) {
+                hang->circuitIdx--;
+                swrObjHang_settledMenuItem = -1;
+                playUISound(0x58);
+                swrUI_Front_HandleCircuits(hang);
+            } else {
+                playUISound(0x4b);
+            }
+        }
+    }
+
+    multiplayer_track_select = hang->track_index;
+    if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
+        g_LoadTrackModel = g_aTrackInfos[hang->track_index].trackID;
+        swrMultiplayer_BroadcastPlayerState();
+    }
 }
 
 // Course info screen (after track select): builds the option-row list on entry (which rows depend
@@ -2158,7 +2314,63 @@ void swrRace_UpdatePitDroidModels_Maybe(void)
 // 0x0043f380
 void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
 {
-    HANG("TODO");
+    char price[32];
+    char line[32];
+    int top = (int)(swrObjHang_screenSlideOffset - 5.0f);
+    short y = (short)top;
+    int i;
+
+    swrSprite_SetColor(0x7f, 0xa3, 0xbe, 0x11, 0xfe);
+    swrSprite_SetVisible(0x7f, 1);
+    swrSprite_SetPos(0x7f, 0xae, y);
+    swrSprite_SetColor(0x81, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x81, 1);
+    swrSprite_SetPos(0x81, 0xb2, y + 0x14);
+    swrSprite_SetColor(0x7c, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x7c, 1);
+    swrSprite_SetPos(0x7c, 0xbe, y + 0x17);
+    swrText_CreateTextEntry1(0xc1, top + 0x1a, 0x32, -1, -1, -2, swrText_Translate("/SCREENTEXT_589/~f4~sBuy Pit Droid?"));
+    swrText_CreateTextEntry1(99, top + 0x1e, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_590/~f4~c~sBuy more pit droids to"));
+    swrText_CreateTextEntry1(99, top + 0x26, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_591/~f4~c~smake faster repairs to"));
+    swrText_CreateTextEntry1(99, top + 0x2e, 0x32, -1, -1, -1, swrText_Translate("/SCREENTEXT_592/~f4~c~syour damaged upgrade parts."));
+
+    swrSprite_SetColor(0x76, 0x32, 0xff, 0xff, 0xfe);
+    swrSprite_SetVisible(0x76, 1);
+    swrSprite_SetPos(0x76, 0xc2, y + 0x68);
+    sprintf(price, swrText_Translate("~r~s%d"), SWR_PITDROID_PRICE);
+    sprintf(line, "~f4%s", price);
+    swrText_CreateTextEntry1(0x114, top + 0x6b, 0x32, -1, -1, -2, line);
+    for (i = 0; i < 2; i++) {
+        swrSprite_SetColor(i + 0x74, 0x32, 0xff, 0xff, 0xfe);
+        swrSprite_SetVisible(i + 0x74, 1);
+        swrSprite_SetPos(i + 0x74, 0xdb, y + i * 0xd + 0x7c);
+    }
+    sprintf(price, "~f4%s", swrText_Translate("/SCREENTEXT_251/~sCost"));
+    swrText_CreateTextEntry1(0xc4, top + 0x6b, 0x32, -1, -1, -2, price);
+    swrUI_Front_TextMenu(hang, 0xfc, y + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 0, swrText_Translate("/SCREENTEXT_254/~c~sBUY"));
+    swrUI_Front_TextMenu(hang, 0xfc, y + 0x7e, 0xd, (short)swrRace_upgradeUnaffordable, 1, swrText_Translate("/SCREENTEXT_257/~c~sCANCEL"));
+    swrText_CreateTextEntry1(0xfe, top + 0xa5, -0x5d, -0x42, 0x11, -2, swrText_Translate("/SCREENTEXT_599/~c~sTruguts"));
+    if (swrObjHang_screenSlideOffset == 20.0f && swrObjHang_cameraMoveMode != 1)
+        swrObjHang_PositionHoloNode(0, 5.0f, (swrObjHang_screenSlideOffset - 6.0f) - 20.5, 1.0f);
+
+    sprintf(price, swrText_Translate("~r~sX %d"), swrRace_truguts);
+    swrText_CreateTextEntry1(0x122, top + 0xb4, 0x32, -1, -1, -2, price);
+    if (swrRace_truguts < SWR_PITDROID_PRICE)
+        swrText_CreateTextEntry1(0x122, top + 0xb4, -1, 0, 0, -2, price);
+
+    // swrRace_upgradeUnaffordable doubles as the BUY(0)/CANCEL(1) cursor; it is pinned to CANCEL when broke
+    for (i = 0; i < hang->num_local_players; i++) {
+        if ((swrUI_localPlayersInputPressedBitset[i] & (swrUI_INPUT_MENU_UP | swrUI_INPUT_MENU_DOWN)) == 0)
+            continue;
+        if (swrRace_truguts < SWR_PITDROID_PRICE) {
+            playUISound(0x4b);
+        } else {
+            swrRace_upgradeUnaffordable = swrRace_upgradeUnaffordable == 0;
+            playUISound(0x58);
+        }
+    }
+    if (swrRace_truguts < SWR_PITDROID_PRICE)
+        swrRace_upgradeUnaffordable = 1;
 }
 
 // 0x0043fe90
@@ -4545,9 +4757,251 @@ void swrRace_TakeDamage(int player, int engineIndex, float amount)
 }
 
 // 0x00475ad0
-void swrRace_Init(swrRace* player, float param_2, int param_3, void* model, int param_5, float* spawnTransform, int param_7, int param_8, int param_9, int param_10)
+void swrRace_Init(swrRace* player, swrSpline* spline, swrModel_Node** partNodes, swrModel_Node* collisionModel, int lightIndex, float* spawnTransform, int gridPos, int racerCount, int localPlayerCount, int duplicatePods)
 {
-    HANG("TODO");
+    float ray[7];
+    rdVector3 hitPoint;
+    rdVector3 hitNormal;
+    float aabb[6];
+    int subEvents[2];
+    float hitDist;
+    unsigned int flags;
+    int i;
+
+    player->splineCursor.spline = spline;
+    player->splineCursor.velocity = 0.0f;
+    player->splineCursor.segmentT = 0.0f;
+    player->splineCursor.tangentLength = 0.0f;
+    player->splineCursor.endFlag = 0;
+    player->splineCursor.startFlag = 0;
+    player->splineCursor.branchSelector = 0;
+    player->splineCursor.branchFlags = 0;
+    if (spline != NULL)
+        swrSpline_CursorSeek(&player->splineCursor, 0);
+    player->splineCursor.segmentT = 0.01f;
+
+    player->flags0 = 0;
+    player->flags1 = 0;
+    flags = player->flags0 & ~swrObjTest_FLAG0_STATE_MASK;
+    player->flags0 = flags;
+    if (player->score_ptr->identifier == 'Locl') {
+        player->flags0 = flags | swrObjTest_FLAG0_LOCAL;
+    } else if (player->score_ptr->identifier == 'REMO') {
+        player->flags0 = flags | swrObjTest_FLAG0_REMOTE;
+        player->remoteId = -1;
+    } else if (player->score_ptr->identifier == 'AAII') {
+        player->flags0 = flags | swrObjTest_FLAG0_AI;
+    }
+    if ((player->score_ptr->flag & 0x20) != 0)
+        player->flags0 |= swrObjTest_FLAG0_AI_SIMPLE;
+    else
+        player->flags0 &= ~swrObjTest_FLAG0_AI_SIMPLE;
+
+    player->podStats = player->score_ptr->podStats;
+    player->podStats.intersectRadius = 2.0f;
+    player->collisionWidth = player->score_ptr->podStats.intersectRadius;
+    memcpy(&player->transform, spawnTransform, sizeof(rdMatrix44));
+
+    // drop onto the track: cast 40 units straight down and settle at the hover height
+    ray[0] = player->transform.vD.x;
+    ray[1] = player->transform.vD.y;
+    ray[2] = player->transform.vD.z;
+    ray[3] = 0.0f;
+    ray[4] = 0.0f;
+    ray[5] = -1.0f;
+    ray[6] = 40.0f;
+    hitDist = swrRace_RaycastModel(collisionModel, ray, &hitPoint, &hitNormal);
+    player->transform.vD.z = player->transform.vD.z - (hitDist - player->podStats.hoverHeight);
+    rdMatrix_ExtractTransform(&player->transform, &player->spawn_pos_rot);
+
+    player->repairTimer = 0.0f;
+    player->splineSampleSpacing = 0.0f;
+    player->lapComp = 0.9f;
+    player->lapCompPrev = 0.9f;
+    player->lapCompMax = 0.0f;
+    player->splineTrackMesh = NULL;
+    player->splineProjResult1 = 0;
+    player->splineProjResult2 = 0;
+    player->splineTrackMeshPrev = NULL;
+    player->trackOffset.w = 1.0f;
+    player->trackOffset.x = 0.0f;
+    player->trackOffset.y = 0.0f;
+    player->trackOffset.z = 1.0f;
+    player->gapToLeader = 0.0f;
+    player->gapToLocalPlayer1 = 0.0f;
+    player->gapToLocalPlayer2 = 0.0f;
+    player->aiPaceOffsetTarget = 0.0f;
+    player->gapToPacer = 0.0f;
+    player->aiLookAhead = 0.2f;
+    player->aiLookAheadDistSq = 8100.0f;
+    player->checkpointCount = 0;
+    player->splineRebindResult = 0;
+    player->idleTick = 0.0f;
+    player->moveTick = 0;
+    player->deathExplodeTimer = 0.0f;
+    player->spinoutEngineAngle = 0.0f;
+    player->spinoutCockpitAngle = 0.0f;
+    player->spinoutSpinRamp = 0.0f;
+    player->engineDamageSmoke[0] = NULL;
+    player->engineDamageSmoke[1] = NULL;
+    player->flameSmokeHandle = NULL;
+    player->unk320 = 0;
+    player->unk328 = 0;
+    player->unk32c = 0;
+    player->fireballEngineSlot = -1;
+    player->throttle = 0.0f;
+    player->gravityScale = 32.0f;
+    rdVector_Set3(&player->world_gravity, 0.0f, 0.0f, -1.0f);
+    player->speedValue = 0.0f;
+    player->fallStep = 0.0f;
+    player->fallVelocity = 0.0f;
+    player->accelThrust = 0.0f;
+    player->boostValue = 0.0f;
+    rdVector_Set3(&player->velocityDir, 0.0f, 0.0f, 0.0f);
+    player->unk1efc = 0.25f;
+    player->turnRate = 0.0f;
+    player->turnRateTarget = 0.0f;
+    player->unk10_3 = 0;
+    player->zeroGPitchRate = 0.0f;
+    player->zeroGPitchRateTarget = 0.0f;
+    player->turnModifier = 0.0f;
+    player->autoTilt = 0.0f;
+    player->contactSteerKick = 0.0f;
+    player->tiltAngleTarget = 0.0f;
+    player->tiltAngle = 0.0f;
+    rdVector_Set3(&player->velocitySlope, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&player->velocityCollision, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&player->velocityCollisionOpponent, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&player->bumpDirection, 0.0f, 0.0f, 1.0f);
+    rdVector_Set3(&player->wallPushback, 0.0f, 0.0f, 0.0f);
+    rdVector_Copy3(&player->positionPrev, (rdVector3*)&player->transform.vD);
+    rdVector_Copy3(&player->positionDeath, (rdVector3*)&player->transform.vD);
+    rdVector_Set3(&player->up, 0.0f, 0.0f, 1.0f);
+    player->speedLoss = 0.0f;
+    player->unk1f18 = 0;
+    player->unk11_1 = 0.0f;
+    player->engineTemp = 100.0f;
+    player->unk1f00 = 80.0f;
+    player->unk1f04 = 0;
+    *(int*)player->unk1f08 = 0;
+    player->unk2f0 = 0;
+    player->tauntTapTime = 0.0f;
+    player->tauntTapState = 0;
+    player->pitch = 0.0f;
+    player->engineTiltSmoothed = 0.0f;
+    player->unk1f14 = 0.0f;
+    player->tiltManualMult = 0.0f;
+    player->unk9 = 0;
+    player->orthoRenormCounter = 0;
+    player->groundToPodMeasure = 0.0f;
+    player->groundZ = 0.0f;
+    player->speedMultiplier = 1.0f;
+    player->surfaceSpeedFactor = 1.0f;
+    player->surfaceSpeedBonus = 0.0f;
+    player->surfaceGripFactor = 1.0f;
+    player->exhaustSizeLeft = 0.0f;
+    player->exhaustSizeRight = 0.0f;
+    player->slide2 = 1.0f;
+    player->slide = 0.0f;
+    player->paceMultiplier = 1.0f;
+    player->aiSpeedTarget = 1.0f;
+    player->aiDecisionTimer = 10.0f;
+
+    // grid slot -> AI finishing-rank baseline: slots 0/1 stay, 2+ shift up one, capped at 5
+    player->aiRankBaseline = gridPos;
+    if (gridPos < 0) {
+        player->aiRankBaseline = 0;
+    } else {
+        player->aiRankBaseline = gridPos + 1;
+        if (player->aiRankBaseline > 2)
+            player->aiRankBaseline--;
+        if (player->aiRankBaseline > 5)
+            player->aiRankBaseline--;
+    }
+    player->wallHitCooldown = 0.0f;
+    player->aiRankTarget = player->aiRankBaseline;
+    player->unk12_2 = 60.0f;
+    player->lodDistance = 0;
+    player->collisionToggles = 0xffffff00;
+    player->terrainModel = NULL;
+    player->unk1f24 = 0;
+    player->unk1f1c = 0;
+    player->unk1f20 = 0;
+    player->gravityTubeAngle = 0.0f;
+    for (i = 0; i < 6; i++) {
+        player->engineHealthMin[i] = 0.0f;
+        player->engineHealth[i] = 0.0f;
+        player->engineStatus[i] = 0.0f;
+    }
+    player->vibrationMagnitude = 0.0f;
+    player->repairTimer = 0.0f;
+    player->damageWarningTimer = 0.0f;
+    player->totalDamage = 0.0f;
+    player->fallTimer = 0.0f;
+    player->respawnInvincibilityTimer = 0.0f;
+    player->vehicleBumpTimer = 0.0f;
+    player->historyWriteIdx = 0;
+    for (i = 0; i < 18; i++)
+        rdMatrix_Copy44(&player->transformHistory[i], &player->transform);
+    player->historyLagEngines = 9;
+    player->historyLagCockpit = 6;
+    rdVector_Set3(&player->cockpitSpringPos, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&player->cockpitSpringVel, 0.0f, 0.0f, 0.0f);
+    player->collisionModel = collisionModel;
+    player->cockpitPitchPrev = 0.0f;
+    player->partNodes = partNodes;
+    player->current_light_index = lightIndex;
+    player->lightColorMode = 0;
+    if (duplicatePods != 0 && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && (char)player->score_ptr->sfxChannel != 0)
+        player->lightColorMode = 2;
+
+    // 75 consecutive part transforms start at unk350_mat (later ones carry their own field names)
+    for (i = 0; i < 75; i++) {
+        rdMatrix_SetIdentity44(&(&player->unk350_mat)[i]);
+        rdVector_Set3(&player->partOffset[i], 0.0f, 0.0f, 0.0f);
+    }
+    player->scrapeSparkXf.vD.z = -2000.0f;
+    player->scrapeSparkXf2.vD.z = -2000.0f;
+    for (i = 0; i < 4; i++)
+        player->wobblePhase[i] = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 60.0f;
+    player->unk19b0 = 0.0f;
+    player->wobbleAmplitude = 1.0f;
+    player->unk19b4 = 1.0f;
+
+    subEvents[0] = 'sLOD';
+    subEvents[1] = swrConfig_VIDEO_MODEL_DETAIL == 1 ? 2 : 0;
+    swrEvent_DispatchSubEvents(player, subEvents);
+    swrRace_ResetModelNodeFlags(player);
+    if (player->partNodes != NULL) {
+        if (player->partNodes[0x3e] != NULL)
+            player->partNodes[0x3e]->flags_5 |= 1;
+        if (player->partNodes[2] != NULL)
+            player->partNodes[2]->flags_5 |= 1;
+        if (player->partNodes[4] != NULL)
+            player->partNodes[4]->flags_5 |= 1;
+        if (player->partNodes[0xe] != NULL)
+            player->partNodes[0xe]->flags_5 |= 1;
+    }
+
+    player->footprintX = 2.0f;
+    player->footprintY = 2.0f;
+    if (player->partNodes != NULL && player->partNodes[0x3e] != NULL && swrModel_NodeComputeFirstMeshAABB(player->partNodes[0x3e], aabb, 0) != 0) {
+        player->footprintY = (aabb[4] - aabb[1]) * 0.004f;
+        player->footprintX = (aabb[3] - aabb[0]) * 0.0036000002f;
+    }
+    if (*player->score_ptr->pilotId == SWR_PILOT_NEVA_KEE) {
+        player->footprintX = 3.0f;
+        player->footprintY = 5.0f;
+    }
+
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        swrControl_StopAllForceEffects(0);
+        swrControl_SetForceFeedbackPlayer(player);
+    }
+    if ((player->flags0 & (swrObjTest_FLAG0_LOCAL | swrObjTest_FLAG0_AI_SIMPLE)) != 0)
+        swr_noop2();
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0)
+        swrModel_FxAnimGetState_Maybe();
 }
 
 // 0x00476AC0
@@ -8060,7 +8514,7 @@ void swrRace_ApplyEngineProximityPush(swrRace* player, float* otherPos, rdVector
     // dot products are inlined in the original
     distRight = player->engineXfR.vA.z * fromRight.z + player->engineXfR.vA.y * fromRight.y + fromRight.x * player->engineXfR.vA.x;
     distLeft = player->engineXfL.vA.z * fromLeft.z + player->engineXfL.vA.y * fromLeft.y + fromLeft.x * player->engineXfL.vA.x;
-    halfWidth = *(float*)&player->unk1e64_flag * 0.5f;
+    halfWidth = player->footprintX * 0.5f;
 
     if (distLeft * distLeft <= distRight * distRight) {
         push = -(halfWidth + distLeft);
