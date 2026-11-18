@@ -6475,10 +6475,10 @@ void swrObjJdge_SetupStartingGrid(swrObjJdge* judge)
 }
 
 // 0x00465980
-void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int param_5, int param_6, int param_7, int param_8)
+void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void* podModel, int riderModel, int lodBody, int lodSelector, int duplicatePods)
 {
     swrModel_Header* header = (swrModel_Header*)podModel;
-    swrModel_Node* reflection = NULL; // faithful: uninitialized in the original when both podModel and param_6 are NULL
+    swrModel_Node* reflection = NULL; // faithful: uninitialized in the original when both podModel and lodBody are NULL
     swrModel_Node* node;
     swrRace* player;
     rdMatrix44 mirror;
@@ -6526,17 +6526,17 @@ void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void
             swrModel_NodeModifyFlags(header->entries[0x49].node, 2, -4, 0x10, 3);
         RecordLoadedModel_Maybe(header->entries[0x41].node, (int)&swrModel_sparkTemplateNode);
         RecordLoadedModel_Maybe(header->entries[0x42].node, (int)&swrModel_sparkTemplateNode);
-    } else if (param_6 != 0) {
-        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = (swrModel_Node*)param_6;
-        swrModel_NodeModifyFlags((swrModel_Node*)param_6, 2, 3, 0x10, 2);
+    } else if (lodBody != 0) {
+        swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = (swrModel_Node*)lodBody;
+        swrModel_NodeModifyFlags((swrModel_Node*)lodBody, 2, 3, 0x10, 2);
     }
 
     swrObjJdge_GetSpawnTransform(judge, &spawn, player->score_ptr->unk14);
     // the header types arg 2 as float; it is the spline pointer
-    swrRace_Init(player, *(float*)&judge->unk2c_spline, (int)podModel, (void*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), param_8);
+    swrRace_Init(player, *(float*)&judge->unk2c_spline, (int)podModel, (void*)judge->unk30, player->obj.id, (float*)&spawn, gridPos, judge->num_players, NumLocalPlayers(), duplicatePods);
     player->reflectionNode = reflection;
-    player->lodBodyNode = (swrModel_Node*)param_6;
-    player->lodSelectorNode = (swrModel_Node*)param_7;
+    player->lodBodyNode = (swrModel_Node*)lodBody;
+    player->lodSelectorNode = (swrModel_Node*)lodSelector;
 
     if (header != NULL && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
         header->entries[0].node->flags_5 |= 0xc;
@@ -6607,7 +6607,7 @@ void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores)
         lodClass = 3;
         if (scores[i].identifier == 'Locl')
             lodClass = (numLocalPlayers > 1) + 1;
-        if ((judge->flag & 0x20) != 0)
+        if ((judge->flag & swrObjJdge_FLAG_NON_PAUSABLE) != 0)
             lodClass = 1;
         else if (numLocalPlayers == 0)
             lodClass = 3;
