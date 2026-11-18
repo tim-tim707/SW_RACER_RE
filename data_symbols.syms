@@ -84,6 +84,8 @@ joystick_detected 0x004b294c int = 1
 swrControl_defaultJoystickFlipAxis 0x004b2958 int[6]
 swrControl_defaultMouseFlipAxis 0x004b2970 int[3]
 swrControl_defaultDeadzone 0x004b297c float # 0.15
+swrControl_inputRecordActions 0x004b2998 int[16] # inRaceLocalPlayerInputRecord action byte N <- button-state[this], or -1 for none (swrControl_ProcessInputs)
+swrControl_actionEdgeOnly 0x004b29d8 char[16] # per action: 1 = report only the first frame of a hold (swrControl_ProcessInputs)
 keyMapping2_0 0x004b29e8 keyMappingEx[22]
 swrControl_defaultBindingsJoystick 0x004b2f80 swrControlBinding[65]
 swrControl_defaultBindingsMouse 0x004b3290 swrControlBinding[65]
@@ -91,6 +93,8 @@ swrControl_defaultBindingsKeyboard 0x004b35a0 swrControlBinding[65]
 keyMapping0 0x004b2af0 keyMapping[7]
 keyMapping1 0x004b2b28 keyMapping[21]
 keyMapping2 0x004b2bd0 keyMapping[118]
+swrControl_buttonInputBytes 0x004b38ac int # sizeof the three *ButtonPressedInput arrays, cleared each poll
+swrControl_axisInputBytes 0x004b38b0 int # sizeof the three *AxisInput arrays, cleared each poll
 
 swrConfig_aControlKeyStrings 0x004b38b8 int[16] # DIK codes that can never be bound (Win/Apps/SysRq/F1-F12), swrControl_IsKeyStringControl
 
@@ -116,9 +120,11 @@ Main_force_feedback 0x004b4938 int = 1
 swrConfig_defaultForceConfig 0x004b4ae8 int[8] = { 3, 3, 2, 2, 2, 2, 1, 1 }
 
 swrUI_unk_ptr 0x004b5d74 swrUI_unk*
+swrUI_confirmDialogDone 0x004b5d7c int = 1 # cleared by swrUI_ShowConfirmDialog, set when the dialog is answered
 
 swrMultiplayer_proxyPlayer 0x004b6714 int = -1 # player the host last sent a 'prxy' proxy event to (-1 = none)
 Main_nut_delay_ms 0x004b6718 int = 32
+swrSound_loadBudgetBytes 0x004b6d10 int = 0x400000 # resident sample bytes before swrSound_LoadSound evicts (swrSound_loadedBytes)
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
 Main_sound_reflections 0x004b6d1c int
@@ -126,6 +132,7 @@ Main_sound 0x004b6d20 int = 1
 Main_sound_gain_adjust 0x004b6d24 float
 swrRace_voices_enabled 0x004b6d28 int = 1
 Main_sound_unk 0x004b6d2c int = 1
+swrSound_sourceFlags 0x004b6d30 int = 1 # A3D source-creation flags swrSound_LoadSound passes to swrSound_NewSource
 swrSound_bank 0x004b6d34 void* # ptr to the sound-bank descriptor (+0x20 = entry count, +0x28 = entries base, 0x4c bytes each); swrSound_GetEntry
 swrSound_defaultBankFiles 0x004b6d38 swrSoundDefaultBankEntry[88] # NULL-terminated; swrSound_LoadDefaultBank
 
@@ -495,6 +502,7 @@ swrText_keyNameText 0x004d5f38 char[128]
 swrControl_axesPrev 0x004d62d0 float[12] # last frame's joystick [0..5] / mouse [6..8] axes while capturing a binding (swrControl_FindMovedAxis)
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
+swrControl_bindingCaptureActive 0x004d6b34 int # set by swrControl_MappingsMenu while capturing a binding; polls every device
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
@@ -502,8 +510,10 @@ swrControl_acceptPressedEdge 0x004d6b40 int
 swrControl_cancelPressedEdge 0x004d6b44 int
 swrControl_menuAcceptPressedEdge 0x004d6b48 int # accept edge for front-end menus (sibling of swrControl_acceptPressedEdge)
 swrControl_acceptReleasedEdge 0x004d6b4c int
+swrControl_cancelReleasedEdge 0x004d6b50 int
 
 enableWindowInput 0x004D6B54 int
+swrControl_mouseSuppressed 0x004d6b58 int # skip mouse polling next frame (menu accept guard set outside main menu / vehicle / results screens)
 swrControl_menuAcceptGuard 0x004d6b6c int # set on entering vehicle select and by several menus; while set, swrUI_UpdateMouseState drops the accept bit on a menu-accept edge
 
 swrUI_progressBarY 0x004d6b70 int # progress-bar rect top (swrUI_UpdateProgressBar)
@@ -532,6 +542,7 @@ currentPlayer_Test 0x004d78a8 swrRace*
 rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
+swrRace_screenshotKeyHeld 0x004d79e8 int # F12 held last poll (swrRace_PollScreenshotKey edge detect)
 
 swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_caretY 0x004d7c4c int
@@ -621,12 +632,15 @@ swrSound_loadedBytes 0x004eb44c int
 
 swrSound_Initted 0x004eb450 int
 
+swrSound_evictRecheckFrames 0x004eb454 int # set to 2 by swrSound_EvictSounds; while nonzero swrSound_Update resets voices whose source was evicted
 swrSound_Ready 0x004eb458 int
 swrRace_music_enabled 0x004eb45c int
 Main_sound_reverb 0x004eb460 int
 
 swrSoundHashTable 0x004eb464 tHashTable*
 
+swrSound_evictCursor 0x004eb46c unsigned int # bank index swrSound_EvictSounds resumes scanning from
+swrSound_evictPassParity 0x004eb470 int # flipped on each wrap of the eviction scan; never otherwise read
 swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
@@ -1508,6 +1522,7 @@ swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
 swrSprite_colorApplied 0x00e99764 int
+swrText_hasBoldCode 0x00e99768 int # 1 when the string being rendered contains "~b" (swrText_RenderString; read by swrText_DrawString)
 
 swrSprite_array 0x00e9ba60 swrSprite[251]
 
@@ -1526,6 +1541,10 @@ oneOver255f 0x004acca0 float
 # swrUI menu page stack (push/pop navigation) and focus
 swrUI_focusedElement 0x004d8794 swrUI_unk* # element currently receiving key events
 swrUI_pageStackDepth 0x004d87a4 int # top index into swrUI_pageStack
+swrUI_confirmDialogResult 0x004d87ac int # answer of the confirm dialog, -1 while open; forwarded with msg 100 to swrUI_confirmDialogParent
+swrUI_confirmDialogModal 0x004d87b0 int # 1 while swrUI_ShowConfirmDialog runs its own GUI loop
+swrUI_confirmDialog 0x004d87b4 swrUI_unk* # open confirm dialog (swrUI_ShowConfirmDialog)
+swrUI_confirmDialogParent 0x004d87b8 swrUI_unk* # element the confirm dialog answers to
 swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
 swrUI_inputSuppressFlags 0x004d8bd0 int # swrUI_INPUT_SUPPRESS one-shot bits; low byte only is ever written
@@ -1676,7 +1695,15 @@ swrPlayerHUD_worldSpritePixelX 0x00e9a8a0 int[16] # last projected screen x, -10
 swrPlayerHUD_worldSpriteDepth 0x00e9a8e0 float[16] # z-buffer depth sampled by swrPlayerHUD_SampleOcclusion
 swrPlayerHUD_worldSpritePixelY 0x00e9a920 int[16]
 
+swrCam_blendFromIndex 0x00e9b9c4 short # camera blend (swrCam_CamState_ApplyToViewport): unkCameraArray index blended from
+swrCam_blendToIndex 0x00e9b9c6 short # unkCameraArray index blended to; becomes the active camera when the blend ends
+swrCam_blendFromYPR 0x00e9b9c8 rdVector3 # last frame's from-camera yaw/roll/pitch, for +/-180 unwrapping
+swrCam_blendToYPR 0x00e9b9d4 rdVector3 # last frame's to-camera yaw/roll/pitch
+swrCam_blendTime 0x00e9b9e0 float # seconds into the blend
+swrCam_blendDuration 0x00e9b9e4 float # blend length in seconds (10 after swrCam_CamState_InitMatrices)
 rdMatrix44_unk2 0x00e9b9e8 rdMatrix44
+swrCam_lookAtMode 0x00e9ba40 short # blend look-at target kind: 0 = rdMatrix44*, 1 = rdVector3*, else swrCam_CamState_GetOffsetTransform mode
+swrCam_lookAtTarget 0x00e9ba44 void* # blend look-at target, NULL = interpolate the cameras' angles
 
 sound_3d_gain_adjust 0x00e9e048 float
 

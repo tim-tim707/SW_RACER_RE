@@ -1,6 +1,8 @@
 #include "swrConfig.h"
 
 #include <General/stdConffile.h>
+#include <General/stdString.h>
+#include <Main/swrControl.h>
 
 #include "globals.h"
 #include "macros.h"
@@ -18,8 +20,103 @@
 // 0x00406080
 int swrConfig_WriteMappings(char* dirname)
 {
-    HANG("TODO");
-    return 0;
+    char path[256];
+    char deviceText[32];
+    char bindText[32];
+    char rangeText[32];
+    char functionText[32];
+    swrControlBinding* binding;
+    int* flipTable;
+    char* name;
+    unsigned char flags;
+    int axisCount;
+    int enabled;
+    int device;
+    int i;
+
+    sprintf(path, "%s%s\\%s_%s", ".\\data\\config\\", dirname, dirname, "control.map");
+    if (stdConffile_OpenWrite(path) == 0) {
+        stdConffile_CloseWrite();
+        return -1;
+    }
+    flipTable = NULL;
+    binding = NULL;
+    bindText[0] = '\0';
+    for (device = swrConfig_DEVICE_JOYSTICK; device <= swrConfig_DEVICE_KEYBOARD; device++) {
+        if (device == swrConfig_DEVICE_JOYSTICK) {
+            binding = swrControl_bindingsJoystick;
+            axisCount = STDCONTROL_AXES_PER_JOYSTICK;
+            flipTable = swrControl_joystickFlipAxis;
+            enabled = swrConfig_joystick_enabled;
+            sprintf(deviceText, "JOYSTICK");
+        } else if (device == swrConfig_DEVICE_MOUSE) {
+            binding = swrControl_bindingsMouse;
+            axisCount = STDCONTROL_MOUSE_NUM_AXES;
+            // flip_x/y/z_axis are consecutive: the mouse flip table
+            flipTable = &flip_x_axis;
+            enabled = swrConfig_mouse_enabled;
+            sprintf(deviceText, "MOUSE");
+        } else {
+            binding = swrControl_bindingsKeyboard;
+            axisCount = 0;
+            enabled = swrConfig_keyboard_enabled;
+            sprintf(deviceText, "KEYBOARD");
+        }
+        swrConfig_Printf("\n\n####### %s MAPPINGS\n\n", deviceText);
+        // bindText is not reset per binding: a binding with neither BUTTON nor AXIS reuses the previous one
+        for (; binding->flags != SWR_CONTROL_BINDING_END; binding++) {
+            flags = binding->flags;
+            sprintf(rangeText, wuRegistry_lpClass);
+            if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && device != swrConfig_DEVICE_KEYBOARD) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping1));
+                sprintf(bindText, "BUTTON=%s", name);
+            } else if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && device == swrConfig_DEVICE_KEYBOARD) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping2));
+                sprintf(bindText, "KEY=%s", name);
+            } else if ((flags & swrControlBinding_FLAG_AXIS) != 0) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping0));
+                sprintf(bindText, "AXIS=%s", name);
+                if ((flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                    sprintf(rangeText, "AXIS_RANGE=POSITIVE");
+                } else if ((flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                    sprintf(rangeText, "AXIS_RANGE=NEGATIVE");
+                }
+            }
+            if ((flags & swrControlBinding_FLAG_BUTTON) == 0) {
+                flags &= ~(swrControlBinding_FLAG_POSITIVE | swrControlBinding_FLAG_NEGATIVE);
+            }
+            flags &= ~(swrControlBinding_FLAG_AXIS | swrControlBinding_FLAG_BUTTON);
+            name = stdString_RemoveTEXTTag(swrControl_FindKeyName(binding->action, flags));
+            if (name != NULL) {
+                sprintf(functionText, "FUNCTION=%s", name);
+                if (swrConfig_Printf("%-28s%-28s%-28s%-28s\n", deviceText, bindText, functionText, rangeText) != 0) {
+                    stdConffile_CloseWrite();
+                    return 0;
+                }
+            }
+        }
+        swrConfig_Printf("\n");
+        for (i = 0; i < axisCount; i++) {
+            if (flipTable[i] != 0) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(i, keyMapping0));
+                sprintf(bindText, "AXIS=%s", name);
+                swrConfig_Printf("%-28s%-28sFLIP_AXIS\n", deviceText, bindText);
+            }
+        }
+        if (device < swrConfig_DEVICE_KEYBOARD && swrControl_axisSensitivity[device] != 1.0f) {
+            sprintf(bindText, "SENSITIVITY=%0.2f", swrControl_axisSensitivity[device]);
+            swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+        }
+        if (device == swrConfig_DEVICE_JOYSTICK && Deadzone != swrControl_defaultDeadzone) {
+            sprintf(bindText, "DEADZONE=%0.2f", Deadzone);
+            swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+        }
+        sprintf(bindText, enabled != 0 ? "ENABLED=TRUE" : "ENABLED=FALSE");
+        swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+    }
+    swrConfig_Puts("\nend.\n");
+    stdConffile_CloseWrite();
+    return 1;
 }
 
 // 0x00407b00
@@ -659,4 +756,30 @@ void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page)
     swrUI_SetChecked(swrUI_GetById(page, 0x60), swrConfig_FORCE_GFORCES);
     swrUI_SetChecked(swrUI_GetById(page, 0x61), swrConfig_FORCE_ENGINERUMBLE);
     swrConfig_AssignForceValues();
+}
+
+// 0x0040c670
+void swrConfig_SetMappingRowText(int deviceIndex, swrUI_unk* page, int rowId, int control, int param5, int param6, int param7)
+{
+    char text[64];
+    swrUI_unk* row;
+    unsigned int boundControl;
+    int skipFirst;
+
+    skipFirst = 0;
+    row = swrUI_GetById(page, rowId);
+    // the EXE reuses the rowId argument slot as the out-param
+    swrControl_FormatBinding(deviceIndex, control, param5, (unsigned char)param6, param7, text, &boundControl);
+    if (rowId == SWR_CONFIG_MAPPING_ROW_TRIMMED && strlen(text) > 3) {
+        skipFirst = 1;
+    }
+    if (strcmp(text, "~") == 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0247/tilde"));
+    }
+    if (strcmp(text, "=") == 0) {
+        sprintf(text, "+");
+    }
+    if (row != NULL) {
+        swrUI_SetValueText(row, skipFirst ? text + 1 : text, 0);
+    }
 }

@@ -340,6 +340,13 @@ swrUI_unk* swrUI_NewWindow(swrUI_unk* parent, int* rect, int id, swrUI_unk_F2* f
     return ui;
 }
 
+// 0x004131c0
+swrUI_unk* swrUI_NewLabel(swrUI_unk* parent, int id, int font, char* text, int x, int y, int flags, int param8)
+{
+    HANG("TODO");
+    return NULL;
+}
+
 // 0x00413500
 void swrUI_SetMaxLength(swrUI_unk* ui, int maxLength)
 {
@@ -535,8 +542,25 @@ void swrUI_SetListHighlightColor(swrUI_unk* list, uint8_t r, uint8_t g, uint8_t 
 // 0x004138f0
 swrUI_unk* swrUI_AddListItem(swrUI_unk* list, char* text, int value, int id, int param5)
 {
-    HANG("TODO");
-    return NULL;
+    swrUI_unk* item;
+
+    if (list == NULL || text == NULL) {
+        return NULL;
+    }
+    item = swrUI_NewLabel(list, id, list->font_index, text, 0, 0, 0, 1);
+    item->item_flags = (swrUI_ITEM_FLAG)value;
+    swrUI_SetColorUnk(item, list->r, list->g, list->b, list->a);
+    swrUI_SetColorUnk2(item, list->r2, list->g2, list->b2, list->a2);
+    swrUI_SetColorUnk4(item, list->r4, list->g4, list->b4, list->a4);
+    swrUI_SetColorUnk3(item, list->r3, list->g3, list->b3, list->a3);
+    swrUI_SetColorUnk5(item, list->r5, list->g5, list->b5, list->a5);
+    swrUI_SetSlotValue(item, 0, param5);
+    item->widget_class = swrUI_CLASS_LIST_ITEM;
+    if (swrUI_GetSelectedItem(list) == NULL) {
+        swrUI_SelectListItem(item, 1);
+    }
+    swrUI_RefreshListLayout(list);
+    return item;
 }
 
 // 0x00413b10
@@ -2232,6 +2256,40 @@ void swrUI_RefreshPageButtons(swrUI_unk* page, int backArg, int okArg)
     }
 }
 
+// 0x0041b4d0
+void swrUI_SortListItems(swrUI_unk* list)
+{
+    swrUI_unk sorted;
+    swrUI_unk* child;
+    swrUI_unk* lowest;
+
+    if (list == NULL) {
+        return;
+    }
+    // a zeroed element on the stack collects the items in ascending unk528 order
+    memset(&sorted, 0, sizeof(sorted));
+    while (swrUI_CountSelectableItems(list) != 0) {
+        lowest = list->next;
+        // unreachable while a selectable item remains; guards the analyzer's NULL path
+        if (lowest == NULL) {
+            break;
+        }
+        for (child = list->next; child != NULL; child = child->next2) {
+            if (child->widget_class == swrUI_CLASS_LIST_ITEM && (unsigned int)child->unk528 < (unsigned int)lowest->unk528) {
+                lowest = child;
+            }
+        }
+        swrUI_UnlinkElement(lowest);
+        swrUI_Enqueue(&sorted, lowest);
+    }
+    while (sorted.next != NULL) {
+        child = sorted.next;
+        swrUI_UnlinkElement(child);
+        swrUI_Enqueue(list, child);
+    }
+    swrUI_RefreshListLayout(list);
+}
+
 // 0x0041b5e0
 swrUI_unk* swrUI_GetByValue(swrUI_unk* ui, int value)
 {
@@ -2268,6 +2326,19 @@ void swrUI_ApplyFocusColor(swrUI_unk* ui)
         swrUI_SetColorUnk(ui, ui->r5, ui->g5, ui->b5, ui->a5);
     } else {
         swrUI_SetColorUnk(ui, ui->r2, ui->g2, ui->b2, ui->a2);
+    }
+}
+
+// 0x0041b690
+void swrUI_ProcessPendingClose(void)
+{
+    if (swrUI_confirmDialogDone != 0 && swrUI_confirmDialogModal == 0 && swrUI_confirmDialog != NULL) {
+        swrUI_FreeElement(swrUI_confirmDialog);
+        swrUI_confirmDialog = NULL;
+        swrUI_RunCallbacks2(swrUI_confirmDialogParent, 1);
+        swrUI_RunCallbacks(swrUI_confirmDialogParent, swrUI_MSG_DIALOG_RESULT, swrUI_confirmDialogResult, 0);
+        swrUI_confirmDialogParent = NULL;
+        swrUI_confirmDialogDone = 0;
     }
 }
 

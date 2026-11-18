@@ -1214,7 +1214,7 @@ extern "C"
         rdVector3 posOffset; // 0x54. local offset rotated into matrix space
         rdVector3 rotationYPR; // 0x60. yaw/pitch/roll applied via rdMatrix_SetRotation44
         rdVector3 localOffset; // 0x6c. offset added to translation
-        float unk78; // 0x78
+        struct swrModel_Node* blendNode; // 0x78. node flagged (flag id 2) while this camera is a blend endpoint (swrCam_CamState_ApplyToViewport)
     } swrCamera_unk; // sizeof(0x7c). At 0x004b91c4
 
     typedef struct swr_unk1 // == RdModel3

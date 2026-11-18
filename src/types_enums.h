@@ -1435,6 +1435,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_DESTROY = 0x10, // swrUI_FreeElement, before the element is unlinked and freed
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id
     swrUI_MSG_SET_EDITING = 0x49, // param != 0 enters edit mode (sets swrUI_EDITING), 0 leaves it
+    swrUI_MSG_DIALOG_RESULT = 100, // fired to the confirm dialog's parent by swrUI_ProcessPendingClose; param = swrUI_confirmDialogResult
     swrUI_MSG_LIST_SELECT_ITEM = 1000, // list: select item param2, relayout, notify the parent
     swrUI_MSG_SLIDER_DECREASED = 2000, // fired to the parent by swrUI_HandleSliderKey; param = slider id
     swrUI_MSG_SLIDER_INCREASED = 2001,
@@ -1480,6 +1481,12 @@ typedef enum stdControlInputItem_FLAG
 {
     stdControlInputItem_FLAG_KEYDOWN = 0x200, // set from WindowsInputItem.keydown (unused by Win32 KF_* bits)
 } stdControlInputItem_FLAG;
+
+typedef enum swrCamera_FLAG // swrCamera_unk.flags (unkCameraArray)
+{
+    swrCamera_FLAG_ACTIVE = 0x1, // the selected camera (swrViewport_SetActiveCamera); cleared on the blend-from camera when a blend ends
+    swrCamera_FLAG_IN_VIEWPORT = 0x2, // a valid viewport uses this camera this frame (swrViewport_UpdateCameras)
+} swrCamera_FLAG;
 
 typedef enum swrControlBinding_FLAG
 {

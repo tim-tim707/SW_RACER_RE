@@ -5,6 +5,7 @@
 #include "engine_config.h"
 #include "swrSprite.h"
 #include "swr.h"
+#include "swrRender.h"
 
 #include <macros.h>
 #include <General/utils.h>
@@ -652,10 +653,55 @@ void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int 
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
 
+// 0x0042e150
+void swrText_DrawString(char* text, void* font, short pass)
+{
+    HANG("TODO");
+}
+
 // 0x0042ec50
 void swrText_RenderString(char* text)
 {
-    HANG("TODO");
+    int16_t savedX;
+    int16_t savedY;
+    int start;
+    int pass;
+    int i;
+
+    swrText_SetCurrentFont(0);
+    swrText_bboxMinX = SWR_TEXT_BBOX_RESET;
+    swrText_bboxMaxX = -SWR_TEXT_BBOX_RESET;
+    swrText_hasBoldCode = 0;
+    for (i = 0; text[i] != '\0' && swrText_hasBoldCode == 0; i++) {
+        if (text[i] == '~' && text[i + 1] == 'b') {
+            swrText_hasBoldCode = 1;
+        }
+    }
+    start = 0;
+    if (text[0] == '~' && text[1] == 'f') {
+        swrText_SetCurrentFont((short)text[2] - '0');
+        start = 3;
+    }
+    swrText_halfScale = 0;
+    if (text[0] == '~' && text[1] == 'F') {
+        swrText_halfScale = 1;
+        swrText_SetCurrentFont((short)text[2] - '0');
+        start = 3;
+    }
+    savedX = currentTextPosX;
+    savedY = currentTextPosY;
+    rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+    // each font page is a separate pass over the same string from the same origin
+    for (pass = 0; pass < swrText_currentFont->pageCount; pass++) {
+        currentTextPosX = savedX;
+        currentTextPosY = savedY;
+        swrText_DrawString(text + start, swrText_currentFont, (short)pass);
+    }
+    if (swrText_bboxMinX < swrText_bboxMaxX && swrText_bboxMinY < swrText_bboxMaxY) {
+        swrSprite_AddDirtyRect(swrText_bboxMinX, swrText_bboxMinY, swrText_bboxMaxX, swrText_bboxMaxY);
+    }
+    currentTextPosX = previousTextPosX;
+    currentTextPosY = previousTextPosY;
 }
 
 // 0x0042e0e0

@@ -10906,6 +10906,95 @@ void swrCam_CamState_GetOffsetTransform(int mode, swrModel_NodeTransformed* node
     rdMatrix_SetIdentity44(out);
 }
 
+// Moves `angle` by a full turn when `delta` left +/-180 (x87 compare: NaN counts as below).
+static void swrCam_UnwrapAngle(float* angle, float delta)
+{
+    if (delta > SWR_CAM_HALF_TURN) {
+        *angle = *angle - SWR_CAM_FULL_TURN;
+    }
+    if (!(delta >= -SWR_CAM_HALF_TURN)) {
+        *angle = *angle - -SWR_CAM_FULL_TURN;
+    }
+}
+
+// 0x00428cd0
+void swrCam_CamState_ApplyToViewport(swrViewport* viewport)
+{
+    swrTranslationRotation from;
+    swrTranslationRotation to;
+    swrTranslationRotation blended;
+    rdMatrix44 target;
+    rdMatrix44 view;
+    rdVector3* lookAt;
+    float t;
+    float deltaX;
+    float deltaZ;
+
+    rdMatrix_ExtractTransform(&unkCameraArray[swrCam_blendFromIndex].transform, &from);
+    rdMatrix_ExtractTransform(&unkCameraArray[swrCam_blendToIndex].transform, &to);
+    t = swrCam_blendTime / swrCam_blendDuration;
+    rdMatrix_ExtractTransform(&rdMatrix44_unk2, &blended);
+    blended.translation.x = to.translation.x - from.translation.x;
+    blended.translation.y = to.translation.y - from.translation.y;
+    blended.translation.z = to.translation.z - from.translation.z;
+    rdVector_Scale3Add3(&blended.translation, &from.translation, t, &blended.translation);
+
+    if (swrCam_lookAtTarget == NULL) {
+        if (t > 0.0f) {
+            // mid-blend: unwrap each camera against its own last-frame angles
+            deltaX = from.yaw_roll_pitch.x - swrCam_blendFromYPR.x;
+            deltaZ = from.yaw_roll_pitch.z - swrCam_blendFromYPR.z;
+            swrCam_UnwrapAngle(&from.yaw_roll_pitch.x, deltaX);
+            swrCam_UnwrapAngle(&from.yaw_roll_pitch.z, deltaZ);
+            deltaX = to.yaw_roll_pitch.x - swrCam_blendToYPR.x;
+            deltaZ = to.yaw_roll_pitch.z - swrCam_blendToYPR.z;
+            swrCam_UnwrapAngle(&to.yaw_roll_pitch.x, deltaX);
+            swrCam_UnwrapAngle(&to.yaw_roll_pitch.z, deltaZ);
+        } else {
+            deltaX = to.yaw_roll_pitch.x - from.yaw_roll_pitch.x;
+            deltaZ = to.yaw_roll_pitch.z - from.yaw_roll_pitch.z;
+            swrCam_UnwrapAngle(&to.yaw_roll_pitch.x, deltaX);
+            swrCam_UnwrapAngle(&to.yaw_roll_pitch.z, deltaZ);
+        }
+        blended.yaw_roll_pitch.x = to.yaw_roll_pitch.x - from.yaw_roll_pitch.x;
+        blended.yaw_roll_pitch.y = to.yaw_roll_pitch.y - from.yaw_roll_pitch.y;
+        blended.yaw_roll_pitch.z = to.yaw_roll_pitch.z - from.yaw_roll_pitch.z;
+        swrCam_blendFromYPR = from.yaw_roll_pitch;
+        swrCam_blendToYPR = to.yaw_roll_pitch;
+        rdVector_Scale3Add3(&blended.yaw_roll_pitch, &from.yaw_roll_pitch, t, &blended.yaw_roll_pitch);
+        rdMatrix_SetTransform44(&rdMatrix44_unk2, &blended);
+    } else {
+        if (swrCam_lookAtMode == 1) {
+            lookAt = (rdVector3*)swrCam_lookAtTarget;
+        } else {
+            if (swrCam_lookAtMode == 0) {
+                target = *(rdMatrix44*)swrCam_lookAtTarget;
+            } else {
+                swrCam_CamState_GetOffsetTransform(swrCam_lookAtMode, (swrModel_NodeTransformed*)swrCam_lookAtTarget, &target);
+            }
+            lookAt = (rdVector3*)&target.vD;
+        }
+        BuildLookAtTransform(&blended.translation, lookAt, &rdMatrix44_unk2, &blended, blended.yaw_roll_pitch.z);
+    }
+
+    view = rdMatrix44_unk2;
+    swrViewport_SetMat3(viewport, &view);
+    if (unkCameraArray[swrCam_blendFromIndex].blendNode != NULL) {
+        swrModel_NodeModifyFlags(unkCameraArray[swrCam_blendFromIndex].blendNode, 2, 1, 0x10, 2);
+    }
+    if (unkCameraArray[swrCam_blendToIndex].blendNode != NULL) {
+        swrModel_NodeModifyFlags(unkCameraArray[swrCam_blendToIndex].blendNode, 2, 1, 0x10, 2);
+    }
+    swrCam_blendTime = swrCam_blendTime + swrRace_deltaTimeSecs;
+    if (swrCam_blendTime >= swrCam_blendDuration) {
+        if (unkCameraArray[swrCam_blendToIndex].blendNode != NULL) {
+            swrModel_NodeModifyFlags(unkCameraArray[swrCam_blendToIndex].blendNode, 2, -2, 0x10, 3);
+        }
+        swrViewport_SetActiveCamera(swrCam_blendToIndex);
+        unkCameraArray[swrCam_blendFromIndex].flags &= ~swrCamera_FLAG_ACTIVE;
+    }
+}
+
 // Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
 // 0x0045a420
 float swrObjHang_EaseSine_Maybe(float t, float period) {

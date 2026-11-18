@@ -106,6 +106,24 @@ int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
     return 1;
 }
 
+// 0x00412f20
+int swrSprite_CreateFromTextureId(int textureId)
+{
+    swrSpriteTexture* tex;
+    int id;
+
+    tex = swrSprite_GetTextureFromId(textureId);
+    if (tex == NULL) {
+        return 0;
+    }
+    id = swrSprite_FindFreeId();
+    if (id == 0) {
+        return 0;
+    }
+    swrSprite_NewSprite((short)id, tex);
+    return id;
+}
+
 // 0x00412f60
 void swrSprite_ClearSprites(swrUI_unk* swrui_unk)
 {

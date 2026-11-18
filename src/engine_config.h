@@ -36,6 +36,7 @@
 #define STDCONTROL_MOUSE_NUM_KEYS (4)
 #define STDCONTROL_MOUSE_AXIS_BASE (0x30) // stdControl_aAxes index of mouse X (Y, Z follow)
 #define STDCONTROL_MOUSE_NUM_AXES (3)
+#define STDCONTROL_AXIS_AS_KEY_THRESHOLD (0.5f) // stdControl_ReadAxisAsKeyEx: |axis| above this = pressed (0x004ae2d8)
 #define STDCONTROL_MOUSE_X_EXTENT (250.0f) // stdControl_SetMouseRange (0x004ae2dc)
 #define STDCONTROL_MOUSE_Y_EXTENT (200.0f) // (0x004ae2e0)
 #define SWR_CONTROL_AXIS_STEER (2) // analog action index of swrRace_SteeringInput
@@ -48,6 +49,14 @@
 #define SWR_CONTROL_WHEEL_ACCEPT_AXIS_MIN (0.1) // swrControl_PollAccept wheel throttle (0x004ac338)
 #define SWR_UI_INPUT_STATE_DWORDS (11) // swrUI_inputChangeFlags block
 #define SWR_CONTROL_ACTION_BRAKE (2) // action index of swrControl_brakeButton
+#define SWR_CONTROL_ACTION_ESCAPE (10) // action fed by the fixed Esc keyboard binding stdConfFile_readAndApplyConf appends
+#define SWR_CONTROL_NUM_ANALOG_ACTIONS (4) // *AxisInput arrays: throttle, unk, steer, pitch
+#define SWR_CONTROL_NUM_RECORD_ACTIONS (16) // action bytes in inRaceLocalPlayerInputRecord (swrControl_inputRecordActions)
+#define SWR_CONTROL_AXIS_DIGITAL_THRESHOLD (0.8f) // axis bound as a button with an AXIS_RANGE (0x3f4ccccd)
+#define SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD (0.5f) // mouse axis bound as a button without an AXIS_RANGE
+#define SWR_CONTROL_STEER_RECORD_SCALE (100.0f) // steer axes -> inRaceLocalPlayerInputRecord shorts (0x004ac328)
+#define SWR_CONTROL_STEER_RECORD_MAX (0x100)
+#define SWR_CONFIG_MAPPING_ROW_TRIMMED (0x3c) // swrConfig_SetMappingRowText: this row drops the first char of texts longer than 3
 // swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
 #define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)
 
@@ -137,8 +146,21 @@
 
 // swrSound_RegisterSound (0x004227e0): wavs with more PCM data than this are streamed from disk
 #define SWR_SOUND_STREAM_THRESHOLD (0x81330)
+#define SWR_SOUND_EVICT_HEADROOM (0x19000) // swrSound_LoadSound: extra bytes freed beyond the new sample
+#define SWR_SOUND_EVICT_RECHECK_FRAMES (2) // swrSound_EvictSounds -> swrSound_evictRecheckFrames
+#define SWR_SOUND_EVICT_MAX_WRAPS (2) // swrSound_EvictSounds restarts the bank scan at most this many times
 #define SWR_SOUND_DEFAULT_BANK_SIZE (87) // swrSound_defaultBankFiles entries, allocated when sounds.map is missing
 #define SWR_SOUND_HASHTABLE_SIZE (1200) // swrSound_Startup: buckets in swrSoundHashTable
+#define SWR_SOUND_NUM_VOICES (8) // swrSound_voicesRequested entries
+#define SWR_CAM_HALF_TURN (180.0f) // swrCam_CamState_ApplyToViewport angle unwrapping (0x004ac4fc)
+#define SWR_CAM_FULL_TURN (360.0f) // (0x004ac500)
+#define SWR_NUM_CAMERAS (32) // unkCameraArray entries
+#define SWR_CAM_LOOKAHEAD_SCALE (40.0) // swrViewport_UpdateCameras behavior 4: look-ahead per |forward.z| (0x004ac510)
+#define SWR_SOUND_VOLUME_SCALE (1.0f / 255.0f) // 0..255 volume byte -> gain (0x004ac474)
+#define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
+#define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx
+#define SWR_SOUND_PAN_POSITIONAL (-999) // swrSound.pan: 3D positional, use pos
+#define SWR_SOUND_PAN_CENTER (0x40) // swrSound.pan forced in mono
 
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
@@ -275,6 +297,7 @@
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
+#define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
 #define SWR_UI_DISABLED_TEXT_ALPHA (100) // swrUI_DrawText alpha for disabled elements
 #define SWR_UI_FONT_LOW_BASELINE (6) // swrUI_DrawText draws font 6 this many pixels lower
 #define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this
