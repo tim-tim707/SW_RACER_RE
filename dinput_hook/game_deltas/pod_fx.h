@@ -52,7 +52,10 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out);
 // omni-directional glow light is added there. Pods without binders (Neva Kee) report none; Ben
 // Quadinaros's two binders each get their own.
 
-void pod_fx_report_binder(const swrRace* racer, const rdVector3& center, float r, float g, float b);
+// a / b = the ends of the mesh's long axis (world space); r, g, b = its colour (0..1).
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl);
+// Skip the game's own binder glow card (texture #1411); Pod FX draws its own glow instead.
+bool pod_fx_hide_stock_binder_glow();
 
 // Loads [pod_fx] from SW_RACER_RE.ini and registers the "Mods/Pod FX" panel.
 void pod_fx_register_panel();

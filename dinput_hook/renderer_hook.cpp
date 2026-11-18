@@ -802,6 +802,38 @@ static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_M
         parse_display_list_commands(model_matrix, mesh, out);
 }
 
+// Average colour of a texture, weighted by how bright and opaque each texel is (cached per handle).
+static void texture_average_colour(GLuint tex, float out[3]) {
+    static std::unordered_map<GLuint, std::array<float, 3>> cache;
+    auto it = cache.find(tex);
+    if (it == cache.end()) {
+        std::array<float, 3> c = {1.0f, 1.0f, 1.0f};
+        GLint prev = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        GLint w = 0, h = 0;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+        if (w > 0 && h > 0 && w <= 1024 && h <= 1024) {
+            std::vector<unsigned char> px((size_t) w * h * 4);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            double r = 0, g = 0, b = 0, wsum = 0;
+            for (size_t i = 0; i < px.size(); i += 4) {
+                const double a = px[i + 3] / 255.0;
+                const double lum = std::max({px[i], px[i + 1], px[i + 2]}) / 255.0;
+                const double wt = a * lum;
+                r += wt * px[i], g += wt * px[i + 1], b += wt * px[i + 2], wsum += wt;
+            }
+            if (wsum > 1e-6)
+                c = {(float) (r / wsum / 255.0), (float) (g / wsum / 255.0), (float) (b / wsum / 255.0)};
+        }
+        glBindTexture(GL_TEXTURE_2D, (GLuint) prev);
+        it = cache.emplace(tex, c).first;
+    }
+    out[0] = it->second[0], out[1] = it->second[1], out[2] = it->second[2];
+}
+
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
                        bool mirrored, const rdMatrix44 &proj_matrix, const rdMatrix44 &view_matrix,
                        const rdMatrix44 &model_matrix, MODELID model_id) {
@@ -814,6 +846,42 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     if (!mesh->vertices)
         return;
+
+    // Energy binder meshes (kind 4): report the beam's box to Pod FX (its glow + omni light), and
+    // skip the game's own flat glow card (texture #1411), which that glow replaces. Done on the
+    // first (traversal) visit, before the mesh could be deferred, so the card is never drawn.
+    if (g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 && !g_preparsed_vertices &&
+        mesh->mesh_material != nullptr) {
+        const float *bb = mesh->aabb;
+        const rdMatrix44 &m = model_matrix;
+        // The beam runs along the box's longest axis, through its centre (taking two far corners
+        // instead gave a diagonal that flipped between frames).
+        const float ext[3] = {bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2]};
+        const int ax = ext[0] >= ext[1] && ext[0] >= ext[2] ? 0 : (ext[1] >= ext[2] ? 1 : 2);
+        float pa[3] = {(bb[0] + bb[3]) * 0.5f, (bb[1] + bb[4]) * 0.5f, (bb[2] + bb[5]) * 0.5f};
+        float pb[3] = {pa[0], pa[1], pa[2]};
+        pa[ax] = bb[ax];
+        pb[ax] = bb[ax + 3];
+        auto xf = [&](const float *p) {
+            return rdVector3{p[0] * m.vA.x + p[1] * m.vB.x + p[2] * m.vC.x + m.vD.x,
+                             p[0] * m.vA.y + p[1] * m.vB.y + p[2] * m.vC.y + m.vD.y,
+                             p[0] * m.vA.z + p[1] * m.vB.z + p[2] * m.vC.z + m.vD.z};
+        };
+        // Colour: the material colour tinted by the texture's average colour (the beam's own pink /
+        // orange / blue lives in its texture; the material colour is usually plain white).
+        const swrModel_MaterialTexture *mt = mesh->mesh_material->material_texture;
+        const GLuint tex = (mt && mt->loaded_material) ? GLuint(mt->loaded_material->aTextures->pD3DSrcTexture) : 0;
+        const bool stock_glow = tex != 0 && tex == gl_texture_from_texture_id((TEXID) 1411);
+        float col[3] = {1.0f, 1.0f, 1.0f};
+        if (tex != 0 && !stock_glow)
+            texture_average_colour(tex, col);
+        const auto &pc = mesh->mesh_material->material->primitive_color;
+        if (!stock_glow)// the glow card is a generic white gradient: no colour of its own
+            pod_fx_report_binder(g_active_nozzle_tag->racer, xf(pa), xf(pb), col[0] * pc[0] / 255.0f,
+                                 col[1] * pc[1] / 255.0f, col[2] * pc[2] / 255.0f);
+        if (stock_glow && pod_fx_hide_stock_binder_glow())
+            return;
+    }
 
 #ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
@@ -883,18 +951,6 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // (kinds 0..3) -- are drawn after the shadow / dynamic-light pass so neither touches them.
         const bool emissive = g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind <= 4 &&
                               shadows_capture_active();
-        const bool binder = emissive && g_active_nozzle_tag->kind == 4;
-        if (binder) {
-            const float bx = (mesh->aabb[0] + mesh->aabb[3]) * 0.5f;
-            const float by = (mesh->aabb[1] + mesh->aabb[4]) * 0.5f;
-            const float bz = (mesh->aabb[2] + mesh->aabb[5]) * 0.5f;
-            const rdMatrix44 &m = model_matrix;
-            const rdVector3 c = {bx * m.vA.x + by * m.vB.x + bz * m.vC.x + m.vD.x,
-                                 bx * m.vA.y + by * m.vB.y + bz * m.vC.y + m.vD.y,
-                                 bx * m.vA.z + by * m.vB.z + bz * m.vC.z + m.vD.z};
-            const auto &pc = material->primitive_color;
-            pod_fx_report_binder(g_active_nozzle_tag->racer, c, pc[0] / 255.0f, pc[1] / 255.0f, pc[2] / 255.0f);
-        }
         if (emissive || (!rm.z_update && rm.z_compare && render_mode_is_alpha_blend(mode))) {
             const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
             int preparsed_first = -1;

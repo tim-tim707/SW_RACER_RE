@@ -73,7 +73,8 @@ namespace {
         float smoke_opacity = 1.0f;// smoke + smoke trail density
         float flame_opacity = 1.0f;// flame transparency (exhaust + damage fire)
         float exhaust_light = 1.0f; // directional exhaust light (beam + ground pool)
-        float binder_light = 1.0f;  // soft omni glow from the energy binders
+        float binder_light = 1.0f;  // energy binder glow + omni light
+        bool hide_stock_binder_glow = true;// drop the game's binder glow card (texture #1411)
     };
     Settings s;
     const Settings kDefaults;
@@ -908,6 +909,95 @@ namespace {
         return (c(a) << 24) | (c(r) << 16) | (c(g) << 8) | c(b);
     }
 
+namespace {
+    // Energy binder meshes reported by the renderer this frame (long-axis ends, world space).
+    struct BinderPiece {
+        const swrRace* racer;
+        rdVector3 a, b;
+        float r, g, bl;
+    };
+    std::vector<BinderPiece> g_binder_pieces;// cleared after the frame is drawn
+    // One beam per binder: pieces whose ends touch are merged, and the beam spans their ends
+    // along the merged direction (Ben Quadinaros's two binders stay two beams).
+    struct BinderBeam {
+        const swrRace* racer;
+        rdVector3 a, b;
+        float r, g, bl;
+        float L;
+    };
+    std::vector<BinderBeam> g_binder_beams;
+    bool g_binder_beams_built = false;
+
+    const std::vector<BinderBeam>& binder_beams() {
+        if (g_binder_beams_built)
+            return g_binder_beams;
+        g_binder_beams_built = true;
+        g_binder_beams.clear();
+        const size_t n = g_binder_pieces.size();
+        std::vector<int> parent(n);
+        for (size_t i = 0; i < n; i++)
+            parent[i] = (int) i;
+        auto find = [&](int i) {
+            while (parent[i] != i)
+                i = parent[i] = parent[parent[i]];
+            return i;
+        };
+        for (size_t i = 0; i < n; i++)
+            for (size_t j = i + 1; j < n; j++) {
+                const BinderPiece &p = g_binder_pieces[i], &q = g_binder_pieces[j];
+                if (p.racer != q.racer)
+                    continue;
+                const float touch = pod_length(p.racer) * 0.15f;
+                const float best = std::min(std::min(len(sub(p.a, q.a)), len(sub(p.a, q.b))),
+                                            std::min(len(sub(p.b, q.a)), len(sub(p.b, q.b))));
+                if (best < touch)
+                    parent[find((int) i)] = find((int) j);
+            }
+        for (size_t root = 0; root < n; root++) {
+            if (find((int) root) != (int) root)
+                continue;
+            // Common direction (pieces' axes flipped to agree), then the extreme ends along it.
+            const BinderPiece& first = g_binder_pieces[root];
+            rdVector3 dir = {0, 0, 0}, centre = {0, 0, 0};
+            float r = 0, g = 0, b = 0;
+            int cnt = 0;
+            for (size_t i = 0; i < n; i++)
+                if (find((int) i) == (int) root) {
+                    const BinderPiece& p = g_binder_pieces[i];
+                    rdVector3 d = sub(p.b, p.a);
+                    if (dot(d, sub(first.b, first.a)) < 0.0f)
+                        d = mul(d, -1.0f);
+                    dir = add(dir, d);
+                    centre = add(centre, add(p.a, p.b));
+                    r += p.r, g += p.g, b += p.bl;
+                    cnt++;
+                }
+            dir = norm(dir);
+            centre = mul(centre, 0.5f / (float) cnt);
+            float lo = 1e30f, hi = -1e30f;
+            for (size_t i = 0; i < n; i++)
+                if (find((int) i) == (int) root)
+                    for (const rdVector3& e: {g_binder_pieces[i].a, g_binder_pieces[i].b}) {
+                        const float t = dot(sub(e, centre), dir);
+                        lo = std::min(lo, t);
+                        hi = std::max(hi, t);
+                    }
+            BinderBeam beam{first.racer, add(centre, mul(dir, lo)), add(centre, mul(dir, hi)), r / cnt, g / cnt,
+                            b / cnt, pod_length(first.racer)};
+            const float farthest = hi - lo;
+            if (farthest > beam.L * 0.05f && farthest < beam.L * 3.0f)
+                g_binder_beams.push_back(beam);
+        }
+        return g_binder_beams;
+    }
+
+    // A gentle shimmer (the beam itself already crackles).
+    float binder_flicker(const BinderBeam& bm, float speed) {
+        const float ph = (float) ((uintptr_t) bm.racer % 97);
+        return 0.93f + 0.05f * std::sin(g_time * speed + ph) + 0.02f * std::sin(g_time * speed * 2.3f + ph * 1.7f);
+    }
+}// namespace
+
     void draw() {
         const float focal = std::fabs(g_proj.vB.y) * 0.5f * (float) swrDisplay_screenHeight;
         for (const Particle& p: g_parts) {
@@ -982,6 +1072,30 @@ namespace {
                     break;
                 }
             }
+        }
+
+        // Energy binders: the glow comes from the middle of the beam -- a bloom at the centre, and a
+        // halo + brighter core running out to each engine, fading to nothing at the ends.
+        for (const BinderBeam& bm: binder_beams()) {
+            const rdVector3 mid = mul(add(bm.a, bm.b), 0.5f);
+            float ax, ay, awz, avw, bx, by, bwz, bvw, mx, my, mwz, mvw;
+            if (!project(bm.a, &ax, &ay, &awz, &avw) || !project(bm.b, &bx, &by, &bwz, &bvw) ||
+                !project(mid, &mx, &my, &mwz, &mvw))
+                continue;
+            const float fl = binder_flicker(bm, 6.0f) * s.binder_light;
+            const float halo = clampf(bm.L * 0.16f * focal / mvw, 2.0f, 260.0f);
+            const float core = clampf(bm.L * 0.045f * focal / mvw, 1.0f, 80.0f);
+            const float wz = std::min(mwz, std::min(awz, bwz));
+            const D3DCOLOR c_halo = argb(clampf(0.26f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl);
+            const D3DCOLOR c_core = argb(clampf(0.5f * fl, 0.0f, 1.0f), 0.55f + 0.45f * bm.r, 0.55f + 0.45f * bm.g,
+                                         0.55f + 0.45f * bm.bl);
+            const D3DCOLOR c_end = argb(0.0f, bm.r, bm.g, bm.bl);
+            for (int side = 0; side < 2; side++) {
+                const float ex = side ? bx : ax, ey = side ? by : ay;
+                g_add_soft.streak(mx, my, ex, ey, halo, c_halo, c_end, wz);
+                g_add_soft.streak(mx, my, ex, ey, core, c_core, c_end, wz);
+            }
+            g_add_soft.sprite(mx, my, halo * 1.6f, argb(clampf(0.3f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl), mwz);
         }
 
         // Exhaust: wide orange halo, white-hot core, and a flame streaking back from the nozzle.
@@ -1071,6 +1185,7 @@ namespace {
         f("flame_opacity", s.flame_opacity, 0.0f, 2.0f);
         f("exhaust_light", s.exhaust_light, 0.0f, 3.0f);
         f("binder_light", s.binder_light, 0.0f, 3.0f);
+        b("hide_stock_binder_glow", s.hide_stock_binder_glow);
     }
 
     void save_settings() {
@@ -1108,6 +1223,7 @@ namespace {
         f("flame_opacity", s.flame_opacity);
         f("exhaust_light", s.exhaust_light);
         f("binder_light", s.binder_light);
+        b("hide_stock_binder_glow", s.hide_stock_binder_glow);
         config::save();
     }
 
@@ -1171,7 +1287,10 @@ namespace {
         slider("Glow", &s.exhaust_glow, 0.0f, 3.0f, "%.2fx", "Core and halo brightness.");
         slider("Exhaust light", &s.exhaust_light, 0.0f, 3.0f, "%.2fx", "Light thrown backward from each nozzle: a faint beam plus a glow on the ground.");
         slider("Binder glow", &s.binder_light, 0.0f, 3.0f, "%.2fx",
-               "Soft light given off in every direction by the energy binder (needs Shadows > dynamic lights).");
+               "Glow along the energy binder beam, and the light it throws in every direction on the pod and\n"
+               "ground (the lighting needs Shadows > dynamic lights).");
+        check("Hide stock binder glow", &s.hide_stock_binder_glow,
+              "Hide the game's own flat glow card on the binder (texture #1411); the glow above replaces it.");
         slider("Flame length", &s.exhaust_flame, 0.0f, 3.0f, "%.2fx", "Flame streak length; grows with speed and boost.");
         ImGui::TextUnformatted("Nozzle positions from:");
         {
@@ -1333,54 +1452,50 @@ void pod_fx_debug_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh
     }
 }
 
-namespace {
-    struct BinderGlow {
-        const swrRace* racer;
-        rdVector3 pos;
-        float r, g, b;
-        int n;// meshes merged into it
-    };
-    std::vector<BinderGlow> g_binders;// this frame's binders (cleared after the frame is drawn)
-}// namespace
+bool pod_fx_hide_stock_binder_glow() {
+    return s.enabled && s.hide_stock_binder_glow;
+}
 
-void pod_fx_report_binder(const swrRace* racer, const rdVector3& center, float r, float g, float b) {
-    if (!s.enabled || s.binder_light <= 0.0f || racer == nullptr || g_binders.size() > 256)
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl) {
+    if (!s.enabled || s.binder_light <= 0.0f || racer == nullptr || g_binder_pieces.size() > 256)
         return;
-    // A beam made of a few meshes is one glow; Ben Quadinaros's two binders stay two.
-    const float L = pod_length(racer);
-    for (BinderGlow& bg: g_binders)
-        if (bg.racer == racer && len(sub(bg.pos, center)) < L * 0.35f) {
-            const float k = 1.0f / (float) (bg.n + 1);
-            bg.pos = add(mul(bg.pos, 1.0f - k), mul(center, k));
-            bg.n++;
-            return;
-        }
-    // Material colour; a white/grey one (colour comes from the texture) gets a cool violet-blue.
-    const float mx = std::max(r, std::max(g, b)), mn = std::min(r, std::min(g, b));
-    if (mx < 0.05f || (mx - mn) < 0.15f * mx)
-        r = 0.6f, g = 0.55f, b = 1.0f;
+    if ((racer->flags0 & swrObjTest_FLAG0_DEAD) != 0)
+        return;
+    // Before the binder lights up the game parks it far away: ignore pieces not near the pod.
+    if (len(sub(mul(add(a, b), 0.5f), v3(racer->transform.vD))) > pod_length(racer) * 3.0f)
+        return;
+    // Normalise to full brightness; no usable colour -> a cool violet-blue.
+    const float mx = std::max(r, std::max(g, bl));
+    if (mx < 0.05f)
+        r = 0.6f, g = 0.55f, bl = 1.0f;
     else
-        r /= mx, g /= mx, b /= mx;
-    g_binders.push_back({racer, center, r, g, b, 1});
+        r /= mx, g /= mx, bl /= mx;
+    g_binder_pieces.push_back({racer, a, b, r, g, bl});
+    g_binder_beams_built = false;
 }
 
 void pod_fx_gather_lights(std::vector<SceneLight>& out) {
     if (!s.enabled)
         return;
-    // Energy binders: a soft omni-directional glow with a slow shimmer.
-    for (const BinderGlow& bg: g_binders) {
-        if ((bg.racer->flags0 & swrObjTest_FLAG0_DEAD) != 0)
-            continue;
-        const float L = pod_length(bg.racer);
-        SceneLight l{};
-        l.pos = bg.pos;
-        l.dir = {0, 0, 0};
-        l.r = bg.r, l.g = bg.g, l.b = bg.b;
-        l.intensity = 0.45f * s.binder_light *
-                      (0.9f + 0.1f * std::sin(g_time * 13.0f + (float) ((uintptr_t) bg.racer % 97)));
-        l.radius = L * 0.8f;
-        l.cos_inner = l.cos_outer = 0.0f;
-        out.push_back(l);
+    // Energy binders: omni-directional point lights spread along each beam (a line of light),
+    // flickering with the beam.
+    for (const BinderBeam& bm: binder_beams()) {
+        const float seg = len(sub(bm.b, bm.a));
+        const int count = std::max(2, std::min(5, (int) (seg / (bm.L * 0.3f)) + 1));
+        const float fl = binder_flicker(bm, 5.0f);
+        for (int k = 0; k < count; k++) {
+            const float t = (k + 0.5f) / (float) count;
+            SceneLight l{};
+            l.pos = add(bm.a, mul(sub(bm.b, bm.a), t));
+            l.dir = {0, 0, 0};
+            l.r = bm.r, l.g = bm.g, l.b = bm.bl;
+            // Strongest in the middle of the beam, weaker toward the engines.
+            const float centre = 1.0f - std::fabs(t - 0.5f) * 1.4f;
+            l.intensity = 1.1f * s.binder_light * fl * centre / std::sqrt((float) count);
+            l.radius = bm.L * 0.75f;
+            l.cos_inner = l.cos_outer = 0.0f;
+            out.push_back(l);
+        }
     }
     const int n = swrEvent_GetEventCount(kEventTest);
     std::vector<std::pair<rdVector3, float>> noz;
@@ -1412,7 +1527,7 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
                 const float flick = 0.9f + 0.1f * std::sin(g_time * 31.0f + side * 2.0f);
                 for (const auto& nz: noz) {
                     SceneLight l{};
-                    l.pos = add(nz.first, mul(back, L * 0.05f));
+                    l.pos = add(nz.first, mul(back, -L * 0.12f));// starts inside the nozzle so the lit cone begins at the engine
                     l.dir = back;
                     l.r = 1.0f, l.g = boosting ? 0.6f : 0.45f, l.b = boosting ? 0.3f : 0.15f;
                     // A cone thrown out the back of the nozzle: full inside ~20 deg, gone by ~38 deg,
@@ -1491,7 +1606,15 @@ void pod_fx_on_ground_dust(const swrRace* player, const float* transform) {
 }
 
 void pod_fx_tick_and_draw(const rdMatrix44* proj, const rdMatrix44* view, bool in_race) {
-    g_binders.clear();// reported during this frame's traversal, already used by the lighting pass
+    // Binder pieces were reported during this frame's traversal (and used by the lighting pass);
+    // drop them once this frame is drawn.
+    struct ClearBinders {
+        ~ClearBinders() {
+            g_binder_pieces.clear();
+            g_binder_beams.clear();
+            g_binder_beams_built = false;
+        }
+    } clear_binders;
     // Diagnostics: the scene traversal just ran with the dump armed -- write what it saw.
     if (g_debug_armed && in_race) {
         if (!g_debug_lines.empty() && g_debug_racer != nullptr && hook_log != nullptr) {
