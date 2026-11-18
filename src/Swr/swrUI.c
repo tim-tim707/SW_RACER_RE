@@ -1758,6 +1758,118 @@ void swrUI_ClearUI5(void)
     swrUI_SetUI5(NULL);
 }
 
+// 0x00415020
+void swrUI_RenderTree(swrUI_unk* node)
+{
+    swrUI_unk* it;
+    int animating = 0;
+    int stepping = 0;
+
+    if (multiplayer_in_mp != 0)
+        swrUI_ResetAttractDemoTimer();
+    if (node == NULL)
+        node = swrUI_unk_ptr;
+    for (it = node; it != NULL; it = it->next2) {
+        if ((it->flags & swrUI_VISIBLE) && (it->flags & swrUI_ANIMATING))
+            animating++;
+    }
+    for (it = node; it != NULL; it = it->next2) {
+        if (it->flags & swrUI_VISIBLE) {
+            stepping |= swrUI_StepPageTransition(it);
+            swrUI_RenderElementSprites(it);
+            swrUI_RunCallbacks(it, swrUI_MSG_UPDATE, 0, 0);
+        }
+    }
+    // the last sliding sibling just arrived: notify the parent page
+    if (stepping == 0 && animating != 0 && node->prev != NULL)
+        swrUI_RunCallbacks(node->prev, swrUI_MSG_PAGE_TRANSITION, 0, 0);
+    for (; node != NULL; node = node->next2) {
+        if ((node->flags & swrUI_VISIBLE) && node->next != NULL)
+            swrUI_RenderTree(node->next);
+    }
+}
+
+// 0x00415400
+void swrUI_ProcessMouse(void)
+{
+    swrUI_unk* hit;
+    swrUI_unk* target;
+    swrUI_unk* page;
+    unsigned int motion;
+    int x;
+    int y;
+
+    swrUI_UpdateTimers();
+    swrText_ClearEntryClipRects();
+    if (swrUI_unk_ptr == NULL || !swrUI_IsElementVisible(swrUI_unk_ptr))
+        return;
+    swrUI_RenderTree(swrUI_unk_ptr);
+    swrUI_DrawCaret();
+    if (swrUI_pageTransitionActive != 0) {
+        swrUI_refocusPending = 1;
+        return;
+    }
+    if (swrUI_refocusPending != 0) {
+        swrUI_FocusElement(swrUI_pageInitialFocus, 1);
+        swrUI_refocusPending = 0;
+    }
+    if (swrSprite_IsCursorVisible()) {
+        swrUI_UpdateMouseState();
+        if (swrUI_inputSuppressFlags & swrUI_INPUT_SUPPRESS_MOUSE_FRAME) {
+            swrUI_inputSuppressFlags &= ~swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
+            return;
+        }
+        x = g_mouse_x;
+        y = g_mouse_y;
+        hit = swrUI_HitTest(swrUI_unk_ptr, x, y);
+        // faithful: a disabled element under the cursor also skips swrUI_ProcessPendingClose
+        if (hit != NULL && (hit->flags & swrUI_DISABLED))
+            return;
+        if (hit != swrUI_GetUI4()) {
+            swrUI_SetUI4(hit);
+            if (swrUI_textEntryActive == 0)
+                swrUI_SetFocusedElement(hit);
+        }
+        target = swrUI_GetUI5();
+        if (target == NULL)
+            target = hit;
+        if (swrUI_inputChangeFlags & swrUI_INPUT_CURSOR_MOVED) {
+            swrUI_ResetAttractDemoTimer();
+            swrUI_RunCallbacks(target, swrUI_MSG_MOUSE_MOVE, x, y);
+        }
+        if (swrUI_inputChangeFlags & swrUI_INPUT_BUTTONS_CHANGED) {
+            if (swrUI_inputChangeFlags & swrUI_INPUT_ACCEPT)
+                swrUI_RunCallbacks(target, (swrUI_menuButtonState & swrUI_INPUT_ACCEPT) ? swrUI_MSG_MOUSE_DOWN : swrUI_MSG_MOUSE_UP, x, y);
+            if (swrUI_inputChangeFlags & swrUI_INPUT_CANCEL)
+                swrUI_RunCallbacks(target, (swrUI_menuButtonState & swrUI_INPUT_CANCEL) ? swrUI_MSG_MOUSE2_DOWN : swrUI_MSG_MOUSE2_UP, x, y);
+            if (swrUI_textEntryActive == 0) {
+                motion = swrUI_inputChangeFlags & (swrUI_INPUT_CURSOR_MOVED | swrUI_INPUT_UNK_40000000 | swrUI_INPUT_AXIS_MOVED);
+                if (swrControl_acceptPressedEdge != 0)
+                    swrUI_RunCallbacks(swrUI_GetCurrentPage(), swrUI_MSG_ACCEPT, motion, 0);
+                if (swrControl_cancelPressedEdge != 0) {
+                    if ((swrUI_inputSuppressFlags & swrUI_INPUT_SUPPRESS_CANCEL) == 0) {
+                        if ((g_objHang2->menuScreen == swrObjHang_STATE_SELECT_VEHICLE && g_objHang2->activeMenu == -1) || g_objHang2->menuScreen == swrObjHang_STATE_SPLASH) {
+                            page = swrUI_confirmDialog;
+                            if (page == NULL)
+                                page = swrUI_GetCurrentPage();
+                            swrUI_RunCallbacks(page, swrUI_MSG_BACK, motion, 0);
+                        }
+                    } else {
+                        swrUI_inputSuppressFlags &= ~swrUI_INPUT_SUPPRESS_CANCEL;
+                    }
+                }
+            }
+            if (swrControl_acceptPressedEdge != 0 && target != NULL && (target->flags & swrUI_EDITING) == 0)
+                swrUI_RunCallbacks(target, swrUI_MSG_SET_EDITING, 1, target->id);
+        }
+        if (swrUI_inputChangeFlags & swrUI_INPUT_AXIS_MOVED) {
+            swrUI_ResetAttractDemoTimer();
+            swrUI_ProcessNavAxis();
+        }
+    }
+    swrUI_ProcessPendingClose();
+}
+
 // 0x00415640
 int swrUI_HandleKeyEvent(int virtual_key_code, int pressed)
 {

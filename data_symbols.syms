@@ -1571,6 +1571,7 @@ swrUI_pageStack 0x004d8110 void* # swrUI_unk* pageStack[21]
 swrUI_timers 0x004d8160 swrUITimer[10] # UI timer table, ticked by swrUI_UpdateTimers
 swrUI_inputSuppressFlags 0x004d8bd0 int # swrUI_INPUT_SUPPRESS one-shot bits; low byte only is ever written
 swrUI_prevPage 0x004d8bd4 swrUI_unk* # page being left (checked by swrUI_IsPrevPage); set by push/pop
+swrUI_refocusPending 0x004d8be8 int # set while a page transition runs; swrUI_ProcessMouse then refocuses swrUI_pageInitialFocus
 swrUI_suppressBackPop 0x004d8be4 int # when nonzero, a back message (0x13) does not auto-pop the current page
 
 swrRace_profileLoaded 0x004b6c90 int # 0 = a profile name is loaded, -1 = none (swrRace_SaveProfile no-ops; set by LoadGameData/LoadProfileFromFile/ResetGameData)
@@ -1808,7 +1809,7 @@ swrTextEntries1Colors 0x00e2b480 char[128][4]
 # per-entry text clip box (L/T/R/B, design space) + its enable flag, paralleling the other
 # swrTextEntries1* arrays; written by swrText_SetEntryClipRect, consumed by swrText_RenderEntries1.
 swrTextEntries1ClipRect 0x00e2b670 int[128][4]
-swrTextEntries1ClipEnabled 0x00e2be7c int[128]
+swrTextEntries1ClipEnabled 0x00e2be7c int[129] # indexed [entry + 1]; swrText_ClearEntryClipRects clears [1..128]
 
 miniMapPositions 0x00E2C080 short[190][2]
 

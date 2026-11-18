@@ -1485,6 +1485,7 @@ typedef enum swrUI_INPUT_CHANGE // swrUI_inputChangeFlags bits (swrUI_UpdateMous
     swrUI_INPUT_CANCEL = 0x4, // cancel edge changed; same bit in swrUI_menuButtonState
     swrUI_INPUT_BUTTONS_CHANGED = 0x10000000,
     swrUI_INPUT_AXIS_MOVED = 0x20000000, // joystick x/y moved: swrUI_ProcessNavAxis
+    swrUI_INPUT_UNK_40000000 = 0x40000000, // never set; part of the motion mask swrUI_ProcessMouse forwards
     swrUI_INPUT_CURSOR_MOVED = 0x80000000,
 } swrUI_INPUT_CHANGE;
 
@@ -1495,6 +1496,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_MOUSE_UP = 3, // element released
     swrUI_MSG_MOUSE2_DOWN = 4, // second-button press (swrUI_SetHighlightState mode 2)
     swrUI_MSG_MOUSE2_UP = 5,
+    swrUI_MSG_MOUSE_MOVE = 6, // swrUI_ProcessMouse: cursor moved; param = x, param2 = y
     swrUI_MSG_KEY_DOWN = 7, // swrUI_HandleKeyEvent: key pressed; param = virtual-key code
     swrUI_MSG_KEY_UP = 8, // swrUI_HandleKeyEvent: key released
     swrUI_MSG_UPDATE = 9, // per-frame: text entries draw their text, selected elements flicker alpha (swrUI_DefaultElementProc)
@@ -1505,6 +1507,7 @@ typedef enum swrUI_MSG // element proc / swrUI_RunCallbacks message codes (parti
     swrUI_MSG_SET_ACTIVE = 0xe, // swrUI_RunCallbacks2; param = active (page procs reparent + refresh buttons when shown)
     swrUI_MSG_DESTROY = 0x10, // swrUI_FreeElement, before the element is unlinked and freed
     swrUI_MSG_CLEAR_INTERACTION = 0x11, // drops ANIMATING/HIGHLIGHTED/HOVERED/FOCUSED (swrUI_DefaultElementProc)
+    swrUI_MSG_ACCEPT = 0x12, // swrUI_ProcessMouse: accept pressed, sent to the current page; param = motion bits of swrUI_inputChangeFlags
     swrUI_MSG_BACK = 0x13, // back/cancel on the current page; popped unless swrUI_suppressBackPop
     swrUI_MSG_DELETE_PRESSED = 0x14, // Delete released on a screen text; sent to its page with param = element id
     swrUI_MSG_TIMER = 0x45, // swrUI_UpdateTimers: a timer expired; param = the timer's id

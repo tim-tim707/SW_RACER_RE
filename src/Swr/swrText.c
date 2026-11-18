@@ -506,6 +506,14 @@ void DrawTextEntries2()
     swr_noop2();
 }
 
+// 0x004502f0
+void swrText_ClearEntryClipRects(void)
+{
+    // slot 0 is never used: clips are stored one slot up
+    for (int i = 1; i <= SWR_TEXT_MAX_ENTRIES; i++)
+        swrTextEntries1ClipEnabled[i] = 0;
+}
+
 // 0x00450310
 void swrText_SetEntryClipRect(int* rect)
 {
