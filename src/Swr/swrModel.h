@@ -467,7 +467,7 @@ void swrModel_SwapSceneModels(int index, int index2);
 void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatrix, swrModel_Node* node, rdMatrix44* parentMatrix);
 
 // Walks a node-pointer list, multiplying billboard-node transforms into the output matrix (best guess).
-void swrModel_ComputeNodeChainMatrix_Maybe(int* nodeList, rdMatrix44* outMatrix);
+void swrModel_ComputeNodeChainMatrix_Maybe(swrModel_Node** nodeList, rdMatrix44* outMatrix);
 
 // Returns the distance from a point to the nearest point in a global set, or a default when empty (best guess).
 float DistanceToNearestViewportCamera(rdVector3* point);

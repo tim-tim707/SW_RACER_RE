@@ -323,6 +323,12 @@
 #define SWR_UI_ID_MP_RESULTS_LIST (0x30d42) // racer-list page
 #define SWR_UI_ID_MP_SETUP_TAB (0x30d54) // race setup: 3-patch title tab
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
+#define SWR_UI_ELEMENT_HASH_BUCKETS (0x100) // swrUI_elementHashtable_Maybe
+// swrUI_Initialize (0x00410fd0): CPU benchmark that disables page transitions on slow machines
+#define SWR_UI_BENCH_INNER_LOOPS (2500)
+#define SWR_UI_BENCH_TICKS (30) // runs until more than this many timer ticks pass
+#define SWR_UI_BENCH_SCALE (0.0004f) // 0x004ac3d8
+#define SWR_UI_BENCH_MIN_SCORE (20.0f) // 0x004ac3dc
 #define SWR_UI_ID_BACK_BUTTON (4)
 // main menu (swrUI_Menu_Main)
 #define SWR_UI_ID_MAIN_FREEPLAY (0xc)
@@ -401,6 +407,8 @@
 #define SWR_FF_DEVICE_NONE (9) // swrControl_forceEffectsDeviceType: no bundle loaded; valid device types are 0..8
 
 // swrSprite_AddDirtyRect (0x00484020)
+#define SWR_SPRITE_DYNAMIC_FIRST (251) // swrSprite_FindFreeId: dynamic ids sit above the named/static sprites
+#define SWR_SPRITE_DYNAMIC_END (399)
 #define SWR_SPRITE_MAX_DIRTY_RECTS (31) // swrSprite_dirtyRects holds 31 x {x1,y1,x2,y2}
 #define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
 #define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)

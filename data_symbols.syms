@@ -2116,3 +2116,6 @@ swrAssetBuffer_initialBase 0x00e98234 char* # assetBuffer as first allocated by 
 swrViewport_frameParity 0x00e98228 uint8_t # toggled 0/1 by swrViewport_AdvanceFrameParity_Maybe; cleared with the asset-buffer slots by swrScene_InitWorld
 swrViewport_frameTriple 0x00e98244 uint8_t # cycles 0..2 in swrViewport_AdvanceFrameParity_Maybe; read by swrPlayerHUD_RenderAllViewports
 swrCam_fixedCameraMatrices 0x00e99420 rdMatrix44[10] # matrix sources of camera states 0..9 (swrScene_InitCameras); cMan cameras take over 7+
+swrUI_rootElementStorage 0x004d8210 int[348] # swrUI_unk_ptr's storage; only its first 0x570 bytes exist (cleared by swrUI_Initialize)
+swrUI_initJoyAxisX 0x004d8204 float # swrControl_joystickAxes[0] latched by swrUI_Initialize; no readers
+swrUI_initJoyAxisY 0x004d8200 float # swrControl_joystickAxes[1] latched by swrUI_Initialize; no readers

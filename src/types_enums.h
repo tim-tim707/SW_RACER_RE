@@ -424,6 +424,12 @@ typedef enum swrModel_NodeType
     NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
 } swrModel_NodeType;
 
+// swrModel_Node.flags_3
+typedef enum swrModel_NODEFLAGS3
+{
+    swrModel_NODEFLAGS3_USE_PIVOT = 0x10, // NODE_TRANSFORMED_WITH_PIVOT: transform is applied about the pivot
+} swrModel_NODEFLAGS3;
+
 // swrModel_Node.flags_5, applied per node by rdModel_ApplyNodeSettings (and undone by RevertNodeSettings)
 typedef enum swrModel_NODEFLAGS5
 {

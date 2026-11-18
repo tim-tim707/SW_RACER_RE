@@ -53,7 +53,7 @@
 #define swrSprite_DrawSprites_ADDR (0x004283B0)
 #define swrSprite_SetVisible_ADDR (0x004285d0)
 #define swrSprite_SetPos_ADDR (0x00428660)
-
+#define swrSprite_SetUVOffset_Maybe_ADDR (0x004286c0)
 #define swrSprite_SetDim_ADDR (0x004286f0)
 #define swrSprite_SetRotation_ADDR (0x00428720)
 #define swrSprite_SetColor_ADDR (0x00428740)
@@ -149,6 +149,7 @@ void swrSprite_ResetAllSprites(void);
 void swrSprite_DrawSprites(int);
 void swrSprite_SetVisible(short id, int visible);
 void swrSprite_SetPos(short id, short x, short y);
+void swrSprite_SetUVOffset_Maybe(short id, short u, short v);
 
 void swrSprite_SetDim(short id, float width, float height);
 void swrSprite_SetRotation(short id, float);

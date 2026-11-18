@@ -3506,6 +3506,52 @@ void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
     sunSpriteColors[index * 4 + 3] = alpha;
 }
 
+// Composes the transforms of a NULL-terminated node chain. The pivot comes from the last 0xd065
+// node seen; before one is seen the original reads it from outMatrix (+0x4c), kept as-is.
+// 0x004819b0
+void swrModel_ComputeNodeChainMatrix_Maybe(swrModel_Node** nodeList, rdMatrix44* outMatrix)
+{
+    swrModel_NodeTransformedWithPivot* pivotNode = (swrModel_NodeTransformedWithPivot*)outMatrix;
+    rdMatrix44 local;
+
+    rdMatrix_SetIdentity44(outMatrix);
+    for (; *nodeList != NULL; nodeList++) {
+        int type = swrModel_NodeGetFlags(*nodeList);
+        if ((type & NODE_IS_TRANSFORMED) == 0)
+            continue;
+        swrModel_NodeTransformed* node = (swrModel_NodeTransformed*)*nodeList;
+        if (type == NODE_TRANSFORMED_WITH_PIVOT)
+            pivotNode = (swrModel_NodeTransformedWithPivot*)node;
+        const rdMatrix34* t = &node->transform;
+        local.vA.x = t->rvec.x;
+        local.vA.y = t->rvec.y;
+        local.vA.z = t->rvec.z;
+        local.vA.w = 0.0f;
+        local.vB.x = t->lvec.x;
+        local.vB.y = t->lvec.y;
+        local.vB.z = t->lvec.z;
+        local.vB.w = 0.0f;
+        local.vC.x = t->uvec.x;
+        local.vC.y = t->uvec.y;
+        local.vC.z = t->uvec.z;
+        local.vC.w = 0.0f;
+        local.vD.x = t->scale.x;
+        local.vD.y = t->scale.y;
+        local.vD.z = t->scale.z;
+        local.vD.w = 1.0f;
+        if (node->node.flags_3 & swrModel_NODEFLAGS3_USE_PIVOT) {
+            const rdVector3* pivot = &pivotNode->pivot;
+            for (int k = 0; k < 3; k++) {
+                float v = -((&t->rvec.x)[k] * pivot->x) + (&local.vD.x)[k];
+                v = -((&t->lvec.x)[k] * pivot->y) + v;
+                v = -((&t->uvec.x)[k] * pivot->z) + v;
+                (&local.vD.x)[k] = (&pivot->x)[k] + v;
+            }
+        }
+        rdMatrix_Multiply44(outMatrix, &local, outMatrix);
+    }
+}
+
 // 0x004827b0
 int swrModel_NodeSelectLOD(swrModel_Node* node)
 {

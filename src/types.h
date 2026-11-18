@@ -361,8 +361,8 @@ extern "C"
     {
         short x; // Position x
         short y; // Position y
-        short unk0x4; // 0x4, written in sub_4286C0
-        short unk0x6; // 0x6, written in sub_4286C0
+        short unk0x4; // 0x4, written by swrSprite_SetUVOffset_Maybe
+        short unk0x6; // 0x6, written by swrSprite_SetUVOffset_Maybe
         float width; // 0x8 Size X / scale X
         float height; // 0xC Size Y / scale Y
         float rotation_angle; // written in sub_428720
