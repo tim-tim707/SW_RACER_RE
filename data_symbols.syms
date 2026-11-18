@@ -388,6 +388,8 @@ rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
 
+swrObjHang_inspectCameraReset 0x004c021c int # set when the look-at-vehicle screen exits (accept/cancel); the next UpdateInspectCamera re-aims and re-derives the orbit
+swrObjHang_inspectCameraFresh 0x004c0220 int # 1 right after the inspect camera re-aims; the first stick/zoom input only clears it, and the idle timer runs while it is set
 swrRace_resultsPlaceP1 0x004c022c char # player 1's finishing place on the results screen
 swrRace_resultsPlaceP2 0x004c0230 char # player 2's finishing place (-1 in single player)
 
@@ -445,6 +447,8 @@ swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1
 swrSpline_trackLength 0x004c7be0 float
 swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
 swrSpline_ambiguousMeshBehavior 0x004c7be8 swrModel_Behavior = { 0x8, 0, { 0, 0, 0 }, 0, 0, 0, { 0xff, 0xff, 0xff }, { 0xff, 0xff, 0xff }, 0, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f } } # assigned by swrSpline_BakeSampleTrackMesh to behaviorless meshes shared between spline paths
+swrModel_poddCableRestVertices 0x004c7c30 rdVector3[6] = { { 0.0, 0.0, 0.0 }, { 20.0, 0.0, -20.0 }, { -20.0, 0.0, -20.0 }, { 0.0, -100.0, 0.0 }, { 20.0, -100.0, -20.0 }, { -20.0, -100.0, -20.0 } } # straight pod-cable tube: two 3-vertex end rings (swrModel_DeformPoddConnectionMesh)
+swrModel_poddCableRestLights 0x004c7c78 rdVector4[6] = { { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 } } # per-vertex light intensities matching swrModel_poddCableRestVertices
 swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
 sithControl_secFPS 0x004c8174 float
@@ -771,6 +775,7 @@ swrObjHang_displayPodResetFrames 0x0050c478 int # set to SWR_DISPLAY_POD_RESET_F
 swrObjHang_pitDroidsForSale 0x0050c1f8 int # 4 - swrRace_nbPitDroids, set on entering the Watto shop
 swrObjHang_pitDroidPromptActive 0x0050c52c int # the buy-a-pit-droid prompt is up (swrObjHang_UpdateWattoShop)
 swrObjHang_resultsIntroCameraSet 0x0050c1d0 int # the results intro already started its camera pan
+swrObjHang_inspectOrbitDistance 0x0050c210 float # look-at-vehicle orbit distance from the look-at point, 100..1336
 swrObjHang_resultsIntroTimer 0x0050c214 float # seconds left in the results intro (12 at entry; the pan starts at 10)
 swrRace_audioVideoMenuX 0x0050c224 float # A/V settings page column x, set to 165 each frame
 swrRace_audioVideoMenuY 0x0050c43c float # A/V settings page top row y, set to 70 each frame
@@ -911,6 +916,7 @@ swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black bef
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
 swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
 swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
+swrObjHang_inspectCaption 0x0050c328 char[256] # caption of the inspected part/pilot drawn by UpdateInspectCamera
 swrObjHang_vehicleIntroPlanet 0x0050c428 char # random holo planet (0..7) drawn behind the vehicle-select intro
 swrObjElmo_waypoints 0x004c4510 rdVector3[16] # hangar walk positions matched by swrObjElmo_GetWaypointIndex; [1] = pit-droid walk target, [6] = Watto-counter eye, [7] = part-detail camera offset, [9] = pit-droid home
 swrObjElmo_moveHoldFrames 0x0050cad4 int # swrObjElmo_UpdateMovement skips a frame while > 0 and decrements it; nothing in the retail binary sets it
@@ -920,12 +926,14 @@ swrObjHang_tauntReplySpoken 0x0050c120 int # the player's pilot already answered
 swrObjHang_tauntShot1Eye 0x0050c440 rdVector3
 swrObjHang_tauntShot1LookAt 0x0050c128 rdVector3
 swrObjHang_tauntShot2Eye 0x0050c318 rdVector3
+swrObjHang_inspectOrbitPitch 0x0050c2f0 float # look-at-vehicle orbit pitch in degrees, -89..89
 swrObjHang_tauntShot2LookAt 0x0050c2f8 rdVector3
 swrObjHang_pilotTauntText 0x004c0238 char*[24] # per pilot taunt line, NULL terminated
 swrObjHang_circuitIntroSfx 0x004c0298 int[4] # per circuit announcer sound played by swrObjHang_UpdatePlanetSelectIntro
 swrObjHang_displayPodPos 0x00e99360 rdVector3 # first of two display-pod positions 0x28 apart (second at 0x00e99388); 0x00e99384 is swrRace_PodRotationAnimation
 swrObjHang_planetIntroStep 0x0050c178 char # swrObjHang_UpdatePlanetSelectIntro camera shot, 0..6
 swrObjHang_planetIntroOrbitAngle 0x0050c1e8 float[3] # podium pilots' bob phase (degrees)
+swrObjHang_inspectOrbitYaw 0x0050c1fc float # look-at-vehicle orbit yaw in degrees, 0..360
 swrObjHang_planetIntroOrbitSpeed 0x0050c200 float[3] # podium pilots' bob rate, from swrRacer_PodData[].float20
 swrObjHang_planetIntroSkipInitials 0x004c11f4 char[4] # "DBG": with swrRace_DEBUGFLAG_NAME_CHECKS, accept skips the planet-select intro
 swrObjHang_junkyardOpenDetail 0x0050c544 int # swrObjHang_UpdateJunkyard: the camera reached the slot, open the part detail view this frame

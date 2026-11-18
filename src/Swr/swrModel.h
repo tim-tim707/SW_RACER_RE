@@ -426,11 +426,12 @@ void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* dire
 void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll);
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
-void swrModel_SetupFaceNormal(int vertexArray, int faceOut, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
+void swrModel_SetupFaceNormal(rdVector3* vertices, RdFace* face, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
 
-// Deforms the pod engine-cable connection mesh, rewriting its tube vertices and face normals by energy.
-// Only node/energy/maxEnergy are read; the rest are forwarded unchanged to the child recursion.
-void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float unk4, float unk5, float energy, float maxEnergy, int unk8);
+// Deforms the pod engine-cable connection mesh ("aes*"): below energy/maxEnergy it rebuilds a sagging
+// 27-vertex tube whose wave scales with amplitude, otherwise restores the straight rest shape.
+// unk2/unk3/unk5/unk8 are only forwarded to the child recursion.
+void swrModel_DeformPoddConnectionMesh(swrModel_Node* node, rdVector3* unk2, rdVector3* unk3, float amplitude, float unk5, float energy, float maxEnergy, int unk8);
 
 int swrModel_NodeComputeFirstMeshAABB(swrModel_Node* node, float* aabb, int a3);
 

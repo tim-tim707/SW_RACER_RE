@@ -193,6 +193,7 @@
 #define SWR_POD_PART_NODE_COUNT (75)
 #define SWR_POD_PART_SHADOW_FIRST (0x3d)
 #define SWR_POD_PART_SHADOW_LAST (0x40)
+#define SWR_PODD_CABLE_SIN_LUT_SIZE (64) // poddConnectionMesh_sinLookupTable entries (one sine period)
 #define SWR_POD_TRANSFORM_HISTORY (18) // swrRace.transformHistory ring size (PoddAnimateEngines)
 #define SWR_POD_MODEL_UNIT_SCALE (0.004f) // pod model units -> world (shadow quads, cable width, debug model)
 
@@ -227,6 +228,7 @@
 #define SWR_HANGAR_ICON_COUNT (8) // uiUpgradeInfos entries
 #define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
 #define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
+#define SWR_JUNKYARD_PART_COUNT (7) // parts swrObjHang_GenerateJunkyardStock scatters over the slots
 
 // swrRace_UpdatePartMenuLayout (0x0043dba0): part-icon glide duration (seconds)
 #define SWR_PART_LERP_TIME (0.2f)
