@@ -244,7 +244,7 @@ int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swr
 int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2);
 
 // Settings sub-screens:
-int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // config-profile save/load (window 0x2730)
+int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item); // config-profile save/load (window 0x2730)
 int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // reserved/advanced settings (window 0x1c)
 // Multiplayer session-setup page procs:
 int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // host vs join + track-change permission

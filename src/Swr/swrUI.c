@@ -12,6 +12,8 @@
 #include "swr.h"
 #include "engine_config.h"
 
+#include <General/stdFileUtil.h>
+#include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <General/stdMath.h>
 #include <General/utils.h>
@@ -5009,6 +5011,159 @@ int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI
             swrUI_PushMenuPage(swrUI_WINDOW_CONFIG_FILES);
             return 0;
         }
+    }
+    return 0;
+}
+
+// 0x00401af0
+int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
+{
+    unsigned int id = (unsigned int)param;
+    swrUI_unk* focus;
+    char* notice;
+    char name[128];
+    char path[256];
+
+    memset(name, 0, sizeof(name));
+    name[0] = wuRegistry_lpClass[0];
+    if (msg != swrUI_MSG_DESTROY) {
+        if (swrUI_configFilesPage == NULL) {
+            swrUI_configFilesPage = swrUI_GetById(NULL, swrUI_WINDOW_CONFIG_FILES);
+        } else {
+            if (swrUI_configNameEntry == NULL)
+                swrUI_configNameEntry = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_NAME_ENTRY);
+            if (swrUI_configFileList != NULL || (swrUI_configFileList = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_LIST)) != NULL) {
+                swrUI_configPrevSelectedFile = swrUI_configSelectedFile;
+                swrUI_configSelectedFile = swrUI_GetSelectedItem(swrUI_configFileList);
+                if (swrUI_configSelectedFile == NULL) {
+                    swrUI_configSelectedIsPreset = 0;
+                } else {
+                    sprintf(name, "%s", swrUI_configSelectedFile->str_allocated);
+                    swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
+                }
+            }
+        }
+    }
+
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        if (id != 0) {
+            swrMultiplayer_SetInMultiplayer(0);
+            swrUI_RunCallbacksScreenText(swrUI_configNameEntry, wuRegistry_lpClass, 0);
+        }
+        return 0;
+    case swrUI_MSG_DIALOG_RESULT:
+        // "delete this configuration?" answered yes
+        if (id == 0) {
+            sprintf(path, "%s%s", ".\\data\\config\\", name);
+            stdFileUtil_DelTree(path);
+            swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0541/                       Removed settings file."), 2.0f);
+        }
+        return 0;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if (id == 3) { // nav button (swrRace_LoadSaveConfigMenu)
+            swrUI_PopMenuPage();
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_SAVE) {
+            swrUI_RunCallbacks2(swrUI_configNameEntry, 1);
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            swrUI_RunCallbacksScreenText(swrUI_configNameEntry, wuRegistry_lpClass, 0);
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_LOAD) {
+            if (name[0] == '\0') {
+                if (swrUI_configSelectedFile != NULL)
+                    swrUI_GetAllocatedString(swrUI_configNameEntry, name, sizeof(name));
+                if (name[0] == '\0') {
+                    playUISound(-1);
+                    swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0542/                       No file selected."), 2.0f);
+                    return 0;
+                }
+            }
+            if (swrUI_configSelectedIsPreset == 0) {
+                stdConfFile_readAndApplyConf(-1, name, 0);
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS));
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_MOUSE, swrUI_GetById(NULL, swrUI_WINDOW_MOUSE_SETTINGS));
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_KEYBOARD, swrUI_GetById(NULL, swrUI_WINDOW_KEYBOARD_SETTINGS));
+            } else {
+                // pre-installed files only carry joystick mappings
+                stdFnames_ChangeExt(name, "map");
+                stdConfFile_readAndApplyConf(0, name, 1);
+                swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS));
+            }
+            if (swrUI_configSelectedIsPreset == 0) {
+                stdConfFile_readAndApplyConf(-1, name, 0);
+                swrConfig_ReadVideoConfig(name);
+                swrConfig_RefreshVideoMenu(swrUI_GetById(NULL, swrUI_WINDOW_VIDEO_SETTINGS));
+                swrConfig_ReadAudioConfig(name);
+                swrConfig_RefreshAudioMenu(swrUI_GetById(NULL, swrUI_WINDOW_AUDIO_SETTINGS));
+                swrConfig_ReadForceFeedbackConfig(name);
+                swrConfig_RefreshForceFeedbackMenu(swrUI_GetById(NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS));
+            }
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0539/                       Loaded settings file."), 2.0f);
+            return 0;
+        }
+        if (id == SWR_UI_ID_FILE_REMOVE) {
+            if (swrUI_configSelectedIsPreset != 0) {
+                playUISound(-1);
+                notice = "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name.";
+            } else if (swrUI_configSelectedFile == NULL) {
+                playUISound(-1);
+                notice = "/MONDOTEXT_H_0542/                       No file selected.";
+            } else {
+                swrUI_ShowConfirmDialog(swrUI_configFilesPage, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0533/Are you sure you want to delete this configuration?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 0);
+                return 0;
+            }
+            swrText_ShowTimedMessage(swrText_Translate(notice), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            return 0;
+        }
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_COMMITTED:
+        if (swrUI_configNameEntry->str_allocated[0] == '\0') {
+            playUISound(-1);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0008/\t            Enter a filename or press ESC."), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            return 0;
+        }
+        swrUI_configSelectedFile = swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated);
+        if (swrUI_configSelectedFile != NULL) {
+            playUISound(-1);
+            swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
+            swrText_ShowTimedMessage(swrText_Translate(swrUI_configSelectedIsPreset != 0 ? "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name." : "/MONDOTEXT_H_0534/                     Filename already exists."), 2.0f);
+            swrUI_noticeDurationUnused = 2.1f;
+            swrUI_SetFocusedElement(swrUI_configNameEntry);
+            swrUI_RunCallbacks(swrUI_configNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_configNameEntry->id);
+            return 0;
+        }
+        sprintf(path, "%s%s", ".\\data\\config\\", swrUI_configNameEntry->str_allocated);
+        stdFileUtil_MkDir(path);
+        swrConfig_WriteMappings(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteVideoConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteAudioConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_WriteForceFeedbackConfig(swrUI_configNameEntry->str_allocated);
+        swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+        swrUI_SelectListItem(swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated), 1);
+        swrUI_RunCallbacks2(swrUI_configNameEntry, 0);
+        swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0540/                       Saved settings file."), 2.0f);
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_CANCELLED:
+        swrUI_RunCallbacks2(swrUI_configNameEntry, 0);
+        focus = swrUI_configFileList;
+        if (focus == NULL)
+            focus = swrUI_GetById(swrUI_configFilesPage, 3);
+        swrUI_FocusElement(focus, 1);
+        return 0;
+    case swrUI_MSG_LIST_SELECTION_CHANGED:
+        swrUI_RunCallbacksScreenText(swrUI_configNameEntry, item->str_allocated, 0);
+        swrUI_configLoadButton = swrUI_GetById(swrUI_configFilesPage, SWR_UI_ID_FILE_LOAD);
+        swrUI_FocusElement(swrUI_configLoadButton, 1);
+        return 0;
     }
     return 0;
 }

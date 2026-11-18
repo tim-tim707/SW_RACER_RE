@@ -737,6 +737,73 @@ size_t swrConfig_Printf(char* format, ...)
     return 1;
 }
 
+// 0x0040b740
+void swrConfig_RefreshMappingMenu(int deviceIndex, swrUI_unk* page)
+{
+    swrUI_unk* element;
+    int* flipAxis;
+    int axisCount;
+    int buttonCount;
+    char text[64];
+    int i;
+
+    // ten binding rows, ids 0x27..0x39 step 2 (keyboard adds secondary rows at odd+1 ids)
+    for (i = 0; i < 10; i++)
+        swrConfig_SetMappingRowText(deviceIndex, page, 0x27 + i * 2, i, 10, 0, 1);
+
+    if (deviceIndex == swrConfig_DEVICE_JOYSTICK && cifr_deviceIsWheel != 0) {
+        swrConfig_SetMappingRowText(swrConfig_DEVICE_JOYSTICK, page, 0x40, 3, 9, 0x20, 1);
+        swrConfig_SetMappingRowText(swrConfig_DEVICE_JOYSTICK, page, 0x43, 3, 9, 0x10, 1);
+    }
+    if (deviceIndex == swrConfig_DEVICE_KEYBOARD) {
+        for (i = 1; i <= 3; i++) {
+            swrConfig_SetMappingRowText(swrConfig_DEVICE_KEYBOARD, page, 0x3f + i, 3, 9, 0x20, i);
+            swrConfig_SetMappingRowText(swrConfig_DEVICE_KEYBOARD, page, 0x45 + i, 2, 9, 0x20, i);
+            swrConfig_SetMappingRowText(swrConfig_DEVICE_KEYBOARD, page, 0x48 + i, 2, 9, 0x10, i);
+            swrConfig_SetMappingRowText(swrConfig_DEVICE_KEYBOARD, page, 0x42 + i, 3, 9, 0x10, i);
+        }
+        for (i = 0; i < 10; i++)
+            swrConfig_SetMappingRowText(swrConfig_DEVICE_KEYBOARD, page, 0x28 + i * 2, i, 10, 0, 2);
+        return;
+    }
+
+    swrConfig_SetMappingRowText(deviceIndex, page, 0x3d, 0, 5, 0, 1);
+    swrConfig_SetMappingRowText(deviceIndex, page, 0x3e, 2, 5, 0, 1);
+    swrConfig_SetMappingRowText(deviceIndex, page, 0x3f, 3, 5, 0, 1);
+    swrConfig_SetMappingRowText(deviceIndex, page, 0x3c, 6, 6, 0, 1);
+    swrConfig_SetMappingRowText(deviceIndex, page, 0x3b, 2, 6, 0, 1);
+
+    flipAxis = deviceIndex != swrConfig_DEVICE_JOYSTICK ? &flip_x_axis : swrControl_joystickFlipAxis;
+    swrUI_SetChecked(swrUI_GetById(page, 0x55), flipAxis[0]);
+    swrUI_SetChecked(swrUI_GetById(page, 0x56), flipAxis[1]);
+    element = swrUI_GetById(page, 0x57);
+    if (element != NULL)
+        swrUI_SetChecked(element, flipAxis[2]);
+
+    if (deviceIndex == swrConfig_DEVICE_JOYSTICK) {
+        element = swrUI_GetById(page, 0x4d);
+        if (element != NULL)
+            swrUI_BuildSliderSprites(element, element->flags & swrUI_SLIDER_SELECTED);
+        element = swrUI_GetById(page, 0x4e);
+        if (element != NULL)
+            swrUI_BuildSliderSprites(element, element->flags & swrUI_SLIDER_SELECTED);
+        swrUI_SetChecked(swrUI_GetById(page, 0x54), swrConfig_joystick_enabled);
+        axisCount = swrConfig_joystickNbAxis;
+        buttonCount = swrConfig_joystickNbButtons;
+    } else {
+        element = swrUI_GetById(page, 0x4e);
+        if (element != NULL)
+            swrUI_BuildSliderSprites(element, element->flags & swrUI_SLIDER_SELECTED);
+        swrUI_SetChecked(swrUI_GetById(page, 0x54), swrConfig_mouse_enabled);
+        axisCount = swrConfig_mouseNbAxis;
+        buttonCount = swrConfig_mouseNbButtons;
+    }
+    sprintf(text, swrText_Translate("/MONDOTEXT_H_0238/Detected: %i Axes, %i Buttons"), axisCount, buttonCount);
+    element = swrUI_GetById(page, 0x58);
+    if (element != NULL)
+        swrUI_RunCallbacksScreenText(element, text, 0);
+}
+
 // 0x0040bbf0
 void swrConfig_RefreshVideoMenu(swrUI_unk* page)
 {
@@ -912,4 +979,439 @@ void swrConfig_SetMappingRowText(int deviceIndex, swrUI_unk* page, int rowId, in
     if (row != NULL) {
         swrUI_SetValueText(row, skipFirst ? text + 1 : text, 0);
     }
+}
+
+// One row of LOW/MED/HIGH (optionally led by OFF) radio buttons under a settings group label.
+// The OFF button is sized with the LOW text width, as in the EXE.
+static void swrConfig_AddLevelRadioRow(swrUI_unk* page, int id, const int* radioX, int y, int height, int withOff)
+{
+    int i = 0;
+    int value = 1;
+
+    if (withOff) {
+        swrUI_NewFramedText(page, id, 0, swrText_Translate("/MONDOTEXT_H_0234/OFF"), radioX[i++], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0235/LOW"), 0), height, swrUI_CHECK_CIRCLE_UNK | swrUI_RADIO_GROUP_UNK, swrUI_FRAMED_TEXT_EXPLICIT_VALUE | 0);
+        swrUI_NewFramedText(page, id, 0, swrText_Translate("/MONDOTEXT_H_0235/LOW"), radioX[i++], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0235/LOW"), 0), height, swrUI_CHECK_CIRCLE_UNK, swrUI_FRAMED_TEXT_EXPLICIT_VALUE | value++);
+    } else {
+        swrUI_NewFramedText(page, id, 0, swrText_Translate("/MONDOTEXT_H_0235/LOW"), radioX[i++], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0235/LOW"), 0), height, swrUI_CHECK_CIRCLE_UNK | swrUI_RADIO_GROUP_UNK, swrUI_FRAMED_TEXT_EXPLICIT_VALUE | value++);
+    }
+    swrUI_NewFramedText(page, id, 0, swrText_Translate("/MONDOTEXT_H_0236/MED"), radioX[i++], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0236/MED"), 0), height, swrUI_CHECK_CIRCLE_UNK, swrUI_FRAMED_TEXT_EXPLICIT_VALUE | value++);
+    swrUI_NewFramedText(page, id, 0, swrText_Translate("/MONDOTEXT_H_0237/HIGH"), radioX[i], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0237/HIGH"), 0), height, swrUI_CHECK_CIRCLE_UNK | swrUI_RADIO_GROUP_UNK, swrUI_FRAMED_TEXT_EXPLICIT_VALUE | value);
+}
+
+// Group label in font 6 plus its radio-button strip; returns the strip height and advances *y past the label.
+static int swrConfig_AddRadioGroupLabel(swrUI_unk* page, char* text, int x, int* y, int count, int* radioX)
+{
+    swrUI_unk* label;
+
+    label = swrUI_NewLabel(page, 1, 6, swrText_Translate(text), x, *y, 0, 0);
+    swrUI_SetColorUnk(label, 0xff, 0x7d, 0, 0xff);
+    *y += swrText_GetStringHeight(swrText_Translate(text), swrText_fontsByIndex[6]);
+    return swrUI_LayoutRadioGroup(label, *y, swrText_GetStringWidthByFont(swrText_Translate(text), 6), count, radioX);
+}
+
+static void swrConfig_AddSettingsPageHeader(swrUI_unk* page, char* titleKey, int x, int y)
+{
+    swrUI_unk* element;
+    char title[256];
+
+    sprintf(title, swrText_Translate(titleKey));
+    element = swrUI_New3PatchBox(page, 1, 6, title, x, y, swrText_GetStringWidth(swrText_Translate(titleKey), swrText_fontsByIndex[6]), swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+    swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a4, 1);
+    swrUI_AddDefaultButton(page, 0xcd, 0x1a4);
+    swrUI_AddRestoreButton(page, 0x163, 0x1a4);
+    swrUI_AddOkButton(page, 0x208, 0x17c);
+}
+
+// 0x0040e6a0
+void swrConfig_BuildVideoMenu(swrUI_unk* page)
+{
+    int radioX[3];
+    unsigned int restoreWidth;
+    int checkRowWidth;
+    int checkWidth;
+    int checkHeight;
+    int radioHeight;
+    int y;
+
+    restoreWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    swrConfig_AddSettingsPageHeader(page, "/MONDOTEXT_H_0292/~sVIDEO SETTINGS", (((restoreWidth >> 1) + restoreWidth) >> 2) + 300, 0xa0);
+
+    checkWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0294/~sDynamic Lighting Enabled "), 0);
+    checkRowWidth = checkWidth + swrText_GetStringWidthByFont(" ", 0) * 10 + swrText_GetStringWidthByFont("  [X]  ", 0);
+    checkHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0294/~sDynamic Lighting Enabled "), swrText_fontsByIndex[0]) * 3;
+    swrUI_NewFramedText(page, 0x62, 0, swrText_Translate("/MONDOTEXT_H_0297/~sReflections Enabled "), 0x1e, 200, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x273c, 0, swrText_Translate("/MONDOTEXT_H_0301/~sSmoke And Dust Enabled "), 0x1e, 0xe6, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x273b, 0, swrText_Translate("/MONDOTEXT_H_0300/~sLens Flare Enabled "), 0x1e, 0x104, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+
+    y = 0xaf;
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0303/~sModel Detail ", checkRowWidth / 16 + 0x3c + checkRowWidth, &y, 3, radioX);
+    swrConfig_AddLevelRadioRow(page, 0x67, radioX, y + radioHeight, radioHeight, 0);
+}
+
+// 0x0040ea70
+void swrConfig_BuildAudioMenu(swrUI_unk* page)
+{
+    swrUI_unk* element;
+    int checkWidth;
+    int checkHeight;
+
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0252/~sReset Default Settings"), swrText_fontsByIndex[0]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0252/~sReset Default Settings"), swrText_fontsByIndex[0]);
+    swrConfig_AddSettingsPageHeader(page, "/MONDOTEXT_H_0305/~sAUDIO SETTINGS", 500, 0x3c);
+
+    // row width measured but unused (the video/force pages place a second column with it)
+    swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0517/~s3D-Spatialized Sound Enabled "), 0);
+    swrText_GetStringWidthByFont(" ", 0);
+    swrText_GetStringWidthByFont("  [X]  ", 0);
+    checkHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0306/~s3D-Spatialized Sound Enabled "), swrText_fontsByIndex[0]) * 3;
+    checkWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0517/~s3D-Spatialized Sound Enabled "), 0);
+
+    element = swrUI_NewFramedText(page, 0x2741, 0, swrText_Translate("/MONDOTEXT_H_0308/~sSound-System Enabled "), 0xf, 0x73, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    // sound-card status line, filled in by swrConfig_RefreshAudioMenu
+    element = swrUI_NewLabel(page, 0x58, 0, wuRegistry_lpClass, 0xf, ((element->height - element->y) + 1) / 2 + 0x82, 0x100000, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xff, 0, 200);
+    swrUI_NewFramedText(page, 0x2744, 0, swrText_Translate("/MONDOTEXT_H_0309/~sUse Hi-Res (22K) sounds "), 0xf, 0xac, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x2746, 0, swrText_Translate("/MONDOTEXT_H_0502/~sIn-Race Voices Enabled "), 0xf, 0xd1, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+
+    element = swrUI_NewNumberField(page, 0x273e, 0x13b, 199, 300, swrUI_SLIDER_SHOW_VALUE, 0);
+    element = swrUI_NewLabel(page, 10000, 0, swrText_Translate("/MONDOTEXT_H_0310/Sound Effects Volume"), 0x171, ((element->height - element->y) + 1) / 2 + 0xc4, 0x100000, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xff, 0, 0xb9);
+
+    swrUI_NewFramedText(page, 0x2747, 0, swrText_Translate("/MONDOTEXT_H_0503/~sIn-Race Music Enabled "), 0xf, 0xf6, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    element = swrUI_NewNumberField(page, 0x273f, 0x13b, 0xec, 300, swrUI_SLIDER_SHOW_VALUE, 0);
+    element = swrUI_NewLabel(page, 0x2711, 0, swrText_Translate("/MONDOTEXT_H_0311/Music/Cutscene Volume"), 0x16d, ((element->height - element->y) + 1) / 2 + 0xe9, 0x100000, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xff, 0, 0xb9);
+
+    swrUI_NewFramedText(page, 0x2742, 0, swrText_Translate("/MONDOTEXT_H_0306/~s3D-Spatialized Sound Enabled "), 0xf, 0x132, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x2743, 0, swrText_Translate("/MONDOTEXT_H_0312/~sDoppler Effects Enabled "), 0xf, 0x15f, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    element = swrUI_NewNumberField(page, 0x2740, 0x13b, 0x155, 300, swrUI_SLIDER_SHOW_NUMBER | swrUI_SLIDER_SHOW_VALUE, 0);
+    element = swrUI_NewLabel(page, 0x2712, 0, swrText_Translate("/MONDOTEXT_H_0313/2D/3D Relative Gain Adjustment"), 0x159, 0x169 - ((element->height - element->y) + 1) / 2, 0x100000, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xff, 0, 0xb9);
+}
+
+// 0x0040ef40
+void swrConfig_BuildForceFeedbackMenu(swrUI_unk* page)
+{
+    int radioX[4];
+    int headerHeight;
+    int strengthWidth;
+    int checkRowWidth;
+    int checkWidth;
+    int checkHeight;
+    int rightCheckX;
+    int rightColumnX;
+    int radioHeight;
+    int leftY;
+    int rightY;
+
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    headerHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0314/~sFORCE FEEDBACK SETTINGS"), swrText_fontsByIndex[6]) * 3;
+    swrConfig_AddSettingsPageHeader(page, "/MONDOTEXT_H_0314/~sFORCE FEEDBACK SETTINGS", 0x212, headerHeight + 5);
+
+    checkWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0518/~sOverall Force Strength "), 0);
+    strengthWidth = checkWidth + swrText_GetStringWidthByFont(" ", 0) * 10;
+    checkRowWidth = swrText_GetStringWidthByFont("  [X]  ", 0) + strengthWidth;
+    checkHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0315/~sOverall Force Strength "), swrText_fontsByIndex[0]) * 3;
+    rightCheckX = strengthWidth + 0x46;
+    swrUI_NewFramedText(page, 0x60, 0, swrText_Translate("/MONDOTEXT_H_0322/~sEnable G-Forces "), rightCheckX, headerHeight + 0x14, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x59, 0, swrText_Translate("/MONDOTEXT_H_0316/~sEnable Force Feedback "), 0x1e, headerHeight + 0x2d, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    swrUI_NewFramedText(page, 0x61, 0, swrText_Translate("/MONDOTEXT_H_0323/~sEnable Engine Rumble "), rightCheckX, headerHeight + 0x32, checkWidth, checkHeight, swrUI_LEFT_RIGHT_UNK, 0);
+
+    // two columns of radio groups, each tracking its own running y
+    leftY = headerHeight + 0x5a;
+    rightY = leftY;
+    rightColumnX = checkRowWidth / 16 + 0x1e + checkRowWidth;
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0315/~sOverall Force Strength ", 0x14, &leftY, 3, radioX);
+    leftY += radioHeight;
+    swrConfig_AddLevelRadioRow(page, 0x5a, radioX, leftY, radioHeight, 0);
+    leftY += radioHeight * 2;
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0317/~sAuto-Center Stiffness ", rightColumnX, &rightY, 4, radioX);
+    rightY += radioHeight;
+    swrConfig_AddLevelRadioRow(page, 0x5b, radioX, rightY, radioHeight, 1);
+    rightY += radioHeight * 2;
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0318/~sCollision Effects ", 0x2d, &leftY, 4, radioX);
+    leftY += radioHeight;
+    swrConfig_AddLevelRadioRow(page, 0x5c, radioX, leftY, radioHeight, 1);
+    leftY += radioHeight * 2;
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0319/~sDamage Effects ", rightColumnX + 0x19, &rightY, 4, radioX);
+    rightY += radioHeight;
+    swrConfig_AddLevelRadioRow(page, 0x5d, radioX, rightY, radioHeight, 1);
+    rightY += radioHeight * 2;
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0320/~sTerrain Effects ", 0x2d, &leftY, 4, radioX);
+    swrConfig_AddLevelRadioRow(page, 0x5e, radioX, leftY + radioHeight, radioHeight, 1);
+
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0321/~sPod Action Effects ", rightColumnX + 0xf, &rightY, 4, radioX);
+    swrConfig_AddLevelRadioRow(page, 0x5f, radioX, rightY + radioHeight, radioHeight, 1);
+}
+
+// Action-name cell of a binding row; the bound control text is drawn right of labelWidth.
+static swrUI_unk* swrConfig_NewBindingRow(swrUI_unk* page, int id, char* key, int x, int y, int width, int height, int labelWidth)
+{
+    return swrUI_NewScreenText(page, id, 0, swrText_Translate(key), (int)wuRegistry_lpClass, x, y, width, height, labelWidth, swrUI_SCREEN_TEXT_INDENT_1, 0);
+}
+
+// Keyboard secondary-key cell (no label, value text only).
+static void swrConfig_NewKeyCell(swrUI_unk* page, int id, int x, int y, int width, int height, int valueX)
+{
+    swrUI_NewScreenText(page, id, 0, NULL, (int)wuRegistry_lpClass, x, y, width, height, valueX, swrUI_SCREEN_TEXT_PLAIN, 0);
+}
+
+static char* const swrConfig_bindingRowKeys[10] = {
+    "/MONDOTEXT_H_0259/~sCycle Camera", "/MONDOTEXT_H_0015/LOOK_BACK", "/MONDOTEXT_H_0016/BRAKE",
+    "/MONDOTEXT_H_0017/THRUST", "/MONDOTEXT_H_0018/BOOST", "/MONDOTEXT_H_0019/SLIDE",
+    "/MONDOTEXT_H_0020/ROLL_LEFT", "/MONDOTEXT_H_0021/ROLL_RIGHT", "/MONDOTEXT_H_0255/~sTaunt/Flamejet",
+    "/MONDOTEXT_H_0023/REPAIR",
+};
+
+static char* const swrConfig_axisRowKeys[5] = {
+    "/MONDOTEXT_H_0271/~sTurn Left/Right", "/MONDOTEXT_H_0016/BRAKE", "/MONDOTEXT_H_0278/~sNose Up/Down",
+    "/MONDOTEXT_H_0280/~sRoll Left/Right", "/MONDOTEXT_H_0225/THROTTLE",
+};
+static const int swrConfig_axisRowIds[5] = { 0x3e, 0x3b, 0x3f, 0x3c, 0x3d };
+
+// Shared body of the joystick (0x0040c7a0) and mouse (0x0040d2c0) pages.
+static void swrConfig_BuildPointerDeviceMenu(swrUI_unk* page, swrConfig_DEVICE device)
+{
+    swrUI_unk* element;
+    swrUI_unk* list;
+    char title[256];
+    char* key;
+    int bbox[4];
+    int listRect[4];
+    int radioX[3];
+    int isJoystick = device == swrConfig_DEVICE_JOYSTICK;
+    int enabledHeight;
+    int labelWidth;
+    int columnWidth;
+    int textHeight;
+    int frameWidth;
+    int rowHeight;
+    int listHeight;
+    int axisTop;
+    int radioHeight;
+    int count;
+    int x;
+    int y;
+    int i;
+
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    enabledHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]) * 3;
+    // the joystick page is positioned with the MOUSE title height and draws its title text directly
+    y = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"), swrText_fontsByIndex[6]) * 3 + 5;
+    if (isJoystick) {
+        sprintf(title, swrText_Translate("/MONDOTEXT_H_0249/~sJOYSTICK SETTINGS"));
+        element = swrUI_New3PatchBox(page, 1, 6, swrText_Translate("/MONDOTEXT_H_0249/~sJOYSTICK SETTINGS"), 0x1e5, y, swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0249/~sJOYSTICK SETTINGS"), swrText_fontsByIndex[6]), swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+        swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a9, 1);
+        swrUI_AddDefaultButton(page, 0xcd, 0x1a9);
+        swrUI_AddRestoreButton(page, 0x163, 0x1a9);
+        swrUI_AddOkButton(page, 0x208, 0x181);
+    } else {
+        sprintf(title, swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"));
+        element = swrUI_New3PatchBox(page, 1, 6, title, 0x1d1, y, swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"), swrText_fontsByIndex[6]), swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+        swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+        swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1a4, 1);
+        swrUI_AddDefaultButton(page, 0xcd, 0x1a4);
+        swrUI_AddRestoreButton(page, 0x163, 0x1a4);
+        swrUI_AddOkButton(page, 0x208, 0x17c);
+    }
+
+    element = swrUI_NewLabel(page, 1, -1, swrText_Translate("/MONDOTEXT_H_0257/~sButton Settings"), 100, 5, 0, 0);
+    swrUI_SetColorUnk(element, 0xe1, 0xe1, 0, 0xff);
+
+    labelWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0513/~sTaunt/Flamejet"), 0) + swrText_GetStringWidthByFont(" ", 0) * 5;
+    columnWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0514/Numpad Enter"), 0) + labelWidth;
+    textHeight = swrText_GetStringHeight(isJoystick ? "/" : swrText_Translate("/MONDOTEXT_H_0259/~sCycle Camera"), swrText_fontsByIndex[0]);
+    swrUI_GetFrameTextureDim(swrUI_FRAME_STYLE_EDIT_SEGMENTED, &frameWidth, &rowHeight);
+    if (textHeight + 2 >= rowHeight)
+        rowHeight = textHeight + 2;
+    if (columnWidth < frameWidth)
+        columnWidth = frameWidth;
+
+    swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
+    // the wheel adds Nose Up / Nose Down button rows
+    listHeight = (isJoystick && cifr_deviceIsWheel != 0 ? 13 : 11) * rowHeight;
+    listRect[0] = 0xf;
+    listRect[1] = 0xf;
+    listRect[2] = bbox[0] + 0xe + columnWidth;
+    listRect[3] = bbox[1] + 0xe + listHeight;
+    list = swrUI_NewList(page, isJoystick ? 0x30d49 : 0x30d4d, listRect, -1, swrUI_LIST_NO_SELECTION_FRAME | swrUI_LIST_NO_SCROLLBAR, 0);
+    list->row_spacing = 0;
+    x = bbox[0] + 0xf;
+    y = 0xf;
+    for (i = 0; i < 10; i++) {
+        swrUI_AddListElement(list, swrConfig_NewBindingRow(page, 0x27 + i * 2, swrConfig_bindingRowKeys[i], x, y, columnWidth, rowHeight, labelWidth));
+        y += rowHeight;
+    }
+    if (isJoystick && cifr_deviceIsWheel != 0) {
+        swrUI_AddListElement(list, swrConfig_NewBindingRow(page, 0x40, "/MONDOTEXT_H_0268/~sNose Up", x, y, columnWidth, rowHeight, labelWidth));
+        y += rowHeight;
+        swrUI_AddListElement(list, swrConfig_NewBindingRow(page, 0x43, "/MONDOTEXT_H_0269/~sNose Down", x, y, columnWidth, rowHeight, labelWidth));
+    }
+
+    y = bbox[1] + 0xf + listHeight;
+    element = swrUI_NewLabel(page, 1, -1, swrText_Translate("/MONDOTEXT_H_0270/~sAxis Settings"), 100, y, 0, 0);
+    y += 10;
+    swrUI_SetColorUnk(element, 0xe1, 0xe1, 0, 0xff);
+    listRect[0] = 0xf;
+    listRect[1] = y;
+    listRect[2] = bbox[0] + 0xe + columnWidth;
+    listRect[3] = bbox[1] + rowHeight * 6 - 1 + y;
+    list = swrUI_NewList(page, isJoystick ? 0x30d4a : 0x30d4e, listRect, -1, swrUI_LIST_NO_SELECTION_FRAME | swrUI_LIST_NO_SCROLLBAR, 0);
+    list->row_spacing = 0;
+    axisTop = y;
+    for (i = 0; i < 5; i++) {
+        swrUI_AddListElement(list, swrConfig_NewBindingRow(page, swrConfig_axisRowIds[i], swrConfig_axisRowKeys[i], x, y, columnWidth, rowHeight, labelWidth));
+        y += rowHeight;
+    }
+
+    y = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0250/~sMOUSE SETTINGS"), swrText_fontsByIndex[6]);
+    // device status line, filled in by swrConfig_RefreshMappingMenu
+    element = swrUI_NewLabel(page, 0x58, 0, wuRegistry_lpClass, 0x145, y * 3 + 7, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0xff, 0, 200);
+    y = y * 3 + 0x14;
+    if (!isJoystick)
+        key = "/MONDOTEXT_H_0286/~sMouse Enabled ";
+    else if (cifr_deviceIsWheel == 0)
+        key = "/MONDOTEXT_H_0288/~sJoystick Enabled ";
+    else
+        key = "/MONDOTEXT_H_0287/~sWheel Enabled ";
+    swrUI_NewFramedText(page, 0x54, 0, swrText_Translate(key), 0x145, y, swrText_GetStringWidthByFont(swrText_Translate(key), 0), enabledHeight, swrUI_LEFT_RIGHT_UNK, 0);
+    y += rowHeight * 2;
+
+    // Z flip only when the device reports a third axis
+    count = ((isJoystick ? swrControl_joystickAxisMask : swrControl_mouseAxisMask) & 4) != 0 ? 3 : 2;
+    radioHeight = swrConfig_AddRadioGroupLabel(page, "/MONDOTEXT_H_0507/~sFlip Axis", 0x16d, &y, count, radioX);
+    y += radioHeight;
+    swrUI_NewFramedText(page, 0x55, 0, swrText_Translate("/MONDOTEXT_H_0283/~sX"), radioX[0], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0283/~sX"), 0), radioHeight, swrUI_CHECK_CIRCLE_UNK, 0);
+    swrUI_NewFramedText(page, 0x56, 0, swrText_Translate("/MONDOTEXT_H_0284/~sY"), radioX[1], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0284/~sY"), 0), radioHeight, swrUI_CHECK_CIRCLE_UNK, 0);
+    if (count > 2)
+        swrUI_NewFramedText(page, 0x57, 0, swrText_Translate("/MONDOTEXT_H_0285/~sZ"), radioX[2], y, swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0285/~sZ"), 0), radioHeight, swrUI_CHECK_CIRCLE_UNK, 0);
+
+    // bracket sprite joining the axis list to the two sliders; bbox is reused as its rect
+    bbox[0] = listRect[2] - 8;
+    bbox[1] = axisTop + 0x18;
+    bbox[2] = listRect[2] + 0x30;
+    bbox[3] = axisTop + 0x77;
+    swrUI_NewSpriteElement(page, 1, bbox, swrSprite_branch, 0, NULL, 0);
+    swrUI_NewLabel(page, 1, 0, swrText_Translate("/MONDOTEXT_H_0508/~sSensitivity"), bbox[2] + 0x19, axisTop + 8, 0, 0);
+    swrUI_NewNumberField(page, 0x4e, bbox[2] - 10, axisTop + 8, 200, swrUI_SLIDER_SHOW_VALUE, 0);
+    if (isJoystick) {
+        swrUI_NewLabel(page, 1, 0, swrText_Translate("/MONDOTEXT_H_0509/~sDeadzone"), bbox[2] + 0x19, axisTop + 0x5e, 0, 0);
+        // 0xc00000: set in the EXE, not read by the slider code
+        swrUI_NewNumberField(page, 0x4d, bbox[2] - 10, axisTop + 0x5e, 200, swrUI_SLIDER_THUMB | swrUI_SLIDER_SHOW_VALUE | swrUI_SLIDER_CENTERED | 0xc00000, 0);
+    } else {
+        swrUI_NewLabel(page, 1, 0, swrText_Translate("/MONDOTEXT_H_0532/Sensitivity Meter"), bbox[2] + 0x19, axisTop + 0x5e, 0, 0);
+        swrUI_NewNumberField(page, 0x4d, bbox[2] - 10, axisTop + 0x5e, 200, swrUI_SLIDER_THUMB | swrUI_SLIDER_SHOW_VALUE | swrUI_SLIDER_NO_CAPS, 0);
+    }
+}
+
+// 0x0040c7a0
+void swrConfig_BuildJoystickMenu(swrUI_unk* page)
+{
+    swrConfig_BuildPointerDeviceMenu(page, swrConfig_DEVICE_JOYSTICK);
+}
+
+// 0x0040d2c0
+void swrConfig_BuildMouseMenu(swrUI_unk* page)
+{
+    swrConfig_BuildPointerDeviceMenu(page, swrConfig_DEVICE_MOUSE);
+}
+
+// 0x0040dd10
+void swrConfig_BuildKeyboardMenu(swrUI_unk* page)
+{
+    swrUI_unk* element;
+    char title[256];
+    int bbox[4];
+    int panelRect[4];
+    unsigned int restoreWidth;
+    int labelWidth;
+    int columnWidth;
+    int textHeight;
+    int frameWidth;
+    int rowHeight;
+    int listHeight;
+    int keyWidth;
+    int keyValueX;
+    int x;
+    int x2;
+    int x3;
+    int y;
+    int i;
+
+    restoreWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    element = swrUI_NewButton(page, 0x4c, -1, swrText_Translate("/MONDOTEXT_H_0291/~sShow Reserved Settings"), 400, 0x55, (restoreWidth >> 3) + restoreWidth, 0x14, swrUI_FRAME_STYLE_SMALL_WINDOW, 0);
+    swrUI_SetColorUnk2(element, 0xff, 0, 0, 0xff);
+    swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0248/~sRestore Previous Settings"), swrText_fontsByIndex[0]);
+    y = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0251/~sKEYBOARD SETTINGS"), swrText_fontsByIndex[6]);
+    sprintf(title, swrText_Translate("/MONDOTEXT_H_0251/~sKEYBOARD SETTINGS"));
+    element = swrUI_New3PatchBox(page, 1, 6, title, 0x230, y * 3 + 5, swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0251/~sKEYBOARD SETTINGS"), swrText_fontsByIndex[6]), swrUI_3PATCH_LARGE_TAB, 1, 0, 0);
+    swrUI_SetColorUnk(element, 0xff, 0, 0, 0xff);
+    swrUI_AddNavButton(page, SWR_UI_ID_BACK_BUTTON, 0, 0x1ae, 1);
+    swrUI_AddDefaultButton(page, 0xcd, 0x1ae);
+    swrUI_AddRestoreButton(page, 0x163, 0x1ae);
+    swrUI_AddOkButton(page, 0x208, 0x17c);
+
+    labelWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0513/~sTaunt/Flamejet"), 0) + swrText_GetStringWidthByFont(" ", 0) * 5;
+    columnWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0514/Numpad Enter"), 0) + labelWidth;
+    textHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0259/~sCycle Camera"), swrText_fontsByIndex[0]);
+    swrUI_GetFrameTextureDim(swrUI_FRAME_STYLE_EDIT_SEGMENTED, &frameWidth, &rowHeight);
+    if (textHeight + 2 >= rowHeight)
+        rowHeight = textHeight + 2;
+    if (columnWidth < frameWidth)
+        columnWidth = frameWidth;
+    keyValueX = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0283/~sX"), 0) * 2;
+    keyWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0256/Numpad Enter"), 0);
+
+    // ten bindings, each with a secondary key column
+    swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
+    listHeight = rowHeight * 11;
+    panelRect[0] = 0xf;
+    panelRect[1] = 0xf;
+    panelRect[2] = keyWidth + bbox[0] + 0xe + columnWidth;
+    panelRect[3] = bbox[1] + 0xe + listHeight;
+    swrUI_NewPanel(page, 1, panelRect, 0);
+    x = bbox[0] + 0xf;
+    x2 = columnWidth + 0xf;
+    y = bbox[1] + 0xf;
+    for (i = 0; i < 10; i++) {
+        swrConfig_NewBindingRow(page, 0x27 + i * 2, swrConfig_bindingRowKeys[i], x, y, columnWidth, rowHeight, labelWidth);
+        swrConfig_NewKeyCell(page, 0x28 + i * 2, x2, y, keyWidth, rowHeight, keyValueX);
+        y += rowHeight;
+    }
+
+    // pitch/turn axes: two key columns each
+    y = (bbox[1] >> 1) + bbox[1] + 0xf + listHeight;
+    panelRect[0] = 0xf;
+    panelRect[1] = y;
+    panelRect[2] = bbox[0] + 0xe + keyWidth * 2 + columnWidth;
+    panelRect[3] = bbox[1] + rowHeight * 5 - 1 + y;
+    swrUI_NewPanel(page, 1, panelRect, 0);
+    y += bbox[1];
+    x3 = keyWidth - 8 + x2;
+    swrConfig_NewBindingRow(page, 0x40, "/MONDOTEXT_H_0268/~sNose Up", x, y, columnWidth, rowHeight, labelWidth);
+    swrConfig_NewKeyCell(page, 0x41, x2, y, keyWidth, rowHeight, keyValueX);
+    swrConfig_NewKeyCell(page, 0x42, x3, y, keyWidth, rowHeight, keyValueX);
+    y += rowHeight;
+    swrConfig_NewBindingRow(page, 0x46, "/MONDOTEXT_H_0029/TURN_LEFT", x, y, columnWidth, rowHeight, labelWidth);
+    swrConfig_NewKeyCell(page, 0x47, x2, y, keyWidth, rowHeight, keyValueX);
+    swrConfig_NewKeyCell(page, 0x48, x3, y, keyWidth, rowHeight, keyValueX);
+    y += rowHeight;
+    swrConfig_NewBindingRow(page, 0x49, "/MONDOTEXT_H_0030/TURN_RIGHT", x, y, columnWidth, rowHeight, labelWidth);
+    swrConfig_NewKeyCell(page, 0x4a, x2, y, keyWidth, rowHeight, keyValueX);
+    swrConfig_NewKeyCell(page, 0x4b, x3, y, keyWidth, rowHeight, keyValueX);
+    y += rowHeight;
+    swrConfig_NewBindingRow(page, 0x43, "/MONDOTEXT_H_0269/~sNose Down", x, y, columnWidth, rowHeight, labelWidth);
+    swrConfig_NewKeyCell(page, 0x44, x2, y, keyWidth, rowHeight, keyValueX);
+    swrConfig_NewKeyCell(page, 0x45, x3, y, keyWidth, rowHeight, keyValueX);
 }
