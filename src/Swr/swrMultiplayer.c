@@ -134,6 +134,12 @@ void swrMultiplayer_BroadcastPlayerState(void)
     HANG("TODO");
 }
 
+// 0x0041e660
+void swrMultiplayer_BroadcastRaceReset(void)
+{
+    HANG("TODO");
+}
+
 // 0x00420830
 int swrMultiplayer_Initialize(void)
 {

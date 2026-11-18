@@ -757,7 +757,7 @@ rdModel_CurrentMaterialSet 0x0050c0cc int
 swrObjHang_planetIntroTimer 0x0050c0d8 float
 
 swrRace_SelectedRacer 0x0050c118 int
-DAT_0050c11c 0x0050c11c float
+swrObjHang_orbitDistance 0x0050c11c float # main-menu camera orbit radius (eye to look-at), recovered on entry by swrRace_MainMenu
 
 swrObjHang_courseShownPlanet 0x0050c134 char # planet whose holo/sprite the course-select screen shows; follows the cursor once the slide settles
 
@@ -767,7 +767,7 @@ swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
-DAT_0050c308 0x0050c308 char[12]
+swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrRace_MainMenu)
 
 g_objHang2 0x0050c454 swrObjHang*
 swrObjHang_skipTournamentIntro 0x0050c458 int # swrObjHang_F0 sets it in multiplayer; suppresses the tournament planet-intro cutscene (state 15)
@@ -775,13 +775,13 @@ swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzer
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
-DAT_0050c480 0x0050c480 int
+swrObjHang_mainMenuChangeVehicle 0x0050c480 int # 1 after Change Vehicle was picked in swrRace_MainMenu; written only
 swrObjHang_nameEntryStateB 0x0050c4b4 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryStateA 0x0050c4b8 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryBuffer 0x0050c4c0 int[8] # 32 bytes zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_partDetailActive 0x0050c470 int # a part detail/purchase view is open; suppresses the idle camera
 
-DAT_0050c524 0x0050c524 char
+swrObjHang_mainMenuItemCount 0x0050c524 char # rows in swrObjHang_mainMenuItems
 rdroid_g_curRenderOptions2 0x0050c530 RdroidFlags
 
 swrRace_resultsScrollY 0x0050c114 float # results-list scroll offset (0 .. -(30*players-150))
@@ -2054,3 +2054,15 @@ swrControl_cancelHeldPrev 0x004d6300 int # cancel held last frame
 swrControl_cancelUpPrev 0x004d6304 int # cancel was up last frame
 swrControl_menuAcceptHeldPrev 0x004d6308 int # front-end accept held last frame
 swrControl_acceptHeldPrev 0x004d6824 int # accept held last frame
+swrObjHang_sceneViewport 0x004c3fb0 int # viewport the hangar/cantina scene renders into (1); set up by swrObjHang_SetupScreenScene
+swrObjHang_sceneCamState 0x004c3fb4 int # cam state holding rdMatrix44_unk7 for the hangar scene (3)
+swrObjHang_holoCamState 0x004c3fb8 int # cam state driven by swrObjHang_cameraMatrix / holoCameraMatrix (4); also the scene viewport camera index
+swrObjHang_trackPreviewTrack 0x004c45d4 int # track id whose preview AABB is cached (-1 = none); DrawTrackPreview recomputes on change or while the camera moves
+swrObjHang_trackPreviewAABB 0x0050c8c8 float[6] # min xyz, max xyz of the previewed track model (swrModel_NodeComputeFirstMeshAABB; -10 fallback)
+swrText_glyphV 0x00e996fc int # current glyph quad, latched by swrText_SetupGlyph and drawn by swrText_DrawGlyph
+swrText_glyphU 0x00e99700 int
+swrText_glyphHeight 0x00e99704 int
+swrText_glyphOriginY 0x00e99708 int
+swrText_glyphWidth 0x00e9970c int
+swrText_glyphOriginX 0x00e99740 int
+swrText_glyphUnk01 0x00e99760 int # glyph byte 1 (0 for fonts whose first int is nonzero); passed to rdProcEntry_Add2DQuad2 as an ignored arg

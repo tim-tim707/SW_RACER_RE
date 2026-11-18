@@ -60,9 +60,76 @@ void swrObjHang_SetUnused(void)
 }
 
 // 0x004360e0
-void DrawTracks(swrObjHang* hang, char param_2)
+void DrawTracks(swrObjHang* hang, char circuit)
 {
-    HANG("TODO");
+    static const uint8_t circuitColors[SWR_CIRCUIT_COUNT][3] = {
+        { 0x32, 0xff, 0xff },
+        { 0x44, 0xff, 0x3e },
+        { 0xa3, 0xbe, 0x11 },
+        { 0x9d, 0x59, 0x20 },
+    };
+    char text[17] = { 0 };
+    const uint8_t* color;
+    short place = 0;
+    float alpha = 254.0f;
+    short id;
+    short x;
+    short y;
+    int track;
+    int c;
+
+    if (circuit != hang->circuitIdx)
+        alpha = swrRace_Transition * 254.0f;
+
+    // faithful: a loop over [circuit, circuit + 1)
+    for (c = circuit; c < circuit + 1; c++) {
+        color = (unsigned int)c < SWR_CIRCUIT_COUNT ? circuitColors[c] : NULL;
+        for (track = 0; track < g_aTracksInCircuits[c]; track++) {
+            if (hang->isTournamentMode != 0)
+                place = ((short)g_aBeatTrackPlace[c] >> (track * 2)) & 3;
+            id = SWROBJHANG_TRACK_GRID_SPRITE_BASE + c * SWR_TRACKS_PER_CIRCUIT + track;
+            x = track * 35 + 0x37;
+            y = 0x5e;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, x, y);
+            swrSprite_SetDim(id, 0.6667f, 0.6667f);
+            if (color != NULL)
+                swrSprite_SetColor(id, color[0], color[1], color[2], (uint8_t)(int)alpha);
+            if (!isTrackPlayable(hang, (char)c, (char)track))
+                swrSprite_SetColor(id, 0x80, 0x80, 0x80, (uint8_t)(int)alpha);
+            else if (place > 0)
+                swrSprite_SetColor(id, 0xff, 0xff, 0xff, (uint8_t)(int)alpha);
+
+            sprintf(text, "~f2~s%d", track + 1);
+            if (hang->isTournamentMode == 0 || isTrackUnlocked((char)c, (char)track) != 0) {
+                if (!isTrackPlayable(hang, (char)c, (char)track)) {
+                    swrText_CreateTextEntry1(x + 5, y + 0xf, -0x80, -0x80, -0x80, (int)alpha, text);
+                    swrText_CreateTextEntry1(x + 0xc, y + 0x11, -0x80, -0x80, -0x80, (int)alpha, swrText_Translate(g_pTxtRace));
+                } else if (color != NULL) {
+                    swrText_CreateTextEntry1(x + 5, y + 0xf, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, text);
+                    swrText_CreateTextEntry1(x + 0xc, y + 0x11, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, swrText_Translate(g_pTxtRace));
+                }
+            }
+            if (hang->isTournamentMode != 0 && place == 0 && isTrackUnlocked((char)c, (char)track) == 0 && color != NULL)
+                swrText_CreateTextEntry1(x + 3, y + 0x11, (int8_t)color[0], (int8_t)color[1], (int8_t)color[2], (int)alpha, swrText_Translate(g_pTxt4th));
+
+            id = SWROBJHANG_TRACK_GRID_SPRITE_BASE + SWROBJHANG_TRACK_GRID_SELECT_OFFSET + c * SWR_TRACKS_PER_CIRCUIT + track;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, x - 2, y - 2);
+            swrSprite_SetDim(id, 0.6667f, 0.6667f);
+            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, (uint8_t)(int)alpha);
+            if (!isTrackPlayable(hang, (char)c, (char)track))
+                swrSprite_SetColor(id, 0x80, 0x80, 0x80, (uint8_t)(int)alpha);
+            if (circuit == hang->circuitIdx && VerifySelectedTrack(hang, swrRace_MenuSelectedItem) == track) {
+                // the selected track swaps its frame for the highlight sprite 0x62
+                swrSprite_SetVisible(id, 0);
+                swrSprite_SetVisible(0x62, 1);
+                swrSprite_SetPos(0x62, x - 5, y - 5);
+                swrSprite_SetDim(0x62, 0.6667f, 0.6667f);
+                swrSprite_SetColor(0x62, 0x32, 0xff, 0xff, (uint8_t)(int)alpha);
+            }
+        }
+    }
 }
 
 // 0x00440990
@@ -1922,9 +1989,152 @@ void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
 }
 
 // 0x00456c70
-void DrawTrackPreview(void* unused, int TrackID, float param_3)
+void DrawTrackPreview(void* unused, int trackId, float scale)
 {
-    HANG("TODO");
+    swrModel_NodeTransformed* node;
+    rdMatrix44 m;
+    rdVector3 center;
+    rdVector3 offset;
+    float x;
+    float z;
+
+    scale = scale * 0.0018f;
+    offset.x = 0.0f;
+    offset.y = 0.0f;
+    offset.z = 0.0f;
+    node = (swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_TRACK_PREVIEWS + trackId]->entries[0].node;
+    if (node == NULL)
+        return;
+
+    swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+    rdMatrix_SetIdentity44(&m);
+    // a third of the way from the camera eye to its look-at point
+    rdVector_Scale3Add3_both(&center, 0.6667f, (rdVector3*)&swrObjHang_cameraMatrix.vD, 0.3333f, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+    rdMatrix_AddRotationFromVectorAngle44After(&m, &m, 90.0f, swrObjHang_cameraMatrix.vA.x, swrObjHang_cameraMatrix.vA.y, swrObjHang_cameraMatrix.vA.z);
+    rdMatrix_AddRotationFromVectorAngle44After(&m, &m, 160.0f, swrObjHang_cameraMatrix.vB.x, swrObjHang_cameraMatrix.vB.y, swrObjHang_cameraMatrix.vB.z);
+
+    // per-track model scale
+    switch (trackId) {
+    case 0:
+    case 1:
+    case 6:
+    case 7:
+    case 9:
+    case 10:
+    case 12:
+        scale = scale * 1.5f;
+        break;
+    case 2:
+    case 5:
+    case 17:
+    case 18:
+        scale = scale * 1.2f;
+        break;
+    case 4:
+        scale = scale * 0.8f;
+        break;
+    case 8:
+    case 19:
+        scale = scale * 1.3f;
+        break;
+    case 11:
+        scale = scale * 1.7f;
+        break;
+    case 13:
+        scale = scale * 2.2f;
+        break;
+    case 14:
+        scale = scale * 1.8f;
+        break;
+    case 15:
+    case 22:
+        scale = scale * 2.3f;
+        break;
+    case 16:
+        scale = scale * 5.0f;
+        break;
+    case 23:
+    case 24:
+        scale = scale * 2.5f;
+        break;
+    }
+
+    swrModel_NodeSetColorsOnAllMaterials(&node->node, 0, 0, 0, 0xff, 0, (int)(swrUtils_Rand() * SWR_CTL_RAND_NORM * 60.0f - -170.0f));
+    rdMatrix_ScaleBasis44(&m, scale, scale, scale, &m);
+    rdVector_Copy3((rdVector3*)&m.vD, &center);
+    swrModel_NodeSetTransform(node, &m);
+
+    if (swrObjHang_trackPreviewTrack != trackId || swrObjHang_cameraMoveMode != 0) {
+        swrObjHang_trackPreviewTrack = trackId;
+        if (swrModel_NodeComputeFirstMeshAABB(&node->node, swrObjHang_trackPreviewAABB, 0) == 0) {
+            rdVector_Set3((rdVector3*)&swrObjHang_trackPreviewAABB[0], 0.0f, 0.0f, 0.0f);
+            rdVector_Set3((rdVector3*)&swrObjHang_trackPreviewAABB[3], -10.0f, -10.0f, -10.0f);
+        }
+    }
+
+    // per-track centering nudge
+    x = 0.0f;
+    z = 0.0f;
+    switch (trackId) {
+    case 4:
+    case 17:
+    case 18:
+        z = 2.0f;
+        break;
+    case 6:
+    case 19:
+        x = -4.0f;
+        z = -2.0f;
+        break;
+    case 7:
+    case 9:
+        x = -4.0f;
+        break;
+    case 8:
+        z = -1.0f;
+        break;
+    case 10:
+        x = -2.0f;
+        z = 2.0f;
+        break;
+    case 11:
+        x = -2.0f;
+        z = 4.0f;
+        break;
+    case 14:
+        x = -1.0f;
+        z = 1.0f;
+        break;
+    case 15:
+        z = -12.0f;
+        break;
+    case 16:
+        x = -4.0f;
+        z = 1.0f;
+        break;
+    case 20:
+        z = -5.0f;
+        break;
+    case 21:
+        z = -6.0f;
+        break;
+    case 22:
+        x = -4.0f;
+        z = -6.0f;
+        break;
+    case 23:
+        x = 16.0f;
+        z = 2.0f;
+        break;
+    case 24:
+        x = -6.0f;
+        z = 12.0f;
+        break;
+    }
+    rdVector_Set3(&offset, x, 0.0f, z);
+    rdVector_Add3((rdVector3*)&m.vD, (rdVector3*)&m.vD, &offset);
+    swrModel_NodeSetTransform(node, &m);
+    swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
 }
 
 // Step cameraState by dir to the next placement in the same group (placement.unk1), wrapping
@@ -4073,7 +4283,322 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
 // 0x00459150
 void swrObjHang_SetupScreenScene(swrObjHang* hang)
 {
-    HANG("TODO");
+    float farClip = 11000.0f;
+    float nearClip = 10.0f;
+    int camIndex = swrObjHang_holoCamState;
+    rdVector3 ambient;
+    rdVector3 color;
+    rdVector3 direction;
+    rdVector3 pos;
+    swrTranslationRotation identity;
+    swrTranslationRotation holoIdentity;
+    swrObjElmo* elmo;
+    swrUICameraPlacement* placement;
+    float yaw;
+    float yawTarget;
+    float sinA;
+    float cosA;
+    int waypoint;
+    int other;
+    int elmoId;
+    int anim;
+    int pick;
+    int pilotId;
+    int guestId;
+    int offsetY;
+    int angle;
+    short i;
+
+    swrSprite_SetDrawStateWord2_Maybe(0x3800);
+    swrObjHang_cameraMoveMode = 0;
+    swrObjHang_holotableActive = 0;
+    swrObjHang_screenTransitionActive = 0;
+    swrObjHang_vehicleStatsFade = 0.0f;
+    swrRace_Transition = 0.0f;
+    swrRace_MenuNavLeftActive = 0;
+    swrRace_MenuNavRightActive = 0;
+    swrRace_MenuCanScrollLeft = 0;
+    swrRace_MenuCanScrollRight = 0;
+    swrUI_menuScrolled = 0;
+    g_bCircuitIdxInRange = 0;
+    ambient.x = 80.0f;
+    ambient.y = 75.0f;
+    ambient.z = 50.0f;
+    color.x = 255.0f;
+    color.y = 255.0f;
+    color.z = 200.0f;
+    direction.x = 0.0f;
+    direction.y = 0.0f;
+    direction.z = -40000.0f;
+    rdVector_Set3(&identity.translation, 0.0f, 1.0f, 0.0f);
+    rdVector_Set3(&identity.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&holoIdentity.translation, 0.0f, 1.0f, 0.0f);
+    rdVector_Set3(&holoIdentity.yaw_roll_pitch, 0.0f, 0.0f, 0.0f);
+    rdMatrix_SetTransform44(&rdMatrix44_unk7, &identity);
+    rdMatrix_SetTransform44(&swrObjHang_cameraMatrix, &identity);
+    rdMatrix_SetTransform44(&swrObjHang_holoCameraMatrix, &holoIdentity);
+    rdModel_SetFogEnabled_Maybe(0);
+    hang->cameraState = HangCameraState_CantinaHolotableFar;
+    hang->elmoEntityIndex = -1;
+
+    for (i = 0; i < hang->num_local_players; i++) {
+        elmo = swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PILOT_PUPPETS + i);
+        if (elmo != NULL)
+            elmo->animCmd = 0;
+    }
+
+    if (hang->room == Cantina && hang->roomPrev != Cantina) {
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[9]);
+        yaw = swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
+        swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_CANTINA_PILOT, 0x11, &pos, &pos, yaw, yaw);
+        waypoint = 10 - (int)(swrUtils_Rand() * SWR_CTL_RAND_NORM * -3.0f);
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[waypoint]);
+        elmo = swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_CANTINA_GUEST);
+        swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_CANTINA_GUEST, elmo->kind == swrObjElmo_KIND_PIT_DROID ? 0 : 0x11, &pos, &pos, yaw, yaw);
+        do {
+            other = 10 - (int)(swrUtils_Rand() * SWR_CTL_RAND_NORM * -3.0f);
+        } while (other == waypoint);
+        hang->unk50 = (char)other - 9;
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[other]);
+        yaw = swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
+        swrObjElmo_SetTransformAndAnimById(0x17, 0x2e, &pos, &pos, yaw, yaw);
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[8]);
+        swrObjElmo_SetTransformAndAnimById(0x16, 0x2a, &pos, &pos, 190.08f, 190.08f);
+    }
+
+    switch (hang->menuScreen) {
+    case swrObjHang_STATE_JUNKYARD:
+        nearClip = 0.8f;
+        ambient.x = 120.0f;
+        ambient.y = 135.0f;
+        ambient.z = 140.0f;
+        hang->cameraState = HangCameraState_JunkyardPart01;
+        for (i = HangCameraState_JunkyardPart01; i < HangCameraState_JunkyardPart16; i++) {
+            if ((short)maybeUICameraPlacements[i].unk1 == 4) {
+                hang->cameraState = i;
+                break;
+            }
+        }
+        for (i = 0; i < hang->num_local_players; i++) {
+            rdVector_Set3(&pos, (float)(-214.0 - i * -50.0), -569.0f, -145.0f);
+            swrObjHang_ComputeCameraEye(hang, i);
+            placement = &maybeUICameraPlacements[hang->cameraState];
+            yaw = stdMath_ArcTan2(placement->position2.x - placement->position1.x, placement->position1.y - placement->position2.y);
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x14, &pos, &swrObjHang_sceneCameraEye, yaw, yaw - -180.0f);
+        }
+        rdVector_Copy3(&pos, &maybeUICameraPlacements[3].position2);
+        pos.z = -125.0f;
+        rdVector_Copy3(&swrObjHang_sceneCameraEye, &swrObjElmo_waypoints[5]);
+        yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+        swrObjElmo_SetTransformAndAnimById(0x15, 0x1e, &pos, &swrObjHang_sceneCameraEye, yaw, yaw - -90.0f);
+        rdVector_Set3(&pos, 0.0f, 0.0f, 0.0f);
+        for (i = 0; i < SWR_MAX_PIT_DROIDS - (swrRace_nbPitDroids & 0xff); i++)
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PIT_DROIDS + i, 0, &pos, &pos, 0.0f, 0.0f);
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[15]);
+        if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_dewbackCheatInitials) != 0) {
+            swrObjElmo_SetTransformAndAnimById(0x13, 0x28, &pos, &pos, 180.0f, 180.0f);
+        } else if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_rontoCheatInitials) != 0) {
+            pos.y = pos.y - 20.0f;
+            swrObjElmo_SetTransformAndAnimById(0x14, 0x29, &pos, &pos, 192.0f, 192.0f);
+        }
+        break;
+    case swrObjHang_STATE_WATTO:
+        nearClip = 5.0f;
+        if (swrObjHang_shopFocusTypePending == 2)
+            hang->activeMenu = 1;
+        else if (swrObjHang_shopFocusTypePending == 1)
+            hang->activeMenu = 0;
+        hang->cameraState = HangCameraState_CounterBuyParts;
+        if (hang->activeMenu == 1)
+            hang->cameraState = HangCameraState__unk_2;
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[4]);
+        rdVector_Copy3(&swrObjHang_sceneCameraEye, &pos);
+        yawTarget = stdMath_ArcTan2(pos.x - 12.0f, -116.0f - pos.y);
+        yaw = yawTarget;
+        anim = 0x1d;
+        if (hang->menuScreenPrev == swrObjHang_STATE_JUNKYARD) {
+            rdVector_Copy3(&pos, &maybeUICameraPlacements[hang->cameraState].position2);
+            pos.z = -40.0f;
+            yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+            anim = 0x1e;
+        }
+        swrObjElmo_SetTransformAndAnimById(0x15, anim, &pos, &swrObjHang_sceneCameraEye, yaw, yawTarget);
+
+        rdVector_Copy3(&swrObjHang_sceneCameraEye, &swrObjElmo_waypoints[4]);
+        if ((int)(swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f) == 0) {
+            rdVector_Copy3(&pos, &swrObjElmo_waypoints[13]);
+            yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+            yaw = yaw - swrUtils_Rand() * SWR_CTL_RAND_NORM * 90.0f;
+        } else {
+            rdVector_Copy3(&pos, &swrObjElmo_waypoints[14]);
+            yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+        }
+        // one of five random shop customers (elmo 0x17..0x1b), each with its own idle
+        pick = -(int)(swrUtils_Rand() * SWR_CTL_RAND_NORM * -5.0f);
+        elmoId = 0x17 + pick;
+        switch (pick) {
+        case 0:
+            anim = 0x2e;
+            break;
+        case 1:
+            anim = 0x32;
+            break;
+        case 2:
+            anim = 0x37;
+            break;
+        case 3:
+            anim = 0x3c;
+            break;
+        case 4:
+            anim = 0x41;
+            break;
+        }
+        swrObjElmo_SetTransformAndAnimById(elmoId, anim, &pos, &pos, yaw, yaw);
+
+        for (i = 0; i < hang->num_local_players; i++) {
+            rdVector_Set3(&pos, (float)(200.0 - i * -50.0), -200.0f, -60.0f);
+            if (hang->menuScreenPrev == swrObjHang_STATE_JUNKYARD)
+                rdVector_Copy3(&pos, &maybeUICameraPlacements[hang->cameraState].position2);
+            // faithful: the per-player position above is overwritten
+            pos.z = -60.0f;
+            rdVector_Set3(&pos, -20.0f, -100.0f, -60.0f);
+            rdVector_Set3(&swrObjHang_sceneCameraEye, 0.0f, 0.0f, -60.0f);
+            yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x13, &pos, &swrObjHang_sceneCameraEye, yaw, yaw);
+        }
+        // pit droids still for sale stand in an arc around the counter
+        for (i = 0; i < SWR_MAX_PIT_DROIDS - (swrRace_nbPitDroids & 0xff); i++) {
+            angle = (0x1d - i) * 10;
+            stdMath_SinCos((float)angle, &sinA, &cosA);
+            rdVector_Set3(&pos, 12.0f - cosA * -281.6f, -116.0f - sinA * -281.6f, -60.0f);
+            yaw = stdMath_ArcTan2(pos.x - 12.0f, -116.0f - pos.y);
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PIT_DROIDS + i, 5, &pos, &pos, yaw, yaw);
+        }
+        break;
+    case swrObjHang_STATE_LOOK_AT_VEHICLE:
+        hang->cameraState = HangCameraState_InspectDefault;
+        farClip = 84000.0f;
+        swrRace_MenuMaxSelection = 7;
+        break;
+    case swrObjHang_STATE_SELECT_VEHICLE:
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET)
+            hang->cameraState = HangCameraState_CantinaHolotableNear;
+        swrObjHang_holotableActive = 1;
+        swrObjHang_screenTransitionActive = 1;
+        break;
+    case swrObjHang_STATE_SELECT_PLANET:
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_TRACK) {
+            hang->cameraState = HangCameraState_CantinaHolotableNear;
+            swrRace_Transition = 1.0f;
+        }
+        swrObjHang_holotableActive = 1;
+        break;
+    case swrObjHang_STATE_SELECT_TRACK:
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET) {
+            hang->cameraState = HangCameraState_CantinaHolotableNear;
+            swrRace_Transition = 1.0f;
+        }
+        swrObjHang_holotableActive = 1;
+        break;
+    case swrObjHang_STATE_TAUNT_SCENE:
+        farClip = 84000.0f;
+        hang->cameraState = HangCameraState_InspectDefault;
+        offsetY = 0;
+        angle = 180;
+        for (i = 0; i < 2; i++) {
+            rdVector_Set3(&swrObjHang_sceneCameraEye, 200.0f, -300.0f, -157.0f);
+            swrObjHang_sceneCameraEye.y = swrObjHang_sceneCameraEye.y - (float)offsetY;
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x14, &swrObjHang_sceneCameraEye, &swrObjHang_sceneCameraEye, (float)angle, (float)angle);
+            offsetY += 200;
+            angle -= 180;
+        }
+        break;
+    case swrObjHang_STATE_PLANET_SELECT_INTRO:
+        farClip = 84000.0f;
+        for (i = 0; i < 3; i++) {
+            rdVector_Set3(&swrObjHang_sceneCameraEye, 0.0f, (float)i * -150.0f, 0.0f);
+            if (i == 2)
+                swrObjHang_sceneCameraEye.y = swrObjHang_sceneCameraEye.y - -450.0f;
+            swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x1c, &swrObjHang_sceneCameraEye, &swrObjHang_sceneCameraEye, -90.0f, -90.0f);
+        }
+        break;
+    case swrObjHang_STATE_RESULTS_INTRO:
+        rdVector_Set3(&pos, 0.0f, -1000.0f, -157.0f);
+        farClip = 84000.0f;
+        hang->cameraState = HangCameraState_InspectPT01;
+        swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PIT_DROIDS, 0x10, &pos, &pos, 0.0f, 0.0f);
+        break;
+    case swrObjHang_STATE_VEHICLE_SELECT_INTRO:
+        if (hang->isTournamentMode == 0) {
+            pilotId = SWR_SCENE_SLOT_CANTINA_PILOT;
+            guestId = SWR_SCENE_SLOT_CANTINA_GUEST;
+        } else {
+            pilotId = SWR_SCENE_SLOT_CANTINA_GUEST;
+            guestId = SWR_SCENE_SLOT_CANTINA_PILOT;
+        }
+        placement = &maybeUICameraPlacements[HangCameraState_CantinaHolotableFar];
+        rdVector_Copy3(&pos, &placement->position1);
+        hang->cameraState = HangCameraState_CantinaEntryCutscene;
+        hang->elmoEntityIndex = pilotId;
+        swrRace_Transition = 1.0f;
+        swrObjHang_holotableActive = 1;
+        rdVector_Scale3Add3_both(&pos, 0.6f, &placement->position1, 0.4f, &placement->position2);
+        pos.z = -60.0f;
+        rdVector_Copy3(&swrObjHang_sceneCameraEye, &placement->position2);
+        yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
+        elmo = swrEvent_GetItem('Elmo', pilotId);
+        if (elmo->kind == swrObjElmo_KIND_PIT_DROID) {
+            swrObjElmo_SetTransformAndAnimById(pilotId, 2, &pos, &pos, yaw, yaw);
+        } else {
+            swrObjElmo_SetTransformAndAnimById(pilotId, 0x11, &pos, &pos, yaw, yaw);
+            elmo->unkac_ms = 100.0f;
+        }
+        rdVector_Copy3(&pos, &swrObjElmo_waypoints[9]);
+        yaw = swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
+        elmo = swrEvent_GetItem('Elmo', guestId);
+        if (elmo->kind == swrObjElmo_KIND_PIT_DROID)
+            swrObjElmo_SetTransformAndAnimById(guestId, 0, &pos, &pos, yaw, yaw);
+        else
+            swrObjElmo_SetTransformAndAnimById(guestId, 0x11, &pos, &pos, yaw, yaw);
+        break;
+    default:
+        break;
+    }
+
+    swrViewport_SetViewport(0, 8, 8, 0x138, 0xe8);
+    swrViewport_SetViewport(swrObjHang_sceneViewport, 8, 8, 0x138, 0xe8);
+    swrViewport_Enable(swrObjHang_sceneViewport, camIndex);
+    swrViewport_SetCameraIndex((short)camIndex, swrViewport_Get(swrObjHang_sceneViewport));
+    swrCam_CamState_InitMainMat4(swrObjHang_sceneCamState, 1, &rdMatrix44_unk7, 0);
+    swrCam_CamState_InitMainMat4(swrObjHang_holoCamState, 2, &swrObjHang_cameraMatrix, 0);
+    swrCam_CamState_SetOffsetSource(swrObjHang_holoCamState, &swrObjHang_holoCameraMatrix, 0);
+    swrViewport_SetCameraParameters(swrObjHang_sceneViewport, 45.0f, -1.0f, nearClip, farClip, -1.0f);
+    if (hang->cameraState != HangCameraState_None) {
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &maybeUICameraPlacements[hang->cameraState].position1);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &maybeUICameraPlacements[hang->cameraState].position2);
+    }
+    rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
+    rdMatrix_Copy44(&swrObjHang_cameraMatrixTarget, &swrObjHang_cameraMatrix);
+    rdMatrix_Copy44(&swrObjHang_holoCameraMatrixStart, &swrObjHang_holoCameraMatrix);
+    rdMatrix_Copy44(&swrObjHang_holoCameraMatrixTarget, &swrObjHang_holoCameraMatrix);
+    rdMatrix_ExtractTransform(&rdMatrix44_unk7, &tr_rot1);
+    rdMatrix_ExtractTransform(&rdMatrix44_unk7, &tr_rot2);
+    rdMatrix_ExtractTransform(&rdMatrix44_unk7, &tr_rot3);
+    if (hang->room != Cantina)
+        SetLightColorsAndDirection2(-1, &ambient, &color, &direction);
+}
+
+// 0x0045a3e0
+void swrUI_ResetMenuInputBitsets(void)
+{
+    swrUI_localPlayersInputPressedBitset[0] = 0;
+    swrUI_localPlayersInputDownBitset[0] = -1;
+    swrUI_localPlayersInputPressedBitset[1] = 0;
+    swrUI_localPlayersInputDownBitset[1] = -1;
+    swrUI_localPlayersInputPressedBitset[2] = 0;
+    swrUI_localPlayersInputDownBitset[2] = -1;
+    swrUI_localPlayersInputPressedBitset[3] = 0;
+    swrUI_localPlayersInputDownBitset[3] = -1;
 }
 
 // 0x0045ab50
@@ -5719,7 +6244,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 float py = (trackPoints[k].y * 25.0f) / zoomRange;
                 float sx = py * rotA + px * rotB;
                 float sy = px * dir.x + py * dir.y;
-                AddDotToMiniMap(0, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                AddDotToMiniMap(swrMiniMapDot_TRACK, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
             }
         }
 
@@ -5732,7 +6257,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                AddDotToMiniMap(1, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                AddDotToMiniMap(swrMiniMapDot_START_LINE, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
         }
 
         // rival racers
@@ -5746,7 +6271,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f) {
-                char type = (jdge->hud_mode == swrObjJdge_HUDMODE_MINIMAP_FAR) ? 2 : 3;
+                char type = (jdge->hud_mode == swrObjJdge_HUDMODE_MINIMAP_FAR) ? swrMiniMapDot_RIVAL : swrMiniMapDot_RIVAL_CROSS;
                 AddDotToMiniMap(type, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
             }
         }
@@ -5759,7 +6284,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                AddDotToMiniMap(4, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                AddDotToMiniMap(swrMiniMapDot_PLAYER_CROSS, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
         }
     } else if (mode == swrObjJdge_HUDMODE_SPLIT_COLUMN || mode == swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
         // splitscreen: a per-player vertical progress column with a position number
@@ -9134,9 +9659,302 @@ void swrObjTest_F3(swrRace* player)
 }
 
 // 0x00471760
-void swrRace_PoddAnimateVariousThings(swrRace* arg0)
+void swrRace_PoddAnimateVariousThings(swrRace* player)
 {
-    HANG("TODO");
+    int pilot;
+    int fusedEngines = 0;
+    int hasRearEngines = 0;
+    const swrRacerVisualData* visual;
+    rdMatrix44 podXf;
+    rdMatrix44 m;
+    rdVector3 binderA;
+    rdVector3 binderB;
+    rdVector3 offset;
+    rdVector3 deformA;
+    rdVector3 deformB;
+    swrModel_MeshMaterial* glowMatR;
+    swrModel_MeshMaterial* glowMatL;
+    float speed;
+    float steer;
+    float glowR;
+    float glowL;
+    float flare;
+    float heatL;
+    float heatR;
+    float burnL;
+    float burnR;
+    float throttle;
+    float scale;
+    float depth;
+    float tintR;
+    float tintL;
+    float amplitude;
+    float turn;
+    int tossFlag;
+    int i;
+
+    if (player->partNodes == NULL)
+        return;
+
+    if (player->partNodes[0x3b] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x3b], 2, 3, 0x10, 2);
+    rdMatrix_Copy44(&podXf, &player->transform);
+
+    pilot = *player->score_ptr->pilotId;
+    visual = &swrRacer_PodVisualData[pilot];
+    if (pilot == SWR_PILOT_NEVA_KEE)
+        fusedEngines = 1;
+    if (player->partNodes[3] != NULL && player->partNodes[4] != NULL)
+        hasRearEngines = 1;
+
+    if (!fusedEngines) {
+        rdVector_Copy3(&binderA, (rdVector3*)&player->engineXfR.vD);
+        rdVector_Copy3(&offset, &visual->sweepEngineOffset);
+        offset.x = -offset.x;
+        rdMatrix_Multiply3(&offset, &offset, &player->engineXfR);
+        rdVector_Add3(&binderA, &offset, &binderA);
+        if (hasRearEngines) {
+            rdVector_Copy3(&binderB, (rdVector3*)&player->engineXfL2.vD);
+            rdVector_Copy3(&offset, &visual->sweepEngineOffset);
+            rdMatrix_Multiply3(&offset, &offset, &player->engineXfL2);
+            rdVector_Add3(&binderB, &offset, &binderB);
+            binderA.z += player->unk11_1;
+            binderB.z += player->unk11_1;
+            swrRace_UpdateEnergyBinder(player, 2, &binderA, &binderB);
+
+            rdVector_Copy3(&binderA, (rdVector3*)&player->engineXfR2.vD);
+            rdVector_Copy3(&offset, &visual->sweepEngineOffset);
+            offset.x = -offset.x;
+            rdMatrix_Multiply3(&offset, &offset, &player->engineXfR2);
+            rdVector_Add3(&binderA, &offset, &binderA);
+        }
+        rdVector_Copy3(&binderB, (rdVector3*)&player->engineXfL.vD);
+        rdVector_Copy3(&offset, &visual->sweepEngineOffset);
+        rdMatrix_Multiply3(&offset, &offset, &player->engineXfL);
+        rdVector_Add3(&binderB, &offset, &binderB);
+        binderA.z += player->unk11_1;
+        binderB.z += player->unk11_1;
+        swrRace_UpdateEnergyBinder(player, 1, &binderA, &binderB);
+    }
+
+    speed = player->speedValue * 0.001f;
+    if (speed > 1.0f)
+        speed = 1.0f;
+    if (speed < 0.0f)
+        speed = 0.0f;
+    steer = player->turnRate * 0.016666668f;
+    if (steer > 1.0f)
+        steer = 1.0f;
+    if (steer < -1.0f)
+        steer = -1.0f;
+
+    glowMatR = swrModel_NodeFindFirstMeshMaterial(player->partNodes[0x45]);
+    glowMatL = swrModel_NodeFindFirstMeshMaterial(player->partNodes[0x46]);
+
+    // exhaust plumes: engine matrix with Y/Z basis swapped, offset by the pilot's exhaust anchor
+    rdMatrix_Copy44(&m, &player->engineXfR);
+    rdVector_Copy3(&offset, &visual->exhaustOffset);
+    rdMatrix_Multiply3(&offset, &offset, &m);
+    m.vD.x = offset.x + m.vD.x;
+    m.vD.y = offset.y + m.vD.y;
+    m.vD.z = offset.z + m.vD.z;
+    m.vB.x = player->engineXfR.vC.x;
+    m.vB.y = player->engineXfR.vC.y;
+    m.vB.z = player->engineXfR.vC.z;
+    m.vC.x = player->engineXfR.vB.x;
+    m.vC.y = player->engineXfR.vB.y;
+    m.vC.z = player->engineXfR.vB.z;
+    rdMatrix_Copy44(&player->engineExhaustXfR, &m);
+    if (player->partNodes[0x43] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x43], 2, 3, 0x10, 2);
+    if (player->partNodes[0x43] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x43], &player->engineExhaustXfR);
+
+    rdMatrix_Copy44(&m, &player->engineXfL);
+    rdVector_Copy3(&offset, &visual->exhaustOffset);
+    offset.x = offset.x * -1.0f;
+    rdMatrix_Multiply3(&offset, &offset, &m);
+    m.vD.x = offset.x + m.vD.x;
+    m.vD.y = offset.y + m.vD.y;
+    m.vD.z = offset.z + m.vD.z;
+    m.vB.x = player->engineXfL.vC.x;
+    m.vB.y = player->engineXfL.vC.y;
+    m.vB.z = player->engineXfL.vC.z;
+    m.vC.x = player->engineXfL.vB.x;
+    m.vC.y = player->engineXfL.vB.y;
+    m.vC.z = player->engineXfL.vB.z;
+    rdMatrix_Copy44(&player->engineExhaustXfL, &m);
+    if (player->partNodes[0x44] != NULL)
+        swrModel_NodeModifyFlags(player->partNodes[0x44], 2, 3, 0x10, 2);
+    if (player->partNodes[0x44] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x44], &player->engineExhaustXfL);
+
+    scale = visual->exhaustGlowScale * 0.01f;
+    depth = -((speed * 3.0f - -9.0f) * 0.01f);
+    rdMatrix_SetDiagonal44(&player->engineGlowXfR, scale, scale, depth);
+    rdMatrix_SetDiagonal44(&player->engineGlowXfL, scale, scale, depth);
+    if (player->partNodes[0x45] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x45], &player->engineGlowXfR);
+    if (player->partNodes[0x46] != NULL)
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[0x46], &player->engineGlowXfL);
+
+    // glow alpha: speed-driven, dimmed on the side the pod steers toward
+    flare = speed * 255.0f;
+    if (flare > 50.0f)
+        flare = 50.0f;
+    if (flare < 1.0f)
+        flare = 1.0f;
+    turn = -steer;
+    if (turn < 0.0)
+        turn = 0.0f;
+    glowR = (1.0f - turn * 0.8f) * flare;
+    if (glowR < 1.0)
+        glowR = 1.0f;
+    turn = steer;
+    if (turn < 0.0)
+        turn = 0.0f;
+    glowL = (1.0f - turn * 0.8f) * flare;
+    if (glowL < 1.0)
+        glowL = 1.0f;
+
+    // worst engine heat per side (engineTemp, part health, burning engines)
+    heatL = 1.0f - player->engineTemp * 0.01f;
+    heatR = heatL;
+    for (i = 0; i < 3; i++) {
+        if (player->engineHealth[i] > heatL)
+            heatL = player->engineHealth[i];
+        if (heatR < player->engineHealth[i + 3])
+            heatR = player->engineHealth[i + 3];
+        if (player->engineStatus[i] & swrRace_ENGINESTATUS_ON_FIRE)
+            heatL = 1.0f;
+        if (player->engineStatus[i + 3] & swrRace_ENGINESTATUS_ON_FIRE)
+            heatR = 1.0f;
+    }
+    heatL = (heatL - 0.5f) + (heatL - 0.5f);
+    if (heatL < 0.0f)
+        heatL = 0.0f;
+    else if (heatL > 1.0f)
+        heatL = 1.0f;
+    heatR = (heatR - 0.5f) + (heatR - 0.5f);
+    if (heatR < 0.0f)
+        heatR = 0.0f;
+    else if (heatR > 1.0f)
+        heatR = 1.0f;
+
+    burnR = heatR * 4.0f;
+    if (burnR > 1.0f)
+        burnR = 1.0f;
+    burnL = heatL * 4.0f;
+    if (burnL > 1.0f)
+        burnL = 1.0f;
+    throttle = player->speedValue * 0.02f;
+    glowR = (240.0f - glowR) * heatR + glowR;
+    glowL = (240.0f - glowL) * heatL + glowL;
+    tintR = burnR * -255.0f - -255.0f;
+    tintL = burnL * -255.0f - -255.0f;
+    if (throttle < 0.0f)
+        throttle = 0.0f;
+    else if (throttle > 1.0f)
+        throttle = 1.0f;
+    glowR = glowR * throttle;
+    glowL = glowL * throttle;
+    if (player->flags1 & swrObjTest_FLAG1_EXPLODING) {
+        tintR = 0.0f;
+        tintL = 0.0f;
+    }
+    if (tintR < 0.0f)
+        tintR = 0.0f;
+    else if (tintR > 255.0f)
+        tintR = 255.0f;
+    if (glowR < 1.0f)
+        glowR = 1.0f;
+    else if (glowR > 254.0f)
+        glowR = 254.0f;
+    if (tintL < 0.0f)
+        tintL = 0.0f;
+    else if (tintL > 255.0f)
+        tintL = 255.0f;
+    if (glowL < 1.0f)
+        glowL = 1.0f;
+    else if (glowL > 254.0f)
+        glowL = 254.0f;
+
+    if (glowMatR != NULL) {
+        swrModel_MeshMaterialSetColors(glowMatR, 0, 0, (int16_t)tintR, (int16_t)tintR, (int16_t)tintR, (int16_t)glowR);
+        swrModel_MeshMaterialSetTextureUVOffset(glowMatR, 0.0f, (float)((speed * 3.5f - -0.5f) * swrRace_deltaTimeSecs));
+    }
+    if (glowMatL != NULL) {
+        swrModel_MeshMaterialSetColors(glowMatL, 0, 0, (int16_t)tintL, (int16_t)tintL, (int16_t)tintL, (int16_t)glowL);
+        swrModel_MeshMaterialSetTextureUVOffset(glowMatL, 0.0f, (float)((speed * 3.5f - -0.5f) * swrRace_deltaTimeSecs));
+    }
+
+    if (swrConfig_VIDEO_ENGINEEXHAUST == 0) {
+        if (player->partNodes[0x43] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[0x43], 2, -4, 0x10, 3);
+        if (player->partNodes[0x44] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[0x44], 2, -4, 0x10, 3);
+    }
+    if (swrConfig_VIDEO_ENGINEEXHAUST == 1) {
+        tossFlag = (player->flags0 & swrObjTest_FLAG0_AI) != 0;
+        swrRace_SpawnGroundDustKick(player, (float*)&player->shadowXf2, 0.1f, -0.1f, -0.1f, 10.0f, tossFlag);
+        swrRace_SpawnGroundDustKick(player, (float*)&player->shadowXf1, 0.1f, -0.1f, 0.1f, 10.0f, tossFlag);
+    }
+
+    // engine -> cockpit cables (partNodes / partXf [10..13]); retail re-tests partNodes != NULL here and below, always true after the early return
+    if (fusedEngines || player->lodDistance > 75) {
+        if (player->partNodes[10] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[10], 2, -4, 0x10, 3);
+        if (player->partNodes[11] != NULL)
+            swrModel_NodeModifyFlags(player->partNodes[11], 2, -4, 0x10, 3);
+        return;
+    }
+    if (player->partNodes[10] != NULL) {
+        rdMatrix44* cable = &(&player->unk350_mat)[10];
+        swrRace_BuildStretchedQuad(&player->cockpitXf, &player->engineXfR, 1.0f, 1.0f, pilot, cable);
+        cable->vD.z = player->unk11_1 + cable->vD.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[10], cable);
+    }
+    if (player->partNodes[11] != NULL) {
+        rdMatrix44* cable = &(&player->unk350_mat)[11];
+        swrRace_BuildStretchedQuad(&player->cockpitXf, &player->engineXfL, -1.0f, 1.0f, pilot, cable);
+        cable->vD.z = player->unk11_1 + cable->vD.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[11], cable);
+    }
+    if (player->partNodes[12] != NULL) {
+        rdMatrix44* cable = &(&player->unk350_mat)[12];
+        swrRace_BuildStretchedQuad(&player->cockpitXf, &player->engineXfR2, 1.0f, -1.0f, pilot, cable);
+        cable->vD.z = player->unk11_1 + cable->vD.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[12], cable);
+    }
+    if (player->partNodes[13] != NULL) {
+        rdMatrix44* cable = &(&player->unk350_mat)[13];
+        swrRace_BuildStretchedQuad(&player->cockpitXf, &player->engineXfL2, -1.0f, -1.0f, pilot, cable);
+        cable->vD.z = player->unk11_1 + cable->vD.z;
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[13], cable);
+    }
+
+    if (player->lodDistance > 50)
+        return;
+    player->flags1 |= swrObjTest_FLAG1_CABLES_DEFORMED;
+    // only the front pair of cables sways
+    rdVector_Set3(&deformA, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&deformB, 0.0f, 0.0f, 0.0f);
+    turn = player->turnRate * -0.03f;
+    amplitude = 0.3f;
+    if (turn > 1.0)
+        amplitude = turn * 0.3f;
+    if (amplitude > 1.0)
+        amplitude = 1.0f;
+    swrModel_DeformPoddConnectionMesh(player->partNodes[10], &deformA, &deformB, amplitude, 1.0f, (float)player->lodDistance, 50.0f, 0);
+    rdVector_Set3(&deformA, 0.0f, 0.0f, 0.0f);
+    rdVector_Set3(&deformB, 0.0f, 0.0f, 0.0f);
+    turn = player->turnRate * 0.03f;
+    amplitude = 0.3f;
+    if (turn > 1.0)
+        amplitude = turn * 0.3f;
+    if (amplitude > 1.0)
+        amplitude = 1.0f;
+    swrModel_DeformPoddConnectionMesh(player->partNodes[11], &deformA, &deformB, amplitude, 1.0f, (float)player->lodDistance, 50.0f, 0);
 }
 
 static void swrRace_SetPartTransform(swrRace* player, int part, const rdMatrix44* m)

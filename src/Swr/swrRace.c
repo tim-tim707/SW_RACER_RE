@@ -713,8 +713,206 @@ void swrRace_SelectVehicle(swrObjHang* hang)
 // 0x004368a0
 void swrRace_MainMenu(swrObjHang* hang)
 {
-    // start race, inspect vehicle, buy parts, junkyard
-    HANG("TODO");
+    HangRoom targetRoom = HangRoom_None;
+    rdVector3 toEye;
+    rdMatrix44 orbit;
+    char text[32];
+    char* label;
+    float distance;
+    int moved;
+    char count;
+    char i;
+    char player;
+
+    swrObjHang_mainMenuChangeVehicle = 0;
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_TRACK)
+            hang->mainMenuSelection = 0;
+        // recover the orbit angles/distance from the current camera
+        rdVector_Sub3(&toEye, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+        swrObjHang_orbitDistance = rdVector_Len3(&toEye);
+        rdVector_Normalize3Acc(&toEye);
+        gamma_unk = stdMath_ArcTan2(-toEye.x, toEye.y);
+        alpha_unk = stdMath_ArcSin(toEye.z);
+        if (gamma_unk < 0.0f)
+            gamma_unk = gamma_unk - -360.0f;
+        if (gamma_unk > 360.0f)
+            gamma_unk = gamma_unk - 360.0f;
+        if (alpha_unk < -90.0f)
+            alpha_unk = alpha_unk - -180.0f;
+        if (alpha_unk > 90.0f)
+            alpha_unk = alpha_unk - 180.0f;
+
+        memset(swrObjHang_mainMenuItems, -1, sizeof(swrObjHang_mainMenuItems));
+        swrObjHang_mainMenuItems[0] = swrObjHang_MAINMENU_START_RACE;
+        count = 1;
+        swrObjHang_mainMenuItemCount = count;
+        if (hang->num_local_players == 1) {
+            swrObjHang_mainMenuItems[1] = swrObjHang_MAINMENU_INSPECT_VEHICLE;
+            count = 2;
+            swrObjHang_mainMenuItemCount = count;
+        }
+        if (hang->isTournamentMode != 0) {
+            swrObjHang_mainMenuItems[count++] = swrObjHang_MAINMENU_VEHICLE_UPGRADES;
+            swrObjHang_mainMenuItems[count++] = swrObjHang_MAINMENU_BUY_PARTS;
+            swrObjHang_mainMenuItems[count++] = swrObjHang_MAINMENU_JUNKYARD;
+            if ((unsigned char)swrRace_nbPitDroids < SWR_MAX_PIT_DROIDS)
+                swrObjHang_mainMenuItems[count++] = swrObjHang_MAINMENU_BUY_PIT_DROIDS;
+        }
+        swrObjHang_mainMenuItems[count++] = swrObjHang_MAINMENU_CHANGE_VEHICLE;
+        swrObjHang_mainMenuItemCount = count;
+    }
+
+    swrText_CreateColorlessEntry1(0xa0, 0x19, swrText_Translate(g_pTxtMainMenu));
+    for (i = 0; i < swrObjHang_mainMenuItemCount; i++) {
+        label = NULL;
+        switch (swrObjHang_mainMenuItems[i]) {
+        case swrObjHang_MAINMENU_START_RACE:
+            label = g_pTxtStartRace;
+            break;
+        case swrObjHang_MAINMENU_INSPECT_VEHICLE:
+            label = g_pTxtInspectVehicle;
+            break;
+        case swrObjHang_MAINMENU_VEHICLE_UPGRADES:
+            label = g_pTxtVehicleUpgrades;
+            break;
+        case swrObjHang_MAINMENU_BUY_PARTS:
+            label = g_pTxtBuyParts;
+            break;
+        case swrObjHang_MAINMENU_JUNKYARD:
+            label = g_pTxtJunkyard;
+            break;
+        case swrObjHang_MAINMENU_BUY_PIT_DROIDS:
+            label = g_pTxtBuyPitDroids;
+            break;
+        case swrObjHang_MAINMENU_CHANGE_VEHICLE:
+            label = g_pTxtChangeVehicle;
+            break;
+        case swrObjHang_MAINMENU_OPTIONS:
+            label = g_pTxtOptions;
+            break;
+        }
+        // faithful: an unknown item keeps the previous row's text (the buffer is not cleared)
+        if (label != NULL)
+            sprintf(text, swrText_Translate(label));
+        swrUI_Front_TextMenu(hang, 0x3c, 0x50, 10, hang->mainMenuSelection, i, text);
+    }
+
+    for (player = 0; player < hang->num_local_players; player++) {
+        if (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_DOWN) {
+            hang->mainMenuSelection++;
+            if (hang->mainMenuSelection > swrObjHang_mainMenuItemCount - 1)
+                hang->mainMenuSelection = 0;
+            playUISound(0x58);
+        }
+        if (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_UP) {
+            hang->mainMenuSelection--;
+            if (hang->mainMenuSelection < 0)
+                hang->mainMenuSelection = swrObjHang_mainMenuItemCount - 1;
+            playUISound(0x58);
+        }
+
+        // Alt/Shift + stick orbits the camera around the pod
+        if (stdControl_ReadKey(DIK_LMENU, NULL) != 0 || stdControl_ReadKey(DIK_RMENU, NULL) != 0 || stdControl_ReadKey(DIK_LSHIFT, NULL) != 0 || stdControl_ReadKey(DIK_RSHIFT, NULL) != 0) {
+            distance = swrObjHang_orbitDistance;
+            moved = 0;
+            swrObjHang_cameraMoveMode = 0;
+            if (swrControl_aPlayerAxisX[player] > 0.1f || swrControl_aPlayerAxisX[player] < -0.1f) {
+                moved = 1;
+                gamma_unk = gamma_unk - swrControl_aPlayerAxisX[player] * swrRace_fdeltaTimeSecs * 105.0f;
+            }
+            if (swrControl_aPlayerAxisY[player] > 0.1f || swrControl_aPlayerAxisY[player] < -0.1f) {
+                alpha_unk = alpha_unk - swrControl_aPlayerAxisY[player] * swrRace_fdeltaTimeSecs * -67.5f;
+                if (alpha_unk > 45.0f)
+                    alpha_unk = 45.0f;
+                if (alpha_unk < -45.0f)
+                    alpha_unk = -45.0f;
+                moved = 1;
+            }
+            if (moved) {
+                rdMatrix_SetRotation44(&orbit, gamma_unk, alpha_unk, 0.0f);
+                rdVector_Scale3Add3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD, -swrObjHang_orbitDistance, (rdVector3*)&orbit.vB);
+                // faithful: the distance is never changed above, so this never recomputes
+                if (swrObjHang_orbitDistance != distance)
+                    swrObjHang_orbitDistance = rdVector_Dist3((rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
+                rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
+            }
+        }
+
+        if (swrControl_cancelPressedEdge != 0) {
+            playUISound(0x4d);
+            targetRoom = Cantina;
+            swrObjHang_state2 = swrObjHang_STATE_SELECT_TRACK;
+        }
+        if (swrControl_menuAcceptPressedEdge == 0)
+            continue;
+
+        playUISound(0x54);
+        if (hang->mainMenuSelection == 0) {
+            targetRoom = HangRoom_None;
+            swrControl_StopAllForceEffects(0);
+            swrControl_LoadForceEffects(-1);
+            swrControl_LoadForceEffects(0);
+            swrSound_PreloadSoundSet(g_aTrackInfos[hang->track_index].PlanetIdx, g_aTrackInfos[hang->track_index].planetTrackNumber);
+            if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
+                if (hang->isTournamentMode != 0 && (uint8_t)swrRace_UnlockDataBase[0] != g_aTrackInfos[hang->track_index].FavoritePilot && swrControl_slideButton != 0.0f && swrObjHang_skipTournamentIntro == 0)
+                    swrObjHang_state2 = swrObjHang_STATE_TAUNT_SCENE;
+                swrObjHang_fadeState = -1;
+                if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0)
+                    swrObjHang_SelectCreditsTracks(hang);
+                swrMultiplayer_BroadcastRaceReset();
+                return;
+            }
+            continue;
+        }
+
+        switch (swrObjHang_mainMenuItems[hang->mainMenuSelection]) {
+        case swrObjHang_MAINMENU_INSPECT_VEHICLE:
+            swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+            targetRoom = Hangar;
+            hang->activeMenu = 0;
+            swrUI_ResetMenuInputBitsets();
+            break;
+        case swrObjHang_MAINMENU_VEHICLE_UPGRADES:
+            swrObjHang_state2 = swrObjHang_STATE_LOOK_AT_VEHICLE;
+            targetRoom = Hangar;
+            hang->activeMenu = 1;
+            swrUI_ResetMenuInputBitsets();
+            break;
+        case swrObjHang_MAINMENU_BUY_PARTS:
+            swrObjHang_state2 = swrObjHang_STATE_WATTO;
+            targetRoom = Shop;
+            hang->activeMenu = 0;
+            break;
+        case swrObjHang_MAINMENU_JUNKYARD:
+            targetRoom = Junkyard;
+            swrObjHang_state2 = swrObjHang_STATE_JUNKYARD;
+            break;
+        case swrObjHang_MAINMENU_BUY_PIT_DROIDS:
+            swrObjHang_state2 = swrObjHang_STATE_WATTO;
+            targetRoom = Shop;
+            hang->activeMenu = 1;
+            break;
+        case swrObjHang_MAINMENU_CHANGE_VEHICLE:
+            swrObjHang_state2 = swrObjHang_STATE_SELECT_VEHICLE;
+            hang->current_player_for_vehicle_selection = player;
+            targetRoom = Cantina;
+            swrObjHang_mainMenuChangeVehicle = 1;
+            break;
+        case swrObjHang_MAINMENU_OPTIONS:
+            hang->activeMenu = 1;
+            return;
+        }
+    }
+
+    if (targetRoom != HangRoom_None) {
+        if (hang->room == targetRoom) {
+            swrObjHang_SetMenuState(hang, swrObjHang_state2);
+            return;
+        }
+        swrObjHang_fadeState = -1;
+    }
 }
 
 // Held left/right slides a 0..255 volume at 255 per second
