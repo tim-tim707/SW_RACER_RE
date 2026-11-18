@@ -731,9 +731,9 @@ swrObjHang_planetIntroTimer 0x0050c0d8 float
 swrRace_SelectedRacer 0x0050c118 int
 DAT_0050c11c 0x0050c11c float
 
-DAT_0050c134 0x0050c134 int
+swrObjHang_courseShownPlanet 0x0050c134 char # planet whose holo/sprite the course-select screen shows; follows the cursor once the slide settles
 
-DAT_0050c17c 0x0050c17c int
+swrObjHang_courseShownCircuit 0x0050c17c char # circuit whose track grid is drawn; circuit input only acts while it matches hang->circuitIdx
 
 swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose in the results intro; drifts down at 100 units/s
 alpha_unk 0x0050c2e8 float
@@ -763,7 +763,7 @@ swrObjHang_trackInCircuitIdx 0x0050c228 uint8_t # selected track's index within 
 swrRace_TournamentTrugutGain 0x0050c53c int
 swrRace_resultsStateFlags 0x0050c540 int # swrRace_RESULTSFLAG one-shot latches, cleared when leaving the results screen
 
-DAT_0050c54c 0x0050c54c int
+swrObjHang_courseTrackChosen 0x0050c54c int # 1 once a track is accepted: slides the course-select screen out
 swrObjHang_courseInfoSelectedRow 0x0050c550 int
 swrObjHang_courseInfoLeaving 0x0050c554 int # set once accept starts the race (stops drawing the option rows)
 

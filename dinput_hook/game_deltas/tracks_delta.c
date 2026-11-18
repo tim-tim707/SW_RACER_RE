@@ -645,7 +645,7 @@ void swrRace_CourseSelectionMenu_delta(void) {
     if (swrObjHang_menuJustEntered != 0) {
         swrObjHang_menuJustEntered = 0;
         FUN_0045bee0(hang, 0x25, 0xffffffff, 0);
-        DAT_0050c54c = 0;
+        swrObjHang_courseTrackChosen = 0;
 
         if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET) {
             swrRace_Transition = 1.0;
@@ -669,15 +669,15 @@ void swrRace_CourseSelectionMenu_delta(void) {
         }
 
         swrObjHang_InitTrackSprites_delta(hang, true);
-        DAT_0050c134 = Track.PlanetIdx;
-        DAT_0050c17c = hang->circuitIdx;
+        swrObjHang_courseShownPlanet = Track.PlanetIdx;
+        swrObjHang_courseShownCircuit = hang->circuitIdx;
     }
 
-    if (DAT_0050c54c == 0) {
+    if (swrObjHang_courseTrackChosen == 0) {
         if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem) {
             uVar6 = 3.3f;
-            DAT_0050c134 = Track.PlanetIdx;
-            DAT_0050c17c = hang->circuitIdx;
+            swrObjHang_courseShownPlanet = Track.PlanetIdx;
+            swrObjHang_courseShownCircuit = hang->circuitIdx;
             goto LAB_0043b357;
         }
     } else {
@@ -687,9 +687,9 @@ void swrRace_CourseSelectionMenu_delta(void) {
     }
 
     if (swrRace_Transition > 0.0f && hang->track_index >= 0) {
-        DrawHoloPlanet(hang, (int) DAT_0050c134, swrRace_Transition * 0.5f);
+        DrawHoloPlanet(hang, (int) swrObjHang_courseShownPlanet, swrRace_Transition * 0.5f);
     }
-    if (DAT_0050c54c != 0) {
+    if (swrObjHang_courseTrackChosen != 0) {
         return;
     }
 
@@ -810,7 +810,7 @@ LAB_0043b5c4:
     sprintf(buffer, pTextMode);
     swrText_CreateTextEntry1(160, 24, 50, 255, 255, 255, buffer);
 
-    DrawTracks_delta(hang, DAT_0050c17c);
+    DrawTracks_delta(hang, swrObjHang_courseShownCircuit);
     if (hang->track_index >= 0) {
         // TODO: Custom Planets?
         if (Track.PlanetIdx < 8) {
@@ -828,7 +828,7 @@ LAB_0043b5c4:
     }
 
     FUN_0043fe90(0x2d, 0x54, 0x1e);
-    if (DAT_0050c54c == 0) {
+    if (swrObjHang_courseTrackChosen == 0) {
         FUN_00469c30(0, 1.0f, 1);
         uint32_t puVar2 = *swrUI_localPlayersInputPressedBitset;
         if (swrMultiplayer_menuOverlayActive == 0) {
@@ -846,7 +846,7 @@ LAB_0043b5c4:
                 FUN_00440550(0x54);
                 swrObjHang_InitTrackSprites_delta(hang, false);
                 swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_TRACK);
-                DAT_0050c54c = 1;
+                swrObjHang_courseTrackChosen = 1;
                 return;
             }
             if ((swrControl_cancelPressedEdge != 0) && (swrObjHang_menuAcceptLock == 0)) {
@@ -865,7 +865,7 @@ LAB_0043b5c4:
             }
         }
         uint8_t circuitIdx = hang->circuitIdx;
-        if (DAT_0050c17c == circuitIdx) {
+        if (swrObjHang_courseShownCircuit == circuitIdx) {
             // Move down
             if ((puVar2 & 0x8000) != 0) {
                 if (circuitIdx < g_CircuitIdxMax) {

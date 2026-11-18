@@ -1172,7 +1172,163 @@ void swrRace_ResultsMenu(swrObjHang* hang)
 // 0x0043b240
 void swrRace_CourseSelectionMenu(void)
 {
-    HANG("TODO");
+    char text[256];
+    swrObjHang* hang = g_objHang2;
+    char* label;
+    int r;
+    int g;
+    int b;
+    int width;
+    int labelWidth;
+    int planetSprite;
+    int selected;
+
+    if (swrObjHang_menuJustEntered != 0) {
+        swrObjHang_menuJustEntered = 0;
+        swrObjHang_FocusMenuItem(hang, 0x25, -1, 0);
+        swrObjHang_courseTrackChosen = 0;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_PLANET)
+            swrRace_Transition = 1.0f;
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE || hang->menuScreenPrev == swrObjHang_STATE_SPLASH)
+            hang->circuitIdx = 0;
+        swrUI_Front_HandleCircuits(hang);
+        if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE || hang->menuScreenPrev == swrObjHang_STATE_SPLASH) {
+            swrRace_MenuSelectedItem = 0;
+            // tournament: start on the circuit's last track when it is already unlocked
+            if (hang->isTournamentMode != 0 && isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1) != 0)
+                swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
+        } else {
+            swrUI_Front_SeekToCurrentTrack_Maybe(hang);
+        }
+        swrObjHang_InitTrackSprites(hang, 1);
+        swrObjHang_courseShownPlanet = g_aTrackInfos[hang->track_index].PlanetIdx;
+        swrObjHang_courseShownCircuit = hang->circuitIdx;
+    }
+
+    if (swrObjHang_courseTrackChosen != 0) {
+        swrObjHang_StepTransition(-3.3f);
+    } else if (swrObjHang_settledMenuItem == swrRace_MenuSelectedItem) {
+        swrObjHang_courseShownPlanet = g_aTrackInfos[hang->track_index].PlanetIdx;
+        swrObjHang_courseShownCircuit = hang->circuitIdx;
+        swrObjHang_StepTransition(3.3f);
+    }
+
+    selected = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+    hang->track_index = (char)g_aTrackIDs[hang->circuitIdx * 7 + selected];
+    if (swrRace_Transition > 0.0f)
+        DrawHoloPlanet(hang, swrObjHang_courseShownPlanet, swrRace_Transition * 0.5);
+    if (swrObjHang_courseTrackChosen != 0)
+        return;
+
+    if (g_aTrackInfos[hang->track_index].trackID == -1 || g_aTrackInfos[hang->track_index].splineID == -1) {
+        sprintf(text, swrText_Translate(g_pTxtPlanetNotLoaded));
+        b = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        g = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        r = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        swrText_CreateTextEntry1(0xa0, 0xcd, r, g, b, -1, text);
+    }
+    sprintf(text, swrText_Translate(g_pTxtPartNameFormat), swrUI_Front_GetTrackNameFromId(hang->track_index));
+    swrText_CreateTextEntry1(0xa0, 0x36, 0, -1, 0, -1, text);
+    labelWidth = swrText_GetStringWidthByFont(text, 0);
+    width = swrText_GetStringWidthByFont(text, 0);
+    // faithful: the original also pushes labelWidth as a third argument the callee never reads
+    swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - width * 0.5), 0x37);
+    (void)labelWidth;
+
+    switch (hang->circuitIdx) {
+    case 0:
+        swrText_CreateTextEntry1(0xa0, 0x22, 0x32, -1, -1, -1, swrText_Translate(g_pTxtCircuitAmateur));
+        break;
+    case 1:
+        swrText_CreateTextEntry1(0xa0, 0x22, 0x44, -1, 0x3e, -1, swrText_Translate(g_pTxtCircuitSemiPro));
+        break;
+    case 2:
+        swrText_CreateTextEntry1(0xa0, 0x22, -0x5d, -0x42, 0x11, -1, swrText_Translate(g_pTxtCircuitGalactic));
+        break;
+    case 3:
+        swrText_CreateTextEntry1(0xa0, 0x22, -0x63, 0x59, 0x20, -1, swrText_Translate(g_pTxtCircuitInvitational));
+        break;
+    }
+
+    if (hang->isTournamentMode != 0)
+        label = swrText_Translate(g_pTxtTournament);
+    else if (hang->timeAttackMode != 0)
+        label = swrText_Translate(g_pTxtTimeAttack);
+    else if (hang->num_local_players == 2)
+        label = swrText_Translate(g_pTxt2Player);
+    else
+        label = swrText_Translate(g_pTxtFreePlay);
+    sprintf(text, label);
+    swrText_CreateTextEntry1(0xa0, 0x18, 0x32, -1, -1, -1, text);
+
+    DrawTracks(hang, swrObjHang_courseShownCircuit);
+    planetSprite = (char)g_aTrackInfos[hang->track_index].PlanetIdx + 0x45;
+    swrSprite_SetVisible(planetSprite, 1);
+    swrSprite_SetPos(planetSprite, 0xa0, 0x91);
+    swrSprite_SetDim(planetSprite, 1.0f, 1.0f);
+    swrSprite_SetColor(planetSprite, 0xff, 0xff, 0xff, 0xff);
+    swrText_CreateTextEntry1(0xe0, 0x8a, 0, -1, 0, -1, swrPlanetTable[(char)g_aTrackInfos[hang->track_index].PlanetIdx].name);
+    swrRace_DrawScrollbar(0x2d, 0x54, 0x1e);
+    if (swrObjHang_courseTrackChosen != 0)
+        return;
+
+    swrObjHang_NavigateVehicleSelect(0, 1.0f, 1);
+    // faithful: the original's per-player loop bound stops after player 1
+    if (swrMultiplayer_menuOverlayActive == 0) {
+        if (swrControl_menuAcceptPressedEdge != 0 && (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0)) {
+            if (multiplayer_enabled != 0) {
+                swrUI_PopMenuPage();
+                return;
+            }
+            if (swrObjHang_menuAcceptLock != 0)
+                return;
+            playUISound(0x54);
+            swrObjHang_InitTrackSprites(hang, 0);
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_TRACK);
+            swrObjHang_courseTrackChosen = 1;
+            return;
+        }
+        if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
+            if (multiplayer_enabled != 0) {
+                swrUI_PopMenuPage();
+                return;
+            }
+            playUISound(0x4d);
+            if (swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_IsHost() != 0)
+                return;
+            swrObjHang_InitTrackSprites(hang, 0);
+            swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_VEHICLE);
+            return;
+        }
+    }
+    if (swrObjHang_courseShownCircuit == hang->circuitIdx) {
+        if ((swrUI_localPlayersInputPressedBitset[0] & swrUI_INPUT_MENU_DOWN) != 0) {
+            if (hang->circuitIdx < g_CircuitIdxMax) {
+                hang->circuitIdx++;
+                swrObjHang_settledMenuItem = -1;
+                playUISound(0x58);
+                swrUI_Front_HandleCircuits(hang);
+            } else {
+                playUISound(0x4b);
+            }
+        }
+        if ((swrUI_localPlayersInputPressedBitset[0] & swrUI_INPUT_MENU_UP) != 0) {
+            if (hang->circuitIdx > 0) {
+                hang->circuitIdx--;
+                swrObjHang_settledMenuItem = -1;
+                playUISound(0x58);
+                swrUI_Front_HandleCircuits(hang);
+            } else {
+                playUISound(0x4b);
+            }
+        }
+    }
+
+    multiplayer_track_select = hang->track_index;
+    if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
+        g_LoadTrackModel = g_aTrackInfos[hang->track_index].trackID;
+        swrMultiplayer_BroadcastPlayerState();
+    }
 }
 
 // Course info screen (after track select): builds the option-row list on entry (which rows depend
