@@ -305,10 +305,13 @@
 #define SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT (700009)
 #define SWR_UI_TEXT_ENTRY_STYLE_MASK (0xffff0000) // flag bits swrUI_NewTextEntry keeps as entry_style
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
+#define SWR_UI_TEXT_FLAGS_MASK (0xffff0000) // ctor flag bits swrUI_NewButton / swrUI_NewScreenText keep as text_flags
+#define SWR_UI_FRAMED_TEXT_VALUE_MASK (0xff) // flags2 low byte: explicit radio option value
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
+#define SWR_UI_PAGE_TRANSITION_STAGGER (250) // swrUI_StartPageTransition: per-child delay of the vertical drop
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
 #define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
 #define SWR_UI_DISABLED_TEXT_ALPHA (100) // swrUI_DrawText alpha for disabled elements
