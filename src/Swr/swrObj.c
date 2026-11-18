@@ -10407,6 +10407,47 @@ void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions
     }
 }
 
+// 0x0047d890
+void swrObjTrig_InitColorBands_Maybe(void)
+{
+    float minY;
+    float maxY;
+    float minX;
+    float maxX;
+    float rowHeight;
+    float columnWidth;
+
+    // faithful: the bounds stay uninitialized for any layout other than 1 or 2
+    if (swrObjTrig_regionGridLayout == 1) {
+        minY = -8500.0f;
+        maxY = 3500.0f;
+        maxX = 2500.0f;
+        minX = -5500.0f;
+    } else if (swrObjTrig_regionGridLayout == 2) {
+        minY = -9300.0f;
+        maxY = 9000.0f;
+        maxX = 7500.0f;
+        minX = -7500.0f;
+    }
+    rowHeight = (maxY - minY) * 0.125f;
+    columnWidth = (maxX - minX) * 0.33333334f;
+    swrObjTrig_regionBoundsX[0] = minX;
+    swrObjTrig_regionBoundsX[1] = minX + columnWidth;
+    swrObjTrig_regionBoundsX[2] = maxX - columnWidth;
+    swrObjTrig_regionBoundsX[3] = maxX;
+    swrObjTrig_regionBoundsY[0] = minY;
+    swrObjTrig_regionBoundsY[1] = minY + rowHeight;
+    swrObjTrig_regionBoundsY[2] = minY - rowHeight * -2.0f;
+    swrObjTrig_regionBoundsY[3] = minY - rowHeight * -3.0f;
+    swrObjTrig_regionBoundsY[4] = minY - rowHeight * -4.0f;
+    swrObjTrig_regionBoundsY[5] = minY - rowHeight * -5.0f;
+    swrObjTrig_regionBoundsY[6] = minY - rowHeight * -6.0f;
+    swrObjTrig_regionBoundsY[7] = maxY - rowHeight;
+    swrObjTrig_regionBoundsY[8] = maxY;
+    swrObjTrig_regionMarginX = columnWidth * 0.25f;
+    swrObjTrig_regionMarginY = rowHeight * 0.25f;
+}
+
 // 0x0047da10
 unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node)
 {
@@ -10514,10 +10555,110 @@ swrModel_Node* swrObjTrig_CreateTriggerSceneNode()
     return &swrObjTrig_RootNode;
 }
 
-// 0x0047DDC0
-swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planet_id, int a2, swrModel_NodeTransformed* a3)
+// Loads a one-shot trigger FX model: animation stopped, node hidden and parented under the trigger root.
+static swrModel_Node* swrObjTrig_LoadFxModel(int slot, MODELID id)
 {
-    HANG("TODO");
+    swrModel_Header* header = swrModel_LoadFromId(id);
+
+    swrObjTrig_AnimationArray[slot] = swrModel_LoadAllAnimationsOfModel(header);
+    swrObjTrig_StopFXAnimation(slot);
+    swrObjTrig_ModelArray2[slot] = header->entries[0].node;
+    if (swrObjTrig_ModelArray2[slot] != NULL)
+        swrModel_NodeModifyFlags(swrObjTrig_ModelArray2[slot], 2, -4, 0x10, 3);
+    swrObjTrig_SceneChildNodes[swrObjTrig_RootNode.num_children++] = header->entries[0].node;
+    return header->entries[0].node;
+}
+
+// Loads an animated trigger prop that stays where the track places it.
+static void swrObjTrig_LoadPropModel(int slot, MODELID id)
+{
+    swrModel_Header* header = swrModel_LoadFromId(id);
+
+    swrObjTrig_AnimationArray[slot] = swrModel_LoadAllAnimationsOfModel(header);
+    swrObjTrig_ModelArray1[slot] = header->entries[0].node;
+    swrObjTrig_ModelArray2[slot] = swrObjTrig_ModelArray1[slot];
+}
+
+// 0x0047DDC0
+swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planetId, int trackNumber, swrModel_NodeTransformed* trackRoot)
+{
+    swrModel_Node* root = NULL;
+    swrModel_Header* header;
+    rdMatrix44 scale;
+
+    specialActiveTrigger = NULL;
+    memset(swrObjTrig_TriggerDescriptionArray2, 0, sizeof(swrObjTrig_TriggerDescriptionArray2));
+    swrObjTrig_loadResetFlag = 0;
+    swrObjTrig_CurrentPlanetId = planetId;
+    if (swrObjTrig_regionGridLayout != 0)
+        swrObjTrig_InitColorBands_Maybe();
+
+    if (planetId == 1) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadFxModel(0, MODELID_fx_shards_part);
+        swrObjTrig_LoadFxModel(1, MODELID_fx_rockbig_part);
+        swrObjTrig_LoadFxModel(2, MODELID_flag_tip_part);
+        header = swrModel_LoadFromId(MODELID_flag_wave_vlec);
+        swrObjTrig_AnimationArray[3] = swrModel_LoadAllAnimationsOfModel(header);
+        swrObjTrig_ModelArray1[3] = header->entries[0].node->children.nodes[1];
+        swrObjTrig_ModelArray2[3] = swrObjTrig_ModelArray1[3];
+        swrObjTrig_ModelArray1[4] = header->entries[0].node->children.nodes[0];
+        swrObjTrig_ModelArray2[4] = swrObjTrig_ModelArray1[4];
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 2) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadPropModel(0, MODELID_char_big_fish_puppet);
+        swrObjTrig_LoadFxModel(1, MODELID_fx_rockgiant_part);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 3) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 4) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadFxModel(0, MODELID_fx_treesmash_part);
+        swrObjTrig_LoadFxModel(1, MODELID_fx_rockash_part);
+        swrObjTrig_LoadFxModel(3, MODELID_fx_rockgiant_part);
+        swrObjTrig_LoadPropModel(2, MODELID_fx_flameanim_part);
+        swrObjTrig_LoadFxModel(5, MODELID_fx_lavafoof_part);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 5) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadPropModel(0, MODELID_dozer_part);
+        swrObjTrig_LoadPropModel(2, MODELID_fx_flameanim_part);
+        rdMatrix_SetDiagonal44(&scale, 2.4f, 2.4f, 2.4f);
+        swrModel_NodeSetTransform((swrModel_NodeTransformed*)swrObjTrig_ModelArray2[2], &scale);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 6) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadFxModel(0, MODELID_fx_rockzero_part);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 7) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadFxModel(0, MODELID_fx_methanefoof_part);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    if (planetId == 0) {
+        root = swrObjTrig_CreateTriggerSceneNode();
+        swrObjTrig_LoadFxModel(0, MODELID_fx_rocksmall_part);
+        swrObjTrig_LoadFxModel(1, MODELID_fx_rockbig_part);
+        swrObjTrig_LoadPropModel(2, MODELID_balloon01_part);
+        if (trackRoot != NULL)
+            swrObjTrig_FindAndInitializeTriggersInNode((swrModel_Node*)trackRoot);
+    }
+    return root;
 }
 
 // 0x0047E760

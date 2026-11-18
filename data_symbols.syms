@@ -999,6 +999,7 @@ swrObjJdge_creditsScrollState 0x0050ca48 float # seconds the end credits have sc
 swrRace_aiEngineLoopSoundBase 0x0050cb04 int # added to the far-AI engine loop sound id 0xa6/0xa7 (swrRace_UpdateEngineSound); 0 in retail
 swrRace_aiEngineLoopPlayed 0x0050cb08 int # cleared by swrRace_UpdateEngineSound when it plays the AI engine loop; never read
 swrObjTrig_regionGridLayout 0x0050CB40 int # 0 = off; 1/2 pick the swrObjTrig_regionBounds* layout for two tracks (swrObjJdge_InitTrack)
+swrObjTrig_loadResetFlag 0x0050cb44 int # zeroed by swrObjTrig_LoadAndInitializeTriggerModels; no other access in the retail binary
 specialActiveTrigger 0x0050CB48 swrModel_TriggerDescription*
 swrObjTrig_CurrentPlanetId 0x0050CB4C int
 swrObjTrig_regionGridSuppressed 0x0050CB50 int # set while scanning a NODE_IS_TRANSFORMED subtree (moving nodes get no region bits)
