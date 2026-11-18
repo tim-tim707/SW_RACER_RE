@@ -9900,8 +9900,8 @@ void swrRace_PoddAnimateVariousThings(swrRace* player)
         swrRace_SpawnGroundDustKick(player, (float*)&player->shadowXf1, 0.1f, -0.1f, 0.1f, 10.0f, tossFlag);
     }
 
-    // engine -> cockpit cables (partNodes / partXf [10..13])
-    if (fusedEngines || player->lodDistance > 75 || player->partNodes == NULL) {
+    // engine -> cockpit cables (partNodes / partXf [10..13]); retail re-tests partNodes != NULL here and below, always true after the early return
+    if (fusedEngines || player->lodDistance > 75) {
         if (player->partNodes[10] != NULL)
             swrModel_NodeModifyFlags(player->partNodes[10], 2, -4, 0x10, 3);
         if (player->partNodes[11] != NULL)
@@ -9933,7 +9933,7 @@ void swrRace_PoddAnimateVariousThings(swrRace* player)
         swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[13], cable);
     }
 
-    if (player->lodDistance > 50 || player->partNodes == NULL)
+    if (player->lodDistance > 50)
         return;
     player->flags1 |= swrObjTest_FLAG1_CABLES_DEFORMED;
     // only the front pair of cables sways
