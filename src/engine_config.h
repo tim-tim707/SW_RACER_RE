@@ -292,25 +292,17 @@
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
 #define SWR_UI_ID_BACK_BUTTON (4)
-#define SWR_UI_ID_MP_NAV_CONTAINER (0x30d51) // MP hangar nav-overlay pages reparent under this window when shown
-#define SWR_UI_ID_MP_PAGE_SELECT_VEHICLE (0x81)
-#define SWR_UI_ID_MP_PAGE_SELECT_PLANET (0x82)
-#define SWR_UI_ID_MP_PAGE_83 (0x83)
-#define SWR_UI_ID_MP_PAGE_84 (0x84)
-#define SWR_UI_ID_MP_PAGE_85 (0x85) // swrUI_BuildAuxPages also gives the swrUI_Menu_MpPage86 window this id
-#define SWR_UI_ID_MP_PAGE_88 (0x88)
-#define SWR_UI_ID_MP_PAGE_89 (0x89)
-// clickable arrow sprites on those pages; a click injects the matching swrUI_INPUT_MENU_* bit
-#define SWR_UI_ID_MP_VEHICLE_ARROW_LEFT (700000)
-#define SWR_UI_ID_MP_VEHICLE_ARROW_RIGHT (700001)
-#define SWR_UI_ID_MP_PLANET_ARROW_LEFT (700002)
-#define SWR_UI_ID_MP_PLANET_ARROW_RIGHT (700003)
-#define SWR_UI_ID_MP_PLANET_ARROW_UP (700004)
-#define SWR_UI_ID_MP_PLANET_ARROW_DOWN (700005)
-#define SWR_UI_ID_MP_PAGE85_ARROW_LEFT (700006)
-#define SWR_UI_ID_MP_PAGE85_ARROW_RIGHT (700007)
-#define SWR_UI_ID_MP_PAGE86_ARROW_LEFT (700008)
-#define SWR_UI_ID_MP_PAGE86_ARROW_RIGHT (700009)
+// clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
+#define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)
+#define SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT (700001)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_LEFT (700002)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_RIGHT (700003)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_UP (700004)
+#define SWR_UI_ID_HANGAR_PLANET_ARROW_DOWN (700005)
+#define SWR_UI_ID_HANGAR_WATTO_ARROW_LEFT (700006)
+#define SWR_UI_ID_HANGAR_WATTO_ARROW_RIGHT (700007)
+#define SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT (700008)
+#define SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT (700009)
 #define SWR_UI_TEXT_ENTRY_STYLE_MASK (0xffff0000) // flag bits swrUI_NewTextEntry keeps as entry_style
 #define SWR_UI_TEXT_ENTRY_MAX_LENGTH (0x400)
 #define SWR_UI_MAX_TIMERS (10) // swrUI_timers slots (0x004d8160..0x004d8200)

@@ -264,83 +264,83 @@ void swrUI_BuildAuxPages(void)
     swrUI_unk* arrow;
     int rect[4];
 
-    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_SELECT_VEHICLE, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_SELECT_VEHICLE, (swrUI_unk_F2*)swrUI_Menu_HangarSelectVehicle);
     if (page != NULL) {
         rect[0] = 0x28;
         rect[1] = 0x3c;
         rect[2] = 0x5e;
         rect[3] = 0x77;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_VEHICLE_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectVehicle, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x217;
         rect[1] = 0x3c;
         rect[2] = 0x24d;
         rect[3] = 0x77;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_VEHICLE_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectVehicle, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectVehicle, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
-    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_SELECT_PLANET, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_SELECT_PLANET, (swrUI_unk_F2*)swrUI_Menu_HangarSelectPlanet);
     if (page != NULL) {
         rect[0] = 0x28;
         rect[1] = 0x53;
         rect[2] = 0x5e;
         rect[3] = 0x8e;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_PLANET_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectPlanet, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x217;
         rect[1] = 0x53;
         rect[2] = 0x24d;
         rect[3] = 0x8e;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_PLANET_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectPlanet, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x28;
         rect[1] = 0x96;
         rect[2] = 99;
         rect[3] = 0xcc;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_UP, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_PLANET_ARROW_UP, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectPlanet, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x28;
         rect[1] = 0x104;
         rect[2] = 99;
         rect[3] = 0x13a;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PLANET_ARROW_DOWN, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpSelectPlanet, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_PLANET_ARROW_DOWN, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarSelectPlanet, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
-    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_83, (swrUI_unk_F2*)swrUI_Menu_MpPage83);
-    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_84, (swrUI_unk_F2*)swrUI_Menu_MpPage84);
-    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_85, (swrUI_unk_F2*)swrUI_Menu_MpPage85);
+    swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_SELECT_TRACK, (swrUI_unk_F2*)swrUI_Menu_HangarSelectTrack);
+    swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_MAIN_MENU, (swrUI_unk_F2*)swrUI_Menu_HangarMainMenu);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_WATTO, (swrUI_unk_F2*)swrUI_Menu_HangarWatto);
     if (page != NULL) {
         rect[0] = 0x28;
         rect[1] = 0x1b;
         rect[2] = 0x5e;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE85_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage85, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_WATTO_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarWatto, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x217;
         rect[1] = 0x1b;
         rect[2] = 0x24d;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE85_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage85, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_WATTO_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarWatto, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
-    // the EXE reuses id 0x85 for the MpPage86 window
-    page = swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_85, (swrUI_unk_F2*)swrUI_Menu_MpPage86);
+    // built under the Watto id; swrObjHang_SetMenuState looks up swrUI_WINDOW_HANGAR_JUNKYARD (0x87), which nothing creates
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_WATTO, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe);
     if (page != NULL) {
         rect[0] = 0x28;
         rect[1] = 0x1b;
         rect[2] = 0x5e;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE86_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage86, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x217;
         rect[1] = 0x1b;
         rect[2] = 0x24d;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_MP_PAGE86_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_MpPage86, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
-    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_88, (swrUI_unk_F2*)swrUI_Menu_MpPage88);
-    swrUI_NewWindow(NULL, NULL, SWR_UI_ID_MP_PAGE_89, (swrUI_unk_F2*)swrUI_Menu_MpPage89);
+    swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE, (swrUI_unk_F2*)swrUI_Menu_HangarLookAtVehicle);
+    swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_UNUSED_89, (swrUI_unk_F2*)swrUI_Menu_HangarUnused89_Maybe);
 }
 
 // 0x00412630
@@ -1704,20 +1704,20 @@ void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
 }
 
 // 0x004191f0
-int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     swrUI_unk* button;
 
     switch (msg) {
     case swrUI_MSG_MOUSE_DOWN:
-        if (self->id == SWR_UI_ID_MP_VEHICLE_ARROW_LEFT)
+        if (self->id == SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
-        else if (self->id == SWR_UI_ID_MP_VEHICLE_ARROW_RIGHT)
+        else if (self->id == SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
         break;
     case swrUI_MSG_SET_ACTIVE:
-        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_SELECT_VEHICLE) {
-            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+        if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_VEHICLE) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, 1, multiplayer_enabled == 0);
             if (multiplayer_enabled != 0)
                 swrObjHang_OnSelectVehicle_Maybe();
@@ -1753,28 +1753,28 @@ int swrUI_Menu_MpSelectVehicle(swrUI_unk* self, unsigned int msg, void* param_3,
 }
 
 // 0x00419390
-int swrUI_Menu_MpSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     switch (msg) {
     case swrUI_MSG_MOUSE_DOWN:
         switch (self->id) {
-        case SWR_UI_ID_MP_PLANET_ARROW_LEFT:
+        case SWR_UI_ID_HANGAR_PLANET_ARROW_LEFT:
             swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
             break;
-        case SWR_UI_ID_MP_PLANET_ARROW_RIGHT:
+        case SWR_UI_ID_HANGAR_PLANET_ARROW_RIGHT:
             swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
             break;
-        case SWR_UI_ID_MP_PLANET_ARROW_UP:
+        case SWR_UI_ID_HANGAR_PLANET_ARROW_UP:
             swrUI_pendingInputPressed = swrUI_INPUT_MENU_UP;
             break;
-        case SWR_UI_ID_MP_PLANET_ARROW_DOWN:
+        case SWR_UI_ID_HANGAR_PLANET_ARROW_DOWN:
             swrUI_pendingInputPressed = swrUI_INPUT_MENU_DOWN;
             break;
         }
         return 1;
     case swrUI_MSG_SET_ACTIVE:
-        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_SELECT_PLANET) {
-            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+        if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_PLANET) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, multiplayer_enabled == 0, 1);
             if (multiplayer_enabled != 0)
                 swrObjHang_OnSelectPlanet_Maybe();
@@ -1795,13 +1795,13 @@ int swrUI_Menu_MpSelectPlanet(swrUI_unk* self, unsigned int msg, void* param_3, 
 }
 
 // 0x004194c0
-int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarSelectTrack(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     switch (msg) {
     case swrUI_MSG_SET_ACTIVE:
-        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_83) {
+        if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_TRACK) {
             swrUI_suppressBackPop = 1;
-            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, 1, 1);
         }
         break;
@@ -1821,13 +1821,13 @@ int swrUI_Menu_MpPage83(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 }
 
 // 0x00419570
-int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarMainMenu(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     switch (msg) {
     case swrUI_MSG_SET_ACTIVE:
-        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_84) {
+        if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_MAIN_MENU) {
             swrUI_suppressBackPop = 1;
-            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, 1, 1);
         }
         break;
@@ -1847,11 +1847,11 @@ int swrUI_Menu_MpPage84(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 }
 
 // 0x00419620
-int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarLookAtVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     if (msg == swrUI_MSG_SET_ACTIVE) {
-        if (param_3 != NULL && self->id == SWR_UI_ID_MP_PAGE_88) {
-            swrUI_ReparentElement(self, swrUI_GetById(NULL, SWR_UI_ID_MP_NAV_CONTAINER));
+        if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE) {
+            swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, 1, 0);
         }
     } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
@@ -1866,7 +1866,7 @@ int swrUI_Menu_MpPage88(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 }
 
 // 0x004196b0
-int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarUnused89_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
         if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
@@ -1880,12 +1880,12 @@ int swrUI_Menu_MpPage89(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 }
 
 // 0x00419700
-int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarWatto(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     if (msg == swrUI_MSG_MOUSE_DOWN) {
-        if (self->id == SWR_UI_ID_MP_PAGE85_ARROW_LEFT)
+        if (self->id == SWR_UI_ID_HANGAR_WATTO_ARROW_LEFT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
-        else if (self->id == SWR_UI_ID_MP_PAGE85_ARROW_RIGHT)
+        else if (self->id == SWR_UI_ID_HANGAR_WATTO_ARROW_RIGHT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
     } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
         if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
@@ -1899,12 +1899,12 @@ int swrUI_Menu_MpPage85(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_
 }
 
 // 0x00419770
-int swrUI_Menu_MpPage86(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarJunkyard_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     if (msg == swrUI_MSG_MOUSE_DOWN) {
-        if (self->id == SWR_UI_ID_MP_PAGE86_ARROW_LEFT)
+        if (self->id == SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_LEFT;
-        else if (self->id == SWR_UI_ID_MP_PAGE86_ARROW_RIGHT)
+        else if (self->id == SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT)
             swrUI_pendingInputDown = swrUI_INPUT_MENU_RIGHT;
     } else if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
         if ((int)param_3 == SWR_UI_ID_OK_BUTTON) {
