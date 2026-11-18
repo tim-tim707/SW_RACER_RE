@@ -9,7 +9,10 @@
 #include "Swr/swrConfig.h"
 #include "Swr/swrSprite.h"
 #include "Swr/swrText.h"
+#include "General/stdConffile.h"
 #include "General/stdString.h"
+#include "Swr/swrUI.h"
+#include "swr.h"
 #include "Platform/wuRegistry.h"
 
 #include <objbase.h>
@@ -35,10 +38,261 @@ int swrControl_Shutdown(void)
     return 0;
 }
 
+// x87 clamp as compiled: NaN falls into the low branch
+static float swrControl_ClampUnit(float value)
+{
+    if (!(value >= -1.0f)) {
+        return -1.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
+}
+
 // 0x00404dd0
 void swrControl_ProcessInputs(void)
 {
-    HANG("TODO");
+    swrControlBinding* binding;
+    swrUI_unk* page;
+    float value;
+    float right;
+    float up;
+    int axis;
+    int key;
+    int direction;
+    int held;
+    int suppress;
+    int accept;
+    int cancel;
+    int i;
+    short steerX;
+    short steerY;
+
+    stdControl_ReadControls();
+    memset(JoystickButtonPressedInput, 0, swrControl_buttonInputBytes);
+    swrControl_brakeIsAnalog = 0;
+    memset(JoystickAxisInput, 0, swrControl_axisInputBytes);
+
+    if (swrConfig_joystick_enabled == 0 && swrControl_bindingCaptureActive == 0) {
+        swrControl_ClearDeviceState(swrConfig_DEVICE_JOYSTICK);
+    } else {
+        swr_noop2();
+        if (swrControl_bindingCaptureActive != 0) {
+            for (i = 0; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
+                swrControl_axesPrev[i] = swrControl_joystickAxes[i];
+            }
+            for (i = 3; i < STDCONTROL_AXES_PER_JOYSTICK; i++) {
+                swrControl_joystickAxes[i] = swrControl_ClampUnit(stdControl_ReadAxis(stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK + i) * swrControl_joystickAxisScale[i]);
+            }
+        }
+        for (i = 0; i < 3; i++) {
+            swrControl_joystickAxes[i] = swrControl_ClampUnit(stdControl_ReadAxis(stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK + i) * swrControl_joystickAxisScale[i]);
+        }
+        for (binding = swrControl_bindingsJoystick; binding < swrControl_bindingsJoystick + (SWR_CONTROL_BINDINGS_PER_DEVICE - 1) && binding->flags != SWR_CONTROL_BINDING_END; binding++) {
+            if ((binding->flags & swrControlBinding_FLAG_BUTTON) != 0) {
+                key = STDCONTROL_JOYSTICK_KEY_BASE + stdControl_joystickDeviceIndex * STDCONTROL_KEYS_PER_JOYSTICK + binding->input;
+                if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
+                    value = stdControl_ReadKeyAsAxis(key);
+                    if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                        JoystickAxisInput[binding->action] = value + JoystickAxisInput[binding->action];
+                    } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                        JoystickAxisInput[binding->action] = JoystickAxisInput[binding->action] - value;
+                    }
+                } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
+                    value = (float)stdControl_ReadKey(key, NULL);
+                    JoystickButtonPressedInput[binding->action] = (value != 0.0f || JoystickButtonPressedInput[binding->action] != 0.0f) ? 1.0f : 0.0f;
+                }
+            } else if ((binding->flags & swrControlBinding_FLAG_AXIS) != 0) {
+                axis = binding->input + stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK;
+                if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
+                    value = swrControl_ClampUnit(stdControl_ReadAxis(axis) * swrControl_joystickAxisScale[binding->input]);
+                    JoystickAxisInput[binding->action] = value * (swrControl_joystickFlipAxis[binding->input] != 0 ? -1.0 : 1.0) + JoystickAxisInput[binding->action];
+                } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
+                    direction = swrControl_joystickFlipAxis[binding->input] != 0 ? -1 : 1;
+                    if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                        value = (float)stdControl_isAxisAboveDeadzone(axis, -direction, 0.0f, SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                    } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                        value = (float)stdControl_isAxisAboveDeadzone(axis, direction, 0.0f, SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                    } else {
+                        value = (float)stdControl_ReadAxisAsKeyEx(axis);
+                        if (swrControl_joystickFlipAxis[binding->input] == 0) {
+                            value = value != 0.0f ? 1.0f : 0.0f;
+                        } else {
+                            value = value == 0.0f ? 1.0f : 0.0f;
+                        }
+                    }
+                    if (binding->action == SWR_CONTROL_ACTION_BRAKE && value != 0.0f) {
+                        swrControl_brakeIsAnalog = 1;
+                    }
+                    JoystickButtonPressedInput[binding->action] = (value != 0.0f || JoystickButtonPressedInput[binding->action] != 0.0f) ? 1.0f : 0.0f;
+                }
+            }
+        }
+    }
+
+    if (swrControl_mouseSuppressed == 0 && (swrConfig_mouse_enabled != 0 || swrControl_bindingCaptureActive != 0)) {
+        if (swrControl_bindingCaptureActive != 0) {
+            for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
+                swrControl_axesPrev[STDCONTROL_AXES_PER_JOYSTICK + i] = swrControl_mouseAxes[i];
+            }
+        }
+        // flip_x/y/z_axis are consecutive: the mouse flip table
+        for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
+            swrControl_mouseAxes[i] = stdControl_ReadAxis(STDCONTROL_MOUSE_AXIS_BASE + i) * ((&flip_x_axis)[i] != 0 ? -1.0 : 1.0);
+        }
+        if (swrControl_uiInputActive == 0 && swrControl_bindingCaptureActive == 0) {
+            swrControl_mouseAxesAccum[2] = 0.0f;
+            swrControl_mouseAxesAccum[1] = 0.0f;
+            swrControl_mouseAxesAccum[0] = 0.0f;
+        } else {
+            for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
+                if (swrControl_mouseAxes[i] != 0.0f) {
+                    swrControl_mouseAxesAccum[i] = swrControl_ClampUnit(swrControl_mouseAxes[i] + swrControl_mouseAxesAccum[i]);
+                }
+            }
+            for (i = 0; i < STDCONTROL_MOUSE_NUM_AXES; i++) {
+                swrControl_mouseAxes[i] = swrControl_mouseAxesAccum[i];
+            }
+        }
+        for (binding = swrControl_bindingsMouse; binding < swrControl_bindingsMouse + (SWR_CONTROL_BINDINGS_PER_DEVICE - 1) && binding->flags != SWR_CONTROL_BINDING_END; binding++) {
+            if ((binding->flags & swrControlBinding_FLAG_BUTTON) != 0) {
+                value = (float)stdControl_ReadKey(STDCONTROL_MOUSE_KEY_BASE + binding->input, NULL);
+                MouseButtonPressedInput[binding->action] = (value != 0.0f || MouseButtonPressedInput[binding->action] != 0.0f) ? 1.0f : 0.0f;
+            } else if ((binding->flags & swrControlBinding_FLAG_AXIS) != 0) {
+                axis = binding->input;
+                if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
+                    if (axis == 0 || axis == 1 || axis == 2) {
+                        MouseAxisInput[binding->action] = swrControl_mouseAxes[axis] + MouseAxisInput[binding->action];
+                    } else {
+                        // faithful: indexes the 3-entry mouse flip table with any axis
+                        value = stdControl_ReadAxis(STDCONTROL_MOUSE_AXIS_BASE + axis);
+                        MouseAxisInput[binding->action] = value * ((&flip_x_axis)[axis] != 0 ? -1.0 : 1.0) + MouseAxisInput[binding->action];
+                    }
+                } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
+                    if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                        value = (float)stdControl_isAxisAboveDeadzone(-1, 1, swrControl_mouseAxes[axis], SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                    } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                        value = (float)stdControl_isAxisAboveDeadzone(-1, -1, swrControl_mouseAxes[axis], SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                    } else {
+                        value = (float)stdControl_isAxisAboveDeadzone(STDCONTROL_MOUSE_AXIS_BASE + axis, 0, swrControl_mouseAxes[axis], SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD);
+                    }
+                    if (binding->action == SWR_CONTROL_ACTION_BRAKE && value != 0.0f) {
+                        swrControl_brakeIsAnalog = 1;
+                    }
+                    MouseButtonPressedInput[binding->action] = (value != 0.0f || MouseButtonPressedInput[binding->action] != 0.0f) ? 1.0f : 0.0f;
+                }
+            }
+        }
+    } else {
+        swrControl_ClearDeviceState(swrConfig_DEVICE_MOUSE);
+    }
+
+    if (swrConfig_keyboard_enabled == 0) {
+        swrControl_ClearDeviceState(swrConfig_DEVICE_KEYBOARD);
+    } else {
+        swrControl_SnapshotKeyboard();
+        right = stdControl_ReadKeyAsAxis(DIK_RIGHT) - stdControl_ReadKeyAsAxis(DIK_LEFT);
+        swrControl_keyboardAxes[0] = (stdControl_ReadKeyAsAxis(DIK_NUMPAD6) - stdControl_ReadKeyAsAxis(DIK_NUMPAD4)) + right;
+        up = stdControl_ReadKeyAsAxis(DIK_UP) - stdControl_ReadKeyAsAxis(DIK_DOWN);
+        swrControl_keyboardAxes[1] = (stdControl_ReadKeyAsAxis(DIK_NUMPAD8) - stdControl_ReadKeyAsAxis(DIK_NUMPAD2)) + up;
+        for (binding = swrControl_bindingsKeyboard; binding < swrControl_bindingsKeyboard + (SWR_CONTROL_BINDINGS_PER_DEVICE - 1) && binding->flags != SWR_CONTROL_BINDING_END; binding++) {
+            if ((binding->flags & swrControlBinding_FLAG_BUTTON) == 0) {
+                continue;
+            }
+            if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
+                value = stdControl_ReadKeyAsAxis(binding->input);
+                if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                    KeyboardAxisInput[binding->action] = value + KeyboardAxisInput[binding->action];
+                } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                    KeyboardAxisInput[binding->action] = KeyboardAxisInput[binding->action] - value;
+                }
+            } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
+                value = (float)stdControl_ReadKey(binding->input, NULL);
+                KeyboardButtonPressedInput[binding->action] = (value != 0.0f || KeyboardButtonPressedInput[binding->action] != 0.0f) ? 1.0f : 0.0f;
+            }
+        }
+    }
+
+    for (i = 0; i < SWR_CONTROL_NUM_ANALOG_ACTIONS; i++) {
+        (&swrRace_ThrottleInput)[i] = swrControl_ClampUnit(JoystickAxisInput[i] + KeyboardAxisInput[i] + MouseAxisInput[i]);
+    }
+    for (i = 0; i < SWR_CONTROL_NUM_ACTIONS; i++) {
+        if (JoystickButtonPressedInput[i] == 0.0f && MouseButtonPressedInput[i] == 0.0f && KeyboardButtonPressedInput[i] == 0.0f) {
+            held = 0;
+            (&swrControl_viewHoldTime)[i] = 0.0f;
+        } else {
+            held = 1;
+            (&swrControl_viewHoldTime)[i] = (&swrControl_viewHoldTime)[i] + swrRace_deltaTimeSecs;
+        }
+        suppress = swrControl_buttonHeldPrev[i] != 0 && swrControl_actionEdgeOnly[i] != 0;
+        // in race, action 0 (change view) repeats while held
+        if (swrControl_uiInputActive == 0 && i == 0) {
+            suppress = 0;
+        }
+        swrControl_buttonHeldPrev[i] = (char)held;
+        (&swrControl_viewButton)[i] = (!suppress && held) ? 1.0f : 0.0f;
+    }
+
+    steerX = (short)(int)((swrControl_joystickAxes[0] + swrControl_mouseAxes[0] + swrControl_keyboardAxes[0]) * SWR_CONTROL_STEER_RECORD_SCALE);
+    steerY = (short)(int)(((swrControl_mouseAxes[1] - swrControl_joystickAxes[1]) + swrControl_keyboardAxes[1]) * SWR_CONTROL_STEER_RECORD_SCALE);
+    if (steerX < -SWR_CONTROL_STEER_RECORD_MAX) {
+        steerX = -SWR_CONTROL_STEER_RECORD_MAX;
+    } else if (steerX > SWR_CONTROL_STEER_RECORD_MAX) {
+        steerX = SWR_CONTROL_STEER_RECORD_MAX;
+    }
+    if (steerY < -SWR_CONTROL_STEER_RECORD_MAX) {
+        steerY = -SWR_CONTROL_STEER_RECORD_MAX;
+    } else if (steerY > SWR_CONTROL_STEER_RECORD_MAX) {
+        steerY = SWR_CONTROL_STEER_RECORD_MAX;
+    }
+    *(short*)&inRaceLocalPlayerInputRecord[0] = steerX;
+    *(short*)&inRaceLocalPlayerInputRecord[2] = steerY;
+    for (i = 0; i < SWR_CONTROL_NUM_RECORD_ACTIONS; i++) {
+        if (swrControl_inputRecordActions[i] < 0) {
+            inRaceLocalPlayerInputRecord[4 + i] = 0;
+        } else {
+            inRaceLocalPlayerInputRecord[4 + i] = (char)(int)(&swrControl_viewButton)[swrControl_inputRecordActions[i]];
+        }
+    }
+
+    if (swrControl_uiInputActive != 0) {
+        swrControl_mouseSuppressed = 0;
+        swrControl_cancelHeldPrev = 0;
+        swrControl_acceptHeldPrev = 0;
+        swrControl_acceptReleasedEdge = 0;
+        swrControl_cancelPressedEdge = 0;
+        swrControl_acceptPressedEdge = 0;
+        return;
+    }
+
+    accept = swrControl_PollAccept(-1);
+    cancel = swrControl_PollCancel(-1);
+    if (cancel != 0 && accept != 0) {
+        accept = 0;
+    }
+    swrControl_acceptPressedEdge = (swrControl_acceptHeldPrev == 0 && accept != 0) ? 1 : 0;
+    swrControl_cancelPressedEdge = (swrControl_cancelHeldPrev == 0 && cancel != 0) ? 1 : 0;
+    swrControl_acceptReleasedEdge = (swrControl_acceptUpPrev == 0 && accept == 0) ? 1 : 0;
+    swrControl_cancelReleasedEdge = (swrControl_cancelUpPrev == 0 && cancel == 0) ? 1 : 0;
+    swrControl_acceptHeldPrev = accept;
+    swrControl_cancelHeldPrev = cancel;
+    swrControl_acceptUpPrev = accept == 0;
+    swrControl_cancelUpPrev = cancel == 0;
+    accept = swrControl_PollAccept(swrConfig_DEVICE_MOUSE);
+    swrControl_menuAcceptPressedEdge = (swrControl_menuAcceptHeldPrev == 0 && accept != 0) ? 1 : 0;
+    swrControl_menuAcceptHeldPrev = accept;
+    if (swrControl_cancelPressedEdge != 0) {
+        page = swrUI_GetCurrentPage();
+        if (page == NULL || page->id != swrUI_WINDOW_SPLASH) {
+            playUISound(0x4d);
+        }
+    }
+    if (swrControl_menuAcceptGuard != 0 && g_objHang2->menuScreen != swrObjHang_STATE_MAIN_MENU && g_objHang2->menuScreen != swrObjHang_STATE_LOOK_AT_VEHICLE && g_objHang2->menuScreen != swrObjHang_STATE_POST_RACE_INFO) {
+        swrControl_mouseSuppressed = 1;
+    } else {
+        swrControl_mouseSuppressed = 0;
+    }
 }
 
 // 0x00407500
@@ -740,6 +994,138 @@ void swrControl_SetDefaultMappings(int device)
     bindings[swrControl_bindingCounts[device]].flags = SWR_CONTROL_BINDING_END;
 }
 
+// 0x00406470
+int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir)
+{
+    char fileName[32] = "control.map";
+    char path[256];
+    swrControlBinding binding;
+    swrControlBinding* table;
+    StdConffileArg* arg;
+    int device;
+    int enabled;
+    unsigned int i;
+
+    memset(&binding, 0, sizeof(binding));
+    if (useDefaultDir != 0) {
+        if (strcmp(configName, "wheel") == 0) {
+            sprintf(fileName, "wheel.map");
+        } else if (strlen(configName) != 0) {
+            sprintf(fileName, "%s", configName);
+        }
+        sprintf(path, "%s%s%s", rootPathName, ".\\data\\config\\default\\", fileName);
+    } else {
+        sprintf(path, "%s%s\\%s_%s", ".\\data\\config\\", configName, configName, "control.map");
+    }
+    if (stdConffile_Open(path) == 0) {
+        stdConffile_Close();
+        return -1;
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_JOYSTICK) {
+        memset(swrControl_joystickFlipAxis, 0, sizeof(swrControl_joystickFlipAxis));
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_MOUSE) {
+        flip_x_axis = 0;
+        flip_y_axis = 0;
+        flip_z_axis = 0;
+    }
+    swrControl_ClearBindings(deviceFilter);
+    // the EXE leaves the current device uninitialized until a line names one
+    device = swrConfig_DEVICE_JOYSTICK;
+    table = swrControl_bindingsJoystick;
+    while (stdConffile_ReadArgs() != 0 && strcmp(stdConffile_g_entry.aArgs[0].argName, "end.") != 0) {
+        binding.flags = 0;
+        binding.input = 0;
+        binding.action = -1;
+        for (i = 0; i < (unsigned int)stdConffile_g_entry.numArgs; i++) {
+            arg = &stdConffile_g_entry.aArgs[i];
+            if (_strcmpi(arg->argName, "JOYSTICK") == 0) {
+                device = swrConfig_DEVICE_JOYSTICK;
+                table = swrControl_bindingsJoystick;
+            } else if (_strcmpi(arg->argName, "MOUSE") == 0) {
+                device = swrConfig_DEVICE_MOUSE;
+                table = swrControl_bindingsMouse;
+            } else if (_strcmpi(arg->argName, "KEYBOARD") == 0) {
+                device = swrConfig_DEVICE_KEYBOARD;
+                table = swrControl_bindingsKeyboard;
+            } else if (_strcmpi(arg->argName, "AXIS") == 0) {
+                binding.flags |= swrControlBinding_FLAG_AXIS;
+                binding.input = stdConfig_getKeymap_id(arg->argValue, keyMapping0);
+            } else if (_strcmpi(arg->argName, "BUTTON") == 0) {
+                binding.flags |= swrControlBinding_FLAG_BUTTON;
+                binding.input = stdConfig_getKeymap_id(arg->argValue, keyMapping1);
+            } else if (_strcmpi(arg->argName, "KEY") == 0) {
+                binding.flags |= swrControlBinding_FLAG_BUTTON;
+                binding.input = stdConfig_getKeymap_id(arg->argValue, keyMapping2);
+            } else if (_strcmpi(arg->argName, "FUNCTION") == 0) {
+                if (swrControl_ParseFunctionName(&binding, arg->argValue, 0) == 0) {
+                    goto fail;
+                }
+            } else if (_strcmpi(arg->argName, "AXIS_RANGE") == 0) {
+                if (_strcmpi(arg->argValue, "POSITIVE") == 0) {
+                    binding.flags |= swrControlBinding_FLAG_POSITIVE;
+                } else if (_strcmpi(arg->argValue, "NEGATIVE") == 0) {
+                    binding.flags |= swrControlBinding_FLAG_NEGATIVE;
+                } else {
+                    goto fail;
+                }
+            } else if ((deviceFilter < 0 || deviceFilter == device) && _strcmpi(arg->argName, "FLIP_AXIS") == 0) {
+                if (device == swrConfig_DEVICE_JOYSTICK) {
+                    swrControl_joystickFlipAxis[binding.input] = 1;
+                } else if (device == swrConfig_DEVICE_MOUSE) {
+                    // flip_x/y/z_axis are consecutive: the mouse flip table
+                    (&flip_x_axis)[binding.input] = 1;
+                } else {
+                    goto fail;
+                }
+            } else if (_strcmpi(arg->argName, "SENSITIVITY") == 0) {
+                swrControl_axisSensitivity[device] = (float)atof(arg->argValue);
+            } else if (_strcmpi(arg->argName, "DEADZONE") == 0) {
+                if (device == swrConfig_DEVICE_JOYSTICK) {
+                    Deadzone = (float)atof(arg->argValue);
+                }
+            } else if (_strcmpi(arg->argName, "ENABLED") == 0) {
+                enabled = _strcmpi(arg->argValue, "TRUE") == 0;
+                if (device == swrConfig_DEVICE_JOYSTICK) {
+                    swrConfig_joystick_enabled = (enabled && joystick_detected != 0) ? 1 : 0;
+                } else if (device == swrConfig_DEVICE_MOUSE) {
+                    swrConfig_mouse_enabled = (enabled && mouse_detected != 0) ? 1 : 0;
+                }
+            }
+            if (binding.input < 0) {
+                goto fail;
+            }
+        }
+        if ((deviceFilter < 0 || deviceFilter == device) && binding.action > -1) {
+            table[swrControl_bindingCounts[device]] = binding;
+            swrControl_bindingCounts[device]++;
+        }
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_KEYBOARD) {
+        binding.flags = swrControlBinding_FLAG_BUTTON | swrControlBinding_FLAG_DIGITAL;
+        binding.input = DIK_ESCAPE;
+        binding.action = SWR_CONTROL_ACTION_ESCAPE;
+        swrControl_bindingsKeyboard[swrControl_bindingCounts[swrConfig_DEVICE_KEYBOARD]] = binding;
+        swrControl_bindingCounts[swrConfig_DEVICE_KEYBOARD]++;
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_JOYSTICK) {
+        swrControl_bindingsJoystick[swrControl_bindingCounts[swrConfig_DEVICE_JOYSTICK]].flags = SWR_CONTROL_BINDING_END;
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_MOUSE) {
+        swrControl_bindingsMouse[swrControl_bindingCounts[swrConfig_DEVICE_MOUSE]].flags = SWR_CONTROL_BINDING_END;
+    }
+    if (deviceFilter < 0 || deviceFilter == swrConfig_DEVICE_KEYBOARD) {
+        swrControl_bindingsKeyboard[swrControl_bindingCounts[swrConfig_DEVICE_KEYBOARD]].flags = SWR_CONTROL_BINDING_END;
+    }
+    stdConffile_Close();
+    return 1;
+
+fail:
+    swrControl_ClearBindings(deviceFilter);
+    stdConffile_Close();
+    return 0;
+}
+
 // 0x00407800
 void swrControl_ClearBindings(int deviceFilter)
 {
@@ -928,6 +1314,21 @@ int swrControl_FindMapping(unsigned char* device, int a2, int a3, unsigned char*
     return -1;
 }
 
+// 0x00407a90
+int stdConfig_getKeymap_id(char* name, void* keyTable)
+{
+    keyMapping* entry;
+    char* entryName;
+
+    for (entry = (keyMapping*)keyTable; entry->id != -1; entry++) {
+        entryName = stdString_RemoveTEXTTag(entry->name);
+        if (_strcmpi(stdString_RemoveTEXTTag(name), entryName) == 0) {
+            return entry->id;
+        }
+    }
+    return -1;
+}
+
 // 0x00407cd0
 int swrControl_ParseFunctionName(void* outEntry, char* name, int mode)
 {
@@ -1045,6 +1446,21 @@ int swrControl_IsKeyStringControl(int controlId)
     return 0;
 }
 
+// 0x00408040
+int stdControl_isAxisAboveDeadzone(int axisId, int direction, float value, float threshold)
+{
+    if (axisId >= 0) {
+        value = stdControl_ReadAxis(axisId);
+    }
+    if (direction != 0 && (value < 0.0f ? -1 : 1) != direction) {
+        return 0;
+    }
+    if (value < 0.0f) {
+        value = -value;
+    }
+    return value > threshold ? 1 : 0;
+}
+
 // 0x00408120
 void swrControl_SnapshotKeyboard(void)
 {
@@ -1155,13 +1571,6 @@ int swrControl_Initialize(void)
     }
     swrControl_ApplyAxisConfig(swrConfig_DEVICE_JOYSTICK);
     swrControl_ApplyAxisConfig(swrConfig_DEVICE_MOUSE);
-    return 0;
-}
-
-// 0x00406470
-int stdConfFile_readAndApplyConf(int deviceFilter, char* configName, int useDefaultDir)
-{
-    HANG("TODO");
     return 0;
 }
 

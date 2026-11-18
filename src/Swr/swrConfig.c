@@ -1,6 +1,8 @@
 #include "swrConfig.h"
 
 #include <General/stdConffile.h>
+#include <General/stdString.h>
+#include <Main/swrControl.h>
 
 #include "globals.h"
 #include "macros.h"
@@ -18,8 +20,105 @@
 // 0x00406080
 int swrConfig_WriteMappings(char* dirname)
 {
-    HANG("TODO");
-    return 0;
+    char path[256];
+    char deviceText[32];
+    char bindText[32];
+    char rangeText[32];
+    char functionText[32];
+    swrControlBinding* binding;
+    int* flipTable;
+    char* name;
+    unsigned char flags;
+    int axisCount;
+    int enabled;
+    int device;
+    int i;
+
+    sprintf(path, "%s%s\\%s_%s", ".\\data\\config\\", dirname, dirname, "control.map");
+    if (stdConffile_OpenWrite(path) == 0) {
+        stdConffile_CloseWrite();
+        return -1;
+    }
+    flipTable = NULL;
+    binding = NULL;
+    axisCount = 0;
+    enabled = 0;
+    bindText[0] = '\0';
+    for (device = swrConfig_DEVICE_JOYSTICK; device <= swrConfig_DEVICE_KEYBOARD; device++) {
+        if (device == swrConfig_DEVICE_JOYSTICK) {
+            binding = swrControl_bindingsJoystick;
+            axisCount = STDCONTROL_AXES_PER_JOYSTICK;
+            flipTable = swrControl_joystickFlipAxis;
+            enabled = swrConfig_joystick_enabled;
+            sprintf(deviceText, "JOYSTICK");
+        } else if (device == swrConfig_DEVICE_MOUSE) {
+            binding = swrControl_bindingsMouse;
+            axisCount = STDCONTROL_MOUSE_NUM_AXES;
+            // flip_x/y/z_axis are consecutive: the mouse flip table
+            flipTable = &flip_x_axis;
+            enabled = swrConfig_mouse_enabled;
+            sprintf(deviceText, "MOUSE");
+        } else {
+            binding = swrControl_bindingsKeyboard;
+            axisCount = 0;
+            enabled = swrConfig_keyboard_enabled;
+            sprintf(deviceText, "KEYBOARD");
+        }
+        swrConfig_Printf("\n\n####### %s MAPPINGS\n\n", deviceText);
+        // bindText is not reset per binding: a binding with neither BUTTON nor AXIS reuses the previous one
+        for (; binding->flags != SWR_CONTROL_BINDING_END; binding++) {
+            flags = binding->flags;
+            sprintf(rangeText, wuRegistry_lpClass);
+            if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && device != swrConfig_DEVICE_KEYBOARD) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping1));
+                sprintf(bindText, "BUTTON=%s", name);
+            } else if ((flags & swrControlBinding_FLAG_BUTTON) != 0 && device == swrConfig_DEVICE_KEYBOARD) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping2));
+                sprintf(bindText, "KEY=%s", name);
+            } else if ((flags & swrControlBinding_FLAG_AXIS) != 0) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(binding->input, keyMapping0));
+                sprintf(bindText, "AXIS=%s", name);
+                if ((flags & swrControlBinding_FLAG_POSITIVE) != 0) {
+                    sprintf(rangeText, "AXIS_RANGE=POSITIVE");
+                } else if ((flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
+                    sprintf(rangeText, "AXIS_RANGE=NEGATIVE");
+                }
+            }
+            if ((flags & swrControlBinding_FLAG_BUTTON) == 0) {
+                flags &= ~(swrControlBinding_FLAG_POSITIVE | swrControlBinding_FLAG_NEGATIVE);
+            }
+            flags &= ~(swrControlBinding_FLAG_AXIS | swrControlBinding_FLAG_BUTTON);
+            name = stdString_RemoveTEXTTag(swrControl_FindKeyName(binding->action, flags));
+            if (name != NULL) {
+                sprintf(functionText, "FUNCTION=%s", name);
+                if (swrConfig_Printf("%-28s%-28s%-28s%-28s\n", deviceText, bindText, functionText, rangeText) != 0) {
+                    stdConffile_CloseWrite();
+                    return 0;
+                }
+            }
+        }
+        swrConfig_Printf("\n");
+        for (i = 0; i < axisCount; i++) {
+            if (flipTable[i] != 0) {
+                name = stdString_RemoveTEXTTag(swrConfig_ControlToString(i, keyMapping0));
+                sprintf(bindText, "AXIS=%s", name);
+                swrConfig_Printf("%-28s%-28sFLIP_AXIS\n", deviceText, bindText);
+            }
+        }
+        if (device < swrConfig_DEVICE_KEYBOARD && swrControl_axisSensitivity[device] != 1.0f) {
+            sprintf(bindText, "SENSITIVITY=%0.2f", swrControl_axisSensitivity[device]);
+            swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+        }
+        if (device == swrConfig_DEVICE_JOYSTICK && Deadzone != swrControl_defaultDeadzone) {
+            sprintf(bindText, "DEADZONE=%0.2f", Deadzone);
+            swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+        }
+        sprintf(bindText, enabled != 0 ? "ENABLED=TRUE" : "ENABLED=FALSE");
+        swrConfig_Printf("%-28s%-28s\n", deviceText, bindText);
+    }
+    swrConfig_Puts("\nend.\n");
+    stdConffile_CloseWrite();
+    return 1;
 }
 
 // 0x00407b00

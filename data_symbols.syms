@@ -84,6 +84,8 @@ joystick_detected 0x004b294c int = 1
 swrControl_defaultJoystickFlipAxis 0x004b2958 int[6]
 swrControl_defaultMouseFlipAxis 0x004b2970 int[3]
 swrControl_defaultDeadzone 0x004b297c float # 0.15
+swrControl_inputRecordActions 0x004b2998 int[16] # inRaceLocalPlayerInputRecord action byte N <- button-state[this], or -1 for none (swrControl_ProcessInputs)
+swrControl_actionEdgeOnly 0x004b29d8 char[16] # per action: 1 = report only the first frame of a hold (swrControl_ProcessInputs)
 keyMapping2_0 0x004b29e8 keyMappingEx[22]
 swrControl_defaultBindingsJoystick 0x004b2f80 swrControlBinding[65]
 swrControl_defaultBindingsMouse 0x004b3290 swrControlBinding[65]
@@ -91,6 +93,8 @@ swrControl_defaultBindingsKeyboard 0x004b35a0 swrControlBinding[65]
 keyMapping0 0x004b2af0 keyMapping[7]
 keyMapping1 0x004b2b28 keyMapping[21]
 keyMapping2 0x004b2bd0 keyMapping[118]
+swrControl_buttonInputBytes 0x004b38ac int # sizeof the three *ButtonPressedInput arrays, cleared each poll
+swrControl_axisInputBytes 0x004b38b0 int # sizeof the three *AxisInput arrays, cleared each poll
 
 swrConfig_aControlKeyStrings 0x004b38b8 int[16] # DIK codes that can never be bound (Win/Apps/SysRq/F1-F12), swrControl_IsKeyStringControl
 
@@ -495,6 +499,7 @@ swrText_keyNameText 0x004d5f38 char[128]
 swrControl_axesPrev 0x004d62d0 float[12] # last frame's joystick [0..5] / mouse [6..8] axes while capturing a binding (swrControl_FindMovedAxis)
 WindowsInputStack 0x004d6310 WindowsInputItem[64]
 
+swrControl_bindingCaptureActive 0x004d6b34 int # set by swrControl_MappingsMenu while capturing a binding; polls every device
 swrConfig_mouse_enabled 0x004d6b38 int
 stdControl_joystickDeviceIndex 0x004d6b3c int
 swrControl_acceptPressedEdge 0x004d6b40 int
@@ -502,8 +507,10 @@ swrControl_acceptPressedEdge 0x004d6b40 int
 swrControl_cancelPressedEdge 0x004d6b44 int
 swrControl_menuAcceptPressedEdge 0x004d6b48 int # accept edge for front-end menus (sibling of swrControl_acceptPressedEdge)
 swrControl_acceptReleasedEdge 0x004d6b4c int
+swrControl_cancelReleasedEdge 0x004d6b50 int
 
 enableWindowInput 0x004D6B54 int
+swrControl_mouseSuppressed 0x004d6b58 int # skip mouse polling next frame (menu accept guard set outside main menu / vehicle / results screens)
 swrControl_menuAcceptGuard 0x004d6b6c int # set on entering vehicle select and by several menus; while set, swrUI_UpdateMouseState drops the accept bit on a menu-accept edge
 
 swrUI_progressBarY 0x004d6b70 int # progress-bar rect top (swrUI_UpdateProgressBar)

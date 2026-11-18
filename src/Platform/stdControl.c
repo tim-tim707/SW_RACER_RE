@@ -89,7 +89,13 @@ float stdControl_ReadKeyAsAxis(unsigned int keyId)
 // 0x00485840
 int stdControl_ReadAxisAsKeyEx(int controlId)
 {
-    HANG("TODO");
+    float value;
+
+    value = stdControl_ReadAxis(controlId);
+    if (value < 0.0f) {
+        value = -value;
+    }
+    return value > STDCONTROL_AXIS_AS_KEY_THRESHOLD ? 1 : 0;
 }
 
 // 0x00485880

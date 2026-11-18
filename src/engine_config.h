@@ -36,6 +36,7 @@
 #define STDCONTROL_MOUSE_NUM_KEYS (4)
 #define STDCONTROL_MOUSE_AXIS_BASE (0x30) // stdControl_aAxes index of mouse X (Y, Z follow)
 #define STDCONTROL_MOUSE_NUM_AXES (3)
+#define STDCONTROL_AXIS_AS_KEY_THRESHOLD (0.5f) // stdControl_ReadAxisAsKeyEx: |axis| above this = pressed (0x004ae2d8)
 #define STDCONTROL_MOUSE_X_EXTENT (250.0f) // stdControl_SetMouseRange (0x004ae2dc)
 #define STDCONTROL_MOUSE_Y_EXTENT (200.0f) // (0x004ae2e0)
 #define SWR_CONTROL_AXIS_STEER (2) // analog action index of swrRace_SteeringInput
@@ -48,6 +49,13 @@
 #define SWR_CONTROL_WHEEL_ACCEPT_AXIS_MIN (0.1) // swrControl_PollAccept wheel throttle (0x004ac338)
 #define SWR_UI_INPUT_STATE_DWORDS (11) // swrUI_inputChangeFlags block
 #define SWR_CONTROL_ACTION_BRAKE (2) // action index of swrControl_brakeButton
+#define SWR_CONTROL_ACTION_ESCAPE (10) // action fed by the fixed Esc keyboard binding stdConfFile_readAndApplyConf appends
+#define SWR_CONTROL_NUM_ANALOG_ACTIONS (4) // *AxisInput arrays: throttle, unk, steer, pitch
+#define SWR_CONTROL_NUM_RECORD_ACTIONS (16) // action bytes in inRaceLocalPlayerInputRecord (swrControl_inputRecordActions)
+#define SWR_CONTROL_AXIS_DIGITAL_THRESHOLD (0.8f) // axis bound as a button with an AXIS_RANGE (0x3f4ccccd)
+#define SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD (0.5f) // mouse axis bound as a button without an AXIS_RANGE
+#define SWR_CONTROL_STEER_RECORD_SCALE (100.0f) // steer axes -> inRaceLocalPlayerInputRecord shorts (0x004ac328)
+#define SWR_CONTROL_STEER_RECORD_MAX (0x100)
 // swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
 #define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)
 
