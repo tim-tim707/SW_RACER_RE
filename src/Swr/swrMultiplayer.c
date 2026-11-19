@@ -16,6 +16,7 @@
 #include <Primitives/rdMatrix.h>
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -401,10 +402,104 @@ void swrMultiplayer_SetRosterEntry(int index, int value)
     swrMultiplayer_rosterIdentifiers[index] = value;
 }
 
+// Variadic: each event pushes its own payload (floats arrive promoted to double).
 // 0x0041df10
-void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10)
+void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...)
 {
-    HANG("TODO");
+    char text[1024];
+    va_list args;
+    int* payload;
+    int* end;
+    rdVector3* vec;
+    int count;
+    int i;
+
+    if (multiplayer_enabled == 0)
+        return;
+
+    payload = (int*)swrMultiplayer_message.data;
+    payload[0] = playerNumber;
+    payload[1] = eventMagic;
+    end = &payload[2];
+    va_start(args, eventMagic);
+    switch (eventMagic) {
+    case 'Sprk':
+        payload[2] = va_arg(args, int);
+        *(float*)&payload[3] = (float)va_arg(args, double);
+        *(float*)&payload[4] = (float)va_arg(args, double);
+        vec = va_arg(args, rdVector3*);
+        *(rdVector3*)&payload[5] = *vec;
+        vec = va_arg(args, rdVector3*);
+        *(rdVector3*)&payload[8] = *vec;
+        payload[11] = va_arg(args, int);
+        end = &payload[12];
+        break;
+    case 'ctrl':
+    case 'rejn':
+        break;
+    case 'fini':
+        multiplayer_aPlayerFinished[playerNumber] = 1;
+        break;
+    case 'flam':
+    case 'hell':
+    case 'lost':
+        payload[2] = va_arg(args, int);
+        end = &payload[3];
+        break;
+    case 'plap':
+        payload[2] = va_arg(args, int);
+        *(float*)&payload[3] = (float)va_arg(args, double);
+        end = &payload[4];
+        break;
+    case 'prxy':
+        count = 0;
+        for (i = 0; i < SWR_MAX_RACERS; i++) {
+            if (swrScores[i].identifier == 'AAII' || swrScores[i].identifier == 'Locl')
+                count++;
+        }
+        payload[2] = count;
+        end = &payload[3];
+        for (i = 0; i < SWR_MAX_RACERS; i++) {
+            if (swrScores[i].identifier == 'AAII' || swrScores[i].identifier == 'Locl')
+                *end++ = i;
+        }
+        break;
+    case 'quit':
+        multiplayer_aPlayerQuit[playerNumber] = 1;
+        swrMultiplayer_aPodStatus[playerNumber][0] = SWR_MP_POD_STATUS_PARKED;
+        swrMultiplayer_aPodStatus[playerNumber][1] = 0;
+        swrMultiplayer_aPodStatus[playerNumber][2] = 0;
+        swrMultiplayer_aPodStatus[playerNumber][3] = 0;
+        break;
+    case 'taun':
+        payload[2] = va_arg(args, int);
+        payload[3] = va_arg(args, int);
+        payload[4] = va_arg(args, int);
+        end = &payload[5];
+        break;
+    case 'trig':
+        payload[2] = va_arg(args, int);
+        payload[3] = va_arg(args, int);
+        end = &payload[4];
+        break;
+    default:
+        va_end(args);
+        return;
+    }
+    va_end(args);
+
+    swrMultiplayer_message.dataSize = (BYTE*)end - swrMultiplayer_message.data;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_EVENT;
+    sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, flags);
+
+    if (eventMagic == 'quit') {
+        if (multiplayer_isHost != 0 || swrMultiplayer_proxyPlayer == playerNumber)
+            swrMultiplayer_SendProxy();
+        multiplayer_aPlayerQuit[playerNumber] = 1;
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0500/%s has left the race."), swrMultiplayer_GetPlayerNameAscii(playerNumber));
+        swrMultiplayer_PostChatMessage(text);
+    }
 }
 
 // 0x0041d380
@@ -695,6 +790,41 @@ void swrMultiplayer_ClearHostState(void)
     multiplayer_isHost = 0;
 }
 
+// 0x0041c870
+void swrMultiplayer_SendRejoin(unsigned int playerNum)
+{
+    int target;
+    int i;
+
+    if (playerNum < sithPlayer_g_numPlayers - 1) {
+        swrMultiplayer_rejoinSlot = SWR_MP_NO_SLOT;
+        target = SWR_MP_NO_SLOT;
+        for (i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
+            if (swrMultiplayer_IsPlayerActive(i) != 0)
+                target = i;
+        }
+        if (target != SWR_MP_NO_SLOT) {
+            swrMultiplayer_aRejoinRequested[target] = 1;
+            swrMultiplayer_SendEvent(swrMultiplayer_GetPlayerDpid(target), sithMessage_SEND_GUARANTEED, 'rejn');
+        }
+    }
+}
+
+// 0x0041c8e0
+void swrMultiplayer_SendProxy(void)
+{
+    int i;
+
+    // no break: every eligible player gets the event and the last one keeps the proxy role
+    for (i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
+        if (swrMultiplayer_IsPlayerActive(i) != 0 && i != playerNumber && multiplayer_aPlayerQuit[i] == 0) {
+            swrMultiplayer_proxyPlayer = i;
+            swrMultiplayer_SendEvent(swrMultiplayer_GetPlayerDpid(i), sithMessage_SEND_GUARANTEED, 'prxy');
+            swrMultiplayer_MarkAllPodsRemote_Maybe();
+        }
+    }
+}
+
 // 0x0041c940
 void swrMultiplayer_MarkAllPodsRemote_Maybe(void)
 {
@@ -724,6 +854,22 @@ void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex)
             swrMultiplayer_rosterIdentifiers[playerIndex] = 'AAII';
         }
     }
+}
+
+// 0x0041ca50
+void swrMultiplayer_BecomeHost(DPID newHost)
+{
+    char text[1024];
+    int playerNum;
+
+    multiplayer_track_change_permission = 1;
+    multiplayer_isHost = 1;
+    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'ctrl');
+    playerNum = sithMulti_GetPlayerNum(newHost);
+    sprintf(text, swrText_Translate("/MONDOTEXT_H_0425/%s is now the host."), swrMultiplayer_GetPlayerNameAscii(playerNum));
+    swrMultiplayer_PostChatMessage(text);
+    swrMultiplayer_BroadcastRaceSettings();
+    swrUI_BroadcastToWindows(0x40, playerNum);
 }
 
 // 0x0041c9e0
@@ -1058,7 +1204,19 @@ int swrMultiplayer_ValidateGameFields(swrUI_unk* page, int id1, int id2, int id3
 // 0x0041d8d0
 void swrMultiplayer_SendPodHello(swrRace* player)
 {
-    HANG("TODO");
+    int slot;
+
+    if (player == NULL)
+        return;
+
+    // ON_LAVA doubles as the 'hello sent' marker (swrMultiplayer_PublishPodState)
+    player->flags1 |= swrObjTest_FLAG1_ON_LAVA;
+    slot = *(int*)&player->score_ptr->time_unk;
+    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'hell', slot);
+    swrMultiplayer_aPodStatus[slot][0] = SWR_MP_POD_STATUS_PARKED;
+    swrMultiplayer_aPodStatus[slot][1] = 0;
+    swrMultiplayer_aPodStatus[slot][2] = 0;
+    swrMultiplayer_aPodStatus[slot][3] = 0;
 }
 
 // 0x0041d930

@@ -148,7 +148,7 @@ void swrMultiplayer_RacerPick(int a);
 
 // netplay event/state senders (DirectPlay + sithMessage):
 // Serializes and broadcasts a 4-char game event ('fini','quit','taun','trig','hell','rejn','prxy',...).
-void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...);
 // Snapshots a pod's transform/speed/lap into the per-player netplay arrays.
 void swrMultiplayer_PublishPodState(swrRace* player);
 // Marks a pod as remote/proxy and broadcasts a 'hell'o announcement for it.
@@ -373,9 +373,9 @@ void swrMultiplayer_SendPlayerJoin(DPID to);
 void swrMultiplayer_BroadcastMenuReset(void);
 // 0x3d: sends a menu selection/event to the server.
 void swrMultiplayer_SendMenuEvent(int value);
-// 'rejn' / 'prxy': forward a SendEvent payload (a4..a10) for the rejoin / proxy events.
-void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
-void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+// 'rejn' asks the last active slot to rejoin; 'prxy' hands the proxy role to the other active players.
+void swrMultiplayer_SendRejoin(unsigned int playerNum);
+void swrMultiplayer_SendProxy(void);
 
 // Turns every 'AAII' pod into a 'REMO' pod (flags0 AI -> REMOTE, score + roster identifier).
 void swrMultiplayer_MarkAllPodsRemote_Maybe(void);

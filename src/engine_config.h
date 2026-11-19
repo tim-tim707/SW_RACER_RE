@@ -528,6 +528,7 @@
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
 #define SWR_MP_POD_STATE_RECORD_INTS (28) // ints per pod record in the player-states message (swrMultiplayer_ApplyPlayerStates)
+#define SWR_MP_NO_SLOT (111111) // 0x1b207: 'none found' sentinel of swrMultiplayer_SendRejoin / lowestLostSlot
 #define SWR_UI_RACE_RESULT_RETIRED (666) // swrUI_unk::sort_key of a retired racer's result row
 
 // sithMulti guaranteed-send queue (sithMulti_aPendingMessages)
