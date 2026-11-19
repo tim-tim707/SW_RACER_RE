@@ -3118,16 +3118,32 @@ extern "C"
     } rdMeshinfo;
 
     // size doesn't check out
+    // Only callbackId..data goes on the wire (sithMessage_NetWrite sends dataSize + 4 bytes
+    // from callbackId); the fields before it are local bookkeeping.
     typedef struct tSithMessage
     {
         unsigned int msecTime;
-        unsigned int length;
+        unsigned int length; // 0x04. senders zero it
         unsigned short type;
-        char unka[26];
-        unsigned short callbackId;
-        short unk26;
-        BYTE data[2592];
-    } tSithMessage; // supposed sizeof(0xa48)
+        char unka[2];
+        DPID idTo; // 0x0c. set by sithMessage_SendMessage for guaranteed sends
+        char unk10[4];
+        int unk14; // 0x14. cleared by sithMulti_ClearMessageField_Maybe right before SendMessage tests it
+        char unk18[4];
+        DPID idFrom; // 0x1c. sender DPID on receive; sithMessage_SendMessage stores playerNumber
+        unsigned int dataSize; // 0x20. payload bytes in data
+        unsigned short callbackId; // 0x24. subtype -> swrCallback_multiplayer
+        unsigned short sequenceId; // 0x26. nonzero = guaranteed send, acked + deduplicated
+        BYTE data[2048]; // 0x28. sithMulti_HandleIncomingPacket receives at most 0x804 bytes from callbackId
+    } tSithMessage; // sizeof(0x828)
+
+    // Lobby ready handshake slot (swrMultiplayer_aReadyStatus), indexed by handshake id.
+    typedef struct swrMultiplayer_ReadyStatus
+    {
+        int state; // swrMultiplayer_READY
+        unsigned int readyMask; // bit N = player N ready
+        int sent; // the local ready bit has been sent at least once
+    } swrMultiplayer_ReadyStatus; // sizeof(0xc)
 
     typedef unsigned int (*tSithCallback)(tSithMessage* message);
 

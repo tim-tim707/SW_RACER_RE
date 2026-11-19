@@ -4978,4 +4978,57 @@ typedef enum swrSound_HARDWARE
     swrSound_HARDWARE_A3D = 0x8, // the audio settings page reports "A3D" instead of "DIRECTSOUND"
 } swrSound_HARDWARE;
 
+// tSithMessage.callbackId subtypes (swrMultiplayer_RegisterHandlers 0x0041ba00)
+typedef enum swrMultiplayer_MSG
+{
+    swrMultiplayer_MSG_CHAT = 0x02,
+    swrMultiplayer_MSG_EVENT = 0x17,
+    swrMultiplayer_MSG_PLAYER_LIST = 0x20,
+    swrMultiplayer_MSG_PLAYER_NAME = 0x21,
+    swrMultiplayer_MSG_PLAYER_JOIN = 0x22,
+    swrMultiplayer_MSG_JOIN_RESPONSE = 0x24,
+    swrMultiplayer_MSG_PING = 0x26,
+    swrMultiplayer_MSG_PING_REPLY = 0x27,
+    swrMultiplayer_MSG_PLAYER_LEAVE = 0x28,
+    swrMultiplayer_MSG_VERIFY_PLAYER_LIST = 0x29,
+    swrMultiplayer_MSG_PLAYER_QUIT = 0x2a,
+    swrMultiplayer_MSG_READY_MASK = 0x2c,
+    swrMultiplayer_MSG_READY_FLAG = 0x2d,
+    swrMultiplayer_MSG_READY_STATE = 0x2e,
+    swrMultiplayer_MSG_NOOP = 0x2f,
+    swrMultiplayer_MSG_PLAYER_STATES = 0x32,
+    swrMultiplayer_MSG_RACER_PICK = 0x33,
+    swrMultiplayer_MSG_ALL_RACER_PICKS = 0x34,
+    swrMultiplayer_MSG_ROSTER_REQUEST = 0x35,
+    swrMultiplayer_MSG_ROSTER = 0x36,
+    swrMultiplayer_MSG_STATE_REQUEST = 0x37,
+    swrMultiplayer_MSG_RACE_SETTINGS = 0x38,
+    swrMultiplayer_MSG_RACE_RESET = 0x39,
+    swrMultiplayer_MSG_LOBBY_STATE = 0x3a,
+    swrMultiplayer_MSG_LOBBY_REFRESH = 0x3b,
+    swrMultiplayer_MSG_MENU_RESET = 0x3c,
+    swrMultiplayer_MSG_MENU_EVENT = 0x3d,
+} swrMultiplayer_MSG;
+
+// sithMessage_SendMessage outstream bits, masked by sithMessage_g_outputstream
+typedef enum sithMessage_STREAM
+{
+    sithMessage_STREAM_NET = 0x1, // sent through sithMessage_NetWrite
+    sithMessage_STREAM_NOOP = 0x4, // handed to swr_noop2 (a stripped debug sink)
+} sithMessage_STREAM;
+
+// sithMessage_SendMessage dwDPFlags (DirectPlay DPSEND_* value)
+typedef enum sithMessage_SEND
+{
+    sithMessage_SEND_GUARANTEED = 0x1, // stamps a sequenceId
+} sithMessage_SEND;
+
+// swrMultiplayer_ReadyStatus.state
+typedef enum swrMultiplayer_READY
+{
+    swrMultiplayer_READY_IDLE = 0,
+    swrMultiplayer_READY_WAITING = 1, // swrMultiplayer_InitPlayerStatus
+    swrMultiplayer_READY_ALL = 2, // every active player's bit is set in readyMask
+} swrMultiplayer_READY;
+
 #endif // TYPES_ENUMS_H

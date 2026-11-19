@@ -440,4 +440,7 @@
 #define SWR_MODEL_TRI_CROSS_EPS (1e-4f) // 0x004adfbc
 #define SWR_MODEL_TRI_ON_EDGE_EPS (0.001f) // 0x004adfc8
 
+// sithMessage_SendMessage idTo that sithMessage_NetWrite fans out to every active player
+#define SITH_MESSAGE_TO_ALL ((DPID)0xffffffff)
+
 #endif // ENGINE_CONFIG_H

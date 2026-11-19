@@ -61,3 +61,9 @@ void sithMulti_CloseGame(void)
 {
     HANG("TODO");
 }
+
+// 0x0041b950
+void sithMulti_ClearMessageField_Maybe(tSithMessage* message)
+{
+    message->unk14 = 0;
+}

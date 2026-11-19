@@ -130,6 +130,7 @@ swrUI_confirmDialogDone 0x004b5d7c int = 1 # cleared by swrUI_ShowConfirmDialog,
 swrUI_pageTransitionStartTime 0x004b5d84 unsigned int = 0xffffffff # timeGetTime() of the first swrUI_StepPageTransition call; never refreshed, so stagger delays count down by the total elapsed time
 
 swrMultiplayer_proxyPlayer 0x004b6714 int = -1 # player the host last sent a 'prxy' proxy event to (-1 = none)
+sithMessage_g_nextSequenceId 0x004b6710 unsigned short # next tSithMessage.sequenceId for guaranteed sends; wraps past 0 back to 1
 Main_nut_delay_ms 0x004b6718 int = 32
 swrSound_loadBudgetBytes 0x004b6d10 int = 0x400000 # resident sample bytes before swrSound_LoadSound evicts (swrSound_loadedBytes)
 Main_hiRes_sound 0x004b6d14 int = 1
@@ -594,6 +595,7 @@ swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
+swrMultiplayer_aReadyStatus 0x004ea020 swrMultiplayer_ReadyStatus[3] # size maybe wrong: handshake ids 1 and 2 are the only ones used (swrObjJdge)
 swrMultiplayer_chatSavedUiInputActive 0x004e9ecc int # swrControl_uiInputActive saved by swrMultiplayer_OpenChatInput, restored on Enter/Esc
 swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: ms until it expires (10000 on add)
 swrMultiplayer_chatInputY 0x004e9f18 int # y of the chat input line (below the last chat line); caret y
@@ -618,6 +620,7 @@ swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' whe
 swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetRacerListDisplay)
 swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
+swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 
 g_objHang1 0x004eb21c swrObjHang*
@@ -629,6 +632,7 @@ swrMultiplayer_chatSkipNextKey 0x004eb22c int # swallows the key that opened the
 multiplayer_sync_timer_ms 0x004eb230 int
 
 multiplayer_race_button_toggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
+swrMultiplayer_menuEvent 0x004eb234 int # last value sent by swrMultiplayer_SendMenuEvent; re-sent when the host broadcasts a menu reset
 
 multiplayer_track_change_permission 0x004eb388 int
 
@@ -1841,6 +1845,7 @@ swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from st
 swrMultiplayer_aLocalPodTransform 0x00ec76a0 rdMatrix44[20] # this machine's pod transforms by net slot, published by swrMultiplayer_PublishPodState
 
 multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
+swrMultiplayer_message 0x00ec7ba0 tSithMessage # shared in/out buffer: every sender builds here, swrMultiplayer_PumpPackets receives here
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
 
