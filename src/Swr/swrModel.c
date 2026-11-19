@@ -110,6 +110,13 @@ int swrModel_AllocRootMeshIndex(unsigned int bufferKind)
     return swrModel_slotMeshIndexBase[slot] + swrModel_slotMeshCount[slot];
 }
 
+// 0x004188b0
+void* swrModel_SplitTextureIntoTiles(void* tex, int bytesPerPixel)
+{
+    HANG("TODO");
+    return NULL;
+}
+
 // 0x0044b330
 void swrModel_SetAnimListSpeed(swrModel_Animation** anims, float speed)
 {

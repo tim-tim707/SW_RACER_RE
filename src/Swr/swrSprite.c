@@ -8,6 +8,10 @@
 #include "swrUI.h"
 #include "swrObj.h"
 #include "swrText.h"
+#include "swrModel.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <General/utils.h>
 
 #include <Engine/rdMaterial.h>
@@ -57,10 +61,98 @@ void swrSprite_DisplayCursor(void)
     }
 }
 
+// Bytes per element for a TGA bit depth (pixel or colormap entry).
+static int swrSprite_TgaBytesPerElement(uint8_t bits)
+{
+    if (bits <= 8)
+        return 1;
+    if (bits <= 16)
+        return 2;
+    return (bits > 24) + 3;
+}
+
+// Loads an uncompressed or RLE TGA as a one-page sprite texture, tiles it and assigns it to sprite id.
+// The image-id field is never skipped (TGAs used by the game have none).
 // 0x004114d0
 swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id)
 {
-    HANG("TODO");
+    swrSpriteTextureHeader* tex = NULL;
+    swrSpriteTexturePage* page = NULL;
+    void* pixels = NULL;
+    uint8_t header[SWR_TGA_HEADER_SIZE];
+    stdFile_t file;
+    int bytesPerPixel;
+    int width, height;
+    size_t size;
+    swrSpriteTexture* tiled;
+
+    if (filename_tga == NULL)
+        return NULL;
+    file = stdPlatform_hostServices_ptr->fileOpen(filename_tga, "rb");
+    if (file == 0)
+        goto fail;
+    stdPlatform_hostServices_ptr->fileRead(file, header, SWR_TGA_HEADER_SIZE);
+    tex = (swrSpriteTextureHeader*)malloc(sizeof(swrSpriteTextureHeader));
+    if (tex == NULL)
+        goto fail;
+    memset(tex, 0, sizeof(swrSpriteTextureHeader));
+    page = (swrSpriteTexturePage*)malloc(sizeof(swrSpriteTexturePage));
+    if (page == NULL)
+        goto fail;
+    memset(page, 0, sizeof(swrSpriteTexturePage));
+
+    // skip the colormap: length (bytes 5-6) * entry size (byte 7)
+    stdPlatform_hostServices_ptr->fseek(file, (header[5] | (header[6] << 8)) * swrSprite_TgaBytesPerElement(header[7]), SEEK_CUR);
+    width = header[12] | (header[13] << 8);
+    height = header[14] | (header[15] << 8);
+    bytesPerPixel = swrSprite_TgaBytesPerElement(header[16]);
+    size = bytesPerPixel * height * width;
+    pixels = malloc(size);
+    if (header[2] < SWR_TGA_IMAGE_TYPE_RLE_FIRST)
+        stdPlatform_hostServices_ptr->fileRead(file, pixels, size);
+    else
+        ReadRLEData(file, pixels, bytesPerPixel, height * width);
+    stdPlatform_hostServices_ptr->fileClose(file);
+
+    tex->page_table = page;
+    tex->width = width;
+    tex->height = height;
+    tex->page_count = 1;
+    tex->unk6 = height;
+    tex->palette_offset = 0;
+    tex->format = 5;
+    switch (bytesPerPixel) {
+    case 1:
+        tex->page_width_align = 1;
+        break;
+    case 2:
+        tex->page_width_align = 2;
+        break;
+    case 3:
+        tex->page_width_align = 7;
+        break;
+    case 4:
+        tex->page_width_align = 3;
+        break;
+    default:
+        goto fail;
+    }
+    page->offset = (uint32_t)pixels;
+    page->width = width;
+    page->height = height;
+    tiled = (swrSpriteTexture*)swrModel_SplitTextureIntoTiles(tex, bytesPerPixel);
+    swrSprite_AssignTextureToId(tiled, id, 1);
+    return tiled;
+
+fail:
+    if (tex != NULL)
+        free(tex);
+    if (page != NULL)
+        free(page);
+    if (pixels != NULL)
+        free(pixels);
+    if (file != 0)
+        stdPlatform_hostServices_ptr->fileClose(file);
     return NULL;
 }
 

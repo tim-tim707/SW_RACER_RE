@@ -453,6 +453,10 @@
 #define SWR_DISPLAY_DEFAULT_WIDTH (640)
 #define SWR_DISPLAY_DEFAULT_HEIGHT (480)
 #define SWR_DISPLAY_BPP (16)
+
+// swrSprite_GetTextureFromTGA (0x004114d0)
+#define SWR_TGA_HEADER_SIZE (18)
+#define SWR_TGA_IMAGE_TYPE_RLE_FIRST (9) // image types 9..11 are run-length encoded
 #define SWR_UI_PAGE_TRANSITION_STAGGER (250) // swrUI_StartPageTransition: per-child delay of the vertical drop
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
 #define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
