@@ -1012,8 +1012,8 @@ void swrRace_UpdateInRaceMenu(void)
     int row;
     int rowY;
     int x, y;
-    char label[64];
-    char help[256];
+    char label[64] = { 0 };
+    char help[256] = { 0 };
     char text[256];
     char line[256];
 
