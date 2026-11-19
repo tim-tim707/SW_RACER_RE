@@ -366,7 +366,7 @@ void swrMultiplayer_OnPlayerJoined(DPID player);
 // 0x20: sends the full player list/roster to a player.
 void swrMultiplayer_SendPlayerList(DPID to, unsigned int reliable);
 // 0x21: sends one player's display name.
-void swrMultiplayer_SendPlayerName(int value, int playerIndex, DPID to);
+void swrMultiplayer_SendPlayerName(DPID playerId, int playerIndex, DPID to);
 // 0x22: sends a player-join announcement (local name + info).
 void swrMultiplayer_SendPlayerJoin(DPID to);
 // 0x3c: broadcasts a lobby/menu reset to all.

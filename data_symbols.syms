@@ -623,6 +623,7 @@ time_buffer 0x004e9f20 char[256]
 
 swrMultiplayer_aRejoinRequested 0x004ea8a0 int[20] # per-slot: 1 once swrMultiplayer_SendRejoin asked the slot to rejoin; suppresses the "has left" chat line in sithMulti_ProcessPlayerLost, cleared on join/leave
 swrMultiplayer_rosterIdentifiers 0x004ea8f0 int[20] # per-slot racer identifier ('AAII' AI / 'REMO' remote) mirrored into swrScores[i].identifier
+swrMultiplayer_joiningSlot 0x004ea97c int # free slot swrMultiplayer_ApplyPlayerJoin picked for the joining player
 swrMultiplayer_chatLineState 0x004ea940 int[15] # zeroed on add/free/reset; never read in the retail binary
 swrMultiplayer_chatInput 0x004ea988 char[1024] # chat input line: 4-char "~F0]" prefix + typed text
 
@@ -670,6 +671,7 @@ swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setu
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
 swrMultiplayer_maxPlayers 0x004eb3bc int # player-slot capacity; set to 20 before creating/joining a session, bounds the slot scans in ApplyPlayerJoin
+sithPlayer_g_localPlayer 0x004eb3c0 SithPlayer* # &sithPlayer_g_aPlayers[playerNumber], set by swrMultiplayer_SetLocalPlayer
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -1896,6 +1898,8 @@ Window_smushDstRect 0x00e9f350 RECT # 4:3 letterbox/pillarbox rect on the back b
 
 rootPathName 0x00e9f300 char[80]
 swrSound_mapSoundCount 0x00e9f360 int # sounds.map NUMSOUNDS minus NUMVOICES; swrSound_LoadSoundMap
+swrMultiplayer_localPlayerUnk8c 0x00e9f364 int # sent as swrMultiplayer_JoinRecord.unk8c by SendPlayerJoin; no writer found
+swrMultiplayer_localPlayerName 0x00e9f380 wchar_t[32] # local player's name: sent by SendPlayerJoin, copied into the local SithPlayer by SetLocalPlayer
 swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayers[].awName (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
@@ -1970,6 +1974,7 @@ swrTextEntries1ClipEnabled 0x00e2be7c int[129] # indexed [entry + 1]; swrText_Cl
 miniMapPositions 0x00E2C080 short[190][2]
 
 sithMulti_g_serverId 0x00ec7620 DPID
+sithMulti_g_serverUnk 0x00ec7624 int # zeroed next to sithMulti_g_serverId by CreateSession / ApplyPlayerList; no reader found
 
 cheatedTrugutsAmount 0x00ec83cc int
 
@@ -2112,6 +2117,7 @@ stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 stdControlInputItemCount 0x00ec89e0 uint8_t # WindowsInputStackSize snapshot (swrControl_SnapshotKeyboard)
 stdControlInputItems 0x00ec89e4 stdControlInputItem[64]
 
+swrMultiplayer_localPlayerUnk44 0x00ec8c00 wchar_t[32] # second local string: sent as swrMultiplayer_JoinRecord.unk44, copied into the local SithPlayer.unk44 by SetLocalPlayer
 stdPlatfom_FPU1 0x00ec8c80 unsigned short
 stdPlatfom_FPU2 0x00ec8c82 unsigned short
 stdPlatfom_FPU3 0x00ec8c84 unsigned int

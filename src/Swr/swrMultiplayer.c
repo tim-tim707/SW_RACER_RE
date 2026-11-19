@@ -14,6 +14,7 @@
 #include <Swr/swrUI.h>
 #include <engine_config.h>
 #include <Primitives/rdMatrix.h>
+#include <stdPlatform.h>
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -617,6 +618,20 @@ int swrMultiplayer_RegisterPlayer(int playerIndex, DPID idPlayer)
     return 1;
 }
 
+// 0x00421070
+void swrMultiplayer_SetLocalPlayer(int playerIndex)
+{
+    SithPlayer* player;
+
+    playerNumber = playerIndex;
+    sithPlayer_g_localPlayer = &sithPlayer_g_aPlayers[playerIndex];
+    player = sithPlayer_g_localPlayer;
+    wcsncpy(player->awName, swrMultiplayer_localPlayerName, ARRAYSIZE(player->awName) - 1);
+    player->awName[ARRAYSIZE(player->awName) - 1] = 0;
+    wcsncpy(player->unk44, swrMultiplayer_localPlayerUnk44, ARRAYSIZE(player->unk44) - 1);
+    player->unk44[ARRAYSIZE(player->unk44) - 1] = 0;
+}
+
 // 0x004210e0
 void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex)
 {
@@ -870,6 +885,201 @@ void swrMultiplayer_BecomeHost(DPID newHost)
     swrMultiplayer_PostChatMessage(text);
     swrMultiplayer_BroadcastRaceSettings();
     swrUI_BroadcastToWindows(0x40, playerNum);
+}
+
+// 0x0041cb20
+void swrMultiplayer_SendPlayerName(DPID playerId, int playerIndex, DPID to)
+{
+    swrMultiplayer_NameRecord* record = (swrMultiplayer_NameRecord*)swrMultiplayer_message.data;
+
+    record->playerIndex = playerIndex;
+    record->playerId = playerId;
+    wcsncpy(record->name, sithPlayer_g_aPlayers[playerIndex].awName, SWR_MP_WIRE_NAME_LEN);
+    record->name[SWR_MP_WIRE_NAME_LEN] = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_PLAYER_NAME;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.dataSize = sizeof(swrMultiplayer_NameRecord);
+    sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, sithMessage_SEND_GUARANTEED);
+}
+
+// 0x0041cb90
+int swrMultiplayer_ApplyPlayerName(void* message)
+{
+    swrMultiplayer_NameRecord* record = (swrMultiplayer_NameRecord*)((tSithMessage*)message)->data;
+    SithPlayer* player = &sithPlayer_g_aPlayers[record->playerIndex];
+
+    wcsncpy(player->awName, record->name, SWR_MP_WIRE_NAME_LEN);
+    player->awName[SWR_MP_WIRE_NAME_LEN] = 0;
+    return 1;
+}
+
+// 0x0041cbd0
+void swrMultiplayer_SendPlayerList(DPID to, unsigned int reliable)
+{
+    char text[SWR_MP_WIRE_NAME_LEN + 1];
+    BYTE* cursor = swrMultiplayer_message.data;
+    SithPlayer* player;
+    unsigned int i;
+
+    *(DPID*)cursor = sithMulti_g_serverId;
+    cursor += sizeof(DPID);
+    *(short*)cursor = (short)sithPlayer_g_numPlayers;
+    cursor += sizeof(short);
+    for (i = 0; i < (unsigned int)sithPlayer_g_numPlayers; i++) {
+        player = &sithPlayer_g_aPlayers[i];
+        *(int*)cursor = player->flags;
+        cursor += sizeof(int);
+        if ((player->flags & SITH_PLAYER_UNKNOWN_04) == 0)
+            continue;
+        stdString_WcharToChar(text, player->awName, SWR_MP_WIRE_NAME_LEN);
+        text[SWR_MP_WIRE_NAME_LEN] = 0;
+        strncpy((char*)cursor, text, SWR_MP_WIRE_NAME_LEN);
+        cursor[SWR_MP_WIRE_NAME_LEN] = 0;
+        cursor += SWR_MP_WIRE_NAME_LEN + 1;
+        stdString_WcharToChar(text, player->unk44, SWR_MP_WIRE_NAME_LEN);
+        text[SWR_MP_WIRE_NAME_LEN] = 0;
+        strncpy((char*)cursor, text, SWR_MP_WIRE_NAME_LEN);
+        cursor[SWR_MP_WIRE_NAME_LEN] = 0;
+        cursor += SWR_MP_WIRE_NAME_LEN + 1;
+        *(DPID*)cursor = player->playerNetId;
+        cursor += sizeof(DPID);
+        *(int*)cursor = player->unk8c;
+        cursor += sizeof(int);
+    }
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_PLAYER_LIST;
+    swrMultiplayer_message.dataSize = cursor - swrMultiplayer_message.data;
+    sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, reliable);
+}
+
+// 0x0041ccd0
+int swrMultiplayer_ApplyPlayerList(void* message)
+{
+    char text[SWR_MP_WIRE_NAME_LEN + 1];
+    BYTE* cursor = ((tSithMessage*)message)->data;
+    SithPlayer* player;
+    unsigned int i;
+    int count;
+
+    // faithful: zeroed, then overwritten from the payload
+    sithMulti_g_serverId = 0;
+    sithMulti_g_serverUnk = 0;
+    sithMulti_g_serverId = *(DPID*)cursor;
+    cursor += sizeof(DPID);
+    count = *(short*)cursor;
+    cursor += sizeof(short);
+    if (count != sithPlayer_g_numPlayers) {
+        sithPlayer_g_numPlayers = count;
+        swrMultiplayer_NotifyHangarPlayerChange();
+    }
+    for (i = 0; i < (unsigned int)sithPlayer_g_numPlayers; i++) {
+        player = &sithPlayer_g_aPlayers[i];
+        player->flags = *(int*)cursor;
+        cursor += sizeof(int);
+        if ((player->flags & SITH_PLAYER_UNKNOWN_04) == 0)
+            continue;
+        strncpy(text, (char*)cursor, SWR_MP_WIRE_NAME_LEN);
+        text[SWR_MP_WIRE_NAME_LEN] = 0;
+        cursor += SWR_MP_WIRE_NAME_LEN + 1;
+        stdString_CharToWchar(player->awName, text, SWR_MP_WIRE_NAME_LEN);
+        player->awName[SWR_MP_WIRE_NAME_LEN] = 0;
+        strncpy(text, (char*)cursor, SWR_MP_WIRE_NAME_LEN);
+        text[SWR_MP_WIRE_NAME_LEN] = 0;
+        cursor += SWR_MP_WIRE_NAME_LEN + 1;
+        stdString_CharToWchar(player->unk44, text, SWR_MP_WIRE_NAME_LEN);
+        player->unk44[SWR_MP_WIRE_NAME_LEN] = 0;
+        player->playerNetId = *(DPID*)cursor;
+        cursor += sizeof(DPID);
+        player->unk8c = *(int*)cursor;
+        cursor += sizeof(int);
+        if (player->playerNetId == sithMessage_g_localPlayerId)
+            swrMultiplayer_SetLocalPlayer(i);
+    }
+    return 1;
+}
+
+// 0x0041cde0
+void swrMultiplayer_SendPlayerJoin(DPID to)
+{
+    swrMultiplayer_JoinRecord* record = (swrMultiplayer_JoinRecord*)swrMultiplayer_message.data;
+
+    wcsncpy(record->name, swrMultiplayer_localPlayerName, SWR_MP_WIRE_NAME_LEN);
+    record->name[SWR_MP_WIRE_NAME_LEN] = 0;
+    wcsncpy(record->unk44, swrMultiplayer_localPlayerUnk44, ARRAYSIZE(record->unk44) - 1);
+    record->unk44[ARRAYSIZE(record->unk44) - 1] = 0;
+    record->unk8c = swrMultiplayer_localPlayerUnk8c;
+    swrMultiplayer_message.dataSize = sizeof(swrMultiplayer_JoinRecord);
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_PLAYER_JOIN;
+    sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, 0);
+}
+
+// 0x0041ce60
+int swrMultiplayer_ApplyPlayerJoin(void* message)
+{
+    tSithMessage* msg = (tSithMessage*)message;
+    swrMultiplayer_JoinRecord* record = (swrMultiplayer_JoinRecord*)msg->data;
+    DPID from = msg->idFrom;
+    SithPlayer* player;
+    unsigned int i;
+
+    if (sithMessage_g_localPlayerId != sithMulti_g_serverId || from == 0)
+        return 1;
+
+    // already in the table: just resend its name
+    for (i = 0; i < (unsigned int)swrMultiplayer_maxPlayers; i++) {
+        if (sithPlayer_g_aPlayers[i].playerNetId == from)
+            break;
+    }
+    if (i < (unsigned int)swrMultiplayer_maxPlayers) {
+        swrMultiplayer_SendPlayerName(from, i, from);
+        return 1;
+    }
+
+    // response values are float bit patterns: 0x3f000000 = 0.5f, 0x3e800000 = 0.25f
+    if (swrMultiplayer_joinLocked != 0) {
+        if (swrMultiplayer_reservedDpid != from) {
+            swrMultiplayer_SendJoinResponse(1, 0, from);
+            return 1;
+        }
+        swrMultiplayer_SendJoinResponse(0, 0x3f000000, from);
+        return 1;
+    }
+
+    for (i = 0; i < (unsigned int)swrMultiplayer_maxPlayers; i++) {
+        if ((sithPlayer_g_aPlayers[i].flags & SITH_PLAYER_PLACED) != 0 || sithPlayer_g_aPlayers[i].playerNetId == 0)
+            break;
+    }
+    if (i == (unsigned int)swrMultiplayer_maxPlayers) {
+        swrMultiplayer_SendJoinResponse(5, 0, from);
+        return 1;
+    }
+    swrMultiplayer_joiningSlot = i;
+
+    stdComm_UpdatePlayers(0);
+    for (i = 0; i < (unsigned int)stdComm_GetNumPlayers(); i++) {
+        if (stdComm_GetPlayerId(i) == from)
+            break;
+    }
+    if (i == (unsigned int)stdComm_GetNumPlayers())
+        return 1;
+
+    stdPlatform_noop(from);
+    swrMultiplayer_ClearPlayerSlot(swrMultiplayer_joiningSlot);
+    player = &sithPlayer_g_aPlayers[swrMultiplayer_joiningSlot];
+    wcsncpy(player->awName, record->name, SWR_MP_WIRE_NAME_LEN);
+    player->awName[SWR_MP_WIRE_NAME_LEN] = 0;
+    wcsncpy(player->unk44, record->unk44, ARRAYSIZE(player->unk44) - 1);
+    player->unk44[ARRAYSIZE(player->unk44) - 1] = 0;
+    player->unk8c = record->unk8c;
+    swrMultiplayer_SendJoinResponse(0, 0x3e800000, from);
+    player->playerNetId = from;
+    swrMultiplayer_RegisterPlayer(swrMultiplayer_joiningSlot, from);
+    // faithful: the slot index is passed as the destination DPID
+    for (i = 0; i < (unsigned int)sithPlayer_g_numPlayers; i++)
+        swrMultiplayer_SendPlayerList(i, 0);
+    swrMultiplayer_OnPlayerJoined(from);
+    return 1;
 }
 
 // 0x0041c9e0
