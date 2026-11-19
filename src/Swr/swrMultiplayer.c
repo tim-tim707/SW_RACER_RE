@@ -377,7 +377,9 @@ void swrMultiplayer_BroadcastRoster(int hang, void* roster)
     if (multiplayer_enabled == 0)
         return;
     g_objHang1 = (swrObjHang*)hang;
-    memcpy(swrMultiplayer_raceBegin, begin, sizeof(swrMultiplayer_raceBegin));
+    // ApplyRosterRequest passes swrMultiplayer_raceBegin itself (self-copy, rep movsd in the EXE)
+    for (i = 0; i < 10; i++)
+        swrMultiplayer_raceBegin[i] = begin[i];
     swrMultiplayer_raceBeginValid = 1;
     payload = (int*)swrMultiplayer_message.data;
     for (i = 2; i < 10; i++)
