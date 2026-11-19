@@ -164,6 +164,11 @@
 #define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
 #define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx
 #define SWR_SOUND_PAN_POSITIONAL (-999) // swrSound.pan: 3D positional, use pos
+#define SWR_SOUND_VOICE_GAIN_SCALE (3.051851e-05f) // swrSound.volume -> SetGain, ~1/32767 (0x004acba8)
+#define SWR_SOUND_FADE_RATE (42666.666666666664) // swrSound_Update: volume units/s for voice fade-in/out (0x004acb98)
+#define SWR_SOUND_REQUEST_FADE_RATE (64000.0) // swrSound_Update: volume units/s a released looping request fades by (0x004acbb0)
+#define SWR_SOUND_MIN_PITCH (0.05) // swrSound_Update clamps pitch before SetPitch(2 * pitch) (0x004acbc8)
+#define SWR_SOUND_RENDERMODE_NATIVE (0x20) // A3D source render mode: plain 2D/panned playback, no 3D positioning
 #define SWR_SOUND_PAN_CENTER (0x40) // swrSound.pan forced in mono
 
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
@@ -295,6 +300,13 @@
 
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
+#define SWR_SPRITE_ID_SUN_GLARE (-0x68) // pseudo sprite id swrSprite_SetVisible/SetColor route to the full-screen sun glare tint (swrSprite_unk2_*)
+#define SWR_SUN_OCCLUDED_COVERAGE (50) // UpdateSunAndLensFlareSprites2: sun_occlusionCoverage at or above this hides the sun and its flares
+// in-race engine damage panel (swrRace_InRaceEngineUI): 6 part icons + 2 brackets per local player
+#define SWR_HUD_ENGINE_SPRITE_FIRST (0x1b)
+#define SWR_HUD_ENGINE_BRACKET_LEFT (0x21)
+#define SWR_HUD_ENGINE_BRACKET_RIGHT (0x22)
+#define SWR_HUD_ENGINE_SPRITE_P2_OFFSET (8) // local player 2 uses 0x23..0x2a
 
 // swrMultiplayer chat overlay (0x0041e800 AddChatMessage, 0x0041e880 TickRacerListOverlay)
 #define SWR_MP_CHAT_LINE_COUNT (15) // swrMultiplayer_chatLines entries
@@ -359,6 +371,7 @@
 #define SWR_UI_ID_CURRENT_PLAYER_LABEL (0x273a)
 #define SWR_UI_ID_PROFILE_CREATE (0x2737) // profile select: CREATE RACER
 #define SWR_UI_ID_PROFILE_NAV (0x2748) // profile select: back nav button
+#define SWR_UI_ID_PROFILE_SELECT_UNUSED (0x2739) // profile select: handled like OK, but no element is built with it
 #define SWR_CONTROL_AXIS_Z (2) // bit index in swrControl_{joystick,mouse}AxisMask: device has a Z axis
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape

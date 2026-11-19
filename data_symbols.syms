@@ -242,6 +242,7 @@ swrObjHang_unused_unk 0x004bfecc int = -1
 
 swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
 swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by swrObjHang_F0; idle elmo anim speed
+swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
@@ -442,6 +443,8 @@ swrObjJdge_creditsPage3 0x004c4db0 char*[60]
 swrObjJdge_creditsPage4 0x004c4ea0 char*[178]
 swrObjJdge_creditsPage5 0x004c5168 char*[75]
 swrObjJdge_finishTriggered 0x004c5294 int
+swrRace_engineUiPulse 0x004c52a0 float[2] = { 1.0f, 1.0f } # sawtooth 1 -> 0 every 2/3 s; flash phase of the engine damage panel
+swrRace_engineUiHoldTimer 0x004c52a8 float[2] = { 1.0f, 1.0f } # reset to 5 s while damage shows; at 0 the panel fades out
 
 miniMapAlpha 0x004C5298 float
 
@@ -559,6 +562,10 @@ rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
 swrRace_screenshotKeyHeld 0x004d79e8 int # F12 held last poll (swrRace_PollScreenshotKey edge detect)
+swrMain_debugKeyHeld 0x004d79ec int # swrMain_ProcessDebugKeys: a combo fired and is still held (once-per-press latch)
+swrMain_debugNotice 0x004d78d0 char[256] # toggle messages appended by swrMain_ProcessDebugKeys, shown and cleared once a combo fires
+swrMain_savedForceEnabled 0x004d79d0 int # swrConfig_FORCE_ENABLED saved when the Ctrl+J joystick toggle disables the joystick, restored on re-enable
+swrMain_showFpsHud 0x004d79dc int # Ctrl+F11: on-screen FPS / poly-count debug HUD (read by swrMain2_GuiAdvance)
 
 swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_navAxisXPrev 0x004d79f4 int # last swrUI_QuantizeNavAxis x step (swrUI_ProcessNavAxis edge detect)
@@ -727,6 +734,7 @@ currentUnkCameraStructPtr 0x0050C034 swrCamera_unk*
 unkCameraArrayIndex 0x0050C038 int
 swrViewport_cameraApplied 0x0050c03c int # 0 when the active camera was just (re)selected, set to 1 by swrViewport_UpdateCameras once its transform is applied
 swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
+swrRace_blankWorldForMenu 0x0050c084 int # set by swrRace_UpdateInRaceMenu on debug pages: swrPlayerHUD_RenderAllViewports clears to black and skips the viewports, then resets it
 swrRace_escMenuConfirmPending 0x0050c064 int # 1 while the esc menu shows its quit/restart "Are you sure?" prompt
 swrRace_escMenuConfirmAction 0x0050c068 int # esc menu row (2 = Quit Race, 3 = Quit Game) awaiting confirmation
 swrRace_inRaceMenuSavedCursor 0x0050c070 int[3] # per-page cursor, indexed by DebugMenuState
@@ -864,10 +872,13 @@ swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
 swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
 swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
 
+swrSound_Orientation0 0x0050c638 rdVector4 # row 0 of the listener matrix swrSound_Update fills from the active camera (rows 1-3: swrSound_Orientation1/2, swrSound_Position)
 swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
+swrSound_prevPosition 0x0050c678 rdVector3 # last frame's listener position (doppler velocity)
+swrSound_prevUpdateFlag 0x0050c684 uint8_t # last swrSound_updateFlag seen; a change restarts non-streamed voices
 swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
@@ -940,7 +951,7 @@ swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicl
 swrObjHang_creditsTrackCursor 0x0050c960 char # index into swrObjHang_creditsTracks of the credits race being run (read by swrObjHang_StartRace, advanced by swrObjHang_F4)
 swrObjHang_splashFrameCounter 0x0050c494 int # counts 0..30 each splash frame; no other reader
 swrObjHang_pendingTournamentMode 0x0050c450 char # set by swrUI_Menu_Main; copied into hang->isTournamentMode every splash frame
-swrObjHang_splashSkipToVehicleIntro 0x0050c44c int # splash jumps straight to swrObjHang_STATE_VEHICLE_SELECT_INTRO; no setter in the retail binary
+swrObjHang_splashSkipToVehicleIntro 0x0050c44c int # splash jumps straight to swrObjHang_STATE_VEHICLE_SELECT_INTRO; set when the profile select page is confirmed
 swrObjHang_splashSceneSetUp 0x0050c488 int # the splash builds its scene (swrObjHang_SetupScreenScene) once
 swrObjHang_titleDropTimer 0x0050c1d8 float # splash: STAR/WARS drop-in, 2 s -> 0
 swrObjHang_episodeFadeTimer 0x0050c1dc float # splash: "Episode I" fade-in, 1 s -> 0 after the title drop
@@ -1054,6 +1065,13 @@ playerNumberInitiatingPause 0x0050CA4C int
 swrObjJdge_goAcknowledged 0x0050ca50 int
 swrObjJdge_postRaceDelay 0x0050ca54 float
 swrRace_hudTimeLabelShown 0x0050ca5c int # cleared when the 1P HUD falls back to the running TIME display; write-only (no reader found)
+swrRace_engineUiFade 0x0050ca60 float[2] # engine damage panel opacity per local player (swrRace_InRaceEngineUI)
+swrRace_engineUiFadeRate 0x0050ca68 float[2] # opacity change per second: +4 when damage shows, -4 after the hold timer, -1 while dead
+swrRace_engineUiRepairTime 0x0050ca70 float[2] # seconds repairing with no damaged/smoking part; the clean-repair notice shows for 0.8 s
+swrRace_engineFireSfxLastTime 0x0050ca78 float # timetotal of the last frame with an engine on fire
+swrRace_engineFireSfxStartTime 0x0050ca7c float # timetotal the current fire started; the fire loop sound starts 1.8 s later
+swrRace_engineRepairSfxLastTime 0x0050ca80 float # same pair for the repair sound
+swrRace_engineRepairSfxStartTime 0x0050ca84 float
 
 swrObjJdge_musicFadedForPause 0x0050ca88 int
 
@@ -1545,6 +1563,14 @@ swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetCameraSt
 
 GameSettingFlags 0x00e996dc int
 swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every access is 8/16-bit
+swrViewport_renderStateUnkE2 0x00e996e2 short # set to 2 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkE4 0x00e996e4 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkE8 0x00e996e8 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_sceneInitArg 0x00e996ec int # first swrScene_Init argument (unless GAME_SETTING_UNK_200); zeroed by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF0 0x00e996f0 int # set to 1 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF4 0x00e996f4 short # set to 30 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF6 0x00e996f6 short # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF8 0x00e996f8 int # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
 
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
@@ -1713,6 +1739,7 @@ light_streak_pixel_pos_x 0x00e99ce0 int[40]
 light_streak_depth_values 0x00e99d80 float[40]
 light_streak_positions 0x00e99e20 rdVector3[40]
 
+sun_occlusionCoverage 0x00e9a3c0 int[8] # occluded-pixel counts from swrPlayerHUD_SampleOcclusion; [0..1] = suns (size maybe wrong)
 sun_sprite_position 0x00e9a3e0 rdVector3[2]
 sun_occlusionSampleX 0x00e9a480 int[2] # per-sun last-frame projected screen x; the pixel swrPlayerHUD_SampleOcclusion tests (< -500 = hidden)
 sun_occlusionSampleY 0x00e9a488 int[2] # per-sun last-frame projected screen y (pairs with sun_occlusionSampleX)
@@ -1720,6 +1747,7 @@ sun_prevOcclusionSampleY 0x00e9a590 int[2] # sun_occlusionSampleY from the frame
 sun_prevOcclusionSampleX 0x00e9a598 int[2] # sun_occlusionSampleX from the frame before
 sun_screenX 0x00e99c20 int[2] # per-sun projected screen x this frame (UpdateSunAndLensFlareSprites); -1000 until projected
 sun_screenY 0x00e99c28 int[2] # per-sun projected screen y this frame
+sun_maxFlareBrightness 0x00e9a830 int # brightest sun this frame (UpdateSunAndLensFlareSprites2); 0.9x of it is the glare tint alpha
 
 lightStreakSpriteIDs2 0x00e9a400 int[10]
 
@@ -2043,6 +2071,7 @@ swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
 swrWeather_particleStates 0x00e9a960 char[80]
 swrViewport_force320x240Quadrant 0x00e9a9b0 int # quadrant index (0-3) cycled by swrRace_UpdateInRaceMenu while force320x240 is active; bit0 hides the right half, bit1 hides the bottom half in swrViewport_ComputeScreenRect
+swrViewport_force320x240Timer 0x00e9a9b8 int # frames left on the current force320x240 quadrant (10 each, swrRace_UpdateInRaceMenu)
 swrRace_inRaceMenuStackDepth 0x00e9a9b4 int
 swrRace_inRaceMenuStateStack 0x00e9a9c0 int[3] # DebugMenuState history for swrRace_PopDebugMenuState; deepest path is ESC -> DEBUG_VALUES -> VEHICLE_STATS (size maybe wrong)
 
@@ -2125,6 +2154,15 @@ swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written
 swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
 swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
+swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrRace_SelectProfileMenu)
+swrUI_profilePrevSelectedItem 0x004d555c swrUI_unk* # previous list selection; re-picking the same item acts as OK
+swrUI_profileList 0x004d5574 swrUI_unk* # profile select: racer list
+swrUI_profileSelectedItem 0x004d5578 swrUI_unk* # selected racer list item, refreshed on every page message
+swrUI_profileNameEntry 0x004d557c swrUI_unk* # profile select: new-racer name entry
+swrUI_profileSelectPage 0x004d5580 swrUI_unk* # profile select page (swrUI_WINDOW_PROFILE_SELECT)
+swrUI_profileCurrentPlayerLabel 0x004d5584 swrUI_unk* # "Current Player:" label
+swrUI_profileLoadCooldown 0x004d5588 float # 0.5 s after a list pick loads a profile; another pick in that window only counts as a repeat
+swrUI_profileShowLabelPending 0x004d558c int # re-show the current-player label on the next page message (after CREATE RACER)
 swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain_ProcessDebugKeys); reserved-keys page then shows the SHIFT+4+F4 money hint
 swrSound_globalPreloadIds 0x004b9008 int[34] # bank ids preloaded for every scene by swrSound_PreloadSoundSet; -1 terminated
 swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx ids preloaded for every racer (swrSound_PreloadRacerSounds)

@@ -204,6 +204,12 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
     return -1;
 }
 
+// 0x00440df0
+void updateInRaceInputBitsets(void)
+{
+    HANG("TODO");
+}
+
 // 0x00445680
 void swrObjJudge_PollPause()
 {
@@ -258,6 +264,46 @@ void endPause(void)
         swrEvent_CallF4('All!', ev);
         swrControl_StopForceEffect(swrForceEffect_AUTO_CENTER);
     }
+}
+
+// 0x00445860
+void updatePauseMenu(void)
+{
+    char version[256];
+    swrObjJdge* jdge;
+
+    if (swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) {
+        sprintf(version, "Version: %s", "GNOME 000      ");
+        swrText_CreateColorlessEntry1(0x1e, 0xd2, version);
+    }
+    if (pauseState == swrPauseState_CLOSING) {
+        if (InRace_PauseMenu_ScrollInOut <= 0.0f) {
+            endPause();
+        } else {
+            double scroll = InRace_PauseMenu_ScrollInOut - swrRace_deltaTimeSecs * 4.0;
+            InRace_PauseMenu_ScrollInOut = scroll;
+            if (scroll < 0.0)
+                InRace_PauseMenu_ScrollInOut = 0.0f;
+        }
+    } else if (pauseState == swrPauseState_OPENING) {
+        double scroll = swrRace_deltaTimeSecs * 4.0 + InRace_PauseMenu_ScrollInOut;
+        InRace_PauseMenu_ScrollInOut = scroll;
+        if (scroll > 1.0) {
+            InRace_PauseMenu_ScrollInOut = 1.0f;
+            pauseState = swrPauseState_PAUSED;
+        }
+    }
+    jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
+    if ((jdge->obj.flags & swrObj_FLAG_SLEEPING) == 0)
+        swrObjJdge_OnCycleHudButton();
+    swrRace_UpdateInRaceMenu();
+}
+
+// 0x00445960
+void enablePauseOverlay_Maybe(void)
+{
+    swrViewport_ResetCameraState_Maybe();
+    GameSettingFlags |= GAME_SETTING_FOG_DISABLED;
 }
 
 // 0x00445780

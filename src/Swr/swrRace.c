@@ -9,6 +9,7 @@
 #include "swrSprite.h"
 #include "swrUI.h"
 #include "swrMultiplayer.h"
+#include "swrConfig.h"
 #include "swr.h"
 #include <Main/swrControl.h>
 #include <Main/swrMain.h>
@@ -33,9 +34,145 @@
 #include <string.h>
 
 // 0x00401340
-int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4)
+int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
 {
-    HANG("TODO");
+    unsigned int id = (unsigned int)param;
+    char* notice;
+    char* noLabel;
+    char* yesLabel;
+    char label[128];
+    char question[256];
+
+    if (swrUI_profileLoadCooldown > 0.0f) {
+        swrUI_profileLoadCooldown -= swrRace_deltaTimeSecs;
+    } else if (swrUI_profileLoadCooldown < 0.0f) {
+        swrUI_profileLoadCooldown = 0.0f;
+    }
+
+    if (msg != swrUI_MSG_DESTROY) {
+        if (swrUI_profileSelectPage == NULL) {
+            swrUI_profileSelectPage = swrUI_GetById(NULL, swrUI_WINDOW_PROFILE_SELECT);
+        } else {
+            if (swrUI_profileNameEntry == NULL)
+                swrUI_profileNameEntry = swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_FILE_NAME_ENTRY);
+            if (swrUI_profileList != NULL || (swrUI_profileList = swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_FILE_LIST)) != NULL) {
+                swrUI_profilePrevSelectedItem = swrUI_profileSelectedItem;
+                swrUI_profileSelectedItem = swrUI_GetSelectedItem(swrUI_profileList);
+                if (swrUI_profileSelectedItem != NULL)
+                    sprintf(swrUI_profileName, "%s", swrUI_profileSelectedItem->str_allocated);
+            }
+            if (swrUI_profileCurrentPlayerLabel == NULL) {
+                swrUI_profileCurrentPlayerLabel = swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_CURRENT_PLAYER_LABEL);
+            } else if (swrUI_profileShowLabelPending != 0) {
+                swrUI_RunCallbacks2(swrUI_profileCurrentPlayerLabel, 1);
+                swrUI_profileShowLabelPending = 0;
+            }
+        }
+    }
+
+    switch (msg) {
+    case swrUI_MSG_DIALOG_RESULT:
+        // "delete player?" answered yes
+        if (id == 0) {
+            swrRace_DeleteProfile(swrUI_profileName);
+            swrConfig_RefreshPlayerListMenu_Maybe(swrUI_profileSelectPage);
+        }
+        return 0;
+    case swrUI_MSG_SET_ACTIVE:
+        if (id != 0) {
+            swrMultiplayer_SetInMultiplayer(0);
+            swrUI_RunCallbacksScreenText(swrUI_profileNameEntry, wuRegistry_lpClass, 0);
+            swrObjHang_SetHangar2Splash();
+        }
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_COMMITTED:
+        if (strlen(swrUI_profileNameEntry->str_allocated) == 0) {
+            playUISound(-1);
+            notice = "/MONDOTEXT_H_0006/Please enter a racer name or ~npress ESC to cancel.";
+        } else if (swrUI_FindChildByText(swrUI_profileList, swrUI_profileNameEntry->str_allocated) == NULL) {
+            // passes 0x80, larger than swrUI_profileName (faithful)
+            swrUI_GetAllocatedString(swrUI_profileNameEntry, swrUI_profileName, 0x80);
+            swrRace_CreateProfile(swrUI_profileName);
+            sprintf(label, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrUI_profileName);
+            swrUI_RunCallbacksScreenText(swrUI_profileCurrentPlayerLabel, label, 0);
+            swrConfig_RefreshPlayerListMenu_Maybe(swrUI_profileSelectPage);
+            swrUI_RunCallbacks2(swrUI_profileNameEntry, 0);
+            swrUI_FocusElement(swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_OK_BUTTON), 1);
+            swrUI_profileShowLabelPending = 1;
+            return 0;
+        } else {
+            playUISound(-1);
+            notice = "/MONDOTEXT_H_0007/Racer already exists.  ~nUse another name.";
+        }
+        swrText_ShowTimedMessage(swrText_Translate(notice), 2.0f);
+        swrUI_noticeDurationUnused = 2.1f;
+        swrUI_SetFocusedElement(swrUI_profileNameEntry);
+        swrUI_RunCallbacks(swrUI_profileNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_profileNameEntry->id);
+        return 0;
+    case swrUI_MSG_TEXT_ENTRY_CANCELLED:
+        swrUI_RunCallbacks2(swrUI_profileNameEntry, 0);
+        swrUI_FocusElement(swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_PROFILE_CREATE), 1);
+        swrUI_RunCallbacks2(swrUI_profileCurrentPlayerLabel, 1);
+        return 0;
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        switch (id) {
+        case SWR_UI_ID_PROFILE_CREATE:
+            swrUI_RunCallbacks2(swrUI_profileCurrentPlayerLabel, 0);
+            swrUI_RunCallbacks2(swrUI_profileNameEntry, 1);
+            swrUI_SetFocusedElement(swrUI_profileNameEntry);
+            swrUI_RunCallbacks(swrUI_profileNameEntry, swrUI_MSG_SET_EDITING, 1, swrUI_profileNameEntry->id);
+            swrUI_RunCallbacksScreenText(swrUI_profileNameEntry, wuRegistry_lpClass, 0);
+            return 0;
+        case SWR_UI_ID_OK_BUTTON:
+        case SWR_UI_ID_PROFILE_SELECT_UNUSED:
+            break;
+        case SWR_UI_ID_FILE_REMOVE:
+            if (swrRace_profileLoaded < 0)
+                goto no_profile;
+            sprintf(question, swrText_Translate("/MONDOTEXT_H_0512/~sAre you sure you want to delete player %s ?"), swrUI_profileName);
+            noLabel = swrText_Translate("/MONDOTEXT_H_0033/~sNo");
+            yesLabel = swrText_Translate("/MONDOTEXT_H_0032/~sYes");
+            swrUI_ShowConfirmDialog(swrUI_profileSelectPage, -1, -1, wuRegistry_lpClass, question, yesLabel, noLabel, NULL, 0);
+            return 0;
+        case SWR_UI_ID_PROFILE_NAV:
+            swrUI_PopMenuPage();
+            return 0;
+        default:
+            return 0;
+        }
+        break;
+    case swrUI_MSG_LIST_SELECTION_CHANGED:
+        if (swrUI_profileLoadCooldown == 0.0f) {
+            swrUI_profileLoadCooldown = 0.5f;
+            sprintf(swrUI_profileName, "%s", item->str_allocated);
+            sprintf(label, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrUI_profileName);
+            swrUI_RunCallbacksScreenText(swrUI_profileCurrentPlayerLabel, label, 0);
+            if (!swrRace_LoadProfile(swrUI_profileName)) {
+                playUISound(-1);
+                swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0003/Error loading file."), 2.0f);
+                swrUI_noticeDurationUnused = 2.1f;
+            }
+            swrUI_FocusElement(swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_OK_BUTTON), 1);
+            return 0;
+        }
+        // picking the already-selected racer again during the cooldown acts as SELECT
+        if (swrUI_profileSelectedItem == NULL || swrUI_profileSelectedItem != swrUI_profilePrevSelectedItem)
+            return 0;
+        break;
+    default:
+        return 0;
+    }
+
+    if (swrRace_profileLoaded >= 0) {
+        swrObjHang_splashSkipToVehicleIntro = 1;
+        swrUI_PushMenuPage(swrUI_WINDOW_HANGAR_SELECT_VEHICLE);
+        return 0;
+    }
+no_profile:
+    playUISound(-1);
+    swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0004/Please select or create racer."), 2.0f);
+    swrUI_noticeDurationUnused = 2.1f;
+    return 0;
 }
 
 // 0x0040fb50
@@ -222,6 +359,21 @@ bool swrRace_LoadProfile(char* playerName)
     return failed == 0;
 }
 
+// 0x00421950
+int swrRace_DeleteProfile(char* playerName)
+{
+    char path[256];
+
+    sprintf(path, "%s%s", ".\\data\\player\\", playerName);
+    stdFnames_ChangeExt(path, "sav");
+    stdFileUtil_DeleteFile(path);
+    swrRace_playerName[0] = wuRegistry_lpClass[0];
+    swrRace_profileLoaded = -1;
+    swrRace_GenerateDefaultDataSAV(1, 0);
+    swrRace_CopyProfileFromSave(0, 0);
+    return 1;
+}
+
 // 0x004219d0
 bool swrRace_SaveProfile(char* playerName)
 {
@@ -245,6 +397,17 @@ bool swrRace_SaveProfile(char* playerName)
     wroteProfile = fwrite(&profile, 1, sizeof(swrSaveProfile), stream);
     fclose(stream);
     return wroteProfile != 0 && wroteMagic != 0;
+}
+
+// 0x00421ac0
+void swrRace_CreateProfile(char* playerName)
+{
+    sprintf(swrRace_playerName, "%s", playerName);
+    swrRace_profileLoaded = 0;
+    swrRace_GenerateDefaultDataSAV(0, 0);
+    sprintf(swrRace_aProfiles[0].name, "%s", playerName);
+    swrRace_CopyProfileToSave(0, 0);
+    swrRace_SaveProfile(playerName);
 }
 
 // 0x00421b20
@@ -835,6 +998,185 @@ int swrRace_GetLensFlareEnabled(void)
 int swrRace_GetInRaceMenuResult(void)
 {
     return swrRace_inRaceMenuResult;
+}
+
+// 0x0042ae00
+void swrRace_UpdateInRaceMenu(void)
+{
+    float scroll;
+    float pulse;
+    float floatValue = 0.0f;
+    float r, g, b, a;
+    int intValue = 0;
+    int index;
+    int row;
+    int rowY;
+    int x, y;
+    char label[64] = { 0 };
+    char help[256] = { 0 };
+    char text[256];
+    char line[256];
+
+    // debug viewport test: step through the four 320x240 quadrants, 10 frames each
+    if (swrViewport_force320x240 != 0) {
+        if (--swrViewport_force320x240Timer > 0)
+            return;
+        swrViewport_force320x240Timer = 10;
+        if (++swrViewport_force320x240Quadrant > 3)
+            swrViewport_force320x240 = 0;
+        return;
+    }
+
+    if (DebugMenuState != 2 && swrObjJdge_singleLocalViewport == 0)
+        swrRace_blankWorldForMenu = 1;
+    scroll = GetPauseMenuScrollInOut();
+    pulse = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
+
+    // dev builds: input bits 0x1000, 0x800, 0x2000, 0x400 in order unlock the debug menu
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) && swrRace_DebugMenu <= 0 && inRaceLocalPlayerInputBitset1[0] != 0) {
+        if (swrRace_DebugMenu == 0 && inRaceLocalPlayerInputBitset1[0] == 0x1000) {
+            swrRace_DebugMenu = -1;
+        } else if (swrRace_DebugMenu == -1 && inRaceLocalPlayerInputBitset1[0] == 0x800) {
+            swrRace_DebugMenu = -2;
+        } else if (swrRace_DebugMenu == -2 && inRaceLocalPlayerInputBitset1[0] == 0x2000) {
+            swrRace_DebugMenu = -3;
+        } else if (swrRace_DebugMenu == -3) {
+            swrRace_DebugMenu = 1;
+            if (inRaceLocalPlayerInputBitset1[0] != 0x400)
+                swrRace_DebugMenu = 0;
+        } else {
+            swrRace_DebugMenu = 0;
+        }
+    }
+
+    if (scroll >= 1.0f) {
+        if (DebugMenuState == 2) {
+            if (KeyDownForPlayer1Or2(0x4000)) {
+                if (--swrRace_inRaceMenuCursor < 0)
+                    swrRace_inRaceMenuCursor = 0;
+                else
+                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+            }
+            if (KeyDownForPlayer1Or2(0x8000)) {
+                swrRace_inRaceMenuCursor++;
+                if (!swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor--;
+                else
+                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+            }
+            swrControl_uiInputActive = 0;
+            if (swrControl_acceptPressedEdge != 0) {
+                swrControl_menuAcceptPressedEdge = 0;
+                swrControl_acceptPressedEdge = 0;
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            }
+            if (swrControl_cancelPressedEdge != 0) {
+                if (DebugMenuState == 2)
+                    swrRace_inRaceMenuCursor = 0;
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            }
+        } else {
+            // up past the top wraps to the last row
+            if (((inRaceLocalPlayerInputBitset1[0] & 4) || (inRaceLocalPlayerInputBitset1[0] & 0x4000)) && --swrRace_inRaceMenuCursor < 0) {
+                swrRace_inRaceMenuCursor = 0;
+                while (swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor++;
+                swrRace_inRaceMenuCursor--;
+            }
+            if ((inRaceLocalPlayerInputBitset1[0] & 8) || (inRaceLocalPlayerInputBitset1[0] & 0x8000)) {
+                swrRace_inRaceMenuCursor++;
+                if (!swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor = 0;
+            }
+            if (inRaceLocalPlayerInputBitset1[0] & 0x20)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x10)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x1000)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -1.0f);
+            if ((inRaceLocalPlayerInputBitset1[0] & 0x2000) || (inRaceLocalPlayerInputBitset1[0] & 1))
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x400)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 10.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x800)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -10.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 1)
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x200)
+                requestUnpause();
+            if (inRaceLocalPlayerInputBitset1[0] & 2)
+                swrRace_PopDebugMenuState();
+        }
+    }
+
+    // the "Are you sure?" prompt only has rows 1 and 2
+    if (swrRace_escMenuConfirmPending != 0) {
+        if (swrRace_inRaceMenuCursor < 1)
+            swrRace_inRaceMenuCursor = 1;
+        if (swrRace_inRaceMenuCursor > 2)
+            swrRace_inRaceMenuCursor = 2;
+    }
+
+    for (index = 0, row = 0x42, rowY = 0; row < 0x162; index++, row += 0xc, rowY += 0xe) {
+        if (!swrRace_GetInRaceMenuEntry(index, label, help, &intValue, &floatValue))
+            continue;
+        // value sentinels: float <= -9999.99 means "no float", int < -9999 means "no int"
+        if (floatValue < -9999.99 && intValue < -9999)
+            sprintf(text, swrText_Translate("~s%s\n"), label);
+        else if (floatValue > -9999.99)
+            sprintf(text, swrText_Translate("~s%s: %.2f\n"), label, (double)floatValue);
+        else
+            sprintf(text, swrText_Translate("~s%s: %d\n"), label, intValue);
+
+        if (row < 0xd2) {
+            x = 0x19;
+            y = rowY + 0x14;
+        } else {
+            x = 0xa5;
+            y = rowY - 0x78;
+        }
+        r = 255.0f;
+        b = 255.0f;
+        if (index == swrRace_inRaceMenuCursor) {
+            r = 0.0f;
+            b = 55.0f;
+        }
+
+        if (DebugMenuState == 2) {
+            x = 0xa0;
+            y = row;
+            scroll = GetPauseMenuScrollInOut();
+            if (scroll > 0.0f) {
+                a = scroll * 255.0f;
+                if (index == swrRace_inRaceMenuCursor) {
+                    r = pulse * 255.0f;
+                    g = pulse * 250.0f;
+                    b = pulse * 50.0f;
+                } else {
+                    r = 170.0f;
+                    g = 160.0f;
+                    b = 0.0f;
+                }
+                sprintf(line, "%s", text);
+                swrText_CreateEntry2(0xa0, row, (int)r, (int)g, (int)b, (int)a, line);
+            }
+        } else {
+            sprintf(line, swrText_Translate("~f4%s"), text);
+            swrText_CreateTextEntry1(x, y, (int)r, -1, (int)b, -1, line);
+            if (index != swrRace_inRaceMenuCursor)
+                continue;
+            if (help[0] != '\0') {
+                sprintf(line, swrText_Translate("~s%s\n"), help);
+                swrText_CreateTextEntry1(x + 0x82, y - 0x1e, 0, -1, -0x80, -1, line);
+            }
+        }
+        // faithful: on the debug pages the help line was already queued above, so it is drawn twice
+        if (index == swrRace_inRaceMenuCursor && help[0] != '\0') {
+            sprintf(line, swrText_Translate("~s%s\n"), help);
+            swrText_CreateTextEntry1(x + 0x82, y - 0x1e, 0, -1, -0x80, -1, line);
+        }
+    }
+    swrRace_inRaceMenuSavedCursor[DebugMenuState] = swrRace_inRaceMenuCursor;
 }
 
 // 0x00435700
@@ -4345,9 +4687,391 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 }
 
 // 0x004611f0
-void swrRace_InRaceEngineUI(void* param_1, int param_2)
+void swrRace_InRaceEngineUI(swrScore* score, int slot)
 {
-    HANG("TODO");
+    swrRace* pod = score->obj_test_ptr;
+    int leftDamaged = 0;
+    int rightDamaged = 0;
+    int anySmoking = 0;
+    int anyMaxDamage = 0;
+    int anyFire = 0;
+    float heatSfxVolume = 0.25f;
+    float heatSfxPitch = 0.0f;
+    float baseY = slot == 0 ? 175.0f : 65.0f;
+    int spriteOffset = slot != 0 ? SWR_HUD_ENGINE_SPRITE_P2_OFFSET : 0;
+    int partR[6], partG[6], partB[6], partA[6];
+    int leftR, leftG, leftB, leftA;
+    int rightR, rightG, rightB, rightA;
+    unsigned int status;
+    int show;
+    int i;
+
+    if (pod->flags0 & swrObjTest_FLAG0_RESPAWN) {
+        swrRace_engineUiFade[slot] = 1.0f;
+        swrRace_engineUiFadeRate[slot] = 0.0f;
+    } else if (pod->flags0 & swrObjTest_FLAG0_DEAD) {
+        swrRace_engineUiFadeRate[slot] = -1.0f;
+    } else {
+        show = 0;
+        if (pod->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC)
+            show = 1;
+        if (pod->flags1 & swrObjTest_FLAG1_EXPLODING)
+            show = 1;
+        if (pod->vibrationMagnitude > 0.0f)
+            show = 1;
+        if (pod->engineTemp < 50.0f)
+            show = 1;
+        for (i = 0; i < 6; i++) {
+            if (pod->engineHealth[i] > 0.6)
+                show = 1;
+            if (pod->engineStatus[i] & 0x1c)
+                show = 1;
+        }
+        if (pod->flags0 & swrObjTest_FLAG0_REPAIRING)
+            show = 1;
+        if (show) {
+            swrRace_engineUiFadeRate[slot] = 4.0f;
+            swrRace_engineUiHoldTimer[slot] = 5.0f;
+        }
+    }
+
+    if (!GetPauseState()) {
+        double pulse = swrRace_engineUiPulse[slot] - swrRace_deltaTimeSecs * 1.5;
+        swrRace_engineUiPulse[slot] = pulse;
+        if (pulse <= 0.0)
+            swrRace_engineUiPulse[slot] = pulse + 1.0;
+
+        double vibration = pod->vibrationMagnitude - swrRace_deltaTimeSecs;
+        pod->vibrationMagnitude = vibration;
+        if (vibration < 0.0)
+            pod->vibrationMagnitude = 0.0f;
+
+        double fade = swrRace_engineUiFadeRate[slot] * swrRace_deltaTimeSecs + swrRace_engineUiFade[slot];
+        swrRace_engineUiFade[slot] = fade;
+        if (fade > 1.0) {
+            swrRace_engineUiFade[slot] = 1.0f;
+            swrRace_engineUiFadeRate[slot] = 0.0f;
+        }
+        if (swrRace_engineUiFade[slot] > 0.0f) {
+            double hold = swrRace_engineUiHoldTimer[slot] - swrRace_deltaTimeSecs;
+            swrRace_engineUiHoldTimer[slot] = hold;
+            if (hold <= 0.0)
+                swrRace_engineUiFadeRate[slot] = -4.0f;
+        }
+    }
+
+    if (swrRace_engineUiFade[slot] <= 0.0f) {
+        swrRace_engineUiFade[slot] = 0.0f;
+        swrRace_engineUiFadeRate[slot] = 0.0f;
+        for (i = 0; i < 6; i++)
+            swrSprite_SetVisible(SWR_HUD_ENGINE_SPRITE_FIRST + spriteOffset + i, 0);
+        swrSprite_SetVisible(SWR_HUD_ENGINE_BRACKET_LEFT + spriteOffset, 0);
+        swrSprite_SetVisible(SWR_HUD_ENGINE_BRACKET_RIGHT + spriteOffset, 0);
+        return;
+    }
+
+    if (!GetPauseState()) {
+        for (i = 0; i < 6; i++)
+            pod->engineStatus[i] ^= swrRace_ENGINESTATUS_BLINK;
+    }
+
+    leftR = 0;
+    leftG = 255;
+    leftB = 255;
+    leftA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
+    rightR = 0;
+    rightG = 255;
+    rightB = 255;
+    rightA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
+
+    if (pod->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) {
+        for (i = 0; i < 6; i++) {
+            if (pod->engineStatus[i] & swrRace_ENGINESTATUS_BLINK) {
+                partR[i] = 100;
+                partG[i] = 100;
+                if (pauseState == 0)
+                    partB[i] = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+                else
+                    partB[i] = (int)223.25f;
+            } else {
+                partR[i] = 200;
+                partG[i] = 200;
+                partB[i] = 200;
+            }
+            partA[i] = 255;
+        }
+    } else if ((pod->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) || (pod->flags1 & swrObjTest_FLAG1_EXPLODING)) {
+        for (i = 0; i < 6; i++)
+            partA[i] = 255;
+        for (i = 0; i < 6; i++)
+            partR[i] = 255;
+        for (i = 0; i < 6; i++) {
+            partG[i] = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 200.0f : 150.0f);
+            partB[i] = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 128.0f : 96.0f);
+            if (partB[i] > partG[i])
+                partB[i] = partG[i];
+        }
+    } else {
+        float textY;
+        float lowerTextY;
+        float noticeAlpha;
+        int alpha;
+
+        for (i = 0; i < 6; i++) {
+            status = pod->engineStatus[i];
+            if (status & 4) {
+                if (i < 3)
+                    leftDamaged = 1;
+                else
+                    rightDamaged = 1;
+            }
+            if (status & 0x10)
+                anySmoking = 1;
+            if (pod->engineHealth[i] >= 1.0f)
+                anyMaxDamage = 1;
+            if (status & swrRace_ENGINESTATUS_ON_FIRE)
+                anyFire = 1;
+        }
+        if (leftDamaged) {
+            leftR = 255;
+            leftG = 255;
+            leftB = 0;
+            leftA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        }
+        if (rightDamaged) {
+            rightR = 255;
+            rightG = 255;
+            rightB = 0;
+            rightA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        }
+
+        for (i = 0; i < 6; i++) {
+            float damage = pod->engineHealth[i];
+            int r, g, b, a;
+
+            a = 100;
+            if (damage < 0.0f)
+                damage = 0.0f;
+            if (damage > 1.0f)
+                damage = 1.0f;
+            r = (int)(damage * 510.0f);
+            g = (int)(((1.0 - damage) + (1.0 - damage)) * 255.0);
+            b = 0;
+            // rand() is drawn even while paused (faithful)
+            if (damage > 0.8 && (float)swrUtils_Rand() * (1.0f / 2147483648.0f) > 0.5f) {
+                r = 0x80;
+                g = 0;
+                b = 0;
+            }
+            if (damage >= 1.0f) {
+                float pulse = swrRace_engineUiPulse[slot] * 127.0f;
+                r = (int)(pulse + 128.0f);
+                g = (int)pulse;
+                b = g;
+                a = r;
+            }
+
+            status = pod->engineStatus[i];
+            if (!(status & swrRace_ENGINESTATUS_ON_FIRE)) {
+                if (pod->vibrationMagnitude > 0.0f && (status & swrRace_ENGINESTATUS_HIT)) {
+                    if (status & swrRace_ENGINESTATUS_BLINK) {
+                        r = 255;
+                        g = 255;
+                        b = 150;
+                        a = 255;
+                    }
+                } else {
+                    pod->engineStatus[i] = status & ~swrRace_ENGINESTATUS_HIT;
+                }
+            }
+            status = pod->engineStatus[i];
+            if ((status & 4) && (status & swrRace_ENGINESTATUS_BLINK)) {
+                r = 0x80;
+                g = 0x80;
+                b = 255;
+                a = 200;
+            }
+            if (status & swrRace_ENGINESTATUS_ON_FIRE) {
+                if ((leftDamaged || rightDamaged) && (status & swrRace_ENGINESTATUS_BLINK)) {
+                    r = 0x80;
+                    g = 0x80;
+                    b = 255;
+                    a = 200;
+                } else {
+                    r = (int)((float)(255 - r) * swrRace_engineUiPulse[slot] + r);
+                    g = (int)((float)(0x80 - g) * swrRace_engineUiPulse[slot] + g);
+                    b = (int)((float)(-b) * swrRace_engineUiPulse[slot] + b);
+                    a = (int)((float)(200 - a) * swrRace_engineUiPulse[slot] + a);
+                }
+            }
+            if (r < 0)
+                r = 0;
+            if (r > 255)
+                r = 255;
+            if (g < 0)
+                g = 0;
+            if (g > 255)
+                g = 255;
+            if (b < 0)
+                b = 0;
+            if (b > 255)
+                b = 255;
+            if (a < 0)
+                a = 0;
+            if (a > 255)
+                a = 255;
+            partR[i] = r;
+            partG[i] = g;
+            partB[i] = b;
+            partA[i] = a;
+        }
+
+        textY = baseY - 45.0f;
+        lowerTextY = textY + 15.0f;
+        if (anyFire) {
+            alpha = (int)(swrRace_engineUiPulse[slot] * 255.0f);
+            swrText_CreateTextEntry1(0x36, (int)(lowerTextY + 48.0f), -1, -0x80, 0, alpha, swrText_Translate("/SCREENTEXT_433/~c~sENGINE~n~cFIRE"));
+        }
+        if (pod->engineTemp < 20.0f) {
+            alpha = (int)(swrRace_engineUiPulse[slot] * 255.0f);
+            if (!anyFire && (pod->flags0 & swrObjTest_FLAG0_BOOSTING))
+                swrText_CreateTextEntry1(0x36, (int)(lowerTextY + 48.0f), -1, -0x80, 0, alpha, swrText_Translate("/SCREENTEXT_434/~c~sOVERHEAT"));
+            leftR = 255;
+            rightR = 255;
+            leftG = 0x80;
+            leftB = 0;
+            leftA = alpha;
+            rightG = 0x80;
+            rightB = 0;
+            rightA = alpha;
+            if (pod->flags0 & swrObjTest_FLAG0_BOOSTING) {
+                heatSfxVolume = 0.3f;
+                heatSfxPitch = 0.75f;
+            }
+        } else if (pod->engineTemp < 50.0f) {
+            float heat = (pod->engineTemp - 50.0f) * -0.033333335f;
+            int r, g, b, a;
+
+            if (heat < 0.0f)
+                heat = 0.0f;
+            if (heat > 1.0f)
+                heat = 1.0f;
+            r = (int)(heat * 255.0f);
+            g = (int)((1.0 - heat) * 127.0 + 128.0);
+            b = (int)((1.0 - heat) * 255.0);
+            alpha = (int)(swrRace_engineUiPulse[slot] * 255.0f);
+            if (pod->flags0 & swrObjTest_FLAG0_BOOSTING)
+                swrText_CreateTextEntry1(0x36, (int)(lowerTextY + 48.0f), r, g, b, alpha, swrText_Translate("/SCREENTEXT_435/~c~sTEMP~n~cWARNING"));
+            a = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+            leftA = a;
+            rightA = a;
+            leftR = r;
+            leftG = g;
+            leftB = b;
+            rightR = r;
+            rightG = g;
+            rightB = b;
+            if (pod->flags0 & swrObjTest_FLAG0_BOOSTING) {
+                heatSfxVolume = 0.2f;
+                heatSfxPitch = 0.5f;
+            }
+        }
+        if (anyMaxDamage) {
+            float pulse = swrRace_engineUiPulse[slot] * 127.0f;
+            int bright = (int)(pulse + 128.0f);
+            int dim = (int)pulse;
+            swrText_CreateTextEntry1(0x36, (int)(textY + 48.0f), bright, dim, dim, bright, swrText_Translate("/SCREENTEXT_432/~c~sWarning"));
+            textY -= 12.0f;
+        }
+
+        if (pod->flags0 & swrObjTest_FLAG0_REPAIRING) {
+            if (!leftDamaged && !rightDamaged && !anySmoking) {
+                if (swrRace_engineUiRepairTime[slot] <= 0.0f)
+                    playASound(0x46, 7, 0.25f, 1.0f, 0);
+                double repairTime = swrRace_engineUiRepairTime[slot] + swrRace_deltaTimeSecs;
+                swrRace_engineUiRepairTime[slot] = repairTime;
+                if (repairTime < 0.8f) {
+                    noticeAlpha = pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
+                    swrText_CreateTextEntry1(0x36, (int)(textY + 48.0f), 0x40, -0x80, 0x40, (int)noticeAlpha, swrText_Translate("/SCREENTEXT_437/~c~sRepair"));
+                }
+            } else {
+                swrRace_engineUiRepairTime[slot] = 0.0f;
+                noticeAlpha = pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
+                swrText_CreateTextEntry1(0x36, (int)(textY + 48.0f), -0x80, -0x80, -1, (int)noticeAlpha, swrText_Translate("/SCREENTEXT_436/~c~sRepair"));
+            }
+        } else {
+            swrRace_engineUiRepairTime[slot] = 0.0f;
+        }
+
+        if (!GetPauseState()) {
+            // one-shot when a fire starts (none for 2 s), then a loop after 1.8 s
+            if (anyFire) {
+                if (swrRace_engineFireSfxLastTime < timetotal - 2.0) {
+                    swrRace_engineFireSfxStartTime = timetotal;
+                    playASound(0x87, 7, 0.25f, 1.0f, 0);
+                }
+                if (swrRace_engineFireSfxStartTime < timetotal - (double)1.8f)
+                    playASound(0x86, 6, 0.25f, 1.0f, 1);
+                swrRace_engineFireSfxLastTime = timetotal;
+            }
+            if (heatSfxPitch > 0.0f)
+                playASound(0x83, 7, heatSfxVolume, heatSfxPitch, 1);
+            if ((pod->flags0 & swrObjTest_FLAG0_REPAIRING) && (leftDamaged || rightDamaged || anySmoking)) {
+                if (swrRace_engineRepairSfxLastTime < timetotal - 2.0) {
+                    swrRace_engineRepairSfxStartTime = timetotal;
+                    playASound(0x85, 7, 0.25f, 1.0f, 0);
+                }
+                if (swrRace_engineRepairSfxStartTime < timetotal - (double)1.8f)
+                    playASound(0x75, 6, 0.25f, 1.0f, 1);
+                swrRace_engineRepairSfxLastTime = timetotal;
+            }
+        }
+    }
+
+    for (int row = 0; row < 2; row++) {
+        float rowX = (float)(row * 24) + 30.0f + 4.0f;
+        for (int col = 0; col < 3; col++) {
+            int part = row * 3 + col;
+            short id = SWR_HUD_ENGINE_SPRITE_FIRST + spriteOffset + part;
+            float spread = (1.0f - swrRace_engineUiFade[slot]) * 15.0f;
+            float y = (float)(col * 14) + baseY + 2.0f;
+            float offset = spread;
+            float x;
+
+            if (col == 1)
+                offset *= 1.5f;
+            if (row == 0)
+                x = rowX - offset;
+            else
+                x = offset + rowX;
+            if (col == 0)
+                y -= spread;
+            else if (col == 2)
+                y = spread + y;
+            swrSprite_SetVisible(id, 1);
+            if (GameSettingFlags & GAME_SETTING_MIRROR)
+                x = 92.0f - x;
+            swrSprite_SetPos(id, (short)(int)x, (short)(int)y);
+            swrSprite_SetDim(id, 0.75f, 0.75f);
+            swrSprite_SetColor(id, partR[part], partG[part], partB[part], (int)((float)partA[part] * swrRace_engineUiFade[slot]));
+        }
+    }
+
+    {
+        float bracketX = (GameSettingFlags & GAME_SETTING_MIRROR) ? 12.0f : -12.0f;
+        short bracketY = (short)(int)baseY;
+        short id = SWR_HUD_ENGINE_BRACKET_LEFT + spriteOffset;
+
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)(bracketX + 30.0f + 12.0f), bracketY);
+        swrSprite_SetDim(id, 0.75f, 0.75f);
+        swrSprite_SetColor(id, leftR, leftG, leftB, (int)((float)leftA * swrRace_engineUiFade[slot] * swrRace_engineUiFade[slot]));
+        id = SWR_HUD_ENGINE_BRACKET_RIGHT + spriteOffset;
+        swrSprite_SetVisible(id, 1);
+        swrSprite_SetPos(id, (short)(int)(42.0f - bracketX), bracketY);
+        swrSprite_SetDim(id, 0.75f, 0.75f);
+        swrSprite_SetColor(id, rightR, rightG, rightB, (int)((float)rightA * swrRace_engineUiFade[slot] * swrRace_engineUiFade[slot]));
+    }
 }
 
 // Post-race statistics panel: per-lap rows, the Total row, and the place text with the medal

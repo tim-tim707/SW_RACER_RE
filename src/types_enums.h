@@ -134,6 +134,8 @@ typedef enum swrForceEffect
 // swrRace.engineStatus[6] bits (one word per engine part).
 typedef enum swrRace_ENGINESTATUS
 {
+    swrRace_ENGINESTATUS_HIT = 0x1, // set by swrRace_TakeDamage; cleared by swrRace_InRaceEngineUI once vibrationMagnitude has decayed
+    swrRace_ENGINESTATUS_BLINK = 0x2, // toggled every unpaused frame by swrRace_InRaceEngineUI (HUD icon flash phase)
     swrRace_ENGINESTATUS_ON_FIRE = 0x8, // engine burning: fireball spawned, ENGINE_FIRE force effect
 } swrRace_ENGINESTATUS;
 
@@ -231,6 +233,15 @@ typedef enum swrObjJdge_VIEWPORT // swrObjJdge.viewportMode
     swrObjJdge_VIEWPORT_RACE_APPLIED = 5, // no-op
 } swrObjJdge_VIEWPORT;
 
+// pauseState @ 0x0050c5f0
+typedef enum swrPauseState
+{
+    swrPauseState_NONE = 0,
+    swrPauseState_PAUSED = 1, // pause menu fully shown
+    swrPauseState_OPENING = 2, // menu sliding in (InRace_PauseMenu_ScrollInOut 0 -> 1)
+    swrPauseState_CLOSING = 3, // requestUnpause: sliding out; endPause once the scroll reaches 0
+} swrPauseState;
+
 typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
 {
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
@@ -239,6 +250,7 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
 // swrRace_DebugFlag bits (only the ones named so far).
 typedef enum swrRace_DEBUGFLAG
 {
+    swrRace_DEBUGFLAG_DEV = 0x1, // pause screen shows "Version: GNOME 000" (updatePauseMenu) and accepts the debug-menu unlock sequence (swrRace_UpdateInRaceMenu)
     swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS = 0x2, // "Edit Vehicle Stats" row on the Game Cheats page
     swrRace_DEBUGFLAG_INVINCIBILITY = 0x4, // "Invincibility" toggle row
     swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows
@@ -246,6 +258,8 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
     swrRace_DEBUGFLAG_UNLOCK_ALL = 0x40, // swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
     swrRace_DEBUGFLAG_DEBUG_KEYS = 0x100, // with swrRace_DebugLevel != 0, enables held-key debug toggles (e.g. hide the pod reflection)
+    swrRace_DEBUGFLAG_HIDE_OVERLAY_KEYS = 0x200, // with swrRace_DebugLevel > 0, holding input bits 0x1100 hides the sun/flares and the 2D overlay sprites
+    swrRace_DEBUGFLAG_IFLY = 0x2000, // I+F+L+Y with DebugMenuState 2 (swrMain_ProcessDebugKeys); read by swrRace_UpdateSurfaceTag
     swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugColorsEqual_Maybe (profile-initials checks)
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;

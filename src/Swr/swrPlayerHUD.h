@@ -52,7 +52,7 @@
 // locks the back buffer via DirectDraw_LockZBuffer and samples raw pixel
 // data around every HUD marker's projected screen position to detect
 // occlusion by world geometry. The resulting "coverage" counts are stored at
-// DAT_00e9a3c0 (target indicators), player_sprite_depth_values (0x00e9a7e0,
+// sun_occlusionCoverage (0x00e9a3c0, suns), player_sprite_depth_values (0x00e9a7e0,
 // minimap player markers), light_streak_depth_values (0x00e99d80, light-streak
 // points), and DAT_00e9a8e0 (world sprites); each sub-renderer reads them later
 // to decide whether to draw its marker.

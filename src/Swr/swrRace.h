@@ -208,7 +208,9 @@
 // a 4-byte version magic (0x10003). Original engine module name: "elfSaveLoad".
 #define swrRace_InitGameData_ADDR (0x00421810)
 #define swrRace_LoadProfile_ADDR (0x00421850)
+#define swrRace_DeleteProfile_ADDR (0x00421950)
 #define swrRace_SaveProfile_ADDR (0x004219d0)
+#define swrRace_CreateProfile_ADDR (0x00421ac0)
 #define swrRace_ResetGameData_ADDR (0x00421b20)
 #define swrRace_LoadGameData_ADDR (0x00421b90)
 #define swrRace_SaveGameData_ADDR (0x00421c90)
@@ -244,7 +246,7 @@
 #define swrRace_UpdateSplineOrientation_ADDR (0x0047a610)
 #define swrRace_GetTrackMeshAtCursor_ADDR (0x0047f890)
 
-int swrRace_SelectProfileMenu(void* param_1, unsigned int param_2, unsigned int param_3, int param_4);
+int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item);
 
 void swrRace_ReservedSettingsMenu(swrUI_unk* page);
 
@@ -359,7 +361,7 @@ void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y);
 
 void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge);
 
-void swrRace_InRaceEngineUI(void* param_1, int param_2);
+void swrRace_InRaceEngineUI(swrScore* score, int slot);
 
 void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score);
 
@@ -609,6 +611,10 @@ bool swrRace_SaveGameData(void);
 int swrRace_ResetGameData(int resetCurrentPlayer);
 // Export a single profile record to .\data\player\<playerName> (extension swapped).
 bool swrRace_SaveProfile(char* playerName);
+// Delete .\data\player\<playerName>.sav and reset the live profile to defaults with no name loaded.
+int swrRace_DeleteProfile(char* playerName);
+// Start a fresh default profile under playerName and write it out.
+void swrRace_CreateProfile(char* playerName);
 // True when the loaded image looks empty/uninitialized (unlock bitfield == 0); gates a reset.
 bool swrRace_IsGameDataUninitialized(void);
 // Sync the live working profile into the save image and persist it. Called after any change
