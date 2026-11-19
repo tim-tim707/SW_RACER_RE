@@ -55,7 +55,7 @@ int SetLightColorsAndDirectionFromPrimaryLight(short light_index);
 float* SetAlternativeLightColorsAndDirection(int index, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z);
 
 // Builds the canvas, camera, and lights from the display settings and drives the progress bar.
-rdVector4* swrRender_InitScene(swrMainDisplaySettings* settings);
+int swrRender_InitScene(swrMainDisplaySettings* settings);
 
 void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh* rdmesh, swrModel_Mesh* mesh);
 void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags);

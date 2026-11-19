@@ -48,7 +48,8 @@ int stdDisplay_Startup_delta(void) {
     StdDisplayDevice *device = &stdDisplay_aDisplayDevices[0];
     snprintf(device->aDeviceName, 128, "OpenGL");
     snprintf(device->aDriverName, 128, "OpenGL");
-    device->bHAL = true;
+    device->bHasGuid = true;
+    device->b3DAccel = true;
     device->bGuidNotSet = true;
     device->bWindowRenderNotSupported = false;
     device->totalVideoMemory = 1024 * 1024 * 1024;

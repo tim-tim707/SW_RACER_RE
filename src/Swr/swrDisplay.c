@@ -36,7 +36,7 @@ BOOL swrDisplay_Open(swrMainDisplaySettings* a1)
     if (!stdDisplay_Open(a1->currentDevice))
         return 1;
     swrMainDisplay_currentDevice = a1->currentDevice;
-    if (!stdDisplay_SetMode(a1->_3DDeviceIndex, a1->RegFullScreen == 0))
+    if (!stdDisplay_SetMode(a1->videoModeIndex, a1->RegFullScreen == 0))
         return 1;
     if (stdDisplay_CopyCurrentVideoMode(&mode) != 0)
         return 1;
@@ -64,7 +64,7 @@ BOOL swrDisplay_Open(swrMainDisplaySettings* a1)
         stdDisplay_Shutdown();
         return 1;
     }
-    if (!std3D_Open(a1->nb3DDevices))
+    if (!std3D_Open(a1->device3DIndex))
         return 1;
 
     rdFace_FogFlagsSupportedByHardware = Direct3d_SetFogMode();
@@ -115,11 +115,11 @@ int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDispla
     }
 
     info = &Main_drawDevices->aDisplayInfos[displaySettings->currentDevice];
-    displaySettings->nb3DDevices = info->numDevices - 1;
+    displaySettings->device3DIndex = info->numDevices - 1;
     wuRegistry_GetString("3D Device", name, sizeof(name), wuRegistry_lpClass);
     for (i = 0; (unsigned int)i < (unsigned int)info->numDevices; i++) {
         if (strcmp(info->aDevices[i].deviceDescription, name) == 0) {
-            displaySettings->nb3DDevices = i;
+            displaySettings->device3DIndex = i;
             break;
         }
     }
@@ -129,8 +129,8 @@ int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDispla
     swrMainDisplayMode.rasterInfo.height = wuRegistry_GetInt("Display Height", SWR_DISPLAY_DEFAULT_HEIGHT);
     swrMainDisplayMode.rasterInfo.colorInfo.bpp = SWR_DISPLAY_BPP;
     swrMainDisplayMode.rasterInfo.colorInfo.colorMode = T_STDCOLOR_RGB;
-    displaySettings->_3DDeviceIndex = FindMatchingVideoMode(swrMainDisplayMode, displaySettings);
-    swrMainDisplayMode = info->aModes[displaySettings->_3DDeviceIndex];
+    displaySettings->videoModeIndex = FindMatchingVideoMode(swrMainDisplayMode, displaySettings);
+    swrMainDisplayMode = info->aModes[displaySettings->videoModeIndex];
     displaySettings->geometryMode = RD_GEOMETRY_FULL;
     displaySettings->lightMode = RD_LIGHTING_GOURAUD;
     displaySettings->backbufferFill = 1;
@@ -166,12 +166,12 @@ bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int h
     }
     std3D_Close();
     stdDisplay_ClearMode();
-    opened = stdDisplay_SetMode(displaySettings->_3DDeviceIndex, 0);
+    opened = stdDisplay_SetMode(displaySettings->videoModeIndex, 0);
     if (opened == 0)
     {
         return true;
     }
-    opened = std3D_Open(displaySettings->nb3DDevices);
+    opened = std3D_Open(displaySettings->device3DIndex);
     return opened == 0;
 }
 

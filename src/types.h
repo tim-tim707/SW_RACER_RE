@@ -220,16 +220,16 @@ extern "C"
     typedef struct StdDisplayDevice
     {
         char aDeviceName[128];
-        char aDriverName[128];
-        int bHAL;
-        int bGuidNotSet;
-        int bWindowRenderNotSupported;
-        int totalVideoMemory;
-        int freeVideoMemory;
-        DDCAPS_DX6 ddcaps; // Modified DX6
-        GUID guid;
-        uint32_t unk;
-    } StdDisplayDevice;
+        char aDriverName[128]; // 0x80
+        int bHasGuid; // 0x100
+        int b3DAccel; // 0x104 DDCAPS_3D
+        int bGuidNotSet; // 0x108
+        int bWindowRenderNotSupported; // 0x10c no DDCAPS2_CANRENDERWINDOWED
+        int totalVideoMemory; // 0x110
+        int freeVideoMemory; // 0x114
+        DDCAPS_DX6 ddcaps; // 0x118 Modified DX6
+        GUID guid; // 0x294
+    } StdDisplayDevice; // sizeof(0x2a4) (DirectDraw_EnumerateA_Callback)
 
     typedef struct rdCanvas
     {
@@ -3242,13 +3242,13 @@ extern "C"
         int RegDevMode;
         int RegUseFett;
         int currentDevice;
-        unsigned int _3DDeviceIndex;
-        int nb3DDevices;
-        int unk1c;
+        unsigned int videoModeIndex;
+        int device3DIndex;
+        int textureFilter; // display-settings dialog: 0 none, 1 bilinear, 2 trilinear
         RdGeometryMode geometryMode;
         RdLightMode lightMode;
         int backbufferFill;
-    } swrMainDisplaySettings; // sizeof(0x24)
+    } swrMainDisplaySettings; // sizeof(0x2c)
 
     typedef struct WindowsInputItem
     {

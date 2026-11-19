@@ -12506,6 +12506,38 @@ void swrScene_InitCameras(void)
     swrViewport_SetActiveCamera(8);
 }
 
+// 0x00445a50
+void swrScene_Startup(void)
+{
+    swr_noop2();
+    swr_noop2();
+    swr_noop2();
+    swr_noop2();
+    swr_noop2();
+    swrScene_ResetRenderState();
+    swr_noop2();
+    swrSound_Reset(); // via thunk 0x004269a0
+    swr_noop2();
+    swrScene_Init(0, 1);
+}
+
+// 0x004491f0
+void swrScene_Init(short sceneArg, int unused)
+{
+    swrText_InitFonts();
+    swrModel_InitializeTextureBuffer();
+    swrSound_ResetRequestedVoices(); // via thunk 0x004269b0
+    if ((GameSettingFlags & GAME_SETTING_UNK_200) == 0)
+        swrViewport_sceneInitArg = sceneArg;
+    // the EXE passes both arguments on; swrScene_InitWorld reads neither
+    swrScene_InitWorld();
+    swrScene_InitCameras();
+    swrSprite_SetVisible(-0xc9, 0);
+    swr_noop2();
+    swr_SetFixedDeltaTime(-1.0);
+    swrRace_InitFrameTimer();
+}
+
 // 0x00449260
 void swrScene_ClearTextureAnim_Maybe(void)
 {

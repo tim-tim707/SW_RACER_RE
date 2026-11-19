@@ -29,7 +29,7 @@ void Main_ShutdownError(void);
 int Main_ParseCmdLine(char* cmdline);
 
 // Start the audio and input services: swrSound_Startup + swrControl_Startup.
-void Main_StartupSoundAndControl(void);
+int Main_StartupSoundAndControl(void);
 // Init the sound critical section, then start the audio/input services. Tail of Main_Startup.
 int Main_InitAudioInput(void);
 

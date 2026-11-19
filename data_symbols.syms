@@ -105,6 +105,7 @@ swrControl_axisInputBytes 0x004b38b0 int # sizeof the three *AxisInput arrays, c
 swrConfig_aControlKeyStrings 0x004b38b8 int[16] # DIK codes that can never be bound (Win/Apps/SysRq/F1-F12), swrControl_IsKeyStringControl
 
 swrSprite_mouseVisible 0x004b4314 int
+swrRender_sceneInitialized 0x004b4318 int # set at the end of swrRender_InitScene; read by swrMain2_GuiAdvance
 
 direct3d_LensFlareCompatible 0x004b431c int
 
@@ -149,6 +150,7 @@ swrSound_defaultBankFiles 0x004b6d38 swrSoundDefaultBankEntry[88] # NULL-termina
 
 unknownError_buffer 0x004b75f8 char[1024]
 Main_fullscreen_unk 0x004b79f8 int = 1
+Window_bCDCheckEnabled 0x004b79fc int = 1 # Window_CDCheck only validates the install CD when set
 
 Main_display_intro_scene 0x004b7a00 int = 1
 swrObjHang_cinematicFiles 0x004b7a08 char*[10] # PlanetTAT/A/B/C/D/E/F/J.znm, Goldie.znm, TextCrawl.znm; indexed by planet
@@ -700,14 +702,18 @@ swrSound_Playing 0x004eb474 int
 ia3dSourceThreadHandle 0x004eb478 HANDLE
 ia3d_thread_running 0x004eb47c int
 
-ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE
-ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC
+ddSurfaceForVideo 0x004eb480 LPDIRECTDRAWSURFACE4
+ddSurfaceDescForVideo 0x004eb484 DDSURFACEDESC2
 
 swrMainDisplayMode 0x004EB500 StdVideoMode
 
 Windows_windowWidth 0x004eb550 int
+Window_smushRgb565To555 0x004eb558 uint16_t[0x10000] # filled by swrControl_Startup when the back buffer is RGB555
 
 Windows_windowHeight 0x0050b594 int
+Main_displayDialogResult 0x0050b58c int # Main_Startup: 1, or what DialogBoxParamA left in EAX on the settings-only path; never read
+Window_smushColorTable 0x0050b558 uint16_t* # Window_smushRgb565To555 on an RGB555 back buffer, else NULL (frames copied raw)
+Window_smushSkipRequested 0x0050b5b8 int # Window_SmushPlayCallback result: accept/cancel pressed this frame
 Windows_hinstance_unused 0x0050b598 int
 
 swrMain_initialized 0x0050b5a0 int
@@ -1880,6 +1886,8 @@ swrSound_sfxFlags 0x00e9ed60 int[24] # per-channel sfx status/flag bits (swrSoun
 swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
 
 stdPlatform_hostServices 0x00e9f280 HostServices
+Window_smushSrcRect 0x00e9f2f0 RECT # 640x480 Smush video surface
+Window_smushDstRect 0x00e9f350 RECT # 4:3 letterbox/pillarbox rect on the back buffer (Window_PlayCinematic)
 
 rootPathName 0x00e9f300 char[80]
 swrSound_mapSoundCount 0x00e9f360 int # sounds.map NUMSOUNDS minus NUMVOICES; swrSound_LoadSoundMap
@@ -1974,6 +1982,8 @@ fogColor 0x00EC8564 rdVector4
 oneOverFogRange 0x00ec8574 float
 fogStart 0x00ec8578 float
 fogEnd 0x00ec857c float
+swrRender_initSceneUnusedPos 0x00ec8550 rdVector3 # written once by swrRender_InitScene (-1000, -2000, 8000); never read
+swrRender_initSceneUnusedVec 0x00ec8730 rdVector3 # zeroed once by swrRender_InitScene; never read
 
 rdCamera_mat 0x00ec8580 rdMatrix34
 

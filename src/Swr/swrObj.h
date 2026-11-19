@@ -854,7 +854,7 @@ void swrScene_InitWorld(void);
 // An empty placeholder scene routine (best guess).
 void swrScene_Stub_Maybe(void);
 void swrScene_InitCameras(void);
-void swrScene_Init(int param_1, int param_2);
+void swrScene_Init(short sceneArg, int unused);
 
 // Clears the texture-animation block driven by the texture-scroll tick (best guess).
 void swrScene_ClearTextureAnim_Maybe(void);
