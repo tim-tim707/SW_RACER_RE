@@ -164,6 +164,11 @@
 #define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
 #define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx
 #define SWR_SOUND_PAN_POSITIONAL (-999) // swrSound.pan: 3D positional, use pos
+#define SWR_SOUND_VOICE_GAIN_SCALE (3.051851e-05f) // swrSound.volume -> SetGain, ~1/32767 (0x004acba8)
+#define SWR_SOUND_FADE_RATE (42666.666666666664) // swrSound_Update: volume units/s for voice fade-in/out (0x004acb98)
+#define SWR_SOUND_REQUEST_FADE_RATE (64000.0) // swrSound_Update: volume units/s a released looping request fades by (0x004acbb0)
+#define SWR_SOUND_MIN_PITCH (0.05) // swrSound_Update clamps pitch before SetPitch(2 * pitch) (0x004acbc8)
+#define SWR_SOUND_RENDERMODE_NATIVE (0x20) // A3D source render mode: plain 2D/panned playback, no 3D positioning
 #define SWR_SOUND_PAN_CENTER (0x40) // swrSound.pan forced in mono
 
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist

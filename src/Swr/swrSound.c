@@ -1911,7 +1911,233 @@ void swrSound_ResetChannels(void)
 // 0x00449ef0
 void swrSound_Update(void)
 {
-    HANG("TODO");
+    int reverbChanged;
+    int createDedicated;
+    int i;
+    double invDt;
+    rdVector3 velocity;
+    rdVector3* velocityPtr;
+    swrSound* live;
+    swrSound* requested;
+    swrSound* backup;
+    swrSoundDescriptor* entry;
+    IA3dSource* source;
+    float pitch;
+    int volume;
+
+    if (swrSound_Initted == 0)
+        return;
+
+    if (Sound_enabled_3d != 0) {
+        swrSound_prevPosition.x = swrSound_Position.x;
+        swrSound_prevPosition.y = swrSound_Position.y;
+        swrSound_prevPosition.z = swrSound_Position.z;
+        swrCam_GetActiveViewportCameraTransform((rdMatrix44*)&swrSound_Orientation0);
+    }
+    if (swrSound_prevUpdateFlag != swrSound_updateFlag) {
+        reverbChanged = 1;
+        swrSound_prevUpdateFlag = swrSound_updateFlag;
+    } else {
+        reverbChanged = 0;
+    }
+    if (swrSound_evictRecheckFrames > 0)
+        swrSound_evictRecheckFrames--;
+    else
+        swrSound_evictRecheckFrames = 0;
+
+    for (i = 0; i < SWR_SOUND_NUM_VOICES; i++) {
+        live = &swrSound_voicesLive[i];
+        requested = &swrSound_voicesRequested[i];
+        backup = &swrSound_voicesBackup[i];
+
+        if (live->activeSoundId >= 0 && live->dedicatedSource == 0 && swrSound_evictRecheckFrames != 0 && ((swrSoundDescriptor*)swrSound_GetEntry(live->id))->source != live->source)
+            swrSound_ResetChannel(live);
+
+        // a voice swapped out by a reverb change fades out on its old source
+        if (backup->source != NULL) {
+            backup->volume = (int)(backup->volume - swrRace_deltaTimeSecs * SWR_SOUND_FADE_RATE);
+            if (backup->volume > 0.0) {
+                swrSound_SetGain(backup->source, backup->volume * SWR_SOUND_VOICE_GAIN_SCALE);
+            } else {
+                swrSound_Rewind(backup->source);
+                if (backup->unk24 != 0)
+                    swrSound_ReleaseSource(backup->source);
+                backup->source = NULL;
+                backup->unk24 = 1;
+            }
+        }
+
+        if (requested->unk08 != 0 && requested->startFrame != (int)frametotal && requested->startFrame != (int)frametotal - 1) {
+            requested->volume = (int)(requested->volume - swrRace_deltaTimeSecs * SWR_SOUND_REQUEST_FADE_RATE);
+            if (requested->volume <= 0.0) {
+                requested->volume = 0;
+                swrSound_ResetChannel(requested);
+            }
+        }
+
+        if (live->activeSoundId != -1) {
+            source = live->source;
+            if (swrSound_GetWavePosition(source, NULL) == 0) {
+                // finished playing
+                if (requested->activeSoundId == live->activeSoundId)
+                    swrSound_ResetChannel(requested);
+                entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);
+                if ((entry->flags & swrSoundDescriptor_STREAMED) == 0 && live->dedicatedSource != 0)
+                    swrSound_ReleaseSource(source);
+                // retail also tests the entry size here, but the guarded call is NOP'd out
+                swrSound_ResetChannel(live);
+            } else if (live->trackedPos != NULL && (swrSound_GetRenderMode(source) & SWR_SOUND_RENDERMODE_NATIVE) == 0) {
+                swrSound_SetPosition(source, live->trackedPos);
+                if (Main_doppler_sound != 0) {
+                    invDt = 1.0 / swrRace_deltaTimeSecs;
+                    velocity.x = (live->trackedPos->x - live->pos.x) * invDt;
+                    velocity.y = (live->trackedPos->y - live->pos.y) * invDt;
+                    velocity.z = (live->trackedPos->z - live->pos.z) * invDt;
+                    velocityPtr = &velocity;
+                } else {
+                    velocityPtr = &swrSound_Velocity;
+                }
+                swrSound_SetVelocityClamped(source, velocityPtr);
+                live->pos.x = live->trackedPos->x;
+                live->pos.y = live->trackedPos->y;
+                live->pos.z = live->trackedPos->z;
+                requested->pos.x = live->pos.x;
+                requested->pos.y = live->pos.y;
+                requested->pos.z = live->pos.z;
+            }
+        }
+
+        if (requested->activeSoundId == live->activeSoundId) {
+            if (live->activeSoundId < 0)
+                continue;
+            source = live->source;
+            if (reverbChanged != 0 && Main_sound_reverb != 0) {
+                entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);
+                if ((entry->flags & swrSoundDescriptor_STREAMED) == 0) {
+                    // restart the voice on a source matching the new reverb setting
+                    createDedicated = swrSound_updateFlag != 0;
+                    source = swrSound_AcquireSource(entry, 0, &createDedicated);
+                    if (createDedicated == (swrSound_updateFlag != 0)) {
+                        *backup = *live;
+                        backup->unk24 = backup->source != entry->source;
+                        requested->source = source;
+                        requested->dedicatedSource = source != entry->source;
+                        goto start_voice;
+                    }
+                    if (source != entry->source)
+                        swrSound_ReleaseSource(source);
+                    source = live->source;
+                }
+            }
+            if (live->volume != requested->volume) {
+                if (live->unk08 == 0) {
+                    live->volume = requested->volume;
+                } else if (live->startFrame != (int)frametotal && live->startFrame != (int)frametotal - 1) {
+                    // looping voices fade in
+                    live->volume = (int)(live->volume - swrRace_deltaTimeSecs * -SWR_SOUND_FADE_RATE);
+                    if (live->volume > requested->volume)
+                        live->volume = requested->volume;
+                }
+                swrSound_SetGain(source, live->volume * SWR_SOUND_VOICE_GAIN_SCALE);
+            }
+            if (live->pitch != requested->pitch) {
+                entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);
+                pitch = requested->pitch < SWR_SOUND_MIN_PITCH ? SWR_SOUND_MIN_PITCH : requested->pitch;
+                swrSound_SetPitch(source, entry->sampleRate, pitch + pitch);
+                live->pitch = requested->pitch;
+            }
+            if (live->pan != requested->pan) {
+                if (requested->pan != SWR_SOUND_PAN_POSITIONAL) {
+                    swrSound_SetPanValues(source, ((float)requested->pan - 64.0f) * 0.015625f);
+                    if ((swrSound_GetRenderMode(source) & SWR_SOUND_RENDERMODE_NATIVE) == 0)
+                        swrSound_SetRenderMode(source, SWR_SOUND_RENDERMODE_NATIVE);
+                }
+                live->pan = requested->pan;
+            }
+            if (requested->pan == SWR_SOUND_PAN_POSITIONAL && ((swrSound_GetRenderMode(source) & SWR_SOUND_RENDERMODE_NATIVE) != 0 || live->pos.x != requested->pos.x || live->pos.y != requested->pos.y || live->pos.z != requested->pos.z)) {
+                swrSound_SetRenderMode(source, 0);
+                swrSound_SetPosition(source, &requested->pos);
+                if (requested->unk08 != 0) {
+                    if (Main_doppler_sound != 0) {
+                        invDt = 1.0 / swrRace_deltaTimeSecs;
+                        velocity.x = (requested->pos.x - live->pos.x) * invDt;
+                        velocity.y = (requested->pos.y - live->pos.y) * invDt;
+                        velocity.z = (requested->pos.z - live->pos.z) * invDt;
+                        velocityPtr = &velocity;
+                    } else {
+                        velocityPtr = &swrSound_Velocity;
+                    }
+                    swrSound_SetVelocityClamped(source, velocityPtr);
+                }
+                live->pos.x = requested->pos.x;
+                live->pos.y = requested->pos.y;
+                live->pos.z = requested->pos.z;
+            }
+        } else if (live->activeSoundId == -1) {
+            if (requested->id == -1)
+                continue;
+            requested->activeSoundId = requested->id;
+            createDedicated = (swrSound_updateFlag != 0 && Main_sound_reverb != 0) ? 1 : 0;
+            entry = (swrSoundDescriptor*)swrSound_GetEntry(requested->id);
+            requested->source = swrSound_AcquireSource(entry, requested->unk08, &createDedicated);
+            requested->dedicatedSource = requested->source != entry->source;
+        start_voice:
+            source = requested->source;
+            *live = *requested;
+            pitch = requested->pitch < SWR_SOUND_MIN_PITCH ? SWR_SOUND_MIN_PITCH : requested->pitch;
+            swrSound_SetPitch(source, entry->sampleRate, pitch + pitch);
+            if (requested->unk08 != 0) {
+                // first step of the looping fade-in; a long frame uses the fixed step instead
+                volume = (int)((swrRace_deltaTimeSecs > 0.5 ? swr_fixedDeltaTimeSecs : swrRace_deltaTimeSecs) * SWR_SOUND_FADE_RATE);
+                live->volume = volume;
+                if (volume > requested->volume)
+                    live->volume = requested->volume;
+            }
+            swrSound_SetGain(source, live->volume * SWR_SOUND_VOICE_GAIN_SCALE);
+            if (requested->pan != SWR_SOUND_PAN_POSITIONAL)
+                swrSound_SetPanValues(source, (requested->pan - 64.0) * 0.015625f);
+            if (requested->pan != SWR_SOUND_PAN_POSITIONAL) {
+                swrSound_SetRenderMode(source, SWR_SOUND_RENDERMODE_NATIVE);
+            } else {
+                swrSound_SetRenderMode(source, 0);
+                (*source->lpVtbl->SetTransformMode)(source, 0);
+                swrSound_SetMinMaxDistance(source, requested->minDist * 3.28, requested->maxDist * 3.28);
+                swrSound_SetPosition(source, &requested->pos);
+                if (requested->unk08 != 0)
+                    swrSound_SetVelocityClamped(source, &swrSound_Velocity);
+                // no doppler for voices (ids past the sound map) or sounds sitting on the first local pod
+                if (requested->id >= swrSound_mapSoundCount) {
+                    (*source->lpVtbl->SetDopplerScale)(source, 0.0f);
+                } else if (firstLocalPlayer != NULL && (requested->pos.x != firstLocalPlayer->obj_test_ptr->transform.vD.x || requested->pos.y != firstLocalPlayer->obj_test_ptr->transform.vD.y || requested->pos.z != firstLocalPlayer->obj_test_ptr->transform.vD.z)) {
+                    (*source->lpVtbl->SetDopplerScale)(source, 1.0f);
+                } else {
+                    (*source->lpVtbl->SetDopplerScale)(source, 0.0f);
+                }
+            }
+            swrSound_Play(source, requested->unk08);
+        } else if (live->priority != 0) {
+            source = live->source;
+            entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);
+            if ((entry->flags & swrSoundDescriptor_STREAMED) == 0 || swrSound_IsStreamingEntry(entry) != 0)
+                swrSound_Rewind(source);
+            live->priority = 0;
+        }
+    }
+
+    if (Sound_enabled_3d != 0) {
+        if (Main_doppler_sound != 0) {
+            invDt = 1.0 / swrRace_deltaTimeSecs;
+            velocity.x = (swrSound_Position.x - swrSound_prevPosition.x) * invDt;
+            velocity.y = (swrSound_Position.y - swrSound_prevPosition.y) * invDt;
+            velocity.z = (swrSound_Position.z - swrSound_prevPosition.z) * invDt;
+            velocityPtr = &velocity;
+        } else {
+            velocityPtr = &swrSound_Velocity;
+        }
+        swrSound_SetVelocity(velocityPtr);
+        swrSound_SetTransforms((rdVector3*)&swrSound_Position, (rdVector3*)&swrSound_Orientation1, (rdVector3*)&swrSound_Orientation2);
+    }
+    swrSound_Flush();
 }
 
 // 0x004277f0

@@ -242,6 +242,7 @@ swrObjHang_unused_unk 0x004bfecc int = -1
 
 swrObjHang_state2 0x004bfedc swrObjHang_STATE = -1
 swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by swrObjHang_F0; idle elmo anim speed
+swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
@@ -561,6 +562,10 @@ rdFace_FogFlagsSupportedByHardware 0x004D79D8 uint32_t
 
 stdDisplay_ScreenshotIndex 0x004d79e4 int
 swrRace_screenshotKeyHeld 0x004d79e8 int # F12 held last poll (swrRace_PollScreenshotKey edge detect)
+swrMain_debugKeyHeld 0x004d79ec int # swrMain_ProcessDebugKeys: a combo fired and is still held (once-per-press latch)
+swrMain_debugNotice 0x004d78d0 char[256] # toggle messages appended by swrMain_ProcessDebugKeys, shown and cleared once a combo fires
+swrMain_savedForceEnabled 0x004d79d0 int # swrConfig_FORCE_ENABLED saved when the Ctrl+J joystick toggle disables the joystick, restored on re-enable
+swrMain_showFpsHud 0x004d79dc int # Ctrl+F11: on-screen FPS / poly-count debug HUD (read by swrMain2_GuiAdvance)
 
 swrUI_caretX 0x004d79f0 int # text-input caret rect, set by swrUI_SetCaretRect
 swrUI_navAxisXPrev 0x004d79f4 int # last swrUI_QuantizeNavAxis x step (swrUI_ProcessNavAxis edge detect)
@@ -866,10 +871,13 @@ swrModel_NumAlreadyByteSwappedMeshMaterials 0x0050C628 int
 swrModel_NumAlreadyByteSwappedMeshTextures 0x0050C62C int
 swrModel_NumAlreadyByteSwappedMaterials 0x0050C630 int
 
+swrSound_Orientation0 0x0050c638 rdVector4 # row 0 of the listener matrix swrSound_Update fills from the active camera (rows 1-3: swrSound_Orientation1/2, swrSound_Position)
 swrSound_Orientation1 0x0050c648 rdVector4
 swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
+swrSound_prevPosition 0x0050c678 rdVector3 # last frame's listener position (doppler velocity)
+swrSound_prevUpdateFlag 0x0050c684 uint8_t # last swrSound_updateFlag seen; a change restarts non-streamed voices
 swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
