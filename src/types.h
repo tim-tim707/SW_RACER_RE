@@ -3010,8 +3010,10 @@ extern "C"
         float tipRadius;
         RdGeometryMode geoMode;
         RdLightMode lightMode;
-        RdFace face;
-        rdVector2* apUVs;
+        RdFace edgeFace; // 0x54
+        RdFace tipFace; // 0x9c
+        rdVector2* apEdgeUVs; // 0xe4
+        rdVector2* apTipUVs; // 0xe8
     } RdPolyline;
 
     // Indy
@@ -3229,7 +3231,7 @@ extern "C"
         GUID guid;
         void* lpConnection;
         int lpConnectionSize;
-    } StdCommConnection; // sizeof(0x41). or 0x8c ?
+    } StdCommConnection; // sizeof(0x118)
 
     typedef struct swrMaterialSlot
     {
