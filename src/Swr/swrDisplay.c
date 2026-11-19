@@ -5,6 +5,7 @@
 #include "swrModel.h"
 
 #include <macros.h>
+#include <stdio.h>
 #include <string.h>
 #include <Engine/rdThing.h>
 #include <Engine/rdroid.h>
@@ -13,11 +14,66 @@
 #include <Primitives/rdModel.h>
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
+#include <Win95/DirectX.h>
+#include <Swr/swrConfig.h>
 
 // 0x00409B10
 BOOL swrDisplay_Open(swrMainDisplaySettings* a1)
 {
-    HANG("TODO");
+    Device3DCaps caps;
+    StdVideoMode mode;
+    int i;
+
+    if (swrConfig_ReadVideoConfig("current") < 0) {
+        swrConfig_SetDefaultVideo();
+        swrConfig_WriteVideoConfig("current");
+    }
+    if (a1->RegFullScreen != 0)
+        swrMainDisplay_windowed = 0;
+
+    if (!stdDisplay_Startup())
+        return 1;
+    if (!stdDisplay_Open(a1->currentDevice))
+        return 1;
+    swrMainDisplay_currentDevice = a1->currentDevice;
+    if (!stdDisplay_SetMode(a1->_3DDeviceIndex, a1->RegFullScreen == 0))
+        return 1;
+    if (stdDisplay_CopyCurrentVideoMode(&mode) != 0)
+        return 1;
+
+    stdDisplayWindow_g.rasterInfo = mode.rasterInfo;
+    if (!swrDisplay_SetWindowSize())
+        Window_SetWindowSize(stdDisplayWindow_g.rasterInfo.width, stdDisplayWindow_g.rasterInfo.height);
+
+    if (!std3D_Startup()) {
+        MessageBoxA(NULL, "Direct3D Failure\n\nNo 3D Hardware Found\n", "Racer Error", 0);
+        sprintf(unknownError_buffer, "ERROR: No 3D Hardware Found.\n%s", std_output_buffer);
+        return 1;
+    }
+
+    for (i = 0; i < (int)(sizeof(swrMaterialSlot_array) / sizeof(swrMaterialSlot_array[0])); i++)
+        swrMaterialSlot_array[i] = NULL;
+
+    // only these three fields are set; the rest of caps is uninitialized stack
+    caps.hasZBuffer = 1;
+    caps.bTexturePerspectiveSupported = 1;
+    caps.bHAL = 1;
+    if (!std3D_GetDeviceCaps(std3D_FindMatching3DDevice(&caps), &caps) || caps.bHAL == 0) {
+        stdDisplay_Close();
+        std3D_Shutdown();
+        stdDisplay_Shutdown();
+        return 1;
+    }
+    if (!std3D_Open(a1->nb3DDevices))
+        return 1;
+
+    rdFace_FogFlagsSupportedByHardware = Direct3d_SetFogMode();
+    direct3d_LensFlareCompatible = Direct3d_IsLensflareCompatible();
+    if (direct3d_LensFlareCompatible == 0) {
+        swrConfig_VIDEO_ENGINEEXHAUST = 0;
+        swrConfig_VIDEO_LENSFLARE = 0;
+    }
+    return rdOpen() == 0;
 }
 
 // 0x00409d00

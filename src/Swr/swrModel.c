@@ -19,6 +19,7 @@
 #include <Primitives/rdVector.h>
 #include <Unknown/rdMatrixStack.h>
 #include <math.h> // fabs
+#include <stdlib.h>
 #include <string.h>
 
 // 0x00408e60
@@ -113,8 +114,91 @@ int swrModel_AllocRootMeshIndex(unsigned int bufferKind)
 // 0x004188b0
 void* swrModel_SplitTextureIntoTiles(void* tex, int bytesPerPixel)
 {
-    HANG("TODO");
-    return NULL;
+    swrSpriteTextureHeader* header = (swrSpriteTextureHeader*)tex;
+    swrSpriteTexturePage* source = header->page_table;
+    short srcWidth = (short)source->width;
+    short srcHeight = (short)source->height;
+    unsigned int tileWidth;
+    unsigned int tileHeight;
+
+    if (srcWidth <= 0x20)
+        tileWidth = 0x20;
+    else if (srcWidth <= 0x40)
+        tileWidth = 0x40;
+    else
+        tileWidth = srcWidth > 0x80 ? 0x100 : 0x80;
+
+    if (srcHeight <= 0x20)
+        tileHeight = 0x20;
+    else if (srcHeight <= 0x40)
+        tileHeight = 0x40;
+    else
+        tileHeight = srcHeight > 0x80 ? 0x100 : 0x80;
+
+    header->unk6 = (unsigned short)tileHeight;
+    unsigned int cols = (tileWidth + srcWidth - 1) / tileWidth;
+    unsigned int rows = (tileHeight + srcHeight - 1) / tileHeight;
+    header->page_count = (unsigned short)(rows * cols);
+    swrSpriteTexturePage* tile = (swrSpriteTexturePage*)malloc((short)header->page_count << 3);
+    header->page_table = tile;
+    void* pixels = (void*)source->offset;
+
+    // tile rows are emitted bottom-up
+    unsigned int y = tileHeight * rows;
+    for (unsigned int row = rows; row != 0; row--) {
+        unsigned int remainingWidth = (short)header->width;
+        int x = 0;
+        for (unsigned int col = cols; col != 0; col--) {
+            unsigned int width = tileWidth < remainingWidth ? tileWidth : remainingWidth;
+            unsigned int height = (short)header->height - (y - tileHeight);
+            if (tileHeight < height)
+                height = tileHeight;
+            swrModel_ExtractTextureTile(tile, pixels, x, y - tileHeight, width, height, bytesPerPixel, (short)header->width);
+            tile++;
+            remainingWidth -= tileWidth;
+            x += tileWidth;
+        }
+        y -= tileHeight;
+    }
+
+    free(pixels);
+    free(source);
+
+    for (unsigned int i = 0; i < (unsigned int)(short)header->page_count; i++) {
+        void* tilePixels = (void*)header->page_table[i].offset;
+        swrModel_ConvertTileToRdMaterial(tex, &header->page_table[i]);
+        swrModel_PopRootMaterial();
+        free(tilePixels);
+    }
+    return tex;
+}
+
+// 0x00418a80
+void* swrModel_ExtractTextureTile(void* outTile, void* src, int x, int y, int tileWidth, int tileHeight, int bytesPerPixel, int srcStride)
+{
+    swrSpriteTexturePage* page = (swrSpriteTexturePage*)outTile;
+    unsigned int pitch = (tileWidth + 1) & ~1u;
+    unsigned int size = pitch * bytesPerPixel * tileHeight;
+    uint8_t* pixels = (uint8_t*)malloc(size);
+    memset(pixels, 0, size);
+
+    if (swrModel_tileReadOneRowUp != 0 && y > 0)
+        y--;
+
+    if (tileHeight != 0) {
+        uint8_t* srcRow = (uint8_t*)src + (srcStride * y + x) * bytesPerPixel;
+        uint8_t* dstRow = pixels;
+        for (int row = tileHeight; row != 0; row--) {
+            memcpy(dstRow, srcRow, (unsigned int)(bytesPerPixel * tileWidth));
+            srcRow += srcStride * bytesPerPixel;
+            dstRow += pitch * bytesPerPixel;
+        }
+    }
+
+    page->width = (unsigned short)tileWidth;
+    page->offset = (uint32_t)pixels;
+    page->height = (unsigned short)tileHeight;
+    return pixels;
 }
 
 // 0x0044b330

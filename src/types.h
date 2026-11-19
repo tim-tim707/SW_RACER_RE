@@ -1859,7 +1859,8 @@ extern "C"
         char unk40[4];
         ColorInfo colorInfo;
         int unk_mat_flag;
-        char unk80[8];
+        int width;
+        int height;
         unsigned int nbTextures;
         int unk8c;
         void* textures_alloc;
@@ -1892,9 +1893,9 @@ extern "C"
         char aName[64];
         int num;
         ColorInfo colorInfo;
+        StdColorFormatType formatType;
         int width;
         int height;
-        char unk[4];
         int curCelNum;
         int numCels;
         tSystemTexture* aTextures;
@@ -1930,6 +1931,24 @@ extern "C"
         uint32_t field_10;
         uint32_t field_14;
     } rdTexinfoHeader;
+
+    typedef struct rdTexinfoExtHeader // follows rdTexinfoHeader when texture_type & 8
+    {
+        uint32_t unk_00;
+        uint32_t unk_04;
+        uint32_t unk_08;
+        uint32_t unk_0c;
+    } rdTexinfoExtHeader; // sizeof(0x10)
+
+    typedef struct rdTextureHeader // per texture in a .mat file
+    {
+        uint32_t width;
+        uint32_t height;
+        uint32_t alpha_en;
+        uint32_t unk_0c;
+        uint32_t unk_10;
+        uint32_t num_mipmaps;
+    } rdTextureHeader; // sizeof(0x18)
 
     typedef struct rdTexinfo // for rdFace
     {

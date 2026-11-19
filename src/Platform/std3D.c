@@ -176,6 +176,37 @@ void std3D_Close(void)
     std3D_bOpen = 0;
 }
 
+// 0x0048a230
+void std3D_GetTextureFormatInfo_Maybe(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey)
+{
+    int format;
+
+    if (formatType == STDCOLOR_FORMAT_RGBA_1BIT_ALPHA) {
+        *outHasColorKey = std3D_aTextureFormats[std3D_RGBAKeyTextureFormat].bColorKey;
+        *outColorKey = std3D_aTextureFormats[std3D_RGBAKeyTextureFormat].pColorKey;
+        format = std3D_RGBAKeyTextureFormat;
+    } else if (formatType == STDCOLOR_FORMAT_RGBA) {
+        *outHasColorKey = std3D_aTextureFormats[std3D_RGBA_TextureFormat].bColorKey;
+        *outColorKey = std3D_aTextureFormats[std3D_RGBA_TextureFormat].pColorKey;
+        format = std3D_RGBA_TextureFormat;
+    } else {
+        // outColorKey is left untouched for RGB
+        *outHasColorKey = 0;
+        format = std3D_RGBTextureFormat;
+    }
+    *outFormat = std3D_aTextureFormats[format].texFormat;
+}
+
+// 0x0048a2d0
+StdColorFormatType std3D_GetTextureFormatClass_Maybe(ColorInfo* format)
+{
+    if (format->alphaBPP == 0)
+        return STDCOLOR_FORMAT_RGB;
+    if (format->alphaBPP != 1)
+        return STDCOLOR_FORMAT_RGBA;
+    return STDCOLOR_FORMAT_RGBA_1BIT_ALPHA;
+}
+
 // 0x0048a2f0
 int std3D_GetNumTextureFormats(void)
 {
