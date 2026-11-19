@@ -3,6 +3,8 @@
 #include "globals.h"
 #include "rdCanvas.h"
 
+#include <Primitives/rdMatrix.h>
+
 #include <macros.h>
 
 // 0x00490b70
@@ -20,7 +22,10 @@ void rdThing_NewEntry(RdThing* prdThing, SithThing* pThing)
 // 0x00490bf0
 void rdThing_Free(RdThing* pThing)
 {
-    HANG("TODO");
+    if (pThing != NULL) {
+        rdThing_FreeEntry(pThing);
+        (*rdroid_hostServices_ptr->free)(pThing);
+    }
 }
 
 // 0x00490c10
@@ -56,5 +61,27 @@ int rdThing_Draw(swrUI_Unk3* param_1, rdMatrix34* identity, void* param_3, int s
 // 0x00490d10
 int rdThing_AccumulateMatrices(RdThing* prdThing, rdModel3HNode* pNode, rdMatrix34* pPlacement)
 {
-    HANG("TODO");
+    rdMatrix34 nodeMatrix;
+    rdVector3 negParentPivot;
+    rdModel3HNode* child;
+    unsigned int i;
+
+    rdMatrix_BuildTranslate34(&nodeMatrix, &pNode->pivot);
+    rdMatrix_PostMultiply34(&nodeMatrix, &prdThing->paJointMatrices[pNode->num]);
+    if (pNode->pParent != NULL) {
+        negParentPivot.x = -pNode->pParent->pivot.x;
+        negParentPivot.y = -pNode->pParent->pivot.y;
+        negParentPivot.z = -pNode->pParent->pivot.z;
+        rdMatrix_PostTranslate34(&nodeMatrix, &negParentPivot);
+    }
+    rdMatrix_Multiply34(&prdThing->paJointMatrices[pNode->num], pPlacement, &nodeMatrix);
+
+    child = pNode->pChild;
+    for (i = 0; i < (unsigned int)pNode->numChildren; i++) {
+        if (prdThing->paJointAmputationFlags[child->num] == 0) {
+            rdThing_AccumulateMatrices(prdThing, child, &prdThing->paJointMatrices[pNode->num]);
+        }
+        child = child->pSibling;
+    }
+    return pNode->numChildren;
 }

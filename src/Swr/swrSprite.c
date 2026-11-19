@@ -9,6 +9,7 @@
 #include "swrObj.h"
 #include "swrText.h"
 #include "swrModel.h"
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1087,19 +1088,303 @@ void swrModel_ConvertIndexedTextureRows(int width, int height, int paddedWidth, 
 }
 
 // 0x00445EE0
-void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char a9, char a10)
+void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char flipSomething, char adjustWidthHeightFlag)
 {
-    // texture_data_ptr is a pointer to actual texture pixel data, and its replaced by a RdMaterial/swrMaterial*
-    void* texture_data = *texture_data_ptr;
-    // *texture_data_ptr = alloc new RdMaterial/swrMaterial
-    HANG("TODO");
+    tVBuffer buffer;
+    tVBuffer* pBuffer = &buffer;
+    uint16_t* palette = (uint16_t*)*palette_ptr;
+    uint8_t* src = (uint8_t*)*texture_data_ptr;
+    char mirrorS = 0;
+    char mirrorT = 0;
+    int rowsDone = 0; // left uninitialized in the original for unknown formats
+    RdMaterial* material;
+    uint16_t* pixels;
+    uint16_t* out;
+    uint16_t* in;
+    unsigned int byteSize;
+    int srcWidth;
+    int srcHeight;
+    int row;
+    int x;
+
+    *texture_data_ptr = NULL;
+    *palette_ptr = NULL;
+    if (src == NULL) {
+        return;
+    }
+
+    material = rdMaterial_Load(".\\data\\default.mat");
+    swrModel_RegisterRootMaterial((unsigned int)src, material);
+    *texture_data_ptr = (swrMaterial*)material;
+
+    srcWidth = orig_width;
+    srcHeight = orig_height;
+    if (adjustWidthHeightFlag & swrTexture_MIRROR_S) {
+        srcWidth = orig_width * 2;
+        mirrorS = 1;
+        if (srcWidth > width) {
+            width = swrSprite_UpperPowerOfTwo(srcWidth);
+        }
+    }
+    if (adjustWidthHeightFlag & swrTexture_MIRROR_T) {
+        srcHeight = orig_height * 2;
+        mirrorT = 1;
+        if (srcHeight > height) {
+            height = swrSprite_UpperPowerOfTwo(srcHeight);
+        }
+    }
+
+    byteSize = height * width * 2;
+    pixels = swrModel_AllocMaterial((unsigned int)src, byteSize);
+    sprintf(material->aName, "Rovermatic");
+    // UV scale floats stored unaligned inside the name, overwriting its terminator
+    *(float*)(material->aName + 10) = (float)srcWidth / (float)width;
+    *(float*)(material->aName + 14) = (float)srcHeight / (float)height;
+    material->num = 0;
+
+    if ((texture_type_a == swrTexelFormat_RGBA && texture_type_b == swrTexelSize_32BIT) || (texture_type_a == swrTexelFormat_PC && (texture_type_b == swrTexelSize_8BIT || texture_type_b == swrTexelSize_32BIT)) || texture_type_a == swrTexelFormat_I || (texture_type_a == swrTexelFormat_IA && texture_type_b == swrTexelSize_4BIT)) {
+        material->colorInfo.colorMode = T_STDCOLOR_RGBA;
+        material->colorInfo.bpp = 16;
+        material->colorInfo.redBPP = 4;
+        material->colorInfo.greenBPP = 4;
+        material->colorInfo.blueBPP = 4;
+        material->colorInfo.alphaBPP = 4;
+        material->colorInfo.redPosShift = 12;
+        material->colorInfo.greenPosShift = 8;
+        material->colorInfo.bluePosShift = 4;
+        material->colorInfo.alphaPosShift = 0;
+        material->colorInfo.RedShr = 4;
+        material->colorInfo.GreenShr = 4;
+        material->colorInfo.BlueShr = 4;
+        material->colorInfo.AlphaShr = 4;
+        material->formatType = STDCOLOR_FORMAT_RGBA;
+    } else {
+        material->colorInfo.colorMode = T_STDCOLOR_RGBA;
+        material->colorInfo.bpp = 16;
+        material->colorInfo.redBPP = 5;
+        material->colorInfo.greenBPP = 5;
+        material->colorInfo.blueBPP = 5;
+        material->colorInfo.alphaBPP = 1;
+        material->colorInfo.redPosShift = 11;
+        material->colorInfo.greenPosShift = 6;
+        material->colorInfo.bluePosShift = 1;
+        material->colorInfo.alphaPosShift = 0;
+        material->colorInfo.RedShr = 3;
+        material->colorInfo.GreenShr = 3;
+        material->colorInfo.BlueShr = 3;
+        material->colorInfo.AlphaShr = 7;
+        material->formatType = STDCOLOR_FORMAT_RGBA_1BIT_ALPHA;
+    }
+    material->width = width;
+    material->height = height;
+    material->curCelNum = 1;
+    material->numCels = 0;
+
+    pBuffer->bSurfaceAllocated = 0;
+    pBuffer->lockSurfRefCount = 0;
+    pBuffer->bVideoMemory = 0;
+    pBuffer->rasterInfo.width = width;
+    pBuffer->rasterInfo.height = height;
+    pBuffer->rasterInfo.size = byteSize;
+    pBuffer->rasterInfo.rowSize = width * 2;
+    pBuffer->rasterInfo.rowWidth = width;
+    pBuffer->rasterInfo.colorInfo = material->colorInfo;
+    pBuffer->pPixels = (BYTE*)pixels;
+    pBuffer->dword5C = 0;
+
+    out = pixels;
+    if (texture_type_a == swrTexelFormat_I && texture_type_b == swrTexelSize_4BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x += 2) {
+                *out++ = (uint16_t)((*src >> 4) * 0x1111);
+                *out++ = (uint16_t)((*src & 0xf) * 0x1111);
+                src++;
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_IA && texture_type_b == swrTexelSize_4BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x += 2) {
+                *out++ = (uint16_t)(((*src & 0xf0) << 8) | 0xfff);
+                *out++ = (uint16_t)(((*src & 0xf) << 12) | 0xfff);
+                src++;
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_I && texture_type_b == swrTexelSize_8BIT) {
+        // only the high nibble of each 8-bit intensity is kept
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                if (flipSomething == 1) {
+                    *out++ = (uint16_t)((*src >> 4) * 0x1111);
+                } else {
+                    *out++ = (uint16_t)(0xf000 | (*src >> 4) * 0x111);
+                }
+                src++;
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_CI && texture_type_b == swrTexelSize_4BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x += 2) {
+                // N64 big-endian RGBA5551 -> little-endian ARGB1555
+                uint16_t color = SWAP16(palette[*src >> 4]);
+                *out++ = (uint16_t)((color >> 1) | (color << 15));
+                color = SWAP16(palette[*src & 0xf]);
+                *out++ = (uint16_t)((color >> 1) | (color << 15));
+                src++;
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_CI && texture_type_b == swrTexelSize_8BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                uint16_t color = SWAP16(palette[*src++]);
+                *out++ = (uint16_t)((color >> 1) | (color << 15));
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_PC && texture_type_b == swrTexelSize_8BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                *out++ = (uint16_t)(((*src++ >> 4) << 12) | 0xfff);
+            }
+            for (; x < width; x++, out++) {
+                *out = out[-1];
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_PC && texture_type_b == swrTexelSize_16BIT) {
+        in = (uint16_t*)src;
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                *out++ = *in++ | 0x8000;
+            }
+            for (; x < width; x++, out++) {
+                *out = out[-1];
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_RGBA && texture_type_b == swrTexelSize_16BIT) {
+        in = (uint16_t*)src;
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                uint16_t color = SWAP16(*in++);
+                *out++ = (uint16_t)((color >> 1) | (color << 15));
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_PC && texture_type_b == swrTexelSize_32BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                uint32_t texel = *(uint32_t*)src;
+                src += 4;
+                *out++ = (uint16_t)(((texel >> 28) << 12) | (((texel >> 20) & 0xf) << 8) | (((texel >> 12) & 0xf) << 4) | ((texel >> 4) & 0xf));
+            }
+            for (; x < width; x++, out++) {
+                *out = out[-1];
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_PC && texture_type_b == swrTexelSize_24BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                // 24-bit texels read with a dword load (one byte past the texel)
+                uint32_t texel = *(uint32_t*)src;
+                src += 3;
+                *out++ = (uint16_t)(0x8000 | (((texel >> 19) & 0x1f) << 10) | (((texel >> 11) & 0x1f) << 5) | ((texel >> 3) & 0x1f));
+            }
+            for (; x < width; x++, out++) {
+                *out = out[-1];
+            }
+            rowsDone = orig_height;
+        }
+    } else if (texture_type_a == swrTexelFormat_RGBA && texture_type_b == swrTexelSize_32BIT) {
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                // big-endian RGBA8888 -> ARGB4444
+                uint32_t texel = SWAP32(*(uint32_t*)src);
+                src += 4;
+                *out++ = (uint16_t)((((texel >> 4) & 0xf) << 12) | (((texel >> 28) & 0xf) << 8) | (((texel >> 20) & 0xf) << 4) | ((texel >> 12) & 0xf));
+            }
+            for (; x < width; x++) {
+                *out++ = 0;
+            }
+            rowsDone = orig_height;
+        }
+    }
+
+    // faithful quirk: padding rows copy from orig_width texels back, not one padded row back
+    for (row = rowsDone; row < height; row++) {
+        for (x = 0; x < width; x++, out++) {
+            *out = out[-orig_width];
+        }
+    }
+
+    if (mirrorS) {
+        uint16_t* dst = pixels + srcWidth - 1;
+        in = pixels;
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < orig_width; x++) {
+                *dst-- = *in++;
+            }
+            dst += width + orig_width;
+            in += width - orig_width;
+        }
+    }
+    if (mirrorT) {
+        uint16_t* dst = pixels + (srcHeight - 1) * width;
+        in = pixels;
+        for (row = 0; row < orig_height; row++) {
+            for (x = 0; x < srcWidth; x++) {
+                *dst++ = *in++;
+            }
+            dst -= srcWidth + width;
+            in += width - srcWidth;
+        }
+    }
+
+    std3D_ClearTexture(material->aTextures);
+    std3D_AllocSystemTexture(material->aTextures, &pBuffer, 1, material->formatType);
 }
 
 // 0x00446C20
 void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr)
 {
-    // calls swrModel_ConvertTextureDataToRdMaterial
-    HANG("TODO");
+    swrModel_MaterialTexture* texture = (swrModel_MaterialTexture*)((char*)texture_data_ptr - offsetof(swrModel_MaterialTexture, texture_data));
+    int origWidth;
+    int origHeight;
+    int width;
+    int height;
+
+    if (texture->specs[0] != NULL) {
+        origWidth = (int16_t)SWAP16(texture->width);
+        origHeight = (int16_t)SWAP16(texture->height);
+        width = swrSprite_UpperPowerOfTwo(origWidth);
+        height = swrSprite_UpperPowerOfTwo(origHeight);
+        // type is still big-endian here: low byte = swrTexelFormat, high byte = swrTexelSize
+        swrModel_ConvertTextureDataToRdMaterial(texture->type & 0xff, texture->type >> 8, origWidth, origHeight, width, height, texture_data_ptr, palette_data_ptr, 1, ((uint8_t*)&texture->specs[0]->flags)[3]);
+    }
+    // back-pointer to the texture header, overwriting the U scale float written above
+    *(swrModel_MaterialTexture**)((*texture_data_ptr)->filename + 10) = texture;
 }
 
 // 0x00446a20

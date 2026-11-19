@@ -119,6 +119,7 @@ iDirectDraw4_error 0x004b4758 int
 swrModel_slotMeshIndexBase 0x004b4760 int[5] = { 0, 100, 4000, 5000, 6000 } # per asset-buffer slot: first root mesh index
 zNearEpsilon 0x004b4774 float = 0.001
 rdModel_sceneNodeDepth 0x0050c6e0 short # scene-graph nesting depth during rdModel_AddNodeToScene; past RDMODEL_SCENE_MAX_DEPTH transformed nodes stop pushing matrices
+rdModel_sceneStateDefaults 0x004c3bd0 uint32_t[13]
 rdModel_nodeTransformsEnabled 0x004c3c04 int # default 1; 0 = the scene walk (rdModel_AddNodeToScene & co.) ignores node transforms and LOD selection (identity matrices, LOD 0)
 
 Main_force_feedback 0x004b4938 int = 1
@@ -924,6 +925,7 @@ rdMatrixStack34_mvpComputed 0x0050c6f8 int # nonzero once PrecomputeMVPMatrices 
 rdModel_LightSelected 0x0050C704 BOOL
 rdModel_CurrentLightIndex 0x0050C708 int
 rdModel_LightingEnabled 0x0050C70C BOOL
+rdModel_sceneNodeYieldCounter 0x0050c710 int # rdModel_AddNodeToScene calls swr_noop2 every 11 visible nodes
 
 spriteViewportMinY 0x0050C734 int
 spriteViewportMaxY 0x0050C738 int
@@ -1312,6 +1314,7 @@ rdModel3_apMeshLights 0x00df7cf8 RdLight*[1] # unk size
 rdModel3_pCurThing 0x00df7ef8 RdThing*
 rdModel3_g_lightingMode 0x00df7efc RdLightMode
 
+rdModel3_pUnloader 0x00df7f04 void(*)(RdModel3*)
 rdModel3_g_numGeoLights 0x00df7f08 int
 rdModel3_g_numMeshLights 0x00df7f0c int
 
@@ -1684,18 +1687,24 @@ repair_upgrade_level 0x00e364fb char
 
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
+rdModel_sceneStateUnusedE 0x00e374c4 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
 
 PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
+rdModel_sceneStateUnusedD 0x00e37524 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneStateUnusedC 0x00e37528 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
 
 PrecomputedModelMatrixPtr 0x00e3752c rdMatrix44*
 rdProcEntry_CurrentColor 0x00E37530 rdVector4
+rdModel_sceneState 0x00e37540 uint32_t[13] # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
 
 rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
 
 rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
+rdModel_sceneStateUnusedA 0x00e67c00 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
 rdModel_CurrentViewport 0x00e67c04 swrViewport*
+rdModel_sceneStateUnusedB 0x00e67c08 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
 
 # 8-voice mixer. swrSound_Update reconciles requested -> live each frame and
 # snapshots live -> backup when the audio output changes. See swrSound struct.

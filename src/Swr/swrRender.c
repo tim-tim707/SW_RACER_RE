@@ -3,6 +3,8 @@
 #include "globals.h"
 #include "swrModel.h"
 
+#include <swr.h>
+
 #include <Engine/rdCamera.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdVector.h>
@@ -11,6 +13,8 @@
 #include <engine_config.h>
 #include <Win95/DirectX.h>
 #include <macros.h>
+
+#include <string.h>
 
 // 0x00409290
 void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh)
@@ -303,13 +307,123 @@ int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node)
 // 0x0044d7c0
 void rdModel_AddNodeToScene(swrModel_Node* a1)
 {
-    HANG("TODO");
+    rdMatrix34 pivotTransform;
+    rdMatrix34* transform;
+    swrModel_Node* child;
+    uint32_t required;
+    int nodeType;
+    int numChildren;
+    int selected;
+    int prevCounter;
+    char state;
+    int i;
+
+    if (a1 == NULL)
+        return;
+    required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+    if ((swrModel_NodeGetFlags1Or2(a1, 2) & required) != required)
+        return;
+    if ((rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(a1, 2)) == 0)
+        return;
+
+    prevCounter = rdModel_sceneNodeYieldCounter++;
+    if (prevCounter > 10) {
+        rdModel_sceneNodeYieldCounter = 0;
+        swr_noop2();
+    }
+
+    nodeType = swrModel_NodeGetFlags(a1);
+    state = rdModel_ApplyNodeSettings((char)a1->flags_5, a1->light_index);
+    switch (nodeType) {
+    case NODE_MESH_GROUP:
+        rdModel_AddMeshGroupToScene((swrModel_NodeMeshGroup*)a1);
+        break;
+    case NODE_BASIC:
+        numChildren = swrModel_NodeGetNumChildren(a1);
+        for (i = 0; i < numChildren; i++) {
+            child = a1->children.nodes[i];
+            required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+            if (child != NULL && (swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+                rdModel_AddNodeToScene(child);
+        }
+        break;
+    case NODE_SELECTOR:
+        numChildren = swrModel_NodeGetNumChildren(a1);
+        selected = ((swrModel_NodeSelector*)a1)->selected_child_node;
+        if (selected == -2)
+            break;
+        if (selected == -1) {
+            for (i = 0; i < numChildren; i++) {
+                child = a1->children.nodes[i];
+                required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+                if (child != NULL && (swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+                    rdModel_AddNodeToScene(child);
+            }
+            break;
+        }
+        if (selected < 0 || selected >= numChildren)
+            break;
+        child = a1->children.nodes[selected];
+        required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+        if (child != NULL && (swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+            rdModel_AddNodeToScene(child);
+        break;
+    case NODE_LOD_SELECTOR:
+        selected = NodeLODSelector_FindLODIndex((swrModel_NodeLODSelector*)a1);
+        if (selected == -1)
+            break;
+        child = a1->children.nodes[selected];
+        required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+        if (child != NULL && (swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+            rdModel_AddNodeToScene(child);
+        break;
+    case NODE_TRANSFORMED:
+        rdModel_AddTransformedNodeToScene(0, &((swrModel_NodeTransformed*)a1)->transform, a1);
+        break;
+    case NODE_TRANSFORMED_WITH_PIVOT:
+        if ((int)swrModel_NodeGetNumChildren(a1) <= 0)
+            break;
+        if (a1->flags_3 & swrModel_NODEFLAGS3_USE_PIVOT) {
+            pivotTransform = ((swrModel_NodeTransformedWithPivot*)a1)->transform;
+            NodeTransformedWithPivot_ApplyTransform(&pivotTransform, &((swrModel_NodeTransformedWithPivot*)a1)->transform, &((swrModel_NodeTransformedWithPivot*)a1)->pivot);
+            transform = &pivotTransform;
+        } else {
+            transform = &((swrModel_NodeTransformedWithPivot*)a1)->transform;
+        }
+        rdModel_AddTransformedNodeToScene(1, transform, a1);
+        break;
+    case NODE_TRANSFORMED_COMPUTED:
+        rdModel_NodeTransformedComputedToScene((swrModel_NodeTransformedComputed*)a1);
+        break;
+    default:
+        break;
+    }
+    rdModel_RevertNodeSettings(state);
 }
 
 // 0x0044dae0
 void rdModel_AddNodeToScene2(swrModel_Node* a1)
 {
-    HANG("TODO");
+    uint32_t nodeType;
+    int numChildren;
+    char state;
+    int i;
+
+    if (a1 == NULL)
+        return;
+    nodeType = swrModel_NodeGetFlags(a1);
+    state = rdModel_ApplyNodeSettings((char)a1->flags_5, a1->light_index);
+    if (nodeType & NODE_HAS_CHILDREN) {
+        numChildren = swrModel_NodeGetNumChildren(a1);
+        for (i = 0; i < numChildren; i++) {
+            if (a1->children.nodes[i] != NULL)
+                rdModel_AddNodeToScene2(a1->children.nodes[i]);
+        }
+    } else if (nodeType & NODE_MESH_GROUP) {
+        // faithful: bit test against the NODE_MESH_GROUP value, not an equality check
+        rdModel_AddMeshGroupToScene2((swrModel_NodeMeshGroup*)a1);
+    }
+    rdModel_RevertNodeSettings(state);
 }
 
 // 0x0044db70
@@ -327,7 +441,26 @@ void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport)
 // 0x0044e000
 void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor)
 {
-    HANG("TODO");
+    Gfx* cursor;
+
+    memcpy(rdModel_sceneState, rdModel_sceneStateDefaults, sizeof(rdModel_sceneState));
+    rdModel_sceneStateUnusedA = -1;
+    rdModel_sceneStateUnusedB = -1;
+    rdModel_sceneStateUnusedC = -1;
+    rdModel_sceneStateUnusedD = 0;
+    rdModel_sceneStateUnusedE = 0;
+    cursor = *displayListCursor;
+    if ((GameSettingFlags & GAME_SETTING_FOG_DISABLED) == 0) {
+        rdFace_SetFogEnabled(1);
+        rdFace_ConfigureFogStartEnd(fogStartInt16, fogEndInt16);
+        Direct3d_ConfigFog2(fogColorInt16[0], fogColorInt16[1], fogColorInt16[2], fogColorInt16[3]);
+        rdCamera_SetLights(0, 1);
+        *displayListCursor = cursor;
+        return;
+    }
+    rdFace_SetFogEnabled(0);
+    rdCamera_SetLights(0, 1);
+    *displayListCursor = cursor;
 }
 
 // 0x0044e0c0
