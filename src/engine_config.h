@@ -315,6 +315,7 @@
 #define SWR_MP_CHAT_INPUT_SIZE (0x400) // swrMultiplayer_chatInput bytes
 #define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
+#define SWR_MP_CHAT_TEXT_MAX (0x80) // chat text length cap in swrMultiplayer_ApplyChat
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 // multiplayer menu elements (swrMultiplayer_Build*UI)
 #define SWR_UI_ID_MP_HOST_BUTTON (0x186a6)
@@ -431,7 +432,11 @@
 // swrMultiplayer_PublishPodState (0x0041d930)
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
+#define SWR_MP_POD_STATE_RECORD_INTS (28) // ints per pod record in the player-states message (swrMultiplayer_ApplyPlayerStates)
 #define SWR_UI_RACE_RESULT_RETIRED (666) // swrUI_unk::sort_key of a retired racer's result row
+
+// sithMulti guaranteed-send queue (sithMulti_aPendingMessages)
+#define SITH_MULTI_MAX_PENDING_MESSAGES (32) // 0x10500 bytes cleared by sithMulti_ResetCallbackState / 0x828
 
 // swrModel_NodeSelectLOD (0x004827b0): LOD picked as if viewed from this fixed distance (0x004ae078)
 #define SWR_MODEL_LOD_SELECT_DISTANCE (20.0f)

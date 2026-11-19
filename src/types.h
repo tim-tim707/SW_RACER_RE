@@ -3159,7 +3159,7 @@ extern "C"
         SithPlayerFlag flags; // 0x84
         DPID playerNetId; // 0x88
         char unk8c[32];
-        unsigned int msecLastCommTime; // 0xac. zeroed when the slot is registered
+        unsigned int pingMs; // 0xac. smoothed ping round trip (swrMultiplayer_ApplyPingReply); zeroed when the slot is registered
     } SithPlayer; // sizeof(0xb0)
 
     typedef struct StdConffileArg
