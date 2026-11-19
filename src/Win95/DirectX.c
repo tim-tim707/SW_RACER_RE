@@ -5,6 +5,9 @@
 #include "stdDisplay.h"
 
 #include <macros.h>
+#include <engine_config.h>
+
+#include <string.h>
 
 extern FILE* hook_log;
 
@@ -37,10 +40,29 @@ void DirectDraw_UnlockZBuffer(void)
 }
 
 // 0x00486a10
-int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance)
+BOOL __stdcall DirectInput_EnumDevice_Callback(LPCDIDEVICEINSTANCEA deviceInstance, LPVOID context)
 {
-    HANG("TODO");
-    return 1;
+    switch ((uint8_t)deviceInstance->dwDevType) {
+    case DIDEVTYPE_MOUSE:
+        if ((unsigned int)DirectInputNbMouses < STDCONTROL_MAX_MOUSE_DEVICES) {
+            memcpy((char*)&DirectInputMouses + DirectInputNbMouses * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            DirectInputNbMouses++;
+        }
+        break;
+    case DIDEVTYPE_KEYBOARD:
+        if ((unsigned int)DirectInputNbKeyboard < STDCONTROL_MAX_KEYBOARD_DEVICES) {
+            memcpy((char*)&DirectInputKeyboards + DirectInputNbKeyboard * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            DirectInputNbKeyboard = 1; // faithful: every keyboard lands in slot 0 or 1
+        }
+        break;
+    case DIDEVTYPE_JOYSTICK:
+        if ((unsigned int)stdControl_numJoystickDevices < STDCONTROL_MAX_JOYSTICK_DEVICES) {
+            memcpy((char*)&DirectInputJoysticks + stdControl_numJoystickDevices * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            stdControl_numJoystickDevices++;
+        }
+        break;
+    }
+    return DIENUM_CONTINUE;
 }
 
 // 0x00486ad0
@@ -256,4 +278,11 @@ HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, vo
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0049d39c
+HRESULT DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter)
+{
+    HANG("TODO");
+    return DIERR_GENERIC;
 }

@@ -85,7 +85,7 @@ int swrText_GetStringHeight(char* text, swrFont* font);
 // Look up one glyph's advance width + height for the font; writes -1 if the glyph is absent.
 void swrText_GetCharSize(char c, void* font, int* outWidth, int* outHeight);
 // Render a string: walks "~" format codes (0-9 = palette color, c = center, r = right-align,
-// k/o/s = strike/outline/shadow, n = newline) and emits the glyph quads for the given pass.
+// k/o/s = thick/outline/shadow, p = plain, n = newline, t = literal '~', b = bold segment) and emits the glyph quads for the given pass.
 void swrText_DrawString(char* text, void* font, short pass);
 
 // Width of a string for a font given by index (wraps swrText_GetStringWidth + font-table lookup).

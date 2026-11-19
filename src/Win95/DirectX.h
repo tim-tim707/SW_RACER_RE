@@ -49,7 +49,7 @@ void DirectDraw_Shutdown(void);
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near, float* far);
 void DirectDraw_UnlockZBuffer(void);
 
-int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance);
+BOOL __stdcall DirectInput_EnumDevice_Callback(LPCDIDEVICEINSTANCEA deviceInstance, LPVOID context);
 
 BOOL DirectPlay_Startup(void);
 

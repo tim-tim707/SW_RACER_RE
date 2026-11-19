@@ -1,4 +1,6 @@
-diDataFormat 0x0049e720 DIDATAFORMAT
+stdControl_dfMouse 0x0049e720 DIDATAFORMAT # c_dfDIMouse
+stdControl_dfJoystick 0x0049d670 DIDATAFORMAT # c_dfDIJoystick
+stdControl_dfKeyboard 0x0049e690 DIDATAFORMAT # c_dfDIKeyboard
 
 swrObjHang_cutsceneTimerEnd 0x004ac778 float
 
@@ -229,6 +231,8 @@ lensFlareColors 0x00e9a6a0 uint8_t[48] # RGB per flare; SetLensFlareSprite
 # swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
 swrText_fonts 0x004bf7e0 swrFont[5]
 
+# "~0".."~9" text colors (RGB) for swrText_DrawString; entries 10-11 are unreferenced
+swrText_paletteColors 0x004bf9e8 uint8_t[12][3]
 currentSpriteColor 0x004BFA0C uint8_t[4]
 
 # extended-character (code > 0x96) compose tables read by swrText_GetStringWidth/Height/DrawString.
@@ -783,6 +787,7 @@ swrText_bboxMinX 0x0050c0a0 int16_t
 swrText_bboxMaxY 0x0050c0a4 int16_t
 swrText_bboxMaxX 0x0050c0a8 int16_t
 swrText_clipEnabled 0x0050c0b0 uint8_t # 1 = scissor glyphs against swrText_clip{Left,Top,Right,Bottom}; set by swrText_RenderEntries1
+swrText_boldSegment 0x0050c0b4 int # with swrText_hasBoldCode set, swrText_DrawString only draws the text after the Nth "~b" (never written in retail: 0)
 swrText_fontCount 0x0050c0c0 int # number of loaded fonts, set by swrText_InitFonts; clamps swrText_SetCurrentFont
 swrText_currentFont 0x0050c0c4 swrFont* # font used by swrText_DrawString/RenderString, set by swrText_SetCurrentFont
 swrText_orientation 0x0050c0c8 int # 0xbf = diagonal UV flip in rdProcEntry_Add2DQuad2; set by swrText_DrawString
@@ -1153,7 +1158,7 @@ Sound_HardwareDetected 0x0050d55c int
 IA3dListener_ptr 0x0050d560 IA3dListener*
 IA3dGeom_ptr 0x0050d564 IA3dListener*
 
-stdControl_aAxisPos 0x0050d568 int[15]
+stdControl_aAxisPos 0x0050d568 int[60] # STDCONTROL_MAX_AXES: joystick bands from 0, mouse X/Y/Z per mouse from STDCONTROL_MOUSE_AXIS_BASE
 
 DirectInputKeyboards 0x0050d658 void*
 
@@ -1163,6 +1168,8 @@ stdControl_aKeyInfos 0x0050e868 int[528]
 
 stdControl_aAxes 0x0050f0a8 StdControlAxis[60]
 
+stdControl_mousePrevX 0x0050f648 int[4] # last raw mouse X/Y per mouse, averaged in by stdControl_ReadMouse
+stdControl_mousePrevY 0x0050f658 int[4]
 stdControl_g_aKeyPressCounter 0x0050f668 int[528]
 stdControl_g_bStartup 0x0050fea8 int
 stdControl_g_bOpen 0x0050feac int

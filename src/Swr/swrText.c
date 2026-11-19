@@ -287,6 +287,31 @@ void swrText_ShowTimedMessage(char* text, float duration)
     }
 }
 
+// 0x0042d720
+void swrText_InitFonts(void)
+{
+    // conversion order is retail's: fonts 3, 0, 1, 2, 4
+    static const int order[] = { 3, 0, 1, 2, 4 };
+    uint8_t* palette = NULL;
+    int f;
+    int i;
+
+    for (f = 0; f < (int)(sizeof(order) / sizeof(order[0])); f++) {
+        swrFont* font = &swrText_fonts[order[f]];
+        for (i = 0; i < font->pageCount; i++)
+            swrModel_ConvertTextureDataToRdMaterial(swrTexelFormat_IA, swrTexelSize_4BIT, SWR_FONT_PAGE_WIDTH, SWR_FONT_PAGE_HEIGHT, SWR_FONT_PAGE_WIDTH, SWR_FONT_PAGE_HEIGHT, &font->pages[i], &palette, 1, 0);
+    }
+    swrText_fontCount = SWR_FONT_SLOT_COUNT;
+    swrText_fontsByIndex[0] = &swrText_fonts[3];
+    swrText_fontsByIndex[1] = &swrText_fonts[2];
+    swrText_fontsByIndex[2] = &swrText_fonts[1];
+    swrText_fontsByIndex[3] = &swrText_fonts[2];
+    swrText_fontsByIndex[4] = &swrText_fonts[4];
+    swrText_fontsByIndex[5] = &swrText_fonts[3];
+    swrText_fontsByIndex[6] = &swrText_fonts[0];
+    swrText_currentFont = &swrText_fonts[3];
+}
+
 // 0x0042d8d0
 void swrText_SetCurrentFont(int fontIndex)
 {
@@ -667,10 +692,219 @@ void swrText_CreateTimeEntryPrecise(int x, int y, float time, int r, int g, int 
     swrText_CreateTextEntry1(x, y, r, g, b, a, buffer);
 }
 
+typedef struct swrTextQuad
+{
+    short originX;
+    short originY;
+    short width;
+    short height;
+    short u;
+    short v;
+} swrTextQuad;
+
+static void swrText_LoadQuad(swrTextQuad* quad, const swrTextGlyph* glyph)
+{
+    quad->originX = glyph->originX;
+    quad->originY = glyph->originY;
+    quad->width = glyph->width;
+    quad->height = glyph->height;
+    quad->u = glyph->u;
+    quad->v = glyph->v;
+}
+
+static void swrText_EmitQuad(short x, short y, const swrTextQuad* quad)
+{
+    // faithful: retail also pushes the glyph's unk01 (0 when font->unk00 is set) as an ignored 9th argument
+    rdProcEntry_Add2DQuad2(x, y, quad->originX, quad->originY, quad->width, quad->height, quad->u, quad->v);
+}
+
+// black "~o" outline / "~s" shadow / "~k" thick quads drawn under a glyph
+static void swrText_EmitStyleQuads(short x, short y, int outline, int shadow, int thick, const swrTextQuad* quad)
+{
+    if (outline) {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitQuad(x - 1, y - 1, quad);
+        swrText_EmitQuad(x + 1, y + 1, quad);
+        swrText_EmitQuad(x + 1, y - 1, quad);
+        swrText_EmitQuad(x - 1, y + 1, quad);
+        swrText_EmitQuad(x - 1, y, quad);
+        swrText_EmitQuad(x + 1, y, quad);
+        swrText_EmitQuad(x, y - 1, quad);
+        swrText_EmitQuad(x, y + 1, quad);
+    } else if (shadow) {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitQuad(x + 1, y + 1, quad);
+    } else if (thick) {
+        rdProcEntry_SetCurrentColor(0, 0, 0, 0, 0, currentSpriteColor[3]);
+        swrText_EmitQuad(x - 1, y, quad);
+        swrText_EmitQuad(x + 1, y, quad);
+        swrText_EmitQuad(x, y - 1, quad);
+        swrText_EmitQuad(x, y + 1, quad);
+    } else {
+        return;
+    }
+    rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+}
+
 // 0x0042e150
 void swrText_DrawString(char* text, void* font, short pass)
 {
-    HANG("TODO");
+    swrFont* f = (swrFont*)font;
+    short startX = currentTextPosX;
+    short x = currentTextPosX;
+    short y = currentTextPosY;
+    int outline = 0;
+    int shadow = 0;
+    int thick = 0;
+    int boldSegment = 0;
+    int i = 0;
+    // retail leaves these uninitialized; a glyph with u == -1 reuses the previous glyph's quad
+    swrTextQuad quad = { 0 };
+    swrTextQuad extQuad = { 0 };
+    short extX = 0;
+    short extY = 0;
+
+    swrText_BindFontPage(font, pass);
+    while (text[i] != '\0' && boldSegment <= swrText_boldSegment) {
+        uint8_t c = text[i];
+        uint16_t advance = 0;
+        short page;
+        short extPage = SWR_TEXT_PAGE_NO_ACCENT;
+
+        swrText_orientation = c;
+        if (c == '~') {
+            char code;
+            i++;
+            code = text[i];
+            switch (code) {
+            case '0':
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7':
+            case '8':
+            case '9':
+                c = 0;
+                swrSprite_setCurrentSpriteColor(swrText_paletteColors[code - '0'][0], swrText_paletteColors[code - '0'][1], swrText_paletteColors[code - '0'][2], currentSpriteColor[3]);
+                rdProcEntry_SetCurrentColor(0, 0, currentSpriteColor[0], currentSpriteColor[1], currentSpriteColor[2], currentSpriteColor[3]);
+                break;
+            case 'b':
+                boldSegment++;
+                c = 0;
+                break;
+            case 'c':
+                c = 0;
+                x = startX - swrText_GetStringWidth(text + i + 1, swrText_currentFont) / 2;
+                currentTextPosX = x;
+                break;
+            case 'k':
+                thick = !thick;
+                c = 0;
+                break;
+            case 'n':
+                c = 0;
+                currentTextPosX = startX;
+                x = startX;
+                y += f->lineHeight;
+                break;
+            case 'o':
+                outline = !outline;
+                c = 0;
+                break;
+            case 'p':
+                shadow = 0;
+                outline = 0;
+                thick = 0;
+                c = 0;
+                break;
+            case 'r':
+                c = 0;
+                x = startX - swrText_GetStringWidth(text + i + 1, swrText_currentFont);
+                currentTextPosX = x;
+                break;
+            case 's':
+                shadow = !shadow;
+                c = 0;
+                break;
+            case 't':
+                c = '~';
+                break;
+            case '~':
+                c = 0; // faithful: "~~" draws nothing (GetStringWidth counts it as a '~'); "~t" is the literal
+                break;
+            default:
+                c = code;
+                break;
+            }
+        }
+
+        if (swrText_hasBoldCode == 0 || boldSegment == swrText_boldSegment) {
+            // extended (accented) characters: draw the accent glyph, then fall through to the base char
+            if (c > 0x96 && f->extGlyphs != NULL && swrText_extCharComposeIndex[c - 0x97] != 0xff) {
+                int row = swrText_extCharComposeIndex[c - 0x97] * 2;
+                uint8_t slot = swrText_extCharComposePairs[row];
+                if (slot != 0xff) {
+                    swrTextGlyph* glyph = &f->extGlyphs[slot];
+                    if (glyph->u == -1) {
+                        extPage = SWR_TEXT_PAGE_NONE;
+                    } else {
+                        extPage = glyph->page;
+                        swrText_LoadQuad(&quad, glyph);
+                    }
+                    extQuad = quad;
+                    extX = x;
+                    extY = y;
+                    if (extPage == pass)
+                        swrText_EmitStyleQuads(x, y, outline, shadow, thick, &quad);
+                    c = swrText_extCharComposePairs[row + 1];
+                    if (c == 0xff) {
+                        advance = glyph->advance;
+                        c = 0;
+                    }
+                } else {
+                    c = swrText_extCharComposePairs[row + 1];
+                    if (c == 0xff)
+                        c = 0;
+                }
+            }
+
+            if (c == 0) {
+                page = SWR_TEXT_PAGE_NONE;
+            } else {
+                if (c == '_')
+                    c = ' ';
+                if (c >= 'a' && c <= 'z' && f->lastChar < 'a')
+                    c -= 'a' - 'A';
+                if (f->glyphs != NULL && c >= f->firstChar && c <= f->lastChar) {
+                    swrTextGlyph* glyph = &f->glyphs[c - f->firstChar];
+                    advance = glyph->advance;
+                    if (glyph->u == -1) {
+                        page = SWR_TEXT_PAGE_NONE;
+                    } else {
+                        page = glyph->page;
+                        swrText_LoadQuad(&quad, glyph);
+                    }
+                } else {
+                    page = SWR_TEXT_PAGE_NONE;
+                    advance = 0;
+                }
+            }
+
+            if (c != 0 && page == pass) {
+                swrText_EmitStyleQuads(x, y, outline, shadow, thick, &quad);
+                swrText_EmitQuad(x, y, &quad);
+            }
+            if (extPage == pass)
+                swrText_EmitQuad(extX, extY, &extQuad);
+            x += advance;
+        }
+        i++;
+    }
+    previousTextPosX = x;
+    previousTextPosY = y;
 }
 
 // 0x0042ec50
@@ -733,7 +967,7 @@ void swrText_SetupGlyph(char c)
     // fonts without lowercase glyphs draw lowercase as uppercase
     if (c >= 'a' && c <= 'z' && font->lastChar < 'a')
         c = c + ('A' - 'a');
-    page = -2;
+    page = SWR_TEXT_PAGE_NONE;
     if (font->glyphs != NULL && c >= font->firstChar && c <= font->lastChar) {
         glyph = &font->glyphs[c - font->firstChar];
         if (glyph->u != -1) {
