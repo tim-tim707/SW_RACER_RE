@@ -3181,6 +3181,15 @@ extern "C"
         unsigned int pingMs; // 0xac. smoothed ping round trip (swrMultiplayer_ApplyPingReply); zeroed when the slot is registered
     } SithPlayer; // sizeof(0xb0)
 
+    // One host-coordinated ready barrier (swrMultiplayer_readyBarriers[slot]); slot 1 = pre-race
+    // "Waiting for racers...", slot 2 = the "Go Go Go..." ack.
+    typedef struct swrMultiplayerReadyBarrier
+    {
+        swrMultiplayer_ReadyBarrierState state; // 0x0
+        unsigned int readyMask; // 0x4. bit per playerNumber
+        int sent; // 0x8. local ready flag already sent this round
+    } swrMultiplayerReadyBarrier; // sizeof(0xc)
+
     typedef struct StdConffileArg
     {
         char* argName;

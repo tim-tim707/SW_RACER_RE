@@ -41,3 +41,8 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out);
 // 1/125. Hooks swrUI_Menu_MpRaceSetup; defers every non-laps message to the original handler.
 int swrUI_Menu_MpRaceSetup_delta(swrUI_unk *self, unsigned int msg, void *element,
                                  swrUI_unk *widget);
+
+// Ready barrier re-arm guard (see the .cpp). Hooked by address.
+void swrMultiplayer_InitPlayerStatus_delta(int slot);
+int swrMultiplayer_PollPlayerStatus_delta(int slot);
+int swrMultiplayer_ApplyReadyMask_delta(void *message);

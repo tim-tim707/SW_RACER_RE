@@ -4823,6 +4823,13 @@ typedef enum SithPlayerFlag
     SITH_PLAYER_UNKNOWN_04 = 0x4,
 } SithPlayerFlag;
 
+typedef enum swrMultiplayer_ReadyBarrierState
+{
+    swrMultiplayer_READY_BARRIER_IDLE = 0, // cleared; Poll passes, SetPlayerStatusBit sends nothing
+    swrMultiplayer_READY_BARRIER_ARMED = 1, // InitPlayerStatus; waiting for every active player
+    swrMultiplayer_READY_BARRIER_RELEASED = 2, // all ready (host) or 0x2e received (client)
+} swrMultiplayer_ReadyBarrierState;
+
 typedef enum RdroidFlags
 {
     RDROID_BACKFACE_CULLING_ENABLED = 0x1,
