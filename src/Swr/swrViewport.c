@@ -532,13 +532,34 @@ void swrViewport_Setup(int viewportIndex)
         vp->unk130 = (short)(65536.0 / vp->unk13c);
 }
 
-// Deferred: decoded, but the scene path it calls (rdModel_BuildAndDrawScene /
-// rdModel_SetupSceneFogAndLights_Maybe) is not reimplemented yet, so a real body
-// would not link into dinput_hook (the reimpl set must stay call-closed).
+// In splitscreen, shows swrModel_Node2 (and Node4) only in viewport 1 and Node1/Node3 only in the
+// others, then draws the viewport's scene.
 // 0x00483A90
 void swrViewport_Render(int x)
 {
-    HANG("TODO");
+    if (swrObjJdge_splitscreenActive != 0) {
+        if (x == 1) {
+            if (swrModel_Node1 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node1, 2, -4, 0x10, 3);
+            if (swrModel_Node3 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node3, 2, -4, 0x10, 3);
+            if (swrModel_Node2 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node2, 2, 3, 0x10, 2);
+            if (swrModel_Node4 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node4, 2, 3, 0x10, 2);
+        } else {
+            if (swrModel_Node1 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node1, 2, 3, 0x10, 2);
+            if (swrModel_Node3 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node3, 2, 3, 0x10, 2);
+            if (swrModel_Node2 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node2, 2, -4, 0x10, 3);
+            if (swrModel_Node4 != NULL)
+                swrModel_NodeModifyFlags(swrModel_Node4, 2, -4, 0x10, 3);
+        }
+    }
+    rdModel_SetupSceneFogAndLights_Maybe(&swrRender_displayListCursor);
+    rdModel_BuildAndDrawScene(&swrRender_displayListCursor, &swrViewport_array[x]);
 }
 
 // 0x00483BB0

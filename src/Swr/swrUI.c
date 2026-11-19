@@ -2882,6 +2882,59 @@ void swrUI_DrawCaret(void)
     swrSprite_SetFlag(SWR_UI_CARET_SPRITE_ID, swrSprite_FLAG_UNK_10000);
 }
 
+// Decodes count TGA RLE elements of elementSize bytes into dest; -1 when a packet header can't be read.
+// 0x00418700
+int ReadRLEData(void* file, void* dest, int elementSize, int count)
+{
+    uint8_t* out = (uint8_t*)dest;
+    uint8_t packet;
+    uint8_t value8;
+    uint16_t value16;
+    uint32_t value32;
+    int run;
+    int i;
+
+    if (count < 1)
+        return 0;
+    do {
+        if (stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &packet, 1) == 0)
+            return -1;
+        run = (packet & SWR_TGA_RLE_COUNT_MASK) + 1;
+        count -= run;
+        if ((packet & SWR_TGA_RLE_RUN_PACKET) == 0) {
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, out, run * elementSize);
+            out += run * elementSize;
+            continue;
+        }
+        switch (elementSize) {
+        case 1:
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &value8, 1);
+            memset(out, value8, run);
+            out += run;
+            break;
+        case 2:
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &value16, 2);
+            for (i = 0; i < run; i++, out += 2)
+                memcpy(out, &value16, 2);
+            break;
+        case 3:
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &value8, 1);
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &value16, 2);
+            for (i = 0; i < run; i++, out += 3) {
+                out[0] = value8;
+                memcpy(out + 1, &value16, 2);
+            }
+            break;
+        case 4:
+            stdPlatform_hostServices_ptr->fileRead((stdFile_t)file, &value32, 4);
+            for (i = 0; i < run; i++, out += 4)
+                memcpy(out, &value32, 4);
+            break;
+        }
+    } while (count > 0);
+    return 0;
+}
+
 // 0x00418b70
 void swrUI_ClearGroupChecked(swrUI_unk* ui)
 {

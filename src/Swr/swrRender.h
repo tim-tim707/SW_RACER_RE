@@ -76,13 +76,13 @@ void rdModel_AddNodeToScene(swrModel_Node* a1);
 void rdModel_AddNodeToScene2(swrModel_Node* a1);
 
 // Builds and draws the full scene: allocates the shared root model and pools, walks the viewport root, and renders it.
-void rdModel_BuildAndDrawScene(int* outAccum, swrViewport* viewport);
+void rdModel_BuildAndDrawScene(Gfx** displayListCursor, swrViewport* viewport);
 
 // Builds the scene without drawing it, walking the viewport root in an accumulation pass (best guess).
 void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport);
 
 // Initializes scene fog and light globals and enables or disables fog and the primary light (best guess).
-void rdModel_SetupSceneFogAndLights_Maybe(int* state);
+void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor);
 
 // Toggles the fog-disable game-setting flag (best guess).
 void rdModel_SetFogEnabled_Maybe(int enable);

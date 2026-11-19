@@ -448,6 +448,15 @@
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
+
+// swrDisplay_SetSettingsFromRegistry (0x00424180): registry fallbacks + the only bpp FindMatchingVideoMode accepts
+#define SWR_DISPLAY_DEFAULT_WIDTH (640)
+#define SWR_DISPLAY_DEFAULT_HEIGHT (480)
+#define SWR_DISPLAY_BPP (16)
+
+// swrSprite_GetTextureFromTGA (0x004114d0)
+#define SWR_TGA_HEADER_SIZE (18)
+#define SWR_TGA_IMAGE_TYPE_RLE_FIRST (9) // image types 9..11 are run-length encoded
 #define SWR_UI_PAGE_TRANSITION_STAGGER (250) // swrUI_StartPageTransition: per-child delay of the vertical drop
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
 #define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
@@ -496,6 +505,9 @@
 // swrModel_PointInTriangle2 (0x00480a70): degenerate-cross thresholds on |x|+|y|+|z|
 #define SWR_MODEL_TRI_CROSS_EPS (1e-4f) // 0x004adfbc
 #define SWR_MODEL_TRI_ON_EDGE_EPS (0.001f) // 0x004adfc8
+// swrModel_FindClosestPointOnModel (0x00482c40)
+#define SWR_MODEL_CLOSEST_POINT_MAX_DEPTH (20) // swrModel_closestPointNodeStack length (maxNodeDepth clamp)
+#define SWR_MODEL_CLOSEST_POINT_START_DIST_SQ (100000000.0f) // initial minDistSq (0x4cbebc20)
 
 // sithMessage_SendMessage idTo that sithMessage_NetWrite fans out to every active player
 #define SITH_MESSAGE_TO_ALL ((DPID)0xffffffff)
