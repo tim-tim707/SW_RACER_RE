@@ -1390,6 +1390,7 @@ stdEffect_fadeFactor 0x00dfaa48 tStdFadeFactor # returned by stdEffect_GetFadeFa
 
 rdCache_aVertices 0x009630d0 rdVector3[]
 
+rdCache_numHWVertices 0x00a530d0 int # rdCache_SendFaceListToHardware batch vertex count
 rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
