@@ -1310,19 +1310,20 @@ rdMaterial_pMaterialUnloader 0x00deb10c void*
 rdModel3_pCurGeoSet 0x00deb110 rdModel3GeoSet*
 
 rdModel3_g_localCamera 0x00deb118 rdVector3
+rdModel3_aClippedVerts 0x00deb128 rdVector3[80]
 
-rdModel3_g_apGeoLights 0x00deb4e8 RdLight*[1] # unk size
+rdModel3_g_apGeoLights 0x00deb4e8 rdLight*[128]
 
-rdModel3_g_aLocalLightPos 0x00deb6e8 rdVector3[1] # unk size
+rdModel3_g_aLocalLightPos 0x00deb6e8 rdVector3[128]
 
-rdModel3_aView 0x00debce8 rdVector3[1] # unk size
+rdModel3_aView 0x00debce8 rdVector3[4096]
 
 rdModel3_g_pCurMesh 0x00df7ce8 rdModel3Mesh*
 rdModel3_pCurModel 0x00df7cec RdModel3*
 
 rdroid_g_curLightingMode2 0x00df7cf0 RdLightMode
 
-rdModel3_apMeshLights 0x00df7cf8 RdLight*[1] # unk size
+rdModel3_apMeshLights 0x00df7cf8 rdLight*[128]
 
 rdModel3_pCurThing 0x00df7ef8 RdThing*
 rdModel3_g_lightingMode 0x00df7efc RdLightMode
@@ -1332,11 +1333,17 @@ rdModel3_g_numGeoLights 0x00df7f08 int
 rdModel3_g_numMeshLights 0x00df7f0c int
 
 rdFace_FogFlags 0x00DF7F18 int
+rdModel3_curLightSet 0x00df7f1c uint8_t
 
 rdCamera_camRotation 0x00df7f20 rdVector3
 rdCamera_pCurCamera 0x00df7f2c rdCamera*
 bRDroidStartup 0x00df7f30 int
 rdroid_bRDroidOpen 0x00df7f34 int
+
+# rdClip_Face3T_Maybe light gather: per-face-vertex intensities, destination and source vertex lights
+rdClip_face3TIntensities 0x00df7f78 rdVector4*
+rdClip_face3TDstLights 0x00df7f7c rdVector4*
+rdClip_face3TSrcLights 0x00df7f80 rdVector4*
 
 rdFont_bStartup 0x00df7fd0 int
 rdFont_bOpen 0x00df7fd4 int
@@ -1345,7 +1352,7 @@ rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
 
 rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 
-rdParticle_aTransformedVertices 0x00df8b20 rdVector3
+rdParticle_aTransformedVertices 0x00df8b20 rdVector3[256]
 
 # rdClip Sutherland-Hodgman scratch buffers + ping-pong pointers (shared by the rdClip_Face3* family)
 rdClip_pSrcTexVerts 0x00df9ea8 rdVector2*
@@ -2108,8 +2115,9 @@ std_output_buffer 0x00ecbc20 char[0x800]
 stdPlatform_hostServices_ptr 0x00ecc420 HostServices*
 rdroid_g_curLightingMode 0x00ecc424 RdLightMode
 rdroid_hostServices_ptr 0x00ecc428 HostServices*
-rdCamera_screen_width 0x00ecc42c float
+rdCamera_screen_width 0x00ecc42c int
 rdroid_g_curGeometryMode 0x00ecc430 RdGeometryMode
+rdCamera_bMirrorX 0x00ecc434 int
 
 rdroid_g_curRenderOptions 0x00ecc438 RdroidFlags
 
@@ -2118,11 +2126,8 @@ rdCamera_camMatrix 0x00ecc440 rdMatrix34
 rdModel3_g_numDrawnFaces 0x00ecc470 int
 rdModel3_g_numDrawnAlphaFaces 0x00ecc474 int # unused
 
-# nbVertexBuffer1 0x00ecc480 # x1 from clipping ??
-
-VertexBuffer1 0x00ecc48c rdVector3*
-
-VertexBuffer1_projected 0x00ecc49c rdVector3*
+rdModel3_clipDst 0x00ecc480 rdMeshinfo
+rdModel3_clipSrc 0x00ecc4a0 rdMeshinfo
 
 # swrWeather particle effect (rain/snow/dust) -- see src/Swr/swrWeather.h
 swrWeather_enabled 0x004b9520 uint8_t

@@ -32,9 +32,9 @@ int rdClip_Face3T(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTe
 int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2* aTexVertices, rdVector4* aIntensities, int numVertices);
 
 // Tests a face against the perspective frustum planes, returning the vertex count to keep or zero to reject (best guess).
-int rdClip_Face3TTestFrustum_Maybe(float* frustum, int* face);
+int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc);
 
-// Clips a textured-gouraud face against one frustum plane, interpolating crossings into the output (best guess).
-void rdClip_Face3TClipPlane_Maybe(int* frustum, int* face, int* out);
+// Clips a textured-gouraud face against the near plane, interpolating crossings into the output; returns the output count.
+int rdClip_Face3TClipPlane_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst);
 
 #endif // RDCLIP_H

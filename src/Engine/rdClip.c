@@ -1980,3 +1980,15 @@ int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2*
     }
     return numOut;
 }
+
+// 0x0049c810
+int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
+{
+    HANG("TODO");
+}
+
+// 0x0049c9f0
+int rdClip_Face3TClipPlane_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst)
+{
+    HANG("TODO");
+}

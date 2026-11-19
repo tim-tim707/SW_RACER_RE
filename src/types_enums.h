@@ -4127,6 +4127,7 @@ typedef enum RdFaceFlag
     RD_FF_UNKNOWN_80 = 0x80,
     RD_FF_FOG_ENABLED = 0x100,
     RD_FF_3DO_WHIP_AIM = 0x200,
+    RD_FF_NEAR_PLANE = 0x400, // rdModel3_DrawFace pins every clipped vertex to the frustum zNear
     RD_FF_MIRRORED = 0x800, // swrModel_MESH_MATERIAL_MIRRORED one-sided meshes (rdModel_AddMeshGroupToScene*)
 } RdFaceFlag;
 

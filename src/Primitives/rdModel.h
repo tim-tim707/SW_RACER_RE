@@ -28,7 +28,7 @@ int rdModel3_Draw(RdThing* pThing, rdMatrix34* pPlacement);
 void rdModel3_DrawHNode(rdModel3HNode* pNode);
 // Prototype differ from both jkdf and Indy with 2 additional parameters
 void rdModel3_DrawMesh(rdModel3Mesh* pMesh, rdMatrix34* pOrient, rdMatrix34* pOrient2, int numVerts2);
-void rdModel3_DrawFace(RdFace* pFace, rdVector3* aTransformedVertices, int bIsBackFace, rdVector4* pMeshColor, void* unk5);
+int rdModel3_DrawFace(RdFace* pFace, int bIsBackFace, rdVector4* pMeshColor, float uvOffsetU, float uvOffsetV);
 
 void  rdModel3_SetFogFlags(int);
 
