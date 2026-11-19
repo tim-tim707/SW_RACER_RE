@@ -71,6 +71,23 @@ typedef enum swrModel_MeshMaterialType
     swrModel_MESH_MATERIAL_MIRRORED = 0x40, // one-sided, mirrored
 } swrModel_MeshMaterialType;
 
+// swrModel_MaterialTextureChild::flags byte 3: N64 texture wrap mode (G_TX_MIRROR/G_TX_CLAMP), t low nibble, s high
+typedef enum swrModel_TextureWrap
+{
+    swrModel_TEXWRAP_T_MIRROR = 0x1,
+    swrModel_TEXWRAP_T_CLAMP = 0x2,
+    swrModel_TEXWRAP_S_MIRROR = 0x10,
+    swrModel_TEXWRAP_S_CLAMP = 0x20,
+} swrModel_TextureWrap;
+
+// swrModel_Material::render_mode_1/2 bits (N64 gDPSetRenderMode)
+typedef enum swrModel_N64RenderMode
+{
+    N64_RM_Z_CMP = 0x10,
+    N64_RM_Z_UPD = 0x20,
+    N64_RM_ZMODE_XLU = 0x800,
+} swrModel_N64RenderMode;
+
 // rdModel3Mesh::colorFlags (rdModel3Mesh_ApplySwrModelColors)
 typedef enum rdModel3MeshColorFlag
 {
@@ -4217,6 +4234,12 @@ typedef enum RdKeyMarkerType
     RDKEYMARKER_LEFTHAND = 34,
     RDKEYMARKER_RIGHTHAND = 35,
 } RdKeyMarkerType;
+
+typedef enum RdKeyframeNodeEntryFlag
+{
+    RDKEYFRAME_ENTRY_TRANSLATE = 0x1, // pos advances by dpos per frame
+    RDKEYFRAME_ENTRY_ROTATE = 0x2, // rot advances by drot per frame
+} RdKeyframeNodeEntryFlag;
 
 typedef enum RdKeyframeFlag
 {

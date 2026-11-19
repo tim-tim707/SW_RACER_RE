@@ -277,6 +277,7 @@
 // swrConfig_ControlToString (0x00407b00): DIK scan code -> GetKeyNameText lParam bits 16..24
 #define SWR_DIK_EXTENDED_BIT (0x80)
 #define SWR_DIK_SCANCODE_MASK (0x7f)
+#define WINDOW_KEY_SCANCODE_EXT_MASK (0x1ff) // WM_KEY* lParam high word: 8-bit scan code + extended-key bit
 #define SWR_TEXTURE_BUFFER_SIZE (1700) // texture_buffer entries; swrAssetBuffer_InvalidateTexturesBelow scans them all
 
 // swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
@@ -551,6 +552,13 @@
 #define RD_TEXEL_5551_ALPHA_MASK (0x8000)
 // rdMaterial_LoadEntry (0x0048e6d0)
 #define RD_MATERIAL_FILE_REVISION (0x32) // rdMaterialHeader.revision accepted
+
+// rdPuppet_BuildJointMatrices (0x00493310)
+#define RDPUPPET_MAX_TRACKS (8) // RdPuppet::aTracks length
+
+// rdModel_ConvertSwrModelMesh (0x00432d30)
+#define RDMODEL_CONVERT_MAX_FACES (2047) // stack face array, fills the 0x2404c-byte frame
+#define N64_CCMUX_PRIMITIVE (3) // swrModel_Material combine-mode mux byte selecting the primitive color
 
 // DirectDraw/Direct3D enumeration tables (DirectDraw_EnumDisplayModes_Callback, Direct3d_Enum*_Callback)
 #define STD_DISPLAY_MAX_VIDEO_MODES (64) // stdDisplay_aVideoModes length

@@ -52,6 +52,22 @@ HRESULT a3d_CoInitialize(void)
 // 0x0049e970
 HRESULT a3d_CoCreateInstance(GUID* null, IA3d4** ia3d, LPUNKNOWN null2, DWORD features)
 {
-    HANG("TODO");
-    return 0;
+    IA3d4* pA3d;
+
+    pA3d = NULL;
+    if (ia3d == NULL)
+        return E_INVALIDARG;
+    *ia3d = NULL;
+    a3d_CoInitialize();
+    HRESULT res = CoCreateInstance(&A3dApi_GUID, null2, CLSCTX_INPROC_SERVER, &IID_Ia3d4_GUID, (void**)&pA3d);
+    if (FAILED(res))
+        return res;
+    if (pA3d == NULL)
+        return E_FAIL;
+    if (FAILED(pA3d->lpVtbl->Init(pA3d, null, features, 0))) {
+        pA3d->lpVtbl->Release(pA3d);
+        return E_FAIL;
+    }
+    *ia3d = pA3d;
+    return S_OK;
 }
