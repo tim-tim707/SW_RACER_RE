@@ -5075,4 +5075,29 @@ typedef enum swrMultiplayer_READY
     swrMultiplayer_READY_ALL = 2, // every active player's bit is set in readyMask
 } swrMultiplayer_READY;
 
+typedef enum swrTexelFormat
+{
+    swrTexelFormat_RGBA = 0, // N64 G_IM_FMT_*
+    swrTexelFormat_CI = 2,
+    swrTexelFormat_IA = 3,
+    swrTexelFormat_I = 4,
+    swrTexelFormat_PC = 5, // PC-only formats, little-endian source data
+} swrTexelFormat;
+
+typedef enum swrTexelSize
+{
+    swrTexelSize_4BIT = 0,
+    swrTexelSize_8BIT = 1,
+    swrTexelSize_16BIT = 2,
+    swrTexelSize_32BIT = 3,
+    swrTexelSize_24BIT = 7, // swrTexelFormat_PC only
+} swrTexelSize;
+
+// swrModel_ConvertTextureDataToRdMaterial adjustWidthHeightFlag (byte 3 of specs[0]->flags)
+typedef enum swrTexture_MIRROR
+{
+    swrTexture_MIRROR_T = 0x1,
+    swrTexture_MIRROR_S = 0x10,
+} swrTexture_MIRROR;
+
 #endif // TYPES_ENUMS_H

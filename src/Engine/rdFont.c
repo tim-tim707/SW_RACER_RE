@@ -5,12 +5,13 @@
 #include <macros.h>
 
 // 0x00493df0
-void rdFont_Startup(void)
+int rdFont_Startup(void)
 {
     if (rdFont_bStartup != 0) {
-        return;
+        return -2;
     }
     rdFont_bStartup = 1;
+    return 0;
 }
 
 // 0x00493e10

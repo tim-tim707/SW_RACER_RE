@@ -59,7 +59,22 @@ RdCacheProcEntry* rdCache_GetProcEntry(void)
 // 0x0048dc40
 RdCacheProcEntry* rdCache_GetAlphaProcEntry(void)
 {
-    HANG("TODO");
+    if ((unsigned int)rdCache_numAlphaProcFaces >= RDCACHE_MAX_TRIS) {
+        rdCache_Flush();
+        rdCache_FlushAlpha();
+    }
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedAlphaVertices < RDCACHE_MIN_FREE_VERTICES)
+        return NULL;
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedAlphaTexVertices < RDCACHE_MIN_FREE_VERTICES)
+        return NULL;
+    if (RDCACHE_MAX_VERTICES - rdCache_numUsedAlphaIntensities < RDCACHE_MIN_FREE_VERTICES)
+        return NULL;
+    RdCacheProcEntry* entry = rdCache_aAlphaProcFaces + rdCache_numAlphaProcFaces;
+    entry->aVertices = rdCache_aAlphaVertices + rdCache_numUsedAlphaVertices;
+    entry->aUVCoords = rdCache_aAlphaTexVertices + rdCache_numUsedAlphaTexVertices;
+    entry->unk1 = 0;
+    entry->aVertColors = rdCache_aAlphaVertIntensities + rdCache_numUsedAlphaIntensities;
+    return entry;
 }
 
 // 0x0048dce0
@@ -145,7 +160,31 @@ int rdCache_AddProcFace(unsigned int nbVertices, char flags)
 // 0x0048dea0
 size_t rdCache_AddAlphaProcFace(int numVertices, char flags)
 {
-    HANG("TODO");
+    if ((unsigned int)rdCache_numAlphaProcFaces < RDCACHE_MAX_TRIS) {
+        RdCacheProcEntry* entry = rdCache_aAlphaProcFaces + rdCache_numAlphaProcFaces;
+        float minZ = FLT_MAX;
+        entry->numVertices = numVertices;
+        if (numVertices != 0) {
+            rdVector3* vertex = entry->aVertices;
+            int remaining = numVertices;
+            do {
+                if (vertex->z < minZ)
+                    minZ = vertex->z;
+                vertex++;
+                remaining--;
+            } while (remaining != 0);
+        }
+        entry->distance = minZ;
+        if (flags & rdCache_ProcFaceFLAGS_VERTICES)
+            rdCache_numUsedAlphaVertices += numVertices;
+        if (flags & rdCache_ProcFaceFLAGS_UVS)
+            rdCache_numUsedAlphaTexVertices += numVertices;
+        if (flags & rdCache_ProcFaceFLAGS_INTENSITIES)
+            rdCache_numUsedAlphaIntensities += numVertices;
+        rdCache_numAlphaProcFaces++;
+        return 1;
+    }
+    return 0;
 }
 
 // 0x0048df30

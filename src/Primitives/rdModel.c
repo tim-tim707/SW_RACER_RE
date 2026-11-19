@@ -3,10 +3,13 @@
 #include "globals.h"
 
 #include <Engine/rdMaterial.h>
+#include <Platform/std3D.h>
 #include <Raster/rdFace.h>
+#include <Swr/swrModel.h>
 
 #include <macros.h>
 
+#include <stdio.h>
 #include <string.h>
 
 // 0x00408f70
@@ -19,7 +22,53 @@ void rdModel3_SetRootMaterials(RdModel3* rootModel)
 // 0x00409040
 RdMaterial* rdMaterial_GetOrCreateDefaultMaterial(void* curr_asset_buffer_offset)
 {
-    HANG("TODO");
+    tVBuffer buffer;
+    tVBuffer* pBuffer;
+    uint8_t* pixels;
+
+    if (defaultMaterial == NULL) {
+        defaultMaterial = rdMaterial_Load(".\\data\\default.mat");
+        pBuffer = &buffer;
+        pixels = swrModel_AllocMaterial((unsigned int)curr_asset_buffer_offset, 16 * 16 * 2);
+        sprintf(defaultMaterial->aName, "Rovermatic");
+        // UV scale floats stored unaligned inside the name, overwriting its terminator
+        *(float*)(defaultMaterial->aName + 10) = 1.0f;
+        *(float*)(defaultMaterial->aName + 14) = 1.0f;
+        defaultMaterial->colorInfo.colorMode = T_STDCOLOR_RGB;
+        defaultMaterial->colorInfo.bpp = 16;
+        defaultMaterial->colorInfo.redBPP = 5;
+        defaultMaterial->colorInfo.greenBPP = 6;
+        defaultMaterial->colorInfo.blueBPP = 5;
+        defaultMaterial->colorInfo.alphaBPP = 0;
+        defaultMaterial->colorInfo.redPosShift = 11;
+        defaultMaterial->colorInfo.greenPosShift = 5;
+        defaultMaterial->colorInfo.bluePosShift = 0;
+        defaultMaterial->colorInfo.alphaPosShift = 0;
+        defaultMaterial->colorInfo.RedShr = 3;
+        defaultMaterial->colorInfo.GreenShr = 2;
+        defaultMaterial->colorInfo.BlueShr = 3;
+        defaultMaterial->colorInfo.AlphaShr = 0;
+        defaultMaterial->formatType = STDCOLOR_FORMAT_RGB;
+        defaultMaterial->curCelNum = 1;
+        defaultMaterial->numCels = 0;
+
+        pBuffer->bSurfaceAllocated = 0;
+        pBuffer->lockSurfRefCount = 0;
+        pBuffer->bVideoMemory = 0;
+        pBuffer->rasterInfo.width = 16;
+        pBuffer->rasterInfo.height = 16;
+        pBuffer->rasterInfo.size = 16 * 16 * 2;
+        pBuffer->rasterInfo.rowSize = 16 * 2;
+        pBuffer->rasterInfo.rowWidth = 16;
+        pBuffer->rasterInfo.colorInfo = defaultMaterial->colorInfo;
+        pBuffer->pPixels = pixels;
+        pBuffer->dword5C = 0;
+        memset(pixels, 0xff, 16 * 16 * 2);
+
+        std3D_ClearTexture(defaultMaterial->aTextures);
+        std3D_AllocSystemTexture(defaultMaterial->aTextures, &pBuffer, 1, defaultMaterial->formatType);
+    }
+    return defaultMaterial;
 }
 
 // 0x0048ee10
@@ -34,7 +83,14 @@ void rdModel3_NewEntry(RdModel3* pModel)
 // 0x0048ee40
 void rdModel3_Free(RdModel3* model)
 {
-    HANG("TODO");
+    if (model != NULL) {
+        if (rdModel3_pUnloader != NULL) {
+            rdModel3_pUnloader(model);
+            return;
+        }
+        rdModel3_FreeEntry(model);
+        (*rdroid_hostServices_ptr->free)(model);
+    }
 }
 
 // 0x0048ee70

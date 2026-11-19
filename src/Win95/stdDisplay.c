@@ -5,6 +5,7 @@
 #include "globals.h"
 
 #include <macros.h>
+#include <string.h>
 #include <stdPlatform.h>
 #include <General/stdBmp.h>
 
@@ -436,15 +437,43 @@ void stdDisplay_ReleaseBuffers(void)
 // 0x00489a00
 BYTE* stdDisplay_LockSurface(tVSurface* pVSurf)
 {
-    HANG("TODO");
-    return 0;
+    HRESULT res;
+
+    do {
+        res = IDirectDrawSurface4_Lock(pVSurf->pDDSurf, NULL, &pVSurf->ddSurfDesc, DDLOCK_WAIT, NULL);
+        if (res == DD_OK) {
+            return (BYTE*)pVSurf->ddSurfDesc.lpSurface;
+        }
+        if (res == DDERR_SURFACELOST) {
+            if ((pVSurf->ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_BACKBUFFER) == 0) {
+                res = IDirectDrawSurface4_Restore(pVSurf->pDDSurf);
+            } else {
+                res = IDirectDrawSurface4_Restore(stdDisplay_g_frontBuffer.pVSurface.pDDSurf);
+            }
+        }
+    } while (res == DD_OK);
+    return NULL;
 }
 
 // 0x00489a60
 int stdDisplay_UnlockSurface(tVSurface* pSurf)
 {
-    HANG("TODO");
-    return 0;
+    HRESULT res;
+
+    do {
+        res = IDirectDrawSurface4_Unlock(pSurf->pDDSurf, NULL);
+        if (res == DD_OK) {
+            return 0;
+        }
+        if (res == DDERR_SURFACELOST) {
+            if ((pSurf->ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_BACKBUFFER) == 0) {
+                res = IDirectDrawSurface4_Restore(pSurf->pDDSurf);
+            } else {
+                res = IDirectDrawSurface4_Restore(stdDisplay_g_frontBuffer.pVSurface.pDDSurf);
+            }
+        }
+    } while (res == DD_OK);
+    return 1;
 }
 
 // 0x00489ab0
@@ -469,7 +498,45 @@ void stdDisplay_FillMainSurface(void)
 // 0x00489bd0
 int stdDisplay_ColorFillSurface(tVSurface* pSurf, DWORD dwFillColor, LECRECT* lpRect)
 {
-    HANG("TODO");
+    DDBLTFX bltFx;
+    RECT rect;
+    HRESULT res;
+
+    memset(&bltFx, 0, sizeof(bltFx));
+    bltFx.dwSize = sizeof(bltFx);
+    bltFx.dwFillColor = dwFillColor;
+    if (lpRect == NULL) {
+        rect.right = pSurf->ddSurfDesc.dwWidth;
+        rect.bottom = pSurf->ddSurfDesc.dwHeight;
+        rect.left = 0;
+        rect.top = 0;
+    } else {
+        // LECRECT right/bottom hold width/height here
+        if (lpRect->right == 0) {
+            return 1;
+        }
+        if (lpRect->bottom == 0) {
+            return 1;
+        }
+        rect.left = lpRect->left;
+        rect.top = lpRect->top;
+        rect.right = rect.left + lpRect->right;
+        rect.bottom = rect.top + lpRect->bottom;
+    }
+    do {
+        res = IDirectDrawSurface4_Blt(pSurf->pDDSurf, &rect, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &bltFx);
+        if (res == DD_OK) {
+            return 0;
+        }
+        if (res == DDERR_SURFACELOST) {
+            if ((pSurf->ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_BACKBUFFER) == 0) {
+                res = IDirectDrawSurface4_Restore(pSurf->pDDSurf);
+            } else {
+                res = IDirectDrawSurface4_Restore(stdDisplay_g_frontBuffer.pVSurface.pDDSurf);
+            }
+        }
+    } while (res == DD_OK);
+    return 1;
 }
 
 // 0x00489cd0
