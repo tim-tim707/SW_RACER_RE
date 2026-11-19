@@ -34,6 +34,14 @@
 // Per-action arrays (*ButtonPressedInput, the button-state array at swrControl_viewButton, hold times).
 #define SWR_CONTROL_NUM_ACTIONS (15)
 #define STDCONTROL_MOUSE_NUM_KEYS (4)
+// Capacity of the DirectInputMouses / DirectInputKeyboards / DirectInputJoysticks record arrays.
+#define STDCONTROL_MAX_MOUSE_DEVICES (4)
+#define STDCONTROL_MAX_KEYBOARD_DEVICES (4)
+#define STDCONTROL_MAX_JOYSTICK_DEVICES (8)
+#define STDCONTROL_MAX_AXES (0x3c) // stdControl_aAxes capacity
+// stdControl_EnableAxisRead: axes below this index turn on the joystick read.
+#define STDCONTROL_NUM_JOYSTICK_AXES (0xc)
+#define STDCONTROL_AXIS_MIN_VALUE (1e-05f) // stdControl_ReadAxis: |axis| at or below this reads 0 (0x004ae2d4)
 #define STDCONTROL_MOUSE_AXIS_BASE (0x30) // stdControl_aAxes index of mouse X (Y, Z follow)
 #define STDCONTROL_MOUSE_NUM_AXES (3)
 #define STDCONTROL_AXIS_AS_KEY_THRESHOLD (0.5f) // stdControl_ReadAxisAsKeyEx: |axis| above this = pressed (0x004ae2d8)
@@ -56,6 +64,11 @@
 #define SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD (0.5f) // mouse axis bound as a button without an AXIS_RANGE
 #define SWR_CONTROL_STEER_RECORD_SCALE (100.0f) // steer axes -> inRaceLocalPlayerInputRecord shorts (0x004ac328)
 #define SWR_CONTROL_STEER_RECORD_MAX (0x100)
+#define SWR_CONTROL_NUM_INPUT_RECORDS (4) // inRaceLocalPlayerInputRecord entries (one per local player)
+// updateInRaceInputBitsets: record axis short -> [-1, 1] stick value, then digital thresholds.
+#define SWR_CONTROL_RECORD_AXIS_SCALE (0.01f) // (0x004aca28)
+#define SWR_CONTROL_RECORD_AXIS_FULL (0.3) // (0x004aca30 / 0x004aca38)
+#define SWR_CONTROL_RECORD_AXIS_CENTER (0.2) // (0x004aca48 / 0x004aca40)
 #define SWR_CONFIG_MAPPING_ROW_TRIMMED (0x3c) // swrConfig_SetMappingRowText: this row drops the first char of texts longer than 3
 // swrControl_SetDefaultMappings: joystick default bindings stop at this many buttons when a hat is present.
 #define SWR_CONTROL_DEFAULT_BUTTONS_WITH_POV (4)
@@ -199,6 +212,23 @@
 #define SWR_SCENE_PERSISTENT_MODEL_SLOTS (5)
 #define SWR_SCENE_MODEL_SLOT_COUNT (151)
 #define SWRWEATHER_MAX_PARTICLES (80) // swrWeather_particle* array length; caps swrWeather_particleCap
+// swrWeather_RenderParticles (0x0042cca0)
+#define SWRWEATHER_SPAWN_CHANCE (0.7f) // a free slot respawns when rand01 is above this (0x004ac58c)
+#define SWRWEATHER_SPAWN_SIDE_RANGE (800.0f) // +-400 along the camera's first basis row (0x004ac604 / 0x004ac5d0)
+#define SWRWEATHER_SPAWN_SIDE_HALF (400.0f)
+#define SWRWEATHER_SPAWN_FORWARD_RANGE (340.0f) // 10..350 along the second row (0x004ac608 / 0x004ac60c)
+#define SWRWEATHER_SPAWN_UP_RANGE (190.0f) // 10..200 along the third row (0x004ac610)
+#define SWRWEATHER_SPAWN_MIN_DIST (10.0f)
+#define SWRWEATHER_SIZE_NUMERATOR (100.0f) // sprite size = this / depth (0x004ac5f4)
+#define SWRWEATHER_SIZE_MIN (0.01f) // (0x004ac614)
+#define SWRWEATHER_SIZE_SCALE (0.15f) // (0x004ac618)
+#define SWRWEATHER_FAST_VELOCITY (100.0f) // velocityY above this caps the size at SWRWEATHER_FAST_SIZE_MAX
+#define SWRWEATHER_FAST_SIZE_MAX (0.04f) // (0x004ac61c)
+#define SWRWEATHER_MEDIUM_VELOCITY (300.0f) // (0x004ac620) -- compared after the fast case, so never reached
+#define SWRWEATHER_MEDIUM_SIZE_MAX (0.1f) // (0x004ac5ec)
+#define SWRWEATHER_SLOW_SIZE_MAX (0.15f)
+#define SWRWEATHER_STREAK_MIN_PIXELS (3) // shorter streaks draw as a plain dot
+#define SWRWEATHER_PAUSED_ALPHA_SCALE (0.5f) // (0x004ac568)
 #define SWR_MINIMAP_MAX_DOTS (190) // miniMapPositions / miniMapDotTypes length
 #define SWROBJHANG_MENU_SPRITE_COUNT (0xb8) // front-end sprite ids 0..0xb7, hidden by swrObjHang_F0 every frame
 
@@ -302,6 +332,13 @@
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
 #define SWR_SPRITE_ID_SUN_GLARE (-0x68) // pseudo sprite id swrSprite_SetVisible/SetColor route to the full-screen sun glare tint (swrSprite_unk2_*)
 #define SWR_SUN_OCCLUDED_COVERAGE (50) // UpdateSunAndLensFlareSprites2: sun_occlusionCoverage at or above this hides the sun and its flares
+// swrPlayerHUD_SampleOcclusion (0x0042be60)
+#define SWR_SUN_COUNT (2) // sunSpriteIds / sun_occlusionSample* entries
+#define SWR_SUN_OFFSCREEN_X (-500) // sun_occlusionSampleX below this = sun not projected this frame
+#define SWR_SUN_OCCLUSION_SAMPLE_SIZE (8) // z-buffer square sampled around each sun
+#define SWR_HUD_NO_DEPTH (-1000.0f) // depth stored for a marker with no on-screen sample
+#define SWR_HUD_PLAYER_SPRITE_COUNT (20) // player_sprite_* entries
+#define SWR_HUD_LIGHT_STREAK_COUNT (40) // light_streak_* entries
 // in-race engine damage panel (swrRace_InRaceEngineUI): 6 part icons + 2 brackets per local player
 #define SWR_HUD_ENGINE_SPRITE_FIRST (0x1b)
 #define SWR_HUD_ENGINE_BRACKET_LEFT (0x21)

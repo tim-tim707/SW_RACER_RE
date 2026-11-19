@@ -204,10 +204,83 @@ int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx)
     return -1;
 }
 
+// 0x00440d90
+void* resetInRaceInputBuffer(void)
+{
+    if (resetInRaceInputBuffer_pendingClear != 0 || (GameSettingFlags & GAME_SETTING_UNK_1000) != 0) {
+        memset(&inRaceLocalPlayerInputRecord[0], 0, sizeof(inRaceLocalPlayerInputRecord[0]));
+    }
+    resetInRaceInputBuffer_pendingClear = 0;
+    return &inRaceLocalPlayerInputRecord[0];
+}
+
+// Bitset bit for each record action slot; slots 6 and 7 feed no bit.
+static const unsigned int updateInRaceInputBitsets_actionBits[SWR_CONTROL_NUM_RECORD_ACTIONS] = {
+    0x20, 0x10, 0x8, 0x4, 0x80, 0x40, 0, 0, 0x2000, 0x1000, 0x800, 0x400, 0x200, 0x100, 0x2, 0x1,
+};
+
 // 0x00440df0
 void updateInRaceInputBitsets(void)
 {
-    HANG("TODO");
+    int player;
+    int slot;
+    unsigned int bits;
+    unsigned int prev;
+    unsigned int changed;
+    double x;
+    double y;
+    swrControl_InRaceInputRecord* record;
+
+    resetInRaceInputBuffer();
+    for (player = 0; player < SWR_CONTROL_NUM_INPUT_RECORDS; player++) {
+        record = &inRaceLocalPlayerInputRecord[player];
+        bits = 0;
+        for (slot = 0; slot < SWR_CONTROL_NUM_RECORD_ACTIONS; slot++) {
+            if (record->actions[slot] != 0) {
+                bits |= updateInRaceInputBitsets_actionBits[slot];
+            }
+        }
+        // the original compares the unrounded x87 products, so keep them in double until the store
+        y = (double)record->axisY * (double)SWR_CONTROL_RECORD_AXIS_SCALE;
+        if (y > SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_Y_POS;
+        }
+        if (y < -SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_Y_NEG;
+        }
+        x = (double)record->axisX * (double)SWR_CONTROL_RECORD_AXIS_SCALE;
+        if (x < -SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_X_NEG;
+        }
+        if (x > SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_X_POS;
+        }
+        if (x > -SWR_CONTROL_RECORD_AXIS_CENTER && x < SWR_CONTROL_RECORD_AXIS_CENTER) {
+            bits |= swrRace_INRACE_INPUT_X_CENTER;
+        }
+        if (y > -SWR_CONTROL_RECORD_AXIS_CENTER && y < SWR_CONTROL_RECORD_AXIS_CENTER) {
+            bits |= swrRace_INRACE_INPUT_Y_CENTER;
+        }
+        if (x <= -SWR_CONTROL_RECORD_AXIS_CENTER && x >= -SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_X_NEG_SOFT;
+        }
+        if (x >= SWR_CONTROL_RECORD_AXIS_CENTER && x <= SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_X_POS_SOFT;
+        }
+        if (y >= SWR_CONTROL_RECORD_AXIS_CENTER && y <= SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_Y_POS_SOFT;
+        }
+        if (y <= -SWR_CONTROL_RECORD_AXIS_CENTER && y >= -SWR_CONTROL_RECORD_AXIS_FULL) {
+            bits |= swrRace_INRACE_INPUT_Y_NEG_SOFT;
+        }
+        prev = inRaceLocalPlayerInputBitset3[player];
+        swrControl_aPlayerAxisX[player] = (float)x;
+        inRaceLocalPlayerInputBitset3[player] = bits;
+        swrControl_aPlayerAxisY[player] = (float)y;
+        changed = prev ^ bits;
+        inRaceLocalPlayerInputBitset1[player] = bits & changed;
+        inRaceLocalPlayerInputBitset2[player] = prev & changed;
+    }
 }
 
 // 0x00445680

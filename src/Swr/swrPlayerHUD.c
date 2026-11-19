@@ -7,6 +7,7 @@
 #include "swrModel.h"
 #include "swrWeather.h"
 #include "swrText.h"
+#include <Win95/DirectX.h>
 
 #include <Primitives/rdVector.h>
 #include <engine_config.h>
@@ -425,10 +426,121 @@ void swrPlayerHUD_RenderViewport(void* viewport, bool secondaryPass)
     swrPlayerHUD_RenderDistanceText(viewport, secondaryPass);
 }
 
+// Little-endian z-buffer value at (x, y), summed byte by byte as signed ints like the x87 FIADD chain.
+static float swrPlayerHUD_ReadDepth(const unsigned char* data, LONG pitch, uint32_t bytesPerDepth, int x, int y, float scale)
+{
+    const unsigned char* pixel;
+    double sum;
+    uint32_t i;
+
+    pixel = data + y * pitch + x * (int)bytesPerDepth;
+    sum = 0.0;
+    for (i = bytesPerDepth; i > 0; i--) {
+        sum += (int)((unsigned int)pixel[i - 1] << ((i - 1) * 8));
+    }
+    return (float)(sum * scale);
+}
+
 // 0x0042be60
 void swrPlayerHUD_SampleOcclusion(void)
 {
-    HANG("TODO");
+    uint32_t bytesPerDepth;
+    LONG pitch;
+    LPVOID data;
+    float nearOut;
+    float farOut;
+    const unsigned char* end;
+    const unsigned char* pixel;
+    float depthScale;
+    int sun;
+    int sampleX;
+    int sampleY;
+    int count;
+    int col;
+    int row;
+    int colMin;
+    int colMax;
+    int rowMin;
+    int rowMax;
+    int i;
+
+    DirectDraw_LockZBuffer(&bytesPerDepth, &pitch, &data, &nearOut, &farOut);
+    end = (const unsigned char*)data + pitch * swrDisplay_screenHeight;
+    for (sun = 0; sun < SWR_SUN_COUNT; sun++) {
+        if (sunSpriteIds[sun] < 0) {
+            continue;
+        }
+        sampleX = sun_occlusionSampleX[sun];
+        sampleY = sun_occlusionSampleY[sun];
+        if (sampleX < SWR_SUN_OFFSCREEN_X) {
+            sun_occlusionCoverage[sun] = SWR_SUN_OCCLUDED_COVERAGE;
+            continue;
+        }
+        // pixels of the 8x8 square that fall in the screen margins count as occluded
+        count = 0;
+        colMin = 12 - sampleX;
+        colMax = swrDisplay_screenWidth - 8 - sampleX;
+        rowMin = 12 - sampleY;
+        rowMax = swrDisplay_screenHeight - 8 - sampleY;
+        pixel = (const unsigned char*)data + (sampleY - 4) * pitch + (sampleX - 4) * (int)bytesPerDepth;
+        for (row = 0; row < SWR_SUN_OCCLUSION_SAMPLE_SIZE; row++) {
+            for (col = 0; col < SWR_SUN_OCCLUSION_SAMPLE_SIZE; col++) {
+                if (col < colMin || col >= colMax || row < rowMin || row >= rowMax) {
+                    count++;
+                } else if (pixel >= (const unsigned char*)data && pixel < end) {
+                    // only 8- and 16-bit z-buffers are tested; other depths never count
+                    if ((bytesPerDepth == 1 && *pixel != 0xff) || (bytesPerDepth == 2 && *(const unsigned short*)pixel != 0xffff)) {
+                        count++;
+                    }
+                }
+                pixel += bytesPerDepth;
+            }
+            pixel += pitch - (int)bytesPerDepth * SWR_SUN_OCCLUSION_SAMPLE_SIZE;
+        }
+        sun_occlusionCoverage[sun] = count;
+    }
+
+    // cases 3 and 4 read each other's slot, and any other depth reuses the near-plane out value (faithful)
+    switch (bytesPerDepth) {
+    case 1:
+        depthScale = swrPlayerHUD_zBufferDepthScale[0];
+        break;
+    case 2:
+        depthScale = swrPlayerHUD_zBufferDepthScale[1];
+        break;
+    case 3:
+        depthScale = swrPlayerHUD_zBufferDepthScale[3];
+        break;
+    case 4:
+        depthScale = swrPlayerHUD_zBufferDepthScale[2];
+        break;
+    default:
+        depthScale = nearOut;
+        break;
+    }
+
+    for (i = 0; i < SWR_HUD_PLAYER_SPRITE_COUNT; i++) {
+        player_sprite_depth_values[i] = SWR_HUD_NO_DEPTH;
+        if (player_sprite_pixel_pos_x[i] >= 0) {
+            player_sprite_depth_values[i] = swrPlayerHUD_ReadDepth(data, pitch, bytesPerDepth, player_sprite_pixel_pos_x[i], player_sprite_pixel_pos_y[i], depthScale);
+        }
+    }
+    for (i = 0; i < SWR_HUD_LIGHT_STREAK_COUNT; i++) {
+        if (light_streak_valid[i] == 0) {
+            continue;
+        }
+        light_streak_depth_values[i] = SWR_HUD_NO_DEPTH;
+        if (light_streak_pixel_pos_x[i] >= 0) {
+            light_streak_depth_values[i] = swrPlayerHUD_ReadDepth(data, pitch, bytesPerDepth, light_streak_pixel_pos_x[i], light_streak_pixel_pos_y[i], depthScale);
+        }
+    }
+    for (i = 0; i < swrPlayerHUD_worldSpriteCount; i++) {
+        swrPlayerHUD_worldSpriteDepth[i] = SWR_HUD_NO_DEPTH;
+        if (swrPlayerHUD_worldSpritePixelX[i] >= 0) {
+            swrPlayerHUD_worldSpriteDepth[i] = swrPlayerHUD_ReadDepth(data, pitch, bytesPerDepth, swrPlayerHUD_worldSpritePixelX[i], swrPlayerHUD_worldSpritePixelY[i], depthScale);
+        }
+    }
+    DirectDraw_UnlockZBuffer();
 }
 
 // 0x00483cb0

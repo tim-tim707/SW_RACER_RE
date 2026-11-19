@@ -18,6 +18,7 @@
 #include <objbase.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 
 #include "macros.h"
@@ -246,13 +247,13 @@ void swrControl_ProcessInputs(void)
     } else if (steerY > SWR_CONTROL_STEER_RECORD_MAX) {
         steerY = SWR_CONTROL_STEER_RECORD_MAX;
     }
-    *(short*)&inRaceLocalPlayerInputRecord[0] = steerX;
-    *(short*)&inRaceLocalPlayerInputRecord[2] = steerY;
+    inRaceLocalPlayerInputRecord[0].axisX = steerX;
+    inRaceLocalPlayerInputRecord[0].axisY = steerY;
     for (i = 0; i < SWR_CONTROL_NUM_RECORD_ACTIONS; i++) {
         if (swrControl_inputRecordActions[i] < 0) {
-            inRaceLocalPlayerInputRecord[4 + i] = 0;
+            inRaceLocalPlayerInputRecord[0].actions[i] = 0;
         } else {
-            inRaceLocalPlayerInputRecord[4 + i] = (char)(int)(&swrControl_viewButton)[swrControl_inputRecordActions[i]];
+            inRaceLocalPlayerInputRecord[0].actions[i] = (char)(int)(&swrControl_viewButton)[swrControl_inputRecordActions[i]];
         }
     }
 
@@ -408,7 +409,8 @@ int swrControl_Startup(void)
 void swrControl_ClearDeviceState(int deviceClass)
 {
     if (deviceClass < 0) {
-        memset(inRaceLocalPlayerInputRecord, 0, sizeof(inRaceLocalPlayerInputRecord));
+        // leaves unk14 alone (only resetInRaceInputBuffer clears it)
+        memset(&inRaceLocalPlayerInputRecord[0], 0, offsetof(swrControl_InRaceInputRecord, unk14));
         memset(swrControl_buttonHeldPrev, 0, sizeof(swrControl_buttonHeldPrev));
         deviceClass = -deviceClass;
     }

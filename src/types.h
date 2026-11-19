@@ -3174,6 +3174,14 @@ extern "C"
         StdConffileArg aArgs[512];
     } StdConffileEntry;
 
+    typedef struct swrControl_InRaceInputRecord
+    {
+        short axisX;
+        short axisY;
+        char actions[16]; // SWR_CONTROL_NUM_RECORD_ACTIONS
+        int unk14; // cleared only by resetInRaceInputBuffer
+    } swrControl_InRaceInputRecord; // sizeof(0x18)
+
     typedef struct StdControlAxis
     {
         StdControlAxisFlag flags;

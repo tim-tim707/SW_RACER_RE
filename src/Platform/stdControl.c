@@ -6,6 +6,12 @@
 #include "engine_config.h"
 
 #include <math.h>
+#include <string.h>
+
+static LPDIRECTINPUTDEVICEA* stdControl_DeviceSlot(LPDIRECTINPUTDEVICEA* first, unsigned int index)
+{
+    return (LPDIRECTINPUTDEVICEA*)((char*)first + index * STDCONTROL_JOYSTICK_RECORD_SIZE);
+}
 
 // 0x00485360
 int stdControl_Startup(void)
@@ -16,7 +22,44 @@ int stdControl_Startup(void)
 // 0x00485460
 void stdControl_Shutdown(void)
 {
-    HANG("TODO");
+    unsigned int i;
+    LPDIRECTINPUTDEVICEA* device;
+
+    if (stdControl_g_bStartup == 0) {
+        return;
+    }
+    stdControl_g_bStartup = 0;
+    for (i = 0; i < (unsigned int)DirectInputNbMouses; i++) {
+        device = stdControl_DeviceSlot(&pDIMouseDevice, i);
+        if (*device != NULL) {
+            (*device)->lpVtbl->Unacquire(*device);
+            (*device)->lpVtbl->Release(*device);
+        }
+    }
+    DirectInputNbMouses = 0;
+    memset(&DirectInputMouses, 0, STDCONTROL_MAX_MOUSE_DEVICES * STDCONTROL_JOYSTICK_RECORD_SIZE);
+    for (i = 0; i < (unsigned int)DirectInputNbKeyboard; i++) {
+        device = stdControl_DeviceSlot(&stdControlKeyboardDevice, i);
+        if (*device != NULL) {
+            (*device)->lpVtbl->Unacquire(*device);
+            (*device)->lpVtbl->Release(*device);
+        }
+    }
+    DirectInputNbKeyboard = 0;
+    memset(&DirectInputKeyboards, 0, STDCONTROL_MAX_KEYBOARD_DEVICES * STDCONTROL_JOYSTICK_RECORD_SIZE);
+    for (i = 0; i < (unsigned int)stdControl_numJoystickDevices; i++) {
+        device = stdControl_DeviceSlot(&stdControlJoystickDevice, i);
+        if (*device != NULL) {
+            (*device)->lpVtbl->Unacquire(*device);
+            (*device)->lpVtbl->Release(*device);
+        }
+    }
+    stdControl_numJoystickDevices = 0;
+    memset(&DirectInputJoysticks, 0, STDCONTROL_MAX_JOYSTICK_DEVICES * STDCONTROL_JOYSTICK_RECORD_SIZE);
+    if (iDirectInputA_ptr != NULL) {
+        iDirectInputA_ptr->lpVtbl->Release(iDirectInputA_ptr);
+        iDirectInputA_ptr = NULL;
+    }
 }
 
 // 0x00485570 TODO: crashes on release build, works fine on debug
@@ -44,13 +87,27 @@ void stdControl_Close(void)
 // 0x004855c0
 void stdControl_Reset(void)
 {
-    HANG("TODO");
+    int i;
+
+    stdControl_bReadMouse = 0;
+    stdControl_bReadJoysticks = 0;
+    for (i = 0; i < STDCONTROL_MAX_AXES; i++) {
+        stdControl_aAxes[i].flags &= ~STDCONTROL_AXIS_ENABLED;
+    }
 }
 
 // 0x004855f0
 int stdControl_EnableAxis(int axisID)
 {
-    HANG("TODO");
+    if ((unsigned int)axisID >= STDCONTROL_MAX_AXES) {
+        return 0;
+    }
+    if ((stdControl_aAxes[axisID].flags & STDCONTROL_AXIS_REGISTERED) == 0) {
+        return 0;
+    }
+    stdControl_aAxes[axisID].flags |= STDCONTROL_AXIS_ENABLED;
+    stdControl_EnableAxisRead(axisID);
+    return 1;
 }
 
 // 0x00485630
@@ -77,13 +134,60 @@ void stdControl_ReadControls(void)
 // 0x004856e0
 float stdControl_ReadAxis(int controlId)
 {
-    HANG("TODO");
+    int delta;
+    int magnitude;
+    float value;
+
+    if (stdControl_bControlsActive == 0) {
+        return 0.0f;
+    }
+    if ((stdControl_aAxes[controlId].flags & STDCONTROL_AXIS_ENABLED) == 0) {
+        return 0.0f;
+    }
+    delta = stdControl_aAxisPos[controlId] - stdControl_aAxes[controlId].xOffset;
+    if (delta == 0) {
+        return 0.0f;
+    }
+    if ((stdControl_aAxes[controlId].flags & STDCONTROL_AXIS_UNKNOWN_8) == 0 && stdControl_aAxes[controlId].yOffset != 0) {
+        magnitude = delta < 0 ? -delta : delta;
+        if (magnitude < stdControl_aAxes[controlId].yOffset) {
+            return 0.0f;
+        }
+    }
+    value = (float)delta * stdControl_aAxes[controlId].fltMedian;
+    if (fabsf(value) <= STDCONTROL_AXIS_MIN_VALUE) {
+        value = 0.0f;
+    }
+    if (stdControl_bControlsIdle != 0 && value != 0.0f) {
+        stdControl_bControlsIdle = 0;
+    }
+    return value;
 }
 
 // 0x004857b0
 float stdControl_ReadKeyAsAxis(unsigned int keyId)
 {
-    HANG("TODO");
+    unsigned int heldMs;
+    float value;
+
+    if (stdControl_bControlsActive == 0) {
+        return 0.0f;
+    }
+    heldMs = stdControl_aKeyIdleTimes[keyId];
+    if (heldMs == 0) {
+        if (stdControl_aKeyInfos[keyId] == 0) {
+            return 0.0f;
+        }
+        heldMs = stdControl_readDeltaTime;
+    }
+    if (heldMs >= (unsigned int)stdControl_readDeltaTime) {
+        heldMs = stdControl_readDeltaTime;
+    }
+    value = (float)heldMs * sithControl_secFPS;
+    if (stdControl_bControlsIdle != 0 && value != 0.0f) {
+        stdControl_bControlsIdle = 0;
+    }
+    return value;
 }
 
 // 0x00485840
@@ -169,7 +273,80 @@ void stdControl_SetMouseRange(float xRange, float yRange)
 // 0x00485a30
 int stdControl_SetActivation(int bActive)
 {
-    HANG("TODO");
+    unsigned int i;
+    int key;
+    LPDIRECTINPUTDEVICEA device;
+
+    if (stdControl_g_bOpen == 0) {
+        return 0;
+    }
+    for (key = 0; key < STDCONTROL_NUM_KEYBOARD_KEYS; key++) {
+        if (stdControl_aKeyInfos[key] != 0) {
+            stdControl_aKeyInfos[key] = 0;
+            if (stdControl_aKeyIdleTimes[key] == 0) {
+                stdControl_aKeyIdleTimes[key] = stdControl_readDeltaTime;
+            }
+        }
+    }
+    if (stdControl_bReadMouse != 0) {
+        for (i = 0; i < (unsigned int)DirectInputNbMouses; i++) {
+            if (*stdControl_DeviceSlot(&pDIMouseDevice, i) == NULL) {
+                continue;
+            }
+            for (key = STDCONTROL_MOUSE_KEY_BASE + i * STDCONTROL_MOUSE_NUM_KEYS; key < STDCONTROL_MOUSE_KEY_BASE + (i + 1) * STDCONTROL_MOUSE_NUM_KEYS; key++) {
+                if (stdControl_aKeyInfos[key] != 0) {
+                    stdControl_aKeyInfos[key] = 0;
+                    if (stdControl_aKeyIdleTimes[key] == 0) {
+                        stdControl_aKeyIdleTimes[key] = stdControl_readDeltaTime;
+                    }
+                }
+            }
+        }
+    }
+    if (bActive != 0) {
+        if (stdControl_bReadMouse != 0) {
+            for (i = 0; i < (unsigned int)DirectInputNbMouses; i++) {
+                device = *stdControl_DeviceSlot(&pDIMouseDevice, i);
+                if (device != NULL && device->lpVtbl->Acquire(device) == DI_OK) {
+                    ShowCursor(FALSE);
+                }
+            }
+        }
+        for (i = 0; i < (unsigned int)DirectInputNbKeyboard; i++) {
+            device = *stdControl_DeviceSlot(&stdControlKeyboardDevice, i);
+            if (device != NULL) {
+                device->lpVtbl->Acquire(device);
+            }
+        }
+        for (i = 0; i < (unsigned int)stdControl_numJoystickDevices; i++) {
+            device = *stdControl_DeviceSlot(&stdControlJoystickDevice, i);
+            if (device != NULL) {
+                device->lpVtbl->Acquire(device);
+            }
+        }
+        stdControl_bControlsActive = 1;
+        return stdControl_numJoystickDevices;
+    }
+    for (i = 0; i < (unsigned int)DirectInputNbMouses; i++) {
+        device = *stdControl_DeviceSlot(&pDIMouseDevice, i);
+        if (device != NULL && device->lpVtbl->Unacquire(device) == DI_OK) {
+            ShowCursor(TRUE);
+        }
+    }
+    for (i = 0; i < (unsigned int)DirectInputNbKeyboard; i++) {
+        device = *stdControl_DeviceSlot(&stdControlKeyboardDevice, i);
+        if (device != NULL) {
+            device->lpVtbl->Unacquire(device);
+        }
+    }
+    for (i = 0; i < (unsigned int)stdControl_numJoystickDevices; i++) {
+        device = *stdControl_DeviceSlot(&stdControlJoystickDevice, i);
+        if (device != NULL) {
+            device->lpVtbl->Unacquire(device);
+        }
+    }
+    stdControl_bControlsActive = 0;
+    return stdControl_numJoystickDevices;
 }
 
 // 0x00485c40
@@ -193,7 +370,13 @@ void stdControl_InitMouse(void)
 // 0x00486140
 void stdControl_EnableAxisRead(unsigned int axisID)
 {
-    HANG("TODO");
+    if (axisID >= STDCONTROL_MOUSE_AXIS_BASE && axisID < STDCONTROL_MOUSE_AXIS_BASE + STDCONTROL_MOUSE_NUM_AXES) {
+        stdControl_bReadMouse = 1;
+        return;
+    }
+    if (axisID < STDCONTROL_NUM_JOYSTICK_AXES) {
+        stdControl_bReadJoysticks = 1;
+    }
 }
 
 // 0x00486170

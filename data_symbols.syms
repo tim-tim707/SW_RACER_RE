@@ -215,6 +215,7 @@ unkCameraArray 0x004B91C4 swrCamera_unk*
 swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitTrack sees 2+ local players; read by swrRace_UpdateInRaceMenu
 InRaceSpritesEnabled 0x004B94C0 int
 
+swrPlayerHUD_zBufferDepthScale 0x004b94b0 float[4] # 1/255, 1/65535, 1/(2^24-1), 1/2^32: raw z-buffer value -> [0,1] per depth byte count
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
 sunSpriteScale 0x004b94d0 float[2] # sun glow size; SetSunSprite, scaled by occlusion in UpdateSunAndLensFlareSprites2
 sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
@@ -481,6 +482,7 @@ swrModel_poddCableRestVertices 0x004c7c30 rdVector3[6] = { { 0.0, 0.0, 0.0 }, { 
 swrModel_poddCableRestLights 0x004c7c78 rdVector4[6] = { { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 } } # per-vertex light intensities matching swrModel_poddCableRestVertices
 swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
+stdControl_bReadMouse 0x004c8170 int # set by stdControl_EnableAxisRead for mouse axes
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
 
@@ -1368,6 +1370,7 @@ swrModel_collisionContactLogCount 0x0050c5d4 int
 swrModel_collisionContactLogEnabled 0x0050c5d8 int
 swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
 swrModel_collisionSphereAcceptBackFaces 0x004c1778 int # 1; when 0 the sphere test skips faces whose plane the center is behind
+resetInRaceInputBuffer_pendingClear 0x004c1770 int # 1 at boot; resetInRaceInputBuffer clears record 0 once, then drops it
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
@@ -1709,7 +1712,7 @@ swrControl_aPlayerAxisX 0x00e98ea0 float[4] # per-local-player steer stick X (pa
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
-inRaceLocalPlayerInputRecord 0x00e98ee0 char[20] # local player raw input record: +0/+2 steer X/Y shorts, +4.. action bytes (strided 0x18/player); consumed by updateInRaceInputBitsets
+inRaceLocalPlayerInputRecord 0x00e98ee0 swrControl_InRaceInputRecord[4] # per-local-player raw input; consumed by updateInRaceInputBitsets
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
