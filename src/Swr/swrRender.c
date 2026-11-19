@@ -278,7 +278,90 @@ void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_N
 // 0x0044d310
 void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* node)
 {
-    HANG("TODO");
+    rdMatrix34 transform;
+    rdMatrix34 peeked;
+    rdVector3 toNode;
+    rdVector3 up;
+    float scale = 1.0f; // uninitialized in the original for orientation_option > 3
+    swrModel_Node* child;
+    uint32_t required;
+    int numChildren;
+    int overflow;
+    int i;
+
+    if (rdModel_nodeTransformsEnabled == 0) {
+        transform = rdMatrix34_identity;
+    } else {
+        if (node->orientation_option == 0) {
+            rdMatrixStack34_Peek(&transform);
+        } else {
+            rdMatrixStack34_Peek(&peeked);
+            transform.scale = peeked.scale;
+            toNode.x = peeked.scale.x - rdModel_CurrentViewport->model_matrix.vD.x;
+            toNode.y = peeked.scale.y - rdModel_CurrentViewport->model_matrix.vD.y;
+            toNode.z = peeked.scale.z - rdModel_CurrentViewport->model_matrix.vD.z;
+            rdVector_Normalize3Acc(&toNode);
+            if (node->orientation_option == 1) {
+                rdVector_Scale3(&up, node->up_vector.x, &peeked.rvec);
+                rdVector_Scale3Add3(&up, &up, node->up_vector.y, &peeked.lvec);
+                rdVector_Scale3Add3(&transform.uvec, &up, node->up_vector.z, &peeked.uvec);
+                scale = rdVector_Normalize3Acc(&transform.uvec);
+                rdVector_Cross3(&transform.rvec, &toNode, &transform.uvec);
+                rdVector_Normalize3Acc(&transform.rvec);
+                rdVector_Cross3(&transform.lvec, &transform.uvec, &transform.rvec);
+            } else {
+                transform.lvec = toNode;
+                if (node->orientation_option == 2) {
+                    scale = rdVector_Len3(&peeked.uvec);
+                    rdVector_Cross3(&transform.rvec, &transform.lvec, (rdVector3*)&rdModel_CurrentViewport->model_matrix.vC);
+                    rdVector_Normalize3Acc(&transform.rvec);
+                    rdVector_Cross3(&transform.uvec, &transform.rvec, &transform.lvec);
+                } else if (node->orientation_option == 3) {
+                    rdVector_Scale3(&up, node->up_vector.x, &peeked.rvec);
+                    rdVector_Scale3Add3(&up, &up, node->up_vector.y, &peeked.lvec);
+                    rdVector_Scale3Add3(&up, &up, node->up_vector.z, &peeked.uvec);
+                    scale = rdVector_Normalize3Acc(&up);
+                    rdVector_Cross3(&transform.rvec, &transform.lvec, &up);
+                    rdVector_Normalize3Acc(&transform.rvec);
+                    rdVector_Cross3(&transform.uvec, &transform.rvec, &transform.lvec);
+                }
+            }
+            transform.rvec.x *= scale;
+            transform.rvec.y *= scale;
+            transform.rvec.z *= scale;
+            transform.lvec.x *= scale;
+            transform.lvec.y *= scale;
+            transform.lvec.z *= scale;
+            transform.uvec.x *= scale;
+            transform.uvec.y *= scale;
+            transform.uvec.z *= scale;
+        }
+        if (node->follow_model_position == 1) {
+            transform.scale.x = rdModel_CurrentViewport->model_matrix.vD.x;
+            transform.scale.y = rdModel_CurrentViewport->model_matrix.vD.y;
+            transform.scale.z = rdModel_CurrentViewport->model_matrix.vD.z;
+        }
+    }
+
+    rdModel_sceneNodeDepth++;
+    if (rdModel_sceneNodeDepth > RDMODEL_SCENE_MAX_DEPTH) {
+        overflow = 1;
+    } else {
+        overflow = 0;
+        rdMatrixStack34_Push(&transform);
+    }
+    numChildren = swrModel_NodeGetNumChildren(&node->node);
+    for (i = 0; i < numChildren; i++) {
+        child = node->node.children.nodes[i];
+        if (child == NULL)
+            continue;
+        required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+        if ((swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+            rdModel_AddNodeToScene(child);
+    }
+    if (!overflow)
+        rdMatrixStack34_Pop();
+    rdModel_sceneNodeDepth--;
 }
 
 // 0x0044d740

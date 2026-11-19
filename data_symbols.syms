@@ -1272,9 +1272,13 @@ rdCache_currentZNear 0x005430c0 float
 rdCache_currentVertices 0x005430c4 rdVector3*
 rdCache_aVertIntensities 0x005430c8 rdVector4[1] # unk size
 
-rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[1] # unk size
+rdCache_aAlphaProcFaces 0x006830c8 RdCacheProcEntry[0x400] # RDCACHE_MAX_TRIS; ends at rdCache_numProcFaces
 
 rdCache_numProcFaces 0x006930c8 int
+
+rdCache_aAlphaVertIntensities 0x006930d0 rdVector4[]
+rdCache_aAlphaTexVertices 0x007d30d0 rdVector2[]
+rdCache_aAlphaVertices 0x008730d0 rdVector3[]
 
 rdCache_numAlphaProcFaces 0x00af30d8 int # < 0x400
 rdCache_currenVertexColors 0x00af30dc rdVector4*
