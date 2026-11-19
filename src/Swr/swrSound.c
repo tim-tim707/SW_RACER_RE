@@ -1978,7 +1978,6 @@ void swrSound_Update(void)
         if (live->activeSoundId != -1) {
             source = live->source;
             if (swrSound_GetWavePosition(source, NULL) == 0) {
-                // finished playing
                 if (requested->activeSoundId == live->activeSoundId)
                     swrSound_ResetChannel(requested);
                 entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);

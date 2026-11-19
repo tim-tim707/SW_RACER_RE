@@ -1032,7 +1032,7 @@ void swrRace_UpdateInRaceMenu(void)
     scroll = GetPauseMenuScrollInOut();
     pulse = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
 
-    // dev builds: Up-Down-Left-Right style sequence on the pause screen unlocks the debug menu
+    // dev builds: input bits 0x1000, 0x800, 0x2000, 0x400 in order unlock the debug menu
     if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) && swrRace_DebugMenu <= 0 && inRaceLocalPlayerInputBitset1[0] != 0) {
         if (swrRace_DebugMenu == 0 && inRaceLocalPlayerInputBitset1[0] == 0x1000) {
             swrRace_DebugMenu = -1;
@@ -1128,7 +1128,6 @@ void swrRace_UpdateInRaceMenu(void)
         else
             sprintf(text, swrText_Translate("~s%s: %d\n"), label, intValue);
 
-        // debug pages: two columns
         if (row < 0xd2) {
             x = 0x19;
             y = rowY + 0x14;
@@ -5039,7 +5038,6 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
             float offset = spread;
             float x;
 
-            // the icons slide in from a spread-out cluster as the panel fades in
             if (col == 1)
                 offset *= 1.5f;
             if (row == 0)
