@@ -186,7 +186,7 @@ int swrMultiplayer_BuildCreateGameUI(void);
 // Sends a subtype-0x24 join-response code (result + value) to one player.
 void swrMultiplayer_SendJoinResponse(int result, int value, DPID to);
 // Broadcasts a chat string (subtype 2) to all players.
-void swrMultiplayer_SendChatMessage(char* text, int param2, int param3);
+void swrMultiplayer_SendChatMessage(char* text, int target, int sender);
 // Drops a player: resolves its DPID, sends a quit, and sithMulti_RemovePlayer.
 void swrMultiplayer_DropPlayer(unsigned int playerNum);
 // Sends a subtype-0x2a player-quit message to a player (host).

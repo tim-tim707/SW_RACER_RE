@@ -1701,6 +1701,12 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
     swrUI_WINDOW_HANGAR_NAV = 0x30d51, // shared OK/Back buttons; hangar nav-overlay pages reparent under it
 } swrUI_WINDOW;
 
+typedef enum swrScore_FLAG // swrScore.flag
+{
+    swrScore_FLAG_ACTIVE = 0x1, // in the race
+    swrScore_FLAG_FINISHED = 0x2, // ranked by results_P1_total_time once set (swrObjJdge_GetRacerRankValue)
+} swrScore_FLAG;
+
 typedef enum swrObjHang_FLAG // swrObjHang.flag
 {
     swrObjHang_FLAG_ACTIVE = 0x1, // F0/F2/SetMenuState only run while set; F4 sets it on 'Fini'/'Strt', clears on 'Stop'

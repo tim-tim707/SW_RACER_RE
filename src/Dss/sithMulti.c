@@ -4,6 +4,8 @@
 
 #include <macros.h>
 #include <Win95/stdComm.h>
+#include <Dss/sithMessage.h>
+#include <Swr/swrMultiplayer.h>
 
 #include <string.h>
 
@@ -61,7 +63,12 @@ int sithMulti_RunCallback(tSithMessage* message)
 // 0x0041c570
 void sithMulti_CloseGame(void)
 {
-    HANG("TODO");
+    swrMultiplayer_SetRacerListDisplay(0, 0, 0);
+    multiplayer_inSession = 0;
+    multiplayer_isHost = 0;
+    sithMessage_g_outputstream &= ~sithMessage_STREAM_NET;
+    sithMessage_g_inputstream &= ~sithMessage_STREAM_NET;
+    sithMessage_CloseGame();
 }
 
 // 0x0041b950

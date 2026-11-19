@@ -515,6 +515,7 @@ swrControl_forceStrength 0x004b493c float # Force strength option as a gain (-1 
 wuRegistry_lpClass 0x004d55cc char[]
 
 multiplayer_enabled 0x004d5e00 int
+sithMulti_playerListVerified 0x004d5e04 int # set once swrMultiplayer_VerifyPlayerList found every listed DPID in the DirectPlay session; cleared by sithMulti_JoinSessionAndCreatePlayer
 
 sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
