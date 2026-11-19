@@ -468,6 +468,17 @@
 #define SWR_DISPLAY_DEFAULT_WIDTH (640)
 #define SWR_DISPLAY_DEFAULT_HEIGHT (480)
 #define SWR_DISPLAY_BPP (16)
+#define SWR_RGB555_RED_MASK (0x7c00) // back-buffer pixel format that gets the Smush RGB565 -> RGB555 table
+#define SWR_RGB555_GREEN_MASK (0x3e0)
+#define SWR_RGB555_BLUE_MASK (0x1f)
+#define SWR_SMUSH_VIDEO_WIDTH (640) // Smush cinematic frame size (Window_PlayCinematic)
+#define SWR_SMUSH_VIDEO_HEIGHT (480)
+#define SWR_SMUSH_VIDEO_ASPECT (0.75f) // height / width (0x004ac448)
+#define SWR_SMUSH_VIDEO_ASPECT_INV (1.3333334f) // width / height (0x004b7a40)
+#define SWR_SMUSH_MAX_VOLUME (127)
+#define SWR_SMUSH_PLAY_FLAGS (0xf)
+#define SWR_SMUSH_FRAME_RATE_SCALE (1000000)
+#define WINDOW_CD_PLANETG_ZNM_SIZE (0x11214e7) // byte size of \Data\Anims\PlanetG.znm on the install CD (Window_CDCheck)
 
 // swrSprite_GetTextureFromTGA (0x004114d0)
 #define SWR_TGA_HEADER_SIZE (18)
@@ -543,6 +554,7 @@
 
 // DirectDraw/Direct3D enumeration tables (DirectDraw_EnumDisplayModes_Callback, Direct3d_Enum*_Callback)
 #define STD_DISPLAY_MAX_VIDEO_MODES (64) // stdDisplay_aVideoModes length
+#define STD_DISPLAY_MAX_DEVICES (16) // stdDisplay_aDisplayDevices length
 #define STD3D_MAX_DEVICES (4) // std3D_aDevices length
 #define STD3D_MAX_TEXTURE_FORMATS (8) // std3D_aTextureFormats length
 

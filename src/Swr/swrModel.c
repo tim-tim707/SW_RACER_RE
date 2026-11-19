@@ -557,7 +557,9 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
 
                     break;
                 default:
-                    HANG("invalid primitive type in swrModel_Mesh");
+                    // faithful: the original spins forever on an unknown primitive type
+                    for (;;) {
+                    }
                 }
             }
             if (num_unknown_vertices > 0)
@@ -600,7 +602,7 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
             FLOAT_SWAP32_INPLACE(&lod->lod_distances[i]);
 
         for (unsigned int i = 0; i < ARRAYSIZE(lod->unk); i++)
-            lod->unk[i] = SWAP32(&lod->unk[i]);
+            lod->unk[i] = SWAP32(lod->unk[i]);
 
         break;
     }
@@ -632,7 +634,8 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
         break;
     }
     default:
-        HANG("invalid swrModel_Node.type");
+        // the original leaves other node types' payload alone
+        break;
     }
 
     // if node has children
@@ -1279,8 +1282,11 @@ void swrModel_UpdateAnimations()
 // 0x004267A0
 void swrModel_AnimationSetLoopPoints(swrModel_Animation* anim, float start_time, float end_time)
 {
-    if (start_time > end_time)
-        HANG("invalid start_time/end_time");
+    // faithful: the original spins forever when start_time > end_time
+    if (start_time > end_time) {
+        for (;;) {
+        }
+    }
 
     if (start_time < 0)
         start_time = 0;
@@ -2294,8 +2300,11 @@ void swrModel_InitializeTextureBuffer()
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
     swrLoader_ReadAt(swrLoader_TYPE_TEXTURE_BLOCK, 0, &texture_count, 4u);
     texture_count = SWAP32(texture_count);
-    if (texture_count > 1700)
-        HANG("invalid texture_count");
+    // faithful: the original spins forever on an oversized texture block
+    if (texture_count > SWR_TEXTURE_BUFFER_SIZE) {
+        for (;;) {
+        }
+    }
 
     memset(texture_buffer, 0, sizeof(texture_buffer));
     swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);

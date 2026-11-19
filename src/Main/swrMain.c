@@ -24,6 +24,10 @@
 #include "../Win95/stdDisplay.h"
 #include "../Win95/Window.h"
 #include "../stdPlatform.h"
+#include "../Win95/stdConsole.h"
+#include "../General/stdFileUtil.h"
+#include "../Platform/std3D.h"
+#include <stdio.h>
 
 #include <string.h>
 
@@ -350,8 +354,76 @@ void Main_ShutdownError(void)
 // 0x00423cc0
 int Main_Startup(char* cmdline)
 {
-    HANG("TODO");
-    return 0;
+    StdDisplayEnvironment* env;
+    char path[256];
+
+    swrMain_initialized = 1;
+    Main_ParseCmdLine(cmdline);
+    stdPlatform_InitServices(&stdPlatform_hostServices);
+    stdPlatform_hostServices.statusPrint = (void*)stdConsole_Printf;
+    stdPlatform_hostServices.errorPrint = (void*)stdConsole_Printf;
+    stdPlatform_hostServices.debugPrint = (void*)stdConsole_Printf;
+    stdPlatform_Initialize(&stdPlatform_hostServices);
+    swrText_ParseRacerTab(".\\data\\racer.tab");
+    swrDisplay_SetWindowSize();
+    swrControl_ClearPollState_Maybe();
+    swrUI_Initialize();
+    Windows_hinstance_unused = (int)GetModuleHandleA(NULL);
+    wuRegistry_Startup(HKEY_LOCAL_MACHINE, "Software\\LucasArts Entertainment Company LLC\\Star Wars: Episode I Racer\\v1.0");
+    swrMainDisplaySettings_g.RegFullScreen = wuRegistry_GetInt2("FullScreen", swrMainDisplaySettings_g.RegFullScreen);
+    swrMainDisplaySettings_g.RegFixFlicker = wuRegistry_GetInt2("Fix Flicker", swrMainDisplaySettings_g.RegFixFlicker);
+    swrMainDisplaySettings_g.RegDevMode = 0;
+    swrMainDisplaySettings_g.RegUseFett = wuRegistry_GetInt2("UseFett", swrMainDisplaySettings_g.RegUseFett);
+    env = std3D_BuildDisplayEnvironment();
+    if (env == NULL) {
+        MessageBoxA(NULL, "Direct3D Failure\n\nNo 3D Hardware Found\n", "Racer Error", MB_ICONEXCLAMATION);
+        return 0;
+    }
+    Window_SetWindowed(1);
+    swrDisplay_SetWindowSize();
+    swrDisplay_SetSettingsFromRegistry(env, &swrMainDisplaySettings_g);
+    Main_displayDialogResult = 1;
+    if (Main_settings_menu_only != 0) {
+        // the EXE then stores what DialogBoxParamA left in EAX into Main_displayDialogResult
+        Window_DisplaySettingsBox(Window_GetHWND(), &swrMainDisplaySettings_g);
+        return 0;
+    }
+    Window_SetWindowed(0);
+    if (swrMainDisplaySettings_g.RegFullScreen == 0 && swrMainDisplaySettings_g.RegDevMode == 0)
+        ShowWindow(Main_hWnd, SW_MAXIMIZE);
+    swr_FastMode = swrMainDisplaySettings_g.RegDevMode;
+    std3D_FreeDisplayEnvironment(env);
+    rdStartup(&stdPlatform_hostServices);
+    Main_hWnd = Window_GetHWND();
+    Window_CDCheck();
+    stdFileUtil_MkDir(".\\data\\config\\");
+    sprintf(path, "%s%s", ".\\data\\config\\", "current");
+    stdFileUtil_MkDir(path);
+    if (swrDisplay_Open(&swrMainDisplaySettings_g)) {
+        sprintf(unknownError_buffer, "Unable to open display for 3D.\n%s", std_output_buffer);
+        Main_ShutdownError();
+        return 0;
+    }
+    swrDisplay_SetWindowSize();
+    DirectDraw_InitProgressBar();
+    swrUI_UpdateProgressBar(0);
+    // the EXE continues by JMP through Main_InitAudioInput -> Main_StartupSoundAndControl ->
+    // swrControl_Startup, which returns out of this function's frame
+    return Main_InitAudioInput();
+}
+
+// 0x004112e1
+int Main_InitAudioInput(void)
+{
+    InitializeCriticalSection(&swrSound_criticalSection);
+    return Main_StartupSoundAndControl();
+}
+
+// 0x00411361
+int Main_StartupSoundAndControl(void)
+{
+    swrSound_Startup();
+    return swrControl_Startup();
 }
 
 // 0x00424430

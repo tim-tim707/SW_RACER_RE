@@ -55,7 +55,7 @@ void Window_SetWindowed(int windowed);
 
 void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings);
 
-int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings);
+INT_PTR __stdcall Window_DisplaySettingsCallback(HWND dialogBoxHwnd, UINT message, WPARAM infos, LPARAM displaySettings);
 
 // Initializes the display-settings dialog: populates the device, mode, and antialias combo boxes and option checkboxes.
 BOOL Window_DisplaySettingsInitDialog(HWND hDlg, WPARAM wParam, swrMainDisplaySettings* displaySettings);

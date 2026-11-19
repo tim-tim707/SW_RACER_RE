@@ -892,7 +892,7 @@ StdDisplayEnvironment* std3D_BuildDisplayEnvironment(void)
                 mode_ptr++;
         }
 
-        if (info->displayDevice.bGuidNotSet)
+        if (info->displayDevice.b3DAccel)
         {
             if (!std3D_Startup())
                 goto error;

@@ -14,6 +14,10 @@
 #include "Swr/swrUI.h"
 #include "swr.h"
 #include "Platform/wuRegistry.h"
+#include "Main/swrMain.h"
+#include "Swr/swrRender.h"
+#include "Swr/swrObj.h"
+#include "Swr/swrRace.h"
 
 #include <objbase.h>
 #include <stdio.h>
@@ -399,10 +403,51 @@ void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalog
 // 0x00423efd
 int swrControl_Startup(void)
 {
-    HANG("TODO");
+    int color;
+
+    swrUI_UpdateProgressBar(20);
+    if (swrControl_Initialize() != 0) {
+        sprintf(unknownError_buffer, "ERROR: elfControl_Initialize failed.\n%s", std_output_buffer);
+        Main_ShutdownError();
+        return 0;
+    }
+    swrUI_UpdateProgressBar(25);
+    wuRegistry_SaveInt2("FullScreen", swrMainDisplaySettings_g.RegFullScreen);
+    wuRegistry_SaveInt2("Fix Flicker", swrMainDisplaySettings_g.RegFixFlicker);
+    wuRegistry_SaveInt2("DevMode", swrMainDisplaySettings_g.RegDevMode);
+    wuRegistry_SaveInt2("UseFett", swrMainDisplaySettings_g.RegUseFett);
+    swrRender_InitScene(&swrMainDisplaySettings_g);
+    swrUI_UpdateProgressBar(38);
     Window_set_msg_handler(Window_msg_default_handler);
-    HANG("TODO");
-    return 0;
+    swrUI_UpdateProgressBar(40);
+    enablePauseOverlay_Maybe();
+    swrUI_UpdateProgressBar(45);
+    swrScene_Startup();
+    swrUI_UpdateProgressBar(50);
+    swrUI_BuildMenuPages();
+    swrUI_UpdateProgressBar(60);
+    swrRace_InitGameData();
+    swrUI_UpdateProgressBar(65);
+
+    // RGB565 -> RGB555 table for the Smush cinematic frames (Window_SmushPlayCallback)
+    Window_smushColorTable = NULL;
+    if (stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwRBitMask == SWR_RGB555_RED_MASK && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwGBitMask == SWR_RGB555_GREEN_MASK && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwBBitMask == SWR_RGB555_BLUE_MASK) {
+        Window_smushColorTable = Window_smushRgb565To555;
+        for (color = 0xffff; color >= 0; color--)
+            Window_smushColorTable[color] = (color & SWR_RGB555_BLUE_MASK) | ((color >> 1) & (SWR_RGB555_RED_MASK | SWR_RGB555_GREEN_MASK));
+    }
+
+    memset(&ddSurfaceDescForVideo, 0, sizeof(ddSurfaceDescForVideo));
+    ddSurfaceDescForVideo.dwSize = sizeof(ddSurfaceDescForVideo);
+    ddSurfaceDescForVideo.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+    ddSurfaceDescForVideo.dwWidth = SWR_SMUSH_VIDEO_WIDTH;
+    ddSurfaceDescForVideo.dwHeight = SWR_SMUSH_VIDEO_HEIGHT;
+    ddSurfaceDescForVideo.ddsCaps.dwCaps = DDSCAPS_SYSTEMMEMORY;
+    // the EXE calls ShowWindow through EBX, loaded from the import table in Main_Startup
+    if (swrMainDisplaySettings_g.RegFullScreen == 0 && swrMainDisplaySettings_g.RegDevMode == 0)
+        ShowWindow(Main_hWnd, SW_MAXIMIZE);
+    swrUI_UpdateProgressBar(90);
+    return 1;
 }
 
 // 0x00405cf0

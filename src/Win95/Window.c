@@ -18,6 +18,15 @@
 #include <Main/swrMain.h>
 #include <Main/swrMain2.h>
 #include <Swr/swrUI.h>
+#include <Swr/swrText.h>
+#include <Platform/smush.h>
+#include <engine_config.h>
+#include <swr.h>
+#include <Platform/wuRegistry.h>
+#include <io.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // 0x004080C0
 void Window_AddKeyEvent(WPARAM virtual_key_code, USHORT flags, uint8_t pressed)
@@ -146,35 +155,413 @@ void Window_SetWindowed(int windowed)
 // 0x004246d0
 void Window_DisplaySettingsBox(HWND hwnd, swrMainDisplaySettings* displaySettings)
 {
-    HANG("TODO");
-    // HINSTANCE hInstance;
+    HINSTANCE hInstance;
 
-    // hInstance = (HINSTANCE)GetWindowLongA(hwnd, -6);
-    // DialogBoxParamA(hInstance, (LPCSTR)0x65, hwnd, FUN_00424700, (LPARAM)displaySettings);
+    hInstance = (HINSTANCE)GetWindowLongA(hwnd, GWL_HINSTANCE);
+    DialogBoxParamA(hInstance, MAKEINTRESOURCEA(WINDOW_DISPLAY_SETTINGS_DIALOG), hwnd, Window_DisplaySettingsCallback, (LPARAM)displaySettings);
 }
 
 // 0x00424700
-int Window_DisplaySettingsCallback(HWND dialogBoxHwnd, unsigned int message, WPARAM infos, LPARAM displaySettings)
+INT_PTR __stdcall Window_DisplaySettingsCallback(HWND dialogBoxHwnd, UINT message, WPARAM infos, LPARAM displaySettings)
 {
-    HANG("TODO");
+    if (message == WM_INITDIALOG)
+        return Window_DisplaySettingsInitDialog(dialogBoxHwnd, infos, (swrMainDisplaySettings*)displaySettings);
+    if (message != WM_COMMAND)
+        return 0;
+    Window_DisplaySettingsCommand(dialogBoxHwnd, LOWORD(infos), displaySettings, HIWORD(infos));
+    return 1;
+}
+
+static void Window_ComboAddItem(HWND combo, const char* text, LPARAM data)
+{
+    WPARAM index;
+
+    index = SendMessageA(combo, CB_ADDSTRING, 0, (LPARAM)text);
+    SendMessageA(combo, CB_SETITEMDATA, index, data);
+}
+
+static LRESULT Window_ComboGetSelectedData(HWND combo)
+{
+    WPARAM index;
+
+    index = SendMessageA(combo, CB_GETCURSEL, 0, 0);
+    return SendMessageA(combo, CB_GETITEMDATA, index, 0);
+}
+
+// 0x00424760
+BOOL Window_DisplaySettingsInitDialog(HWND hDlg, WPARAM wParam, swrMainDisplaySettings* displaySettings)
+{
+    HWND combo;
+    WPARAM index;
+    unsigned int device;
+    StdDisplayInfo* info;
+
+    Window_DisplaySettingsMoveWindow(hDlg);
+    combo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_DISPLAY_DEVICE);
+    for (device = 0; device < (unsigned int)Main_drawDevices->numInfos; device++) {
+        info = &Main_drawDevices->aDisplayInfos[device];
+        if (info->displayDevice.b3DAccel == 1) {
+            sprintf(std_output_buffer, "%s", info->displayDevice.aDriverName);
+            index = SendMessageA(combo, CB_ADDSTRING, 0, (LPARAM)std_output_buffer);
+            SendMessageA(combo, CB_SETITEMDATA, index, device);
+            if (device == (unsigned int)displaySettings->currentDevice)
+                SendMessageA(combo, CB_SETCURSEL, index, 0);
+        }
+    }
+
+    combo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_GEOMETRY_MODE);
+    Window_ComboAddItem(combo, "Vertex Only", RD_GEOMETRY_VERTEX);
+    Window_ComboAddItem(combo, "Wire Frame", RD_GEOMETRY_WIREFRAME);
+    Window_ComboAddItem(combo, "Solid", RD_GEOMETRY_SOLID);
+    index = SendMessageA(combo, CB_ADDSTRING, 0, (LPARAM) "Texture");
+    SendMessageA(combo, CB_SETITEMDATA, index, RD_GEOMETRY_FULL);
+    SendMessageA(combo, CB_SETCURSEL, index, 0);
+
+    combo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_LIGHT_MODE);
+    // faithful: "None" and "Lit" carry each other's values
+    Window_ComboAddItem(combo, "None", RD_LIGHTING_LIT);
+    Window_ComboAddItem(combo, "Lit", RD_LIGHTING_NONE);
+    Window_ComboAddItem(combo, "Diffuse", RD_LIGHTING_DIFFUSE);
+    index = SendMessageA(combo, CB_ADDSTRING, 0, (LPARAM) "Gouraud");
+    SendMessageA(combo, CB_SETITEMDATA, index, RD_LIGHTING_GOURAUD);
+    SendMessageA(combo, CB_SETCURSEL, index, 0);
+
+    combo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_TEXTURE_FILTER);
+    Window_ComboAddItem(combo, "None", 0);
+    // faithful: the EXE selects "Bilinear" before attaching its item data
+    index = SendMessageA(combo, CB_ADDSTRING, 0, (LPARAM) "Bilinear");
+    SendMessageA(combo, CB_SETCURSEL, index, 0);
+    SendMessageA(combo, CB_SETITEMDATA, index, 1);
+    Window_ComboAddItem(combo, "Trilinear", 2);
+
+    Window_DisplaySettingsPopulateModes(hDlg, displaySettings);
+    SetWindowLongA(hDlg, DWL_USER, (LONG)displaySettings);
+    CheckDlgButton(hDlg, WINDOW_DISPLAY_SETTINGS_FULLSCREEN, displaySettings->RegFullScreen);
+    CheckDlgButton(hDlg, WINDOW_DISPLAY_SETTINGS_FIX_FLICKER, displaySettings->RegFixFlicker);
+    CheckDlgButton(hDlg, WINDOW_DISPLAY_SETTINGS_DEV_MODE, displaySettings->RegDevMode);
+    CheckDlgButton(hDlg, WINDOW_DISPLAY_SETTINGS_USE_FETT, displaySettings->RegUseFett);
+    SetDlgItemTextA(hDlg, WINDOW_DISPLAY_SETTINGS_DIALOG, swrText_Translate("/MONDOTEXT_H_0525/Racer Display Settings"));
+    SetDlgItemTextA(hDlg, WINDOW_DISPLAY_SETTINGS_HARDWARE_LABEL, swrText_Translate("/MONDOTEXT_H_0526/Graphics Hardware"));
+    SetDlgItemTextA(hDlg, WINDOW_DISPLAY_SETTINGS_3D_DEVICE_LABEL, swrText_Translate("/MONDOTEXT_H_0527/3D Device"));
+    SetDlgItemTextA(hDlg, WINDOW_DISPLAY_SETTINGS_DISPLAY_MODE_LABEL, swrText_Translate("/MONDOTEXT_H_0528/Display Mode"));
+    SetDlgItemTextA(hDlg, IDOK, swrText_Translate("/MONDOTEXT_H_0529/&Accept"));
+    SetDlgItemTextA(hDlg, IDCANCEL, swrText_Translate("/MONDOTEXT_H_0530/&Cancel"));
+    return 1;
+}
+
+// 0x00424a90
+void Window_DisplaySettingsCommand(HWND hDlg, int controlId, WPARAM wParam, int notifyCode)
+{
+    swrMainDisplaySettings* settings;
+    StdDisplayInfo* info;
+    OLECHAR guidWide[130];
+    CHAR guidString[260];
+
+    settings = (swrMainDisplaySettings*)GetWindowLongA(hDlg, DWL_USER);
+    if (controlId > WINDOW_DISPLAY_SETTINGS_ACCEPT_ON_DBLCLK) {
+        if (controlId == WINDOW_DISPLAY_SETTINGS_VIDEO_MODE) {
+            if (notifyCode == CBN_SELCHANGE)
+                settings->videoModeIndex = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_VIDEO_MODE));
+        } else if (controlId == WINDOW_DISPLAY_SETTINGS_DISPLAY_DEVICE) {
+            if (notifyCode == CBN_SELCHANGE) {
+                settings->currentDevice = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_DISPLAY_DEVICE));
+                Window_DisplaySettingsPopulateModes(hDlg, settings);
+            }
+        } else if (controlId == WINDOW_DISPLAY_SETTINGS_3D_DEVICE && notifyCode == CBN_SELCHANGE) {
+            settings->device3DIndex = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_3D_DEVICE));
+        }
+        return;
+    }
+
+    if (controlId == WINDOW_DISPLAY_SETTINGS_ACCEPT_ON_DBLCLK) {
+        if (notifyCode != CBN_DBLCLK)
+            return;
+        controlId = IDOK;
+    } else if (controlId != IDOK) {
+        if (controlId != IDCANCEL)
+            return;
+        EndDialog(hDlg, IDCANCEL);
+        exit(0);
+    }
+
+    settings->device3DIndex = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_3D_DEVICE));
+    settings->videoModeIndex = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_VIDEO_MODE));
+    settings->geometryMode = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_GEOMETRY_MODE));
+    if (settings->geometryMode == RD_GEOMETRY_WIREFRAME)
+        settings->backbufferFill = 1;
+    settings->lightMode = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_LIGHT_MODE));
+    settings->textureFilter = Window_ComboGetSelectedData(GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_TEXTURE_FILTER));
+
+    info = &Main_drawDevices->aDisplayInfos[settings->currentDevice];
+    wuRegistry_SetString("Display", info->displayDevice.aDriverName);
+    wuRegistry_SetString("3D Device", info->aDevices[settings->device3DIndex].deviceDescription);
+    wuRegistry_SaveInt("Display Width", info->aModes[settings->videoModeIndex].rasterInfo.width);
+    wuRegistry_SaveInt("Display Height", info->aModes[settings->videoModeIndex].rasterInfo.height);
+    StringFromGUID2(&info->displayDevice.guid, guidWide, 0x104);
+    WideCharToMultiByte(CP_ACP, 0, guidWide, -1, guidString, sizeof(guidString), NULL, NULL);
+    wuRegistry_SetString("GUID", guidString);
+    settings->RegFullScreen = IsDlgButtonChecked(hDlg, WINDOW_DISPLAY_SETTINGS_FULLSCREEN) == BST_CHECKED;
+    settings->RegFixFlicker = IsDlgButtonChecked(hDlg, WINDOW_DISPLAY_SETTINGS_FIX_FLICKER) == BST_CHECKED;
+    settings->RegDevMode = IsDlgButtonChecked(hDlg, WINDOW_DISPLAY_SETTINGS_DEV_MODE) == BST_CHECKED;
+    settings->RegUseFett = IsDlgButtonChecked(hDlg, WINDOW_DISPLAY_SETTINGS_USE_FETT) == BST_CHECKED;
+    EndDialog(hDlg, controlId);
+    exit(0);
+}
+
+// 0x00424e50
+void Window_DisplaySettingsPopulateModes(HWND hDlg, swrMainDisplaySettings* displaySettings)
+{
+    HWND modeCombo;
+    HWND deviceCombo;
+    StdDisplayInfo* info;
+    StdVideoMode* mode;
+    WPARAM index;
+    unsigned int i;
+    int found;
+
+    modeCombo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_VIDEO_MODE);
+    deviceCombo = GetDlgItem(hDlg, WINDOW_DISPLAY_SETTINGS_3D_DEVICE);
+    SendMessageA(modeCombo, CB_RESETCONTENT, 0, 0);
+    SendMessageA(deviceCombo, CB_RESETCONTENT, 0, 0);
+    found = 0;
+    info = &Main_drawDevices->aDisplayInfos[displaySettings->currentDevice];
+    for (i = 0; i < (unsigned int)info->numDevices; i++) {
+        sprintf(std_output_buffer, "%s", info->aDevices[i].deviceDescription);
+        index = SendMessageA(deviceCombo, CB_ADDSTRING, 0, (LPARAM)std_output_buffer);
+        SendMessageA(deviceCombo, CB_SETITEMDATA, index, i);
+        if ((unsigned int)displaySettings->device3DIndex == i) {
+            SendMessageA(deviceCombo, CB_SETCURSEL, index, 0);
+            found = 1;
+        }
+    }
+    if (!found)
+        SendMessageA(deviceCombo, CB_SETCURSEL, 0, 0);
+
+    swrMainDisplayMode.rasterInfo.colorInfo.bpp = SWR_DISPLAY_BPP;
+    for (i = 0; i < (unsigned int)info->numModes; i++) {
+        mode = &info->aModes[i];
+        sprintf(std_output_buffer, "%dx%d %dbpp", mode->rasterInfo.width, mode->rasterInfo.height, mode->rasterInfo.colorInfo.bpp);
+        if (mode->rasterInfo.colorInfo.bpp == SWR_DISPLAY_BPP) {
+            index = SendMessageA(modeCombo, CB_ADDSTRING, 0, (LPARAM)std_output_buffer);
+            SendMessageA(modeCombo, CB_SETITEMDATA, index, i);
+            if (mode->rasterInfo.width == swrMainDisplayMode.rasterInfo.width && mode->rasterInfo.height == swrMainDisplayMode.rasterInfo.height)
+                SendMessageA(modeCombo, CB_SETCURSEL, index, 0);
+        }
+    }
 }
 
 // 0x00425070
 int Window_SmushPlayCallback(const SmushImage* image)
 {
-    HANG("TODO");
+    LPDIRECTDRAWSURFACE4* surface;
+    DDSURFACEDESC2 desc;
+    unsigned int width;
+    unsigned int height;
+    unsigned int pairs;
+    unsigned int pair;
+    uint8_t* src;
+    uint8_t* dst;
+    const uint32_t* srcPixels;
+    uint32_t* dstPixels;
+
+    swrControl_ProcessInputs();
+    surface = &stdDisplay_g_backBuffer.pVSurface.pDDSurf;
+    if (swrDisplay_directlyBlitVideoToScreen != 1)
+        surface = &ddSurfaceForVideo;
+    memset(&desc, 0, sizeof(desc));
+    desc.dwSize = sizeof(desc);
+    if (IDirectDrawSurface4_Lock(*surface, NULL, &desc, DDLOCK_WAIT, NULL) != DD_OK) {
+        // faithful: a failed Lock only latches the skip flag; the zeroed desc is still used below
+        if (swrControl_cancelPressedEdge != 0) {
+            Window_smushSkipRequested = 1;
+        } else {
+            Window_smushSkipRequested = 0;
+            if (swrControl_acceptPressedEdge != 0)
+                Window_smushSkipRequested = 1;
+        }
+    }
+
+    width = image->width;
+    if (width > desc.dwWidth)
+        width = desc.dwWidth;
+    height = image->height;
+    if (height > desc.dwHeight)
+        height = desc.dwHeight;
+    // the horizontal offset is (surface width - frame width) bytes, i.e. centered in 16-bit pixels
+    dst = (uint8_t*)desc.lpSurface + ((desc.dwHeight - height) >> 1) * desc.lPitch - width + desc.dwWidth;
+    src = image->data;
+    if (Window_smushColorTable != NULL) {
+        pairs = width >> 1;
+        for (; height != 0; height--) {
+            srcPixels = (const uint32_t*)src;
+            dstPixels = (uint32_t*)dst;
+            for (pair = 0; pair < pairs; pair++)
+                dstPixels[pair] = Window_smushColorTable[srcPixels[pair] & 0xffff] | ((uint32_t)Window_smushColorTable[srcPixels[pair] >> 16] << 16);
+            dst += desc.lPitch;
+            src += image->rowSize;
+        }
+    } else {
+        for (; height != 0; height--) {
+            memcpy(dst, src, width * 2);
+            dst += desc.lPitch;
+            src += image->rowSize;
+        }
+    }
+    IDirectDrawSurface4_Unlock(*surface, NULL);
+    if (swrDisplay_directlyBlitVideoToScreen != 1)
+        IDirectDrawSurface4_Blt(stdDisplay_g_backBuffer.pVSurface.pDDSurf, &Window_smushDstRect, ddSurfaceForVideo, &Window_smushSrcRect, DDBLT_WAIT, NULL);
+    swr_noop2();
+    stdDisplay_Update();
+    swrMain_ProcessDebugKeys();
+    Window_smushSkipRequested = swrControl_cancelPressedEdge != 0 || swrControl_acceptPressedEdge != 0;
+    if (Window_smushSkipRequested != 0) {
+        swrControl_menuAcceptPressedEdge = 0;
+        swrControl_acceptPressedEdge = 0;
+        swrControl_cancelPressedEdge = 0;
+        inRaceLocalPlayerInputBitset1[0] = 0;
+        swrControl_ClearDeviceState(-1);
+    }
+    return Window_smushSkipRequested;
 }
 
 // 0x00425500
 int Window_CDCheck(void)
 {
-    HANG("TODO");
+    DWORD versionHandle;
+    DWORD versionSize;
+    void* versionData;
+    WORD* translation;
+    UINT valueLength;
+    char subBlock[256];
+    char path[256];
+    char volumeLabel[128];
+    char expectedLabel[128];
+    char wheelMap[128];
+    FILE* wheelMapFile;
+    int fd;
+    int answer;
+
+    // faithful: the EXE zeroes this buffer from byte 17 on only
+    memset(path + 17, 0, sizeof(path) - 17);
+    if (!Window_bCDCheckEnabled) {
+        sprintf(rootPathName, wuRegistry_lpClass);
+        return 0;
+    }
+
+    versionSize = GetFileVersionInfoSizeA("swep1rcr.exe", &versionHandle);
+    if (versionSize != 0) {
+        versionData = malloc(versionSize);
+        if (GetFileVersionInfoA("swep1rcr.exe", 0, versionSize, versionData) && VerQueryValueA(versionData, "\\VarFileInfo\\Translation", (LPVOID*)&translation, &valueLength)) {
+            wsprintfA(subBlock, "\\StringFileInfo\\%04X%04X\\FileVersion", translation[0], translation[1]);
+            if (VerQueryValueA(versionData, subBlock, (LPVOID*)&translation, &valueLength))
+                memcpy(path, translation, strlen((const char*)translation) + 1);
+        }
+        free(versionData);
+    }
+
+    if (wuRegistry_GetString("CD Path", rootPathName, sizeof(rootPathName), wuRegistry_lpClass) != 0) {
+        MessageBoxA(Main_hWnd, "Error:  Please reinstall program.", "BAD INSTALL", MB_ICONHAND);
+        Main_Shutdown();
+        exit(0);
+    }
+
+    // faithful: the EXE NOPs out the branches on GetDriveTypeA, fopen, GetVolumeInformationA and
+    // strncmp, so only the PlanetG.znm size decides
+    GetDriveTypeA(rootPathName);
+    sprintf(wheelMap, "%s\\%swheel.map", rootPathName, ".\\data\\config\\default\\");
+    // the EXE never closes this handle; closed here (the file is still created/truncated)
+    wheelMapFile = fopen(wheelMap, "w");
+    if (wheelMapFile != NULL)
+        fclose(wheelMapFile);
+    sprintf(expectedLabel, "racer%s", "100_0");
+    do {
+        GetVolumeInformationA(rootPathName, volumeLabel, sizeof(volumeLabel), NULL, NULL, NULL, NULL, 0);
+        strncmp(volumeLabel, expectedLabel, strlen(expectedLabel) - 1);
+        sprintf(wheelMap, "%s\\%swheel.map", rootPathName, ".\\data\\config\\default\\");
+        sprintf(path, "%s%s", rootPathName, "\\Data\\Anims\\PlanetG.znm");
+        fd = _open(path, 0);
+        if (fd != -1) {
+            if (_filelength(fd) == WINDOW_CD_PLANETG_ZNM_SIZE) {
+                _close(fd);
+                memcpy(rootPathName + strlen(rootPathName), "\\", 2);
+                return 0;
+            }
+            _close(fd);
+        }
+        sprintf(subBlock, "Error:  Please insert CD-ROM '%s' into drive.\n\nPress OK to continue or CANCEL to exit to desktop", expectedLabel);
+        answer = MessageBoxA(Main_hWnd, subBlock, "CD ERROR", MB_OKCANCEL | MB_ICONEXCLAMATION);
+    } while (answer != IDCANCEL);
+    Main_Shutdown();
+    exit(0);
 }
 
 // 0x004252a0
 int Window_PlayCinematic(char* znmFile)
 {
-    HANG("TODO");
+    int savedUiInputActive;
+    unsigned int width;
+    unsigned int height;
+    unsigned int x;
+    unsigned int y;
+    int scaled;
+    int volume;
+    char path[256];
+
+    savedUiInputActive = swrControl_uiInputActive;
+    swrGui_Stop(1);
+    width = stdDisplay_g_backBuffer.rasterInfo.width;
+    height = stdDisplay_g_backBuffer.rasterInfo.height;
+    if (width >= SWR_SMUSH_VIDEO_WIDTH && height >= SWR_SMUSH_VIDEO_HEIGHT) {
+        swrDisplay_directlyBlitVideoToScreen = 1;
+    } else if (IDirectDraw4_CreateSurface(std3D_pDirectDraw, &ddSurfaceDescForVideo, &ddSurfaceForVideo, NULL) != DD_OK) {
+        swrDisplay_directlyBlitVideoToScreen = 1;
+    }
+    // faithful: nothing here resets swrDisplay_directlyBlitVideoToScreen to 0
+
+    if (swrDisplay_directlyBlitVideoToScreen == 0) {
+        Window_smushSrcRect.left = 0;
+        Window_smushSrcRect.top = 0;
+        Window_smushSrcRect.right = SWR_SMUSH_VIDEO_WIDTH;
+        Window_smushSrcRect.bottom = SWR_SMUSH_VIDEO_HEIGHT;
+        x = 0;
+        y = 0;
+        if ((float)height / (float)width < SWR_SMUSH_VIDEO_ASPECT) {
+            scaled = (int)(SWR_SMUSH_VIDEO_ASPECT_INV * (float)height);
+            x = (width - scaled) >> 1;
+            Window_smushDstRect.right = scaled + x;
+            Window_smushDstRect.bottom = height;
+        } else {
+            scaled = (int)((float)width * SWR_SMUSH_VIDEO_ASPECT);
+            y = (height - scaled) >> 1;
+            Window_smushDstRect.right = width;
+            Window_smushDstRect.bottom = scaled + y;
+        }
+        Window_smushDstRect.left = x;
+        Window_smushDstRect.top = y;
+    }
+
+    SmushStartup(Main_hWnd, 0);
+    if (swrMain_introMoviesPending != 0)
+        volume = SWR_SMUSH_MAX_VOLUME;
+    else if (Main_sound == 0)
+        volume = 0;
+    else
+        volume = (uint8_t)sound_music_volume * SWR_SMUSH_MAX_VOLUME / 255;
+    SmushSetVolume(volume);
+    stdDisplay_VBufferFill(&stdDisplay_g_backBuffer, 0, NULL);
+    stdDisplay_Update();
+    if (swrMainDisplaySettings_g.RegFullScreen == 0)
+        stdDisplay_VBufferFill(&stdDisplay_g_backBuffer, 0, NULL);
+    swrControl_uiInputActive = 0;
+    Window_CDCheck();
+    sprintf(path, "%s%s%s", rootPathName, ".\\data\\anims\\", znmFile);
+    SmushPlay(path, SWR_SMUSH_PLAY_FLAGS, 0, 0, 0, SWR_SMUSH_VIDEO_WIDTH, SWR_SMUSH_VIDEO_HEIGHT, -1, 0, Window_SmushPlayCallback, 1, SWR_SMUSH_FRAME_RATE_SCALE, SWR_SMUSH_FRAME_RATE_SCALE);
+    swrControl_uiInputActive = savedUiInputActive;
+    SmushShutdown();
+    if (swrDisplay_directlyBlitVideoToScreen == 0)
+        IDirectDrawSurface4_Release(ddSurfaceForVideo);
+    swrGui_Stop(0);
+    return 1;
 }
 
 // 0x00425820

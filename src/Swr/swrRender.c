@@ -15,6 +15,11 @@
 #include <engine_config.h>
 #include <stdPlatform.h>
 #include <Win95/DirectX.h>
+#include <Win95/stdDisplay.h>
+#include <Engine/rdCanvas.h>
+#include <Engine/rdLight.h>
+#include <Engine/rdroid.h>
+#include <Swr/swrUI.h>
 #include <macros.h>
 
 #include <string.h>
@@ -166,6 +171,75 @@ float* SetAlternativeLightColorsAndDirection(int light_index, short light_r, sho
     lightColor2[light_index].z = (float)(int)light_b * oneOver255f;
     lightColor2[light_index].w = 1.0f;
     return (float*)(light_index * 0x10);
+}
+
+// 0x00409800
+int swrRender_InitScene(swrMainDisplaySettings* settings)
+{
+    rdVector3 light1Pos;
+    rdVector3 light2Pos;
+    rdVector4 ambient;
+    StdVideoMode mode;
+
+    stdDisplay_Update();
+    swrUI_UpdateProgressBar(26);
+    stdDisplay_BackBufferFill((uint8_t)backBufferClearColor[0], (uint8_t)backBufferClearColor[1], (uint8_t)backBufferClearColor[2], NULL);
+    swrUI_UpdateProgressBar(28);
+    swrDisplay_screenWidth = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwWidth;
+    swrDisplay_screenHeight = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwHeight;
+    rdCanvas_main_ptr = rdCanvas_New(0, &stdDisplay_g_backBuffer, 0, 0, swrDisplay_screenWidth, swrDisplay_screenHeight);
+    rdSetGeometryMode(settings->geometryMode);
+    rdSetLightingMode(settings->lightMode);
+    rdSetRenderOptions(RDDROID_BACKFACE_CULLING_ENABLED);
+    swrUI_UpdateProgressBar(29);
+    rdCamera_main_ptr = rdCamera_New(75.0f, 0.0f, 0.08f, 15.0f, 1.0f);
+    rdCamera_SetCanvas(rdCamera_main_ptr, rdCanvas_main_ptr);
+    swrUI_UpdateProgressBar(30);
+    rdCamera_SetCurrent(rdCamera_main_ptr);
+    rdCamera_mat = rdMatrix34_identity;
+    swrRender_initSceneUnusedPos.x = -1000.0f;
+    swrRender_initSceneUnusedPos.y = -2000.0f;
+    swrRender_initSceneUnusedPos.z = 8000.0f;
+    swrRender_initSceneUnusedVec.x = 0.0f;
+    swrRender_initSceneUnusedVec.y = 0.0f;
+    swrRender_initSceneUnusedVec.z = 0.0f;
+    rdCamera_Update(&rdCamera_mat);
+    swrUI_UpdateProgressBar(32);
+    if (stdDisplay_CopyCurrentVideoMode(&mode) != 0)
+        return 0;
+    rdCamera_UpdateProject(rdCamera_main_ptr, mode.aspectRatio);
+    rdCamera_SetAttenuation(rdCamera_main_ptr, 0.4f, 0.8f);
+    swrUI_UpdateProgressBar(34);
+    rdCamera_SetCanvas(rdCamera_main_ptr, rdCanvas_main_ptr);
+    rdCamera_ClearLights(rdCamera_main_ptr);
+    rdLight_NewEntry(&rdLight_1);
+    rdLight_NewEntry(&rdLight_2);
+    rdLight_1.type = RD_LIGHT_TYPE_DIRECTIONAL;
+    rdLight_2.type = RD_LIGHT_TYPE_DIRECTIONAL;
+    rdLight_1.color.x = 1.0f;
+    rdLight_2.color.x = 1.0f;
+    rdLight_1.color.z = 0.0f;
+    rdLight_1.color.y = 0.0f;
+    rdLight_2.color.z = 0.0f;
+    rdLight_2.color.y = 0.0f;
+    light1Pos.x = 0.0f;
+    light2Pos.x = 0.0f;
+    light1Pos.y = 100.0f;
+    light2Pos.y = 100.0f;
+    light1Pos.z = -20.0f;
+    light2Pos.z = -20.0f;
+    swrUI_UpdateProgressBar(36);
+    rdCamera_AddLight(rdCamera_main_ptr, &rdLight_1, &light1Pos);
+    rdCamera_AddLight(rdCamera_main_ptr, &rdLight_2, &light2Pos);
+    ambient.x = 0.0f;
+    ambient.y = 0.0f;
+    ambient.z = 0.5f;
+    ambient.w = 1.0f;
+    rdCamera_SetAmbientLight(rdCamera_main_ptr, &ambient);
+    swrUI_UpdateProgressBar(38);
+    swrRender_sceneInitialized = 1;
+    // the EXE returns whatever swrUI_UpdateProgressBar left in EAX; no caller reads it
+    return 1;
 }
 
 // 0x00432B80

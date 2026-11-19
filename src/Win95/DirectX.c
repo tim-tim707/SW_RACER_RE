@@ -247,8 +247,51 @@ void DirectDraw_FillMainSurface(void)
 // 0x00488d70
 BOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR driver_name, LPSTR driver_desc, LPVOID swr_unk_struct)
 {
-    HANG("TODO");
-    return 0;
+    StdDisplayDevice* device;
+    LPDIRECTDRAW directDraw;
+
+    directDraw = NULL;
+    if ((unsigned int)stdDisplay_numDevices >= STD_DISPLAY_MAX_DEVICES)
+        return 0;
+
+    device = &stdDisplay_aDisplayDevices[stdDisplay_numDevices];
+    if (directDraw_guid != NULL) {
+        device->guid = *directDraw_guid;
+        device->bGuidNotSet = 0;
+    } else {
+        memset(&device->guid, 0, sizeof(device->guid));
+        device->bGuidNotSet = 1;
+    }
+    strncpy(device->aDriverName, driver_name, sizeof(device->aDriverName) - 1);
+    device->aDriverName[sizeof(device->aDriverName) - 1] = '\0';
+    strncpy(device->aDeviceName, driver_desc, sizeof(device->aDeviceName) - 1);
+    device->aDeviceName[sizeof(device->aDeviceName) - 1] = '\0';
+    device->bHasGuid = directDraw_guid != NULL;
+
+    if (DirectX_DirectDrawCreate(directDraw_guid, &directDraw, NULL) != DD_OK) {
+        MessageBoxA(NULL, "DirectDraw Failure\n\nCheck the DesktopResolution\n", "Racer Error", MB_OK);
+        return 1;
+    }
+    // faithful: this failure path (and the DDSCL_NORMAL one below) leaks the DirectDraw object
+    if (IDirectDraw_SetCooperativeLevel(directDraw, Window_GetHWND(), DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN) != DD_OK)
+        return 0;
+
+    memset(&device->ddcaps, 0, sizeof(device->ddcaps));
+    device->ddcaps.dwSize = sizeof(device->ddcaps);
+    if (IDirectDraw_GetCaps(directDraw, (LPDDCAPS)&device->ddcaps, NULL) != DD_OK) {
+        IDirectDraw_Release(directDraw);
+        return 1;
+    }
+    device->bWindowRenderNotSupported = (device->ddcaps.dwCaps2 & DDCAPS2_CANRENDERWINDOWED) == 0;
+    device->b3DAccel = (device->ddcaps.dwCaps & DDCAPS_3D) != 0;
+    device->totalVideoMemory = device->ddcaps.dwVidMemTotal;
+    device->freeVideoMemory = device->ddcaps.dwVidMemFree;
+    if (IDirectDraw_SetCooperativeLevel(directDraw, Window_GetHWND(), DDSCL_NORMAL) != DD_OK)
+        return 0;
+    IDirectDraw_Release(directDraw);
+    if (device->b3DAccel == 1)
+        stdDisplay_numDevices++;
+    return 1;
 }
 
 // 0x00488f50
@@ -496,6 +539,18 @@ HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, vo
     }
     std3D_numTextureFormats++;
     return D3DENUMRET_OK;
+}
+
+// 0x0049d390
+HRESULT __stdcall DirectX_DirectDrawEnumerateA(LPDDENUMCALLBACKA lpCallback, LPVOID lpContext)
+{
+    return DirectDrawEnumerateA(lpCallback, lpContext);
+}
+
+// 0x0049d396
+HRESULT __stdcall DirectX_DirectDrawCreate(GUID* lpGuid, LPDIRECTDRAW* lplpDD, IUnknown* pUnkOuter)
+{
+    return DirectDrawCreate(lpGuid, lplpDD, pUnkOuter);
 }
 
 // 0x0049d39c
