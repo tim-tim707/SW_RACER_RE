@@ -377,7 +377,71 @@ int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 // 0x00488410
 int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect)
 {
-    HANG("TODO");
+    tRasterInfo* raster = &pVBuffer->rasterInfo;
+    DWORD caps;
+    BYTE* row;
+    int y;
+    int x;
+
+    if (pVBuffer->bSurfaceAllocated == 1) {
+        caps = pVBuffer->pVSurface.ddSurfDesc.ddsCaps.dwCaps;
+        if ((caps & DDSCAPS_FRONTBUFFER) && (caps & DDSCAPS_MODEX))
+            return 0;
+        return stdDisplay_ColorFillSurface(&pVBuffer->pVSurface, dwFillColor, pRect) == 0;
+    }
+    if (pVBuffer->bSurfaceAllocated != 0)
+        return 1;
+
+    // the rect is {left, top, width, height}
+    if (raster->colorInfo.bpp == 8) {
+        if (pRect == NULL) {
+            memset(pVBuffer->pPixels, (BYTE)dwFillColor, raster->size);
+            return 1;
+        }
+        row = pVBuffer->pPixels + pRect->left + raster->rowWidth * pRect->top;
+        for (y = 0; y < pRect->bottom; y++) {
+            memset(row, (BYTE)dwFillColor, pRect->right);
+            row += raster->rowSize;
+        }
+    } else if (raster->colorInfo.bpp == 16) {
+        // even pixel counts are filled two pixels at a time
+        DWORD pair = (WORD)dwFillColor | ((DWORD)(WORD)dwFillColor << 16);
+        if (pRect == NULL) {
+            unsigned int pixels = (unsigned int)raster->size >> 1;
+            if ((pixels & 1) == 0) {
+                for (x = 0; x < (int)((unsigned int)raster->size >> 2); x++)
+                    ((DWORD*)pVBuffer->pPixels)[x] = pair;
+            } else {
+                for (x = 0; x < (int)pixels; x++)
+                    ((WORD*)pVBuffer->pPixels)[x] = (WORD)dwFillColor;
+            }
+            return 1;
+        }
+        row = pVBuffer->pPixels + (raster->rowWidth * pRect->top + pRect->left) * 2;
+        for (y = 0; y < pRect->bottom; y++) {
+            if ((pRect->right & 1) == 0) {
+                for (x = 0; x < (int)((unsigned int)pRect->right >> 1); x++)
+                    ((DWORD*)row)[x] = pair;
+            } else {
+                for (x = 0; x < pRect->right; x++)
+                    ((WORD*)row)[x] = (WORD)dwFillColor;
+            }
+            row += raster->rowSize;
+        }
+    } else if (raster->colorInfo.bpp == 32) {
+        if (pRect == NULL) {
+            for (x = 0; x < (int)((unsigned int)raster->size >> 2); x++)
+                ((DWORD*)pVBuffer->pPixels)[x] = dwFillColor;
+            return 1;
+        }
+        row = pVBuffer->pPixels + (raster->rowWidth * pRect->top + pRect->left) * 4;
+        for (y = 0; y < pRect->bottom; y++) {
+            for (x = 0; x < pRect->right; x++)
+                ((DWORD*)row)[x] = dwFillColor;
+            row += raster->rowSize;
+        }
+    }
+    return 1;
 }
 
 // tVBuffer *__cdecl stdDisplay_VBufferConvertColorFormat(ColorInfo *pDesiredColorFormat, tVBuffer *pSrc, int bColorKey, LPDDCOLORKEY pColorKey)
@@ -431,7 +495,16 @@ int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, in
 // 0x004899a0
 void stdDisplay_ReleaseBuffers(void)
 {
-    HANG("TODO");
+    if (stdDisplay_zBuffer.pDDSurf != NULL) {
+        stdDisplay_g_backBuffer.pVSurface.pDDSurf->lpVtbl->DeleteAttachedSurface(stdDisplay_g_backBuffer.pVSurface.pDDSurf, 0, stdDisplay_zBuffer.pDDSurf);
+        stdDisplay_zBuffer.pDDSurf->lpVtbl->Release(stdDisplay_zBuffer.pDDSurf);
+    }
+    // the back buffer is attached to the front (flip chain), so releasing the front frees both
+    if (stdDisplay_g_frontBuffer.pVSurface.pDDSurf != NULL)
+        stdDisplay_g_frontBuffer.pVSurface.pDDSurf->lpVtbl->Release(stdDisplay_g_frontBuffer.pVSurface.pDDSurf);
+    memset(&stdDisplay_zBuffer, 0, sizeof(stdDisplay_zBuffer));
+    memset(&stdDisplay_g_backBuffer, 0, sizeof(stdDisplay_g_backBuffer));
+    memset(&stdDisplay_g_frontBuffer, 0, sizeof(stdDisplay_g_frontBuffer));
 }
 
 // 0x00489a00

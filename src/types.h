@@ -3359,7 +3359,9 @@ extern "C"
     {
         int unk00; // 0x00 nonzero: swrText_SetupGlyph ignores the glyphs' unk01 byte
         int pageCount; // 0x04 number of glyph-page materials
-        swrMaterial* pages[20]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
+        swrMaterial* pages[17]; // 0x08 glyph-page materials (pageCount used; converted in place by swrText_InitFonts)
+        uint16_t lineHeight; // 0x4c y advance of a "~n" newline in swrText_DrawString
+        char unk4e[10]; // 0x4e
         char unk58[2]; // 0x58
         uint8_t firstChar; // 0x5a first character code present in the glyph table
         uint8_t lastChar; // 0x5b last character code present in the glyph table

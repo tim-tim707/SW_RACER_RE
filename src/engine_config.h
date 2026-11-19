@@ -47,6 +47,18 @@
 #define STDCONTROL_AXIS_AS_KEY_THRESHOLD (0.5f) // stdControl_ReadAxisAsKeyEx: |axis| above this = pressed (0x004ae2d8)
 #define STDCONTROL_MOUSE_X_EXTENT (250.0f) // stdControl_SetMouseRange (0x004ae2dc)
 #define STDCONTROL_MOUSE_Y_EXTENT (200.0f) // (0x004ae2e0)
+#define STDCONTROL_DEVICE_DATA_BUFFER_SIZE (0x20) // DIDEVICEOBJECTDATA events read per device per frame
+#define STDCONTROL_JOYSTICK_NUM_BUTTONS (16) // DIJOYSTATE.rgbButtons entries mapped to keys
+#define STDCONTROL_JOYSTICK_MAX_POVS (4)
+// stdControl_ReadJoysticks: POV direction arcs, in hundredths of a degree
+#define STDCONTROL_POV_45 (4500)
+#define STDCONTROL_POV_135 (13500)
+#define STDCONTROL_POV_225 (22500)
+#define STDCONTROL_POV_315 (31500)
+#define STDCONTROL_MOUSE_WHEEL_EXTENT (20) // stdControl_InitMouse: mouse Z axis range
+#define STDCONTROL_JOYSTICK_DEADZONE (0.15f) // stdControl_InitJoysticks: RegisterAxis deadzone fraction for every stick axis
+#define STDCONTROL_DIRECTINPUT_VERSION (0x0500) // stdControl_Startup requests DirectInput 5
+#define STDCONTROL_MOUSE_SMOOTH_MAX_MS (25) // stdControl_ReadMouse averages X/Y with the previous read below this frame time
 #define SWR_CONTROL_AXIS_STEER (2) // analog action index of swrRace_SteeringInput
 #define SWR_CONTROL_BINDING_DIRECTION_MASK (0xf0) // swrControlBinding flags above the kind bits (POSITIVE/NEGATIVE/...)
 #define SWR_CONTROL_SCAN_NONE (0xffff) // swrControl_ScanPressedButtons: nothing pressed
@@ -463,6 +475,11 @@
 #define SWR_UI_PAGE_TRANSITION_STAGGER (250) // swrUI_StartPageTransition: per-child delay of the vertical drop
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
 #define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)
+#define SWR_FONT_PAGE_WIDTH (64) // swrText_InitFonts: glyph-page texture size
+#define SWR_FONT_PAGE_HEIGHT (128)
+#define SWR_FONT_SLOT_COUNT (7) // swrText_fontsByIndex entries
+#define SWR_TEXT_PAGE_NONE (-2) // swrText_DrawString: glyph absent, never matches a pass
+#define SWR_TEXT_PAGE_NO_ACCENT (-5) // swrText_DrawString: character has no accent glyph
 #define SWR_UI_DISABLED_TEXT_ALPHA (100) // swrUI_DrawText alpha for disabled elements
 #define SWR_UI_FONT_LOW_BASELINE (6) // swrUI_DrawText draws font 6 this many pixels lower
 #define SWR_UI_LIST_MAX_ITEMS (200) // swrUI_RefreshListLayout frees the oldest items beyond this

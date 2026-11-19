@@ -5,6 +5,9 @@
 #include "stdDisplay.h"
 
 #include <macros.h>
+#include <engine_config.h>
+
+#include <string.h>
 
 extern FILE* hook_log;
 
@@ -26,7 +29,18 @@ void DirectDraw_Shutdown(void)
 // 0x00431C40
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
-    HANG("TODO");
+    LPDIRECTDRAWSURFACE4 zBuffer = DirectDraw_GetZBuffer();
+    DDSURFACEDESC2 desc;
+
+    memset(&desc, 0, sizeof(desc));
+    desc.dwSize = sizeof(desc);
+    // faithful: the Lock result is not checked
+    zBuffer->lpVtbl->Lock(zBuffer, NULL, &desc, DDLOCK_WAIT, NULL);
+    *pitch = desc.lPitch;
+    *bytes_per_depth_value = desc.ddpfPixelFormat.dwZBufferBitDepth >> 3;
+    *data = desc.lpSurface;
+    *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
+    *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
 }
 
 // 0x00431cd0
@@ -37,10 +51,29 @@ void DirectDraw_UnlockZBuffer(void)
 }
 
 // 0x00486a10
-int DirectInput_EnumDevice_Callback(DIDEVICEINSTANCEA* deviceInstance)
+BOOL __stdcall DirectInput_EnumDevice_Callback(LPCDIDEVICEINSTANCEA deviceInstance, LPVOID context)
 {
-    HANG("TODO");
-    return 1;
+    switch ((uint8_t)deviceInstance->dwDevType) {
+    case DIDEVTYPE_MOUSE:
+        if ((unsigned int)DirectInputNbMouses < STDCONTROL_MAX_MOUSE_DEVICES) {
+            memcpy((char*)&DirectInputMouses + DirectInputNbMouses * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            DirectInputNbMouses++;
+        }
+        break;
+    case DIDEVTYPE_KEYBOARD:
+        if ((unsigned int)DirectInputNbKeyboard < STDCONTROL_MAX_KEYBOARD_DEVICES) {
+            memcpy((char*)&DirectInputKeyboards + DirectInputNbKeyboard * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            DirectInputNbKeyboard = 1; // faithful: every keyboard lands in slot 0 or 1
+        }
+        break;
+    case DIDEVTYPE_JOYSTICK:
+        if ((unsigned int)stdControl_numJoystickDevices < STDCONTROL_MAX_JOYSTICK_DEVICES) {
+            memcpy((char*)&DirectInputJoysticks + stdControl_numJoystickDevices * STDCONTROL_JOYSTICK_RECORD_SIZE, deviceInstance, sizeof(DIDEVICEINSTANCEA));
+            stdControl_numJoystickDevices++;
+        }
+        break;
+    }
+    return DIENUM_CONTINUE;
 }
 
 // 0x00486ad0
@@ -122,7 +155,10 @@ BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID l
 // 0x004880c0
 int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
 {
-    HANG("TODO");
+    if (stdDisplay_numDevices == 0)
+        return 1;
+    *device = stdDisplay_aDisplayDevices[stdDisplay_curDevice];
+    return 0;
 }
 
 // 0x00488880
@@ -148,7 +184,20 @@ IDirectDrawSurface4* DirectDraw_GetZBuffer(void)
 // 0x00488a90
 void DirectDraw_FillMainSurface(void)
 {
-    HANG("TODO");
+    DDBLTFX fx;
+    HRESULT hr;
+
+    memset(&fx, 0, sizeof(fx));
+    fx.dwSize = sizeof(fx);
+    fx.dwFillDepth = directDraw_BltFillColor & 0xffff;
+    // clears the z-buffer; a lost surface is restored and the fill retried
+    do {
+        hr = stdDisplay_zBuffer.pDDSurf->lpVtbl->Blt(stdDisplay_zBuffer.pDDSurf, NULL, NULL, NULL, DDBLT_DEPTHFILL | DDBLT_WAIT, &fx);
+        if (hr == DD_OK)
+            return;
+        if (hr == DDERR_SURFACELOST)
+            hr = stdDisplay_zBuffer.pDDSurf->lpVtbl->Restore(stdDisplay_zBuffer.pDDSurf);
+    } while (hr == DD_OK);
 }
 
 // 0x00488d70
@@ -201,7 +250,14 @@ int Direct3d_IsLensflareCompatible(void)
 // 0x0048b340
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
-    HANG("TODO");
+    // faithful: channels are not clamped, an out-of-range value spills into its neighbours
+    DWORD color = (((DWORD)(int)(g * 255.0f) | (((DWORD)(int)(r * 255.0f) | 0xffffff00) << 8)) << 8) | (DWORD)(int)(b * 255.0f);
+
+    if (std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGCOLOR, color) != D3D_OK)
+        return;
+    if (std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGSTART, *(DWORD*)&near_) != D3D_OK)
+        return;
+    std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGEND, *(DWORD*)&far_);
 }
 
 // 0x0048b3c0
@@ -256,4 +312,11 @@ HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, vo
 {
     HANG("TODO");
     return 0;
+}
+
+// 0x0049d39c
+HRESULT DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter)
+{
+    HANG("TODO");
+    return DIERR_GENERIC;
 }
