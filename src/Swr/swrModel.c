@@ -2536,6 +2536,72 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
     return 0;
 }
 
+// Returns the squared distance from query to the closest point of triangle abc (written to
+// outPoint), or -1 when maxDistSq > 0 and the query's plane distance already exceeds it. outNormal
+// is the face normal, flipped to the query's side.
+// 0x00480dc0
+float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
+{
+    rdVector4 normal;
+    rdVector3 edgeAB;
+    rdVector3 edgeBC;
+    rdVector3 edgeCA;
+    float distSq;
+    float candidateSq;
+    int behind;
+
+    rdMath_CalcSurfaceNormal2(&normal, (rdVector3*)a, (rdVector3*)b, (rdVector3*)c);
+    behind = (query[0] - a[0]) * normal.x + (query[2] - a[2]) * normal.z + (query[1] - a[1]) * normal.y < 0.0f;
+    ProjectPointOntoPlane(&normal.x, (rdVector3*)query, (rdVector3*)outPoint);
+    distSq = (query[2] - outPoint[2]) * (query[2] - outPoint[2]) + (query[1] - outPoint[1]) * (query[1] - outPoint[1]) + (query[0] - outPoint[0]) * (query[0] - outPoint[0]);
+    if (maxDistSq > 0.0f && distSq > maxDistSq)
+        return -1.0f;
+
+    edgeAB.x = b[0] - a[0];
+    edgeAB.y = b[1] - a[1];
+    edgeAB.z = b[2] - a[2];
+    edgeBC.x = c[0] - b[0];
+    edgeBC.y = c[1] - b[1];
+    edgeBC.z = c[2] - b[2];
+    edgeCA.x = a[0] - c[0];
+    edgeCA.y = a[1] - c[1];
+    edgeCA.z = a[2] - c[2];
+    if (swrModel_PointInTriangle2(outPoint, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
+        // the edge buffers are reused for the closest point on each edge
+        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)a, (rdVector3*)b, &edgeAB);
+        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)b, (rdVector3*)c, &edgeBC);
+        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)c, (rdVector3*)a, &edgeCA);
+        distSq = (query[2] - edgeAB.z) * (query[2] - edgeAB.z) + (query[1] - edgeAB.y) * (query[1] - edgeAB.y) + (query[0] - edgeAB.x) * (query[0] - edgeAB.x);
+        outPoint[0] = edgeAB.x;
+        outPoint[1] = edgeAB.y;
+        outPoint[2] = edgeAB.z;
+        candidateSq = (query[2] - edgeBC.z) * (query[2] - edgeBC.z) + (query[1] - edgeBC.y) * (query[1] - edgeBC.y) + (query[0] - edgeBC.x) * (query[0] - edgeBC.x);
+        if (candidateSq < distSq) {
+            outPoint[0] = edgeBC.x;
+            outPoint[1] = edgeBC.y;
+            outPoint[2] = edgeBC.z;
+            distSq = candidateSq;
+        }
+        candidateSq = (query[2] - edgeCA.z) * (query[2] - edgeCA.z) + (query[1] - edgeCA.y) * (query[1] - edgeCA.y) + (query[0] - edgeCA.x) * (query[0] - edgeCA.x);
+        if (candidateSq < distSq) {
+            outPoint[0] = edgeCA.x;
+            outPoint[1] = edgeCA.y;
+            outPoint[2] = edgeCA.z;
+            distSq = candidateSq;
+        }
+    }
+    if (behind) {
+        outNormal[0] = -normal.x;
+        outNormal[1] = -normal.y;
+        outNormal[2] = -normal.z;
+    } else {
+        outNormal[0] = normal.x;
+        outNormal[1] = normal.y;
+        outNormal[2] = normal.z;
+    }
+    return distSq;
+}
+
 // Keeps the hit if it is closer than the current best by more than 0.01, or (at a near-tie) if
 // its normal faces the sphere center more squarely than the recorded one.
 // 0x00441390
@@ -3655,6 +3721,119 @@ void swrModel_ComputeNodeChainMatrix_Maybe(swrModel_Node** nodeList, rdMatrix44*
     }
 }
 
+// 0x00482120
+void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+{
+    rdVector3 local0, local1, local2;
+    rdVector3 world0, world1, world2;
+    rdVector3 point, normal;
+    rdMatrix44 inverse;
+    float distSq;
+    int i;
+
+    local0.x = (float)v0[0];
+    local0.y = (float)v0[1];
+    local0.z = (float)v0[2];
+    local1.x = (float)v1[0];
+    local1.y = (float)v1[1];
+    local1.z = (float)v1[2];
+    local2.x = (float)v2[0];
+    local2.y = (float)v2[1];
+    local2.z = (float)v2[2];
+    rdMatrix_Transform3(&world0, &local0, transform);
+    rdMatrix_Transform3(&world1, &local1, transform);
+    rdMatrix_Transform3(&world2, &local2, transform);
+    distSq = swrModel_ClosestPointOnTriangleImpl(&queryPoint->x, &world0.x, &world1.x, &world2.x, *minDistSq, &point.x, &normal.x);
+    if (distSq < 0.0f || !(distSq < *minDistSq))
+        return;
+
+    *outPoint = point;
+    *outNormal = normal;
+    *minDistSq = distSq;
+    if (swrModel_closestPointDepth < 0)
+        return;
+    for (i = 0; i < swrModel_closestPointDepth; i++)
+        swrModel_closestPointChainOut[i] = swrModel_closestPointNodeStack[i];
+    swrModel_closestPointChainOut[swrModel_closestPointDepth] = NULL;
+    rdMatrix_InvertGeneral_Maybe(&inverse, transform);
+    rdMatrix_Transform3(&swrModel_closestPoint, &point, &inverse);
+    rdMatrix_Multiply3(&swrModel_closestPointNormal, &normal, &inverse);
+}
+
+// Vertex indices in F3DEX2 triangle commands are stored doubled (and read as signed bytes), so
+// index * 8 is the byte offset of the 16-byte Vtx. Vertex shorts are big-endian.
+static void swrModel_GfxLoadTriangleVertex(short* out, const Vtx* vertices, signed char index)
+{
+    const short* src = (const short*)((const char*)vertices + index * 8);
+    for (int k = 0; k < 3; k++)
+        out[k] = (short)SWAP16(src[k]);
+}
+
+// 0x00482320
+void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+{
+    const Vtx* vertices = NULL; // uninitialized in the original until the first GFX_OP_VERTEX
+    short tri0[3][3];
+    short tri1[3][3];
+    int done = 0;
+
+    if (displayList == NULL)
+        return;
+    do {
+        switch (displayList->type) {
+        case GFX_OP_VERTEX:
+            vertices = displayList->gSPVertex.vertex_offset;
+            break;
+        case GFX_OP_TRI1:
+            swrModel_GfxLoadTriangleVertex(tri0[0], vertices, (signed char)displayList->gSP1Triangle.index0);
+            swrModel_GfxLoadTriangleVertex(tri0[1], vertices, (signed char)displayList->gSP1Triangle.index1);
+            swrModel_GfxLoadTriangleVertex(tri0[2], vertices, (signed char)displayList->gSP1Triangle.index2);
+            swrModel_ClosestPointOnTriangle(tri0[0], tri0[1], tri0[2], transform, minDistSq, queryPoint, outPoint, outNormal);
+            break;
+        case GFX_OP_TRI2:
+            swrModel_GfxLoadTriangleVertex(tri0[0], vertices, (signed char)displayList->gSP2Triangles.index0);
+            swrModel_GfxLoadTriangleVertex(tri0[1], vertices, (signed char)displayList->gSP2Triangles.index1);
+            swrModel_GfxLoadTriangleVertex(tri0[2], vertices, (signed char)displayList->gSP2Triangles.index2);
+            swrModel_GfxLoadTriangleVertex(tri1[0], vertices, (signed char)displayList->gSP2Triangles.index3);
+            swrModel_GfxLoadTriangleVertex(tri1[1], vertices, (signed char)displayList->gSP2Triangles.index4);
+            swrModel_GfxLoadTriangleVertex(tri1[2], vertices, (signed char)displayList->gSP2Triangles.index5);
+            swrModel_ClosestPointOnTriangle(tri0[0], tri0[1], tri0[2], transform, minDistSq, queryPoint, outPoint, outNormal);
+            swrModel_ClosestPointOnTriangle(tri1[0], tri1[1], tri1[2], transform, minDistSq, queryPoint, outPoint, outNormal);
+            break;
+        case GFX_OP_END_DL:
+            done = 1;
+            break;
+        }
+        displayList++;
+    } while (!done);
+}
+
+// 0x00482690
+void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+{
+    for (int i = 0; i < (int)node->num_children; i++) {
+        swrModel_Mesh* mesh = node->children.meshes[i];
+        if (mode == 0) {
+            swrModel_ClosestPointInDisplayList(swrModel_MeshGetDisplayList(mesh), transform, minDistSq, queryPoint, outPoint, outNormal);
+            continue;
+        }
+        const Vtx* vertex = mesh->vertices;
+        for (int j = 0; j < (short)mesh->num_vertices; j++, vertex++) {
+            rdVector3 local;
+            rdVector3 world;
+            local.x = (float)vertex->v.x;
+            local.y = (float)vertex->v.y;
+            local.z = (float)vertex->v.z;
+            rdMatrix_Transform3(&world, &local, transform);
+            float distSq = rdVector_DistSquared3(&world, queryPoint);
+            if (distSq < *minDistSq) {
+                *outPoint = world;
+                *minDistSq = distSq;
+            }
+        }
+    }
+}
+
 // 0x004827b0
 int swrModel_NodeSelectLOD(swrModel_Node* node)
 {
@@ -3675,10 +3854,135 @@ int swrModel_NodeSelectLOD(swrModel_Node* node)
     return i - 1;
 }
 
+// 0x00482820
+void swrModel_NodeTreeClosestPoint(swrModel_Node* targetNode, swrModel_Node* node, rdMatrix44* transform, int active, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+{
+    rdMatrix44 local;
+    rdMatrix44 accumulated;
+    int type;
+    int numChildren;
+    int child;
+
+    if (node == NULL || swrModel_NodeGetFlags1Or2(node, 2) == 0)
+        return;
+    type = swrModel_NodeGetFlags(node);
+    if (node == targetNode)
+        active = 1;
+    rdMatrix_Copy44(&accumulated, transform);
+
+    switch (type) {
+    case NODE_MESH_GROUP:
+        if (active)
+            swrModel_NodeClosestPoint(node, &accumulated, mode, minDistSq, queryPoint, outPoint, outNormal);
+        return;
+    case NODE_SELECTOR: {
+        int selected;
+        numChildren = swrModel_NodeGetNumChildren(node);
+        selected = ((swrModel_NodeSelector*)node)->selected_child_node;
+        if (selected == -2)
+            return;
+        if (selected == -1) {
+            for (child = 0; child < numChildren; child++) {
+                if (node->children.nodes[child] != NULL)
+                    swrModel_NodeTreeClosestPoint(targetNode, node->children.nodes[child], &accumulated, active, mode, minDistSq, queryPoint, outPoint, outNormal);
+            }
+            return;
+        }
+        if (node->children.nodes[selected] != NULL)
+            swrModel_NodeTreeClosestPoint(targetNode, node->children.nodes[selected], &accumulated, active, mode, minDistSq, queryPoint, outPoint, outNormal);
+        return;
+    }
+    case NODE_LOD_SELECTOR:
+        child = swrModel_NodeSelectLOD(node);
+        if (child == -1 || node->children.nodes[child] == NULL)
+            return;
+        swrModel_NodeTreeClosestPoint(targetNode, node->children.nodes[child], &accumulated, active, mode, minDistSq, queryPoint, outPoint, outNormal);
+        return;
+    case NODE_BASIC:
+    case NODE_TRANSFORMED:
+    case NODE_TRANSFORMED_WITH_PIVOT:
+        break;
+    default:
+        return;
+    }
+
+    if (type & NODE_IS_TRANSFORMED) {
+        const rdMatrix34* t = &((swrModel_NodeTransformed*)node)->transform;
+        // only a 0xd065 node carries a pivot; the original reads any other node's pivot relative
+        // to address (type & NODE_IS_TRANSFORMED)
+        const swrModel_NodeTransformedWithPivot* pivotNode = (type == NODE_TRANSFORMED_WITH_PIVOT) ? (swrModel_NodeTransformedWithPivot*)node : (swrModel_NodeTransformedWithPivot*)(uintptr_t)(type & NODE_IS_TRANSFORMED);
+
+        if (swrModel_closestPointDepth >= 0) {
+            if (swrModel_closestPointDepth < swrModel_closestPointMaxDepth - 1)
+                swrModel_closestPointNodeStack[swrModel_closestPointDepth] = node;
+            swrModel_closestPointDepth++;
+        }
+        local.vA.x = t->rvec.x;
+        local.vA.y = t->rvec.y;
+        local.vA.z = t->rvec.z;
+        local.vA.w = 0.0f;
+        local.vB.x = t->lvec.x;
+        local.vB.y = t->lvec.y;
+        local.vB.z = t->lvec.z;
+        local.vB.w = 0.0f;
+        local.vC.x = t->uvec.x;
+        local.vC.y = t->uvec.y;
+        local.vC.z = t->uvec.z;
+        local.vC.w = 0.0f;
+        local.vD.x = t->scale.x;
+        local.vD.y = t->scale.y;
+        local.vD.z = t->scale.z;
+        local.vD.w = 1.0f;
+        if (node->flags_3 & swrModel_NODEFLAGS3_USE_PIVOT) {
+            const rdVector3* pivot = &pivotNode->pivot;
+            for (int k = 0; k < 3; k++) {
+                float v = -((&t->lvec.x)[k] * pivot->y) + -((&t->rvec.x)[k] * pivot->x);
+                v = v + -((&t->uvec.x)[k] * pivot->z);
+                (&local.vD.x)[k] = (&pivot->x)[k] + (v + (&local.vD.x)[k]);
+            }
+        }
+        rdMatrix_Multiply44(&accumulated, &local, transform);
+    }
+
+    numChildren = swrModel_NodeGetNumChildren(node);
+    for (child = 0; child < numChildren; child++) {
+        if (node->children.nodes[child] != NULL)
+            swrModel_NodeTreeClosestPoint(targetNode, node->children.nodes[child], &accumulated, active, mode, minDistSq, queryPoint, outPoint, outNormal);
+    }
+    if ((type & NODE_IS_TRANSFORMED) && swrModel_closestPointDepth >= 0)
+        swrModel_closestPointDepth--;
+}
+
 // 0x00482c40
 void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal)
 {
-    HANG("TODO");
+    rdMatrix44 identity;
+    rdVector3 point;
+    rdVector3 normal;
+    float minDistSq;
+
+    swrModel_closestPointChainOut = (swrModel_Node**)nodeChainOut;
+    swrModel_closestPointDepth = 0;
+    if (maxNodeDepth > SWR_MODEL_CLOSEST_POINT_MAX_DEPTH)
+        maxNodeDepth = SWR_MODEL_CLOSEST_POINT_MAX_DEPTH;
+    normal.x = 0.0f;
+    normal.y = 0.0f;
+    normal.z = 1.0f;
+    swrModel_closestPoint = *queryPoint;
+    swrModel_closestPointNormal.x = 0.0f;
+    swrModel_closestPointNormal.y = 0.0f;
+    swrModel_closestPointNormal.z = 1.0f;
+    memset(&identity, 0, sizeof(identity));
+    identity.vA.x = 1.0f;
+    identity.vB.y = 1.0f;
+    identity.vC.z = 1.0f;
+    identity.vD.w = 1.0f;
+    minDistSq = SWR_MODEL_CLOSEST_POINT_START_DIST_SQ;
+    swrModel_closestPointMaxDepth = maxNodeDepth;
+    point = swrModel_closestPoint;
+    swrModel_NodeTreeClosestPoint(targetNode, node, &identity, 0, 0, &minDistSq, queryPoint, &point, &normal);
+    *outPoint = swrModel_closestPoint;
+    *outNormal = swrModel_closestPointNormal;
 }
 
 // 0x00482dd0

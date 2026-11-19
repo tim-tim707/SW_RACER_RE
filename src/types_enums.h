@@ -459,6 +459,15 @@ typedef enum swrModel_NodeType
     NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
 } swrModel_NodeType;
 
+// Gfx.type: the F3DEX2 display-list opcodes the swrModel walkers decode
+typedef enum swrModel_GfxOpcode
+{
+    GFX_OP_VERTEX = 0x01, // gSPVertex
+    GFX_OP_TRI1 = 0x05, // gSP1Triangle
+    GFX_OP_TRI2 = 0x06, // gSP2Triangles
+    GFX_OP_END_DL = 0xdf, // gSPEndDisplayList
+} swrModel_GfxOpcode;
+
 // swrModel_Node.flags_3
 typedef enum swrModel_NODEFLAGS3
 {

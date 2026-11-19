@@ -496,6 +496,9 @@
 // swrModel_PointInTriangle2 (0x00480a70): degenerate-cross thresholds on |x|+|y|+|z|
 #define SWR_MODEL_TRI_CROSS_EPS (1e-4f) // 0x004adfbc
 #define SWR_MODEL_TRI_ON_EDGE_EPS (0.001f) // 0x004adfc8
+// swrModel_FindClosestPointOnModel (0x00482c40)
+#define SWR_MODEL_CLOSEST_POINT_MAX_DEPTH (20) // swrModel_closestPointNodeStack length (maxNodeDepth clamp)
+#define SWR_MODEL_CLOSEST_POINT_START_DIST_SQ (100000000.0f) // initial minDistSq (0x4cbebc20)
 
 // sithMessage_SendMessage idTo that sithMessage_NetWrite fans out to every active player
 #define SITH_MESSAGE_TO_ALL ((DPID)0xffffffff)

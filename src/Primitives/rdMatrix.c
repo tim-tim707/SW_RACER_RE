@@ -230,6 +230,144 @@ void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* seg
     out->z = segStart->z + dz * t;
 }
 
+// Crout LU decomposition with implicit partial pivoting (Numerical Recipes ludcmp) of the upper-left
+// 3x3 of a stride-4 matrix; returns 0 on a zero pivot.
+// 0x004304c0
+int rdMatrix_LUDecompose_Maybe(float* mat, float* in, int* pivots)
+{
+    float rowScale[3];
+    float big;
+    float sum;
+    float v;
+    int i, j, k;
+    int imax = 0; // uninitialized in the original; only unset when every candidate is NaN
+
+    for (i = 0; i < 3; i++) {
+        big = 0.0f;
+        for (j = 0; j < 3; j++) {
+            mat[i * 4 + j] = in[i * 4 + j];
+            v = in[i * 4 + j];
+            if (v < 0.0f)
+                v = -v;
+            if (big < v) {
+                // unreachable singular-row check (v > big >= 0); an all-zero row leaves rowScale[i] unset
+                if (v == 0.0f)
+                    return 0;
+                rowScale[i] = 1.0f / v;
+                big = v;
+            }
+        }
+    }
+
+    for (j = 0; j < 3; j++) {
+        for (i = 0; i < j; i++) {
+            sum = mat[i * 4 + j];
+            for (k = 0; k < i; k++)
+                sum = sum - mat[k * 4 + j] * mat[i * 4 + k];
+            mat[i * 4 + j] = sum;
+        }
+        big = 0.0f;
+        for (i = j; i < 3; i++) {
+            sum = mat[i * 4 + j];
+            for (k = 0; k < j; k++)
+                sum = sum - mat[k * 4 + j] * mat[i * 4 + k];
+            mat[i * 4 + j] = sum;
+            if (sum < 0.0f)
+                sum = -sum;
+            if (big <= sum * rowScale[i]) {
+                big = sum * rowScale[i];
+                imax = i;
+            }
+        }
+        if (j != imax) {
+            for (k = 0; k < 3; k++) {
+                v = mat[imax * 4 + k];
+                mat[imax * 4 + k] = mat[j * 4 + k];
+                mat[j * 4 + k] = v;
+            }
+            rowScale[imax] = rowScale[j];
+        }
+        pivots[j] = imax;
+        if (mat[j * 4 + j] == 0.0f)
+            return 0;
+        if (j != 2) {
+            v = 1.0f / mat[j * 4 + j];
+            for (i = j + 1; i < 3; i++)
+                mat[i * 4 + j] = mat[i * 4 + j] * v;
+        }
+    }
+    return 1;
+}
+
+// Forward + back substitution (Numerical Recipes lubksb) on the 3x3 LU of rdMatrix_LUDecompose_Maybe.
+// 0x00430730
+void rdMatrix_LUSolve_Maybe(float* lu, int* pivots, float* b)
+{
+    float sum;
+    int i, j;
+    int first = -1;
+
+    for (i = 0; i < 3; i++) {
+        int ip = pivots[i];
+        sum = b[ip];
+        b[ip] = b[i];
+        if (first < 0) {
+            if (sum != 0.0f)
+                first = i;
+        } else {
+            for (j = first; j <= i - 1; j++)
+                sum = sum - b[j] * lu[i * 4 + j];
+        }
+        b[i] = sum;
+    }
+    for (i = 2; i >= 0; i--) {
+        sum = b[i];
+        for (j = i + 1; j < 3; j++)
+            sum = sum - lu[i * 4 + j] * b[j];
+        b[i] = sum / lu[i * 4 + i];
+    }
+}
+
+// Inverts an affine matrix: the 3x3 part column by column through the LU solve, then the
+// translation as -t * inverse. On a singular 3x3 the LU scratch is left in out.
+// 0x00430810
+void rdMatrix_InvertGeneral_Maybe(rdMatrix44* out, rdMatrix44* in)
+{
+    float* dst = &out->vA.x;
+    float inverse[12];
+    float column[3];
+    int pivots[3];
+    int k, r;
+
+    if (rdMatrix_LUDecompose_Maybe(dst, &in->vA.x, pivots) == 0)
+        return;
+    for (k = 0; k < 3; k++) {
+        column[0] = 0.0f;
+        column[1] = 0.0f;
+        column[2] = 0.0f;
+        column[k] = 1.0f;
+        rdMatrix_LUSolve_Maybe(dst, pivots, column);
+        for (r = 0; r < 3; r++)
+            inverse[r * 4 + k] = column[r];
+    }
+    out->vA.x = inverse[0];
+    out->vA.y = inverse[1];
+    out->vA.z = inverse[2];
+    out->vB.x = inverse[4];
+    out->vD.w = 1.0f;
+    out->vB.y = inverse[5];
+    out->vB.z = inverse[6];
+    out->vC.x = inverse[8];
+    out->vA.w = 0.0f;
+    out->vB.w = 0.0f;
+    out->vC.y = inverse[9];
+    out->vC.w = 0.0f;
+    out->vC.z = inverse[10];
+    out->vD.x = -(in->vD.x * inverse[0] + in->vD.z * inverse[8] + in->vD.y * inverse[4]);
+    out->vD.y = -(in->vD.x * inverse[1] + in->vD.z * inverse[9] + in->vD.y * inverse[5]);
+    out->vD.z = -(in->vD.x * inverse[2] + in->vD.z * inverse[10] + in->vD.y * inverse[6]);
+}
+
 // 0x00430980
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
 {
