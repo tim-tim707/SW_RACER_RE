@@ -74,7 +74,7 @@ static void load_mp_settings_once() {
     fflush(hook_log);
 }
 
-int sithMulti_HandleIncomingPacket_delta(DPID dpid) {
+int sithMulti_HandleIncomingPacket_delta(tSithMessage *pMsg) {
     load_mp_settings_once();
 
     if (g_mp_packet_cap > 0 && g_mp_pump_count >= g_mp_packet_cap) {
@@ -84,7 +84,7 @@ int sithMulti_HandleIncomingPacket_delta(DPID dpid) {
         return 0;
     }
 
-    const int result = hook_call_original(sithMulti_HandleIncomingPacket, dpid);
+    const int result = hook_call_original(sithMulti_HandleIncomingPacket, pMsg);
 
     if (result == 1)
         g_mp_pump_count++;

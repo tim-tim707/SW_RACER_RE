@@ -2033,7 +2033,7 @@ extern "C"
         GUID guid;
         int maxPlayers;
         int numCurrentPlayers;
-        wchar_t unk18[32];
+        wchar_t aPlayerName[32]; // 0x18. local player name (stdComm_CreatePlayer)
         wchar_t aSessionName[32]; // session name before ':' (L"%s:%S" in stdComm_HostSession)
         char aSomething[32]; // text after ':'
         wchar_t aPassword[32];
@@ -3189,6 +3189,13 @@ extern "C"
         char unk90[28];
         unsigned int pingMs; // 0xac. smoothed ping round trip (swrMultiplayer_ApplyPingReply); zeroed when the slot is registered
     } SithPlayer; // sizeof(0xb0)
+
+    // One swrMultiplayer_aSeenMessages entry: a guaranteed message already applied (sithMulti_TrackMessagePair_Maybe).
+    typedef struct swrMultiplayer_SeenMessage
+    {
+        DPID idFrom;
+        unsigned int sequenceId;
+    } swrMultiplayer_SeenMessage;
 
     // Payload of swrMultiplayer_MSG_PLAYER_JOIN (swrMultiplayer_SendPlayerJoin / ApplyPlayerJoin).
     typedef struct swrMultiplayer_JoinRecord

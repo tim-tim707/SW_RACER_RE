@@ -16,7 +16,28 @@
 // 0x004047b0
 int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo)
 {
-    HANG("TODO");
+    DWORD size;
+    unsigned int i;
+    SithPlayer* player;
+
+    // callbackId + sequenceId ride ahead of the payload
+    size = pMsg->dataSize + 4;
+    if (idTo == (DPID)-1) {
+        for (i = 0; i < sithPlayer_g_numPlayers; i++) {
+            player = &sithPlayer_g_aPlayers[i];
+            if ((player->flags & SITH_PLAYER_JOINEDGAME) != 0 && player->playerNetId != (DPID)sithMessage_g_localPlayerId) {
+                stdComm_Send(sithMessage_g_localPlayerId, player->playerNetId, &pMsg->callbackId, size, 0);
+                sithMessage_totalNetSent++;
+                sithMessage_totalSentDataSize += size;
+            }
+        }
+        return 1;
+    }
+    if (stdComm_Send(sithMessage_g_localPlayerId, idTo, &pMsg->callbackId, size, 0) < 0)
+        return 0;
+    sithMessage_totalNetSent++;
+    sithMessage_totalSentDataSize += size;
+    return 1;
 }
 
 // 0x004049e0

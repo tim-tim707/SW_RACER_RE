@@ -7,7 +7,7 @@ extern "C" {
 #include <Swr/swrObj.h>
 }
 
-int sithMulti_HandleIncomingPacket_delta(DPID dpid);
+int sithMulti_HandleIncomingPacket_delta(tSithMessage *pMsg);
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags);
 
 // Crash fixes for a player leaving the session -- triage notes (1) and (2) in the .cpp.

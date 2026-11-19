@@ -256,6 +256,7 @@ swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by s
 swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
+swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendPlayerLeave_Maybe)
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
@@ -520,6 +521,8 @@ sithMulti_playerListVerified 0x004d5e04 int # set once swrMultiplayer_VerifyPlay
 sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
 sithMessage_totalNetSent 0x004d5e10 int
+sithMessage_totalReceivedDataSize 0x004d5e14 int
+sithMessage_totalNetReceived 0x004d5e18 int
 
 swrControl_bindingCounts 0x004d5e20 int[3] # bindings in use per swrConfig_DEVICE
 JoystickAxisInput 0x004d5e30 float[4]
@@ -609,12 +612,16 @@ multiplayer_in_mp 0x004d87a0 int
 SpritesLoaded 0x004d879c int
 
 sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyPlayerLeave clears bits)
-swr_unk_array2 0x004e9918 int[256]
+swrMultiplayer_aSeenMessages 0x004e9918 swrMultiplayer_SeenMessage[128] # ring of applied guaranteed messages, deduplicates resends
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
+swrMultiplayer_pumpStop 0x004e9ea8 int # cleared on entry to swrMultiplayer_PumpPackets, which loops until it is set (nothing else writes it)
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
 sithMulti_numPendingMessages 0x004e9eb8 int # live entries in sithMulti_aPendingMessages
+swrMultiplayer_messagingInitialized 0x004e9ebc int # set once by swrMultiplayer_InitMessaging
+swrMultiplayer_seenMessageNext 0x004e9ec0 unsigned int # next slot written in swrMultiplayer_aSeenMessages
+swrMultiplayer_sessionName 0x004ea098 char[64] # swrMultiplayer_GetSessionName result
 swrMultiplayer_aReadyStatus 0x004ea020 swrMultiplayer_ReadyStatus[3] # size maybe wrong: handshake ids 1 and 2 are the only ones used (swrObjJdge)
 swrMultiplayer_chatSavedUiInputActive 0x004e9ecc int # swrControl_uiInputActive saved by swrMultiplayer_OpenChatInput, restored on Enter/Esc
 swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: ms until it expires (10000 on add)
@@ -645,6 +652,7 @@ swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
+swrMultiplayer_sessionSeed 0x004eb1f4 int # random DPSESSIONDESC2.dwUser1 picked by swrMultiplayer_CreateSession; no reader found
 swrMultiplayer_joinLocked 0x004eb1f8 int # while set, swrMultiplayer_ApplyPlayerJoin only admits the reserved DPID; cleared by ResetSession
 swrMultiplayer_reservedDpid 0x004eb1fc DPID # the one DPID admitted while swrMultiplayer_joinLocked is set
 swrMultiplayer_pingSentTime 0x004eb208 int # timeGetTime() of the outgoing ping, matched by swrMultiplayer_ApplyPingReply; no writer found

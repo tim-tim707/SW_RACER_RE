@@ -19,6 +19,7 @@
 #include <stdPlatform.h>
 
 #include <ctype.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,7 +71,15 @@ int swrMultiplayer_VerifyPlayerList(void* message)
 // 0x0041b700
 int swrMultiplayer_InitMessaging(void)
 {
-    HANG("TODO");
+    if (swrMultiplayer_messagingInitialized != 0)
+        return 0;
+    memset(swrCallback_multiplayer, 0, sizeof(swrCallback_multiplayer));
+    memset(swrMultiplayer_aSeenMessages, 0, sizeof(swrMultiplayer_aSeenMessages));
+    swrMultiplayer_seenMessageNext = 0;
+    sithMessage_g_nextSequenceId = 1;
+    swrMultiplayer_RegisterHandlers();
+    swrMultiplayer_messagingInitialized = 1;
+    return 1;
 }
 
 // 0x0041bc20
@@ -115,6 +124,17 @@ char* swrMultiplayer_GetPlayerNameAscii(int playerIndex)
     return swrMultiplayer_asciiNameBuffer;
 }
 
+// 0x0041bd10
+char* swrMultiplayer_GetSessionName(void)
+{
+    StdCommSessionSettings settings;
+
+    if (stdComm_GetSessionSettings(&settings) != 0)
+        return NULL;
+    stdString_WcharToChar(swrMultiplayer_sessionName, settings.aSessionName, 64);
+    return swrMultiplayer_sessionName;
+}
+
 // 0x0041bd50
 void swrMultiplayer_SetNetworkTick(int value)
 {
@@ -148,9 +168,56 @@ int swrMultiplayer_ResetSession(void)
 }
 
 // 0x0041c5c0
-unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5)
+unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionName, wchar_t* password, char* sessionSuffix, int user3)
 {
-    HANG("TODO");
+    StdCommSessionSettings settings;
+    unsigned int res;
+    int i;
+
+    for (i = 0; i < SWR_MAX_RACERS; i++)
+        swrMultiplayer_ClearPlayerSlot(i);
+
+    memset(&settings, 0, sizeof(settings));
+    wcsncpy(settings.aPlayerName, playerName, 31);
+    settings.aPlayerName[31] = 0;
+    wcsncpy(settings.aSessionName, sessionName, 31);
+    settings.aSessionName[31] = 0;
+    strncpy(settings.aSomething, sessionSuffix, 31);
+    settings.aSomething[31] = 0;
+    wcsncpy(settings.aPassword, password, 31);
+    settings.aPassword[31] = 0;
+    settings.user3 = user3;
+    settings.maxPlayers = SWR_MAX_RACERS;
+    // rand() / RAND_MAX scaled to 2^32, rounded by FISTP (overflows to INT_MIN above 2^31)
+    swrMultiplayer_sessionSeed = (int)lrintf((float)rand() * 3.0518509e-05f * 4294967296.0f);
+    settings.user2 = 1;
+    settings.user1 = swrMultiplayer_sessionSeed;
+
+    if (multiplayer_enabled != 0) {
+        res = swrMultiplayer_SetSessionDesc(&settings);
+        if (res != 0) {
+            stdComm_Close();
+            return res;
+        }
+    } else {
+        res = sithMulti_CreatePlayerFromConfig(&settings);
+        if (res != 0)
+            return res;
+    }
+
+    multiplayer_isHost = 1;
+    multiplayer_inSession = 1;
+    sithMulti_g_serverUnk = 0;
+    sithMulti_g_serverId = sithMessage_g_localPlayerId;
+    stdComm_UpdatePlayers(0);
+    sithPlayer_g_numPlayers = 0;
+    swrMultiplayer_RegisterPlayer(0, sithMessage_g_localPlayerId);
+    playerNumber = 0;
+    wcsncpy(sithPlayer_g_aPlayers[0].awName, playerName, 31);
+    sithPlayer_g_aPlayers[0].awName[31] = 0;
+    wcsncpy(swrMultiplayer_localPlayerName, playerName, 31);
+    swrMultiplayer_localPlayerName[31] = 0;
+    return 0;
 }
 
 // 0x0041d3b0
@@ -222,7 +289,61 @@ int swrMultiplayer_IsHost(void)
 // 0x0041da00
 void swrMultiplayer_InRace(void)
 {
-    HANG("TODO");
+    swrScore* score;
+    rdMatrix44* transform;
+    int* record;
+    int numRacers;
+    int slot;
+    int col;
+    int row;
+    int lap;
+
+    numRacers = 0;
+    for (slot = 0; slot < SWR_MAX_RACERS; slot++) {
+        if (swrScores[slot].identifier == 'Locl' || swrScores[slot].identifier == 'AAII')
+            numRacers++;
+    }
+    if (numRacers == 0)
+        return;
+
+    ((int*)swrMultiplayer_message.data)[0] = numRacers;
+    record = (int*)swrMultiplayer_message.data + 1;
+    for (slot = 0; slot < SWR_MAX_RACERS; slot++) {
+        score = &swrScores[slot];
+        if (score->identifier != 'Locl' && score->identifier != 'AAII')
+            continue;
+
+        transform = &swrMultiplayer_aLocalPodTransform[slot];
+        record[0] = slot;
+        // the packet carries the matrix column by column
+        for (col = 0; col < 4; col++) {
+            for (row = 0; row < 4; row++)
+                ((float*)record)[1 + col * 4 + row] = (&transform->vA.x)[row * 4 + col];
+        }
+        ((float*)record)[17] = swrMultiplayer_aRemoteSpeed[slot];
+        ((float*)record)[18] = swrMultiplayer_aRemoteLapComp[slot];
+        ((float*)record)[19] = swrMultiplayer_aRemoteLapCompMax[slot];
+        record[20] = swrMultiplayer_aRemoteLap[slot];
+        record[21] = (short)score->results_P1_Position;
+        lap = score->results_P1_Lap;
+        record[22] = lap;
+        ((float*)record)[23] = (&score->results_P1_Lap1)[lap];
+        ((float*)record)[24] = score->results_P1_total_time;
+        record[25] = score->identifier;
+        record[26] = score->obj_test_ptr->flags0 & swrObjTest_FLAG0_REMOTE_SYNCED;
+        record[27] = score->obj_test_ptr->flags1 & swrObjTest_FLAG1_REMOTE_PUBLISHED;
+        if (swrMultiplayer_aPodStatus[slot][0] != SWR_MP_POD_STATUS_PARKED) {
+            swrMultiplayer_aPodStatus[slot][0] = record[21];
+            swrMultiplayer_aPodStatus[slot][1] = record[22];
+            swrMultiplayer_aPodStatus[slot][2] = record[23];
+            swrMultiplayer_aPodStatus[slot][3] = record[24];
+        }
+        record += SWR_MP_POD_STATE_RECORD_INTS;
+    }
+    swrMultiplayer_message.dataSize = (char*)record - (char*)swrMultiplayer_message.data;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_PLAYER_STATES;
+    sithMessage_SendMessage(&swrMultiplayer_message, (DPID)-1, sithMessage_STREAM_NET, 0);
 }
 
 // 0x0041dc30
@@ -392,12 +513,34 @@ void swrMultiplayer_SetLastGame(char* str)
 
 // Looks like
 //----- (004C2EB0) --------------------------------------------------------
-// int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 // 0x00486e60
-unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2)
+unsigned int swrMultiplayer_SetSessionDesc(StdCommSessionSettings* pSettings)
 {
-    HANG("TODO");
-    return 0;
+    DWORD size;
+    LPDPSESSIONDESC2 desc;
+    HRESULT res;
+    wchar_t sessionName[128];
+
+    res = IDirectPlayX_GetSessionDesc(stdComm_pDirectPlay, NULL, &size);
+    if (res != DPERR_BUFFERTOOSMALL)
+        return res;
+    // faithful: desc is never freed
+    desc = (LPDPSESSIONDESC2)(*stdPlatform_hostServices_ptr->alloc)(size);
+    res = IDirectPlayX_GetSessionDesc(stdComm_pDirectPlay, desc, &size);
+    if (res < 0)
+        return res;
+
+    desc->dwMaxPlayers = pSettings->maxPlayers;
+    _snwprintf(sessionName, 128, L"%s:%S", pSettings->aSessionName, pSettings->aSomething);
+    desc->lpszSessionName = sessionName;
+    if (wcslen(pSettings->aPassword) != 0)
+        desc->lpszPassword = pSettings->aPassword;
+    desc->dwUser1 = pSettings->user1;
+    desc->dwUser3 = pSettings->user2;
+    desc->dwUser4 = pSettings->user3;
+    desc->dwFlags |= DPSESSION_OPTIMIZELATENCY | DPSESSION_NOPRESERVEORDER | DPSESSION_DIRECTPLAYPROTOCOL | DPSESSION_NODATAMESSAGES | DPSESSION_KEEPALIVE | DPSESSION_MIGRATEHOST;
+    res = IDirectPlayX_SetSessionDesc(stdComm_pDirectPlay, desc, 0);
+    return res < 0 ? res : 0;
 }
 
 // 0x0041dd50
@@ -1631,8 +1774,40 @@ void swrMultiplayer_RegisterHandlers(void)
 // 0x0041b7f0
 int swrMultiplayer_PumpPackets(void)
 {
-    HANG("TODO");
-    return 0;
+    unsigned short type;
+    int numReceived;
+
+    numReceived = 0;
+    if (swrMultiplayer_IsMultiplayerEnabled() == 0)
+        return 0;
+    if (sithMessage_g_inputstream == 0)
+        return 0;
+
+    swrMultiplayer_pumpStop = 0;
+    do {
+        if (sithMulti_HandleIncomingPacket(&swrMultiplayer_message) != 1)
+            break;
+        numReceived++;
+        if (swrMultiplayer_message.idFrom == 0) {
+            sithMulti_DefaultCallback(&swrMultiplayer_message);
+            continue;
+        }
+        type = swrMultiplayer_message.callbackId;
+        if (sithMulti_GetPlayerNum(swrMultiplayer_message.idFrom) < 0 && type != swrMultiplayer_MSG_PLAYER_NAME && type != swrMultiplayer_MSG_PLAYER_JOIN && type != swrMultiplayer_MSG_PLAYER_LEAVE && type != swrMultiplayer_MSG_PLAYER_LIST) {
+            // unknown sender outside the join handshake
+            if (multiplayer_isHost != 0)
+                swrMultiplayer_SendPlayerQuit(swrMultiplayer_message.idFrom);
+            continue;
+        }
+        if (swrMultiplayer_message.sequenceId != 0) {
+            swrMultiplayer_SendPlayerLeave_Maybe(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId);
+            if (sithMulti_TrackMessagePair_Maybe(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId) != 0)
+                continue;
+        }
+        sithMulti_RunCallback(&swrMultiplayer_message);
+    } while (swrMultiplayer_pumpStop == 0);
+    swr_noop2();
+    return numReceived;
 }
 
 // 0x0041c3f0

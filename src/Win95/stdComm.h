@@ -54,7 +54,7 @@ int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
 // Builds a DirectPlay session description and opens it to create and host a session.
 HRESULT stdComm_HostSession(StdCommSessionSettings* pSettings);
 
-int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
+int stdComm_GetSessionSettings(StdCommSessionSettings* pSettings);
 
 // Toggles a session's open or locked state and capacity host-side, updating its name suffix.
 // Rewrites the session name's text after ':' with nameSuffix (L"%S"), sets dwMaxPlayers, and clears

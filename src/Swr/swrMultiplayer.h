@@ -282,16 +282,15 @@ void swrMultiplayer_SetLastGame(char* str);
 
 // Looks like
 //----- (004C2EB0) --------------------------------------------------------
-// int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 
-unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
+unsigned int swrMultiplayer_SetSessionDesc(StdCommSessionSettings* pSettings);
 
 // Drain and dispatch all queued incoming network packets; returns the count handled.
 int swrMultiplayer_PumpPackets(void);
 
 // Multiplayer menu UI: host/join/race-setup screen builders + their helpers.
 int swrMultiplayer_IsAvailable(void);                               // can a session start? gates the MP menu entry
-unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5);
+unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionName, wchar_t* password, char* sessionSuffix, int user3);
 char* swrMultiplayer_GetSessionName(void);
 void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
 

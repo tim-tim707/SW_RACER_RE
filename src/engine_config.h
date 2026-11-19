@@ -571,6 +571,8 @@
 // stdComm DirectPlay session/player tables
 #define STDCOMM_MAX_SESSIONS (32) // stdCommSessionSettings length
 #define STDCOMM_MAX_CONNECTIONS (16) // stdComm_Connections length
+#define STDCOMM_RECV_MAX_SIZE (0x804) // bytes sithMulti_HandleIncomingPacket receives (tSithMessage from callbackId)
+#define SWR_MP_SEEN_MESSAGE_COUNT (128) // swrMultiplayer_aSeenMessages ring length
 #define STDCOMM_MAX_PLAYERS (20) // stdComm_aPlayerInfos length
 
 #endif // ENGINE_CONFIG_H

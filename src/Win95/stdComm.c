@@ -153,7 +153,7 @@ HRESULT stdComm_HostSession(StdCommSessionSettings* pSettings)
 }
 
 // 0x00486f50
-int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings)
+int stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 {
     DWORD size;
     LPDPSESSIONDESC2 desc;
