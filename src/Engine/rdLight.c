@@ -2,6 +2,7 @@
 
 #include "globals.h"
 
+#include <Primitives/rdMath.h>
 #include <Primitives/rdVector.h>
 #include <macros.h>
 
@@ -75,9 +76,53 @@ void rdLight_CalcVertexIntensities(rdLight** apLights, rdVector3* aLightPos, int
 }
 
 // 0x00490750
-void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, rdFace* face, rdVector3* faceNormal, rdVector3* vertices, float param_7, void* outInfos)
+void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, rdFace* face, rdVector3* faceNormal, rdVector3* vertices, float scalar, void* outInfos)
 {
-    HANG("TODO, easy. Prototype differ from OPENJKDF2 !");
+    rdVector4* out = (rdVector4*)outInfos;
+    rdVector3 toLight;
+    rdVector3* vertex;
+    rdLight* light;
+    float dot;
+    float dist;
+    float falloff;
+    int l;
+
+    out->x = 0.0f;
+    out->y = 0.0f;
+    out->z = 0.0f;
+    out->w = 0.0f;
+    for (l = 0; l < numLights; l++) {
+        light = meshLights[l];
+        if (light->active == 0)
+            continue;
+        if (light->type == RD_LIGHT_TYPE_DIRECTIONAL) {
+            toLight = localLightPoses[l];
+            rdVector_Normalize3Acc_2(&toLight);
+            dot = faceNormal->y * toLight.y + faceNormal->z * toLight.z + faceNormal->x * toLight.x;
+            if (dot > 0.0f) {
+                out->x = light->color.x * dot + out->x;
+                out->y = light->color.y * dot + out->y;
+                out->z = light->color.z * dot + out->z;
+            }
+        } else if (light->type == RD_LIGHT_TYPE_POINT) {
+            // the face's first vertex stands in for the whole face
+            vertex = &vertices[face->vertexPosIdx[0]];
+            toLight.x = localLightPoses[l].x - vertex->x;
+            toLight.y = localLightPoses[l].y - vertex->y;
+            toLight.z = localLightPoses[l].z - vertex->z;
+            dist = rdMath_DistancePointToPlane(&localLightPoses[l], faceNormal, vertex);
+            if (dist < light->falloffMin) {
+                rdVector_Normalize3Acc_2(&toLight);
+                dot = faceNormal->y * toLight.y + faceNormal->z * toLight.z + faceNormal->x * toLight.x;
+                if (dot > 0.0f) {
+                    falloff = dist * scalar;
+                    out->x = (light->color.x - falloff) * dot + out->x;
+                    out->y = (light->color.y - falloff) * dot + out->y;
+                    out->z = (light->color.z - falloff) * dot + out->z;
+                }
+            }
+        }
+    }
 }
 
 // 0x00490930

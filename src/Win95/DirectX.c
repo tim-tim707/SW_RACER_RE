@@ -29,7 +29,18 @@ void DirectDraw_Shutdown(void)
 // 0x00431C40
 void DirectDraw_LockZBuffer(uint32_t* bytes_per_depth_value, LONG* pitch, LPVOID* data, float* near_, float* far_)
 {
-    HANG("TODO");
+    LPDIRECTDRAWSURFACE4 zBuffer = DirectDraw_GetZBuffer();
+    DDSURFACEDESC2 desc;
+
+    memset(&desc, 0, sizeof(desc));
+    desc.dwSize = sizeof(desc);
+    // faithful: the Lock result is not checked
+    zBuffer->lpVtbl->Lock(zBuffer, NULL, &desc, DDLOCK_WAIT, NULL);
+    *pitch = desc.lPitch;
+    *bytes_per_depth_value = desc.ddpfPixelFormat.dwZBufferBitDepth >> 3;
+    *data = desc.lpSurface;
+    *near_ = rdCamera_pCurCamera->pClipFrustum->zNear;
+    *far_ = rdCamera_pCurCamera->pClipFrustum->zFar;
 }
 
 // 0x00431cd0
@@ -223,7 +234,14 @@ int Direct3d_IsLensflareCompatible(void)
 // 0x0048b340
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 {
-    HANG("TODO");
+    // faithful: channels are not clamped, an out-of-range value spills into its neighbours
+    DWORD color = (((DWORD)(int)(g * 255.0f) | (((DWORD)(int)(r * 255.0f) | 0xffffff00) << 8)) << 8) | (DWORD)(int)(b * 255.0f);
+
+    if (std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGCOLOR, color) != D3D_OK)
+        return;
+    if (std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGSTART, *(DWORD*)&near_) != D3D_OK)
+        return;
+    std3D_pD3Device->lpVtbl->SetRenderState(std3D_pD3Device, D3DRENDERSTATE_FOGEND, *(DWORD*)&far_);
 }
 
 // 0x0048b3c0
