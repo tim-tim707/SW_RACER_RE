@@ -551,6 +551,7 @@
 
 // DirectDraw/Direct3D enumeration tables (DirectDraw_EnumDisplayModes_Callback, Direct3d_Enum*_Callback)
 #define STD_DISPLAY_MAX_VIDEO_MODES (64) // stdDisplay_aVideoModes length
+#define STD_DISPLAY_MAX_DEVICES (16) // stdDisplay_aDisplayDevices length
 #define STD3D_MAX_DEVICES (4) // std3D_aDevices length
 #define STD3D_MAX_TEXTURE_FORMATS (8) // std3D_aTextureFormats length
 
