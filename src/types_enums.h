@@ -134,6 +134,8 @@ typedef enum swrForceEffect
 // swrRace.engineStatus[6] bits (one word per engine part).
 typedef enum swrRace_ENGINESTATUS
 {
+    swrRace_ENGINESTATUS_HIT = 0x1, // set by swrRace_TakeDamage; cleared by swrRace_InRaceEngineUI once vibrationMagnitude has decayed
+    swrRace_ENGINESTATUS_BLINK = 0x2, // toggled every unpaused frame by swrRace_InRaceEngineUI (HUD icon flash phase)
     swrRace_ENGINESTATUS_ON_FIRE = 0x8, // engine burning: fireball spawned, ENGINE_FIRE force effect
 } swrRace_ENGINESTATUS;
 

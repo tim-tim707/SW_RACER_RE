@@ -442,6 +442,8 @@ swrObjJdge_creditsPage3 0x004c4db0 char*[60]
 swrObjJdge_creditsPage4 0x004c4ea0 char*[178]
 swrObjJdge_creditsPage5 0x004c5168 char*[75]
 swrObjJdge_finishTriggered 0x004c5294 int
+swrRace_engineUiPulse 0x004c52a0 float[2] = { 1.0f, 1.0f } # sawtooth 1 -> 0 every 2/3 s; flash phase of the engine damage panel
+swrRace_engineUiHoldTimer 0x004c52a8 float[2] = { 1.0f, 1.0f } # reset to 5 s while damage shows; at 0 the panel fades out
 
 miniMapAlpha 0x004C5298 float
 
@@ -940,7 +942,7 @@ swrObjHang_inspectCameraTimer 0x0050c95c float # >= 5.0 slows the look-at-vehicl
 swrObjHang_creditsTrackCursor 0x0050c960 char # index into swrObjHang_creditsTracks of the credits race being run (read by swrObjHang_StartRace, advanced by swrObjHang_F4)
 swrObjHang_splashFrameCounter 0x0050c494 int # counts 0..30 each splash frame; no other reader
 swrObjHang_pendingTournamentMode 0x0050c450 char # set by swrUI_Menu_Main; copied into hang->isTournamentMode every splash frame
-swrObjHang_splashSkipToVehicleIntro 0x0050c44c int # splash jumps straight to swrObjHang_STATE_VEHICLE_SELECT_INTRO; no setter in the retail binary
+swrObjHang_splashSkipToVehicleIntro 0x0050c44c int # splash jumps straight to swrObjHang_STATE_VEHICLE_SELECT_INTRO; set when the profile select page is confirmed
 swrObjHang_splashSceneSetUp 0x0050c488 int # the splash builds its scene (swrObjHang_SetupScreenScene) once
 swrObjHang_titleDropTimer 0x0050c1d8 float # splash: STAR/WARS drop-in, 2 s -> 0
 swrObjHang_episodeFadeTimer 0x0050c1dc float # splash: "Episode I" fade-in, 1 s -> 0 after the title drop
@@ -1054,6 +1056,13 @@ playerNumberInitiatingPause 0x0050CA4C int
 swrObjJdge_goAcknowledged 0x0050ca50 int
 swrObjJdge_postRaceDelay 0x0050ca54 float
 swrRace_hudTimeLabelShown 0x0050ca5c int # cleared when the 1P HUD falls back to the running TIME display; write-only (no reader found)
+swrRace_engineUiFade 0x0050ca60 float[2] # engine damage panel opacity per local player (swrRace_InRaceEngineUI)
+swrRace_engineUiFadeRate 0x0050ca68 float[2] # opacity change per second: +4 when damage shows, -4 after the hold timer, -1 while dead
+swrRace_engineUiRepairTime 0x0050ca70 float[2] # seconds repairing with no damaged/smoking part; the clean-repair notice shows for 0.8 s
+swrRace_engineFireSfxLastTime 0x0050ca78 float # timetotal of the last frame with an engine on fire
+swrRace_engineFireSfxStartTime 0x0050ca7c float # timetotal the current fire started; the fire loop sound starts 1.8 s later
+swrRace_engineRepairSfxLastTime 0x0050ca80 float # same pair for the repair sound
+swrRace_engineRepairSfxStartTime 0x0050ca84 float
 
 swrObjJdge_musicFadedForPause 0x0050ca88 int
 
@@ -2125,6 +2134,15 @@ swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written
 swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
 swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
+swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrRace_SelectProfileMenu)
+swrUI_profilePrevSelectedItem 0x004d555c swrUI_unk* # previous list selection; re-picking the same item acts as OK
+swrUI_profileList 0x004d5574 swrUI_unk* # profile select: racer list
+swrUI_profileSelectedItem 0x004d5578 swrUI_unk* # selected racer list item, refreshed on every page message
+swrUI_profileNameEntry 0x004d557c swrUI_unk* # profile select: new-racer name entry
+swrUI_profileSelectPage 0x004d5580 swrUI_unk* # profile select page (swrUI_WINDOW_PROFILE_SELECT)
+swrUI_profileCurrentPlayerLabel 0x004d5584 swrUI_unk* # "Current Player:" label
+swrUI_profileLoadCooldown 0x004d5588 float # 0.5 s after a list pick loads a profile; another pick in that window only counts as a repeat
+swrUI_profileShowLabelPending 0x004d558c int # re-show the current-player label on the next page message (after CREATE RACER)
 swrMain_moneyHintUnlocked 0x00ec83c8 int # set by the Alt+H debug combo (swrMain_ProcessDebugKeys); reserved-keys page then shows the SHIFT+4+F4 money hint
 swrSound_globalPreloadIds 0x004b9008 int[34] # bank ids preloaded for every scene by swrSound_PreloadSoundSet; -1 terminated
 swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx ids preloaded for every racer (swrSound_PreloadRacerSounds)

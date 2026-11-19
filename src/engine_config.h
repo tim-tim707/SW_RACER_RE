@@ -295,6 +295,11 @@
 
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
+// in-race engine damage panel (swrRace_InRaceEngineUI): 6 part icons + 2 brackets per local player
+#define SWR_HUD_ENGINE_SPRITE_FIRST (0x1b)
+#define SWR_HUD_ENGINE_BRACKET_LEFT (0x21)
+#define SWR_HUD_ENGINE_BRACKET_RIGHT (0x22)
+#define SWR_HUD_ENGINE_SPRITE_P2_OFFSET (8) // local player 2 uses 0x23..0x2a
 
 // swrMultiplayer chat overlay (0x0041e800 AddChatMessage, 0x0041e880 TickRacerListOverlay)
 #define SWR_MP_CHAT_LINE_COUNT (15) // swrMultiplayer_chatLines entries
@@ -359,6 +364,7 @@
 #define SWR_UI_ID_CURRENT_PLAYER_LABEL (0x273a)
 #define SWR_UI_ID_PROFILE_CREATE (0x2737) // profile select: CREATE RACER
 #define SWR_UI_ID_PROFILE_NAV (0x2748) // profile select: back nav button
+#define SWR_UI_ID_PROFILE_SELECT_UNUSED (0x2739) // profile select: handled like OK, but no element is built with it
 #define SWR_CONTROL_AXIS_Z (2) // bit index in swrControl_{joystick,mouse}AxisMask: device has a Z axis
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
