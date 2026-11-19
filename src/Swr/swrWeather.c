@@ -5,6 +5,12 @@
 #include "engine_config.h"
 #include "swrSprite.h"
 
+// 0x0042cca0
+void swrWeather_RenderParticles(void* viewport)
+{
+    HANG("TODO");
+}
+
 // 0x0042d3c0
 void swrWeather_SetVelocity(float vx, float vy)
 {

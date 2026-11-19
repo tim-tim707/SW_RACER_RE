@@ -1563,6 +1563,14 @@ swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetCameraSt
 
 GameSettingFlags 0x00e996dc int
 swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every access is 8/16-bit
+swrViewport_renderStateUnkE2 0x00e996e2 short # set to 2 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkE4 0x00e996e4 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkE8 0x00e996e8 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_sceneInitArg 0x00e996ec int # first swrScene_Init argument (unless GAME_SETTING_UNK_200); zeroed by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF0 0x00e996f0 int # set to 1 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF4 0x00e996f4 short # set to 30 by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF6 0x00e996f6 short # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkF8 0x00e996f8 int # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
 
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color

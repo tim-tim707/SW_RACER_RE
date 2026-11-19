@@ -283,6 +283,34 @@ show_notice:
     }
 }
 
+// 0x0041c1d0
+void swrMain_UpdateNetworkTick(void)
+{
+    DWORD now = timeGetTime();
+
+    if (multiplayer_enabled == 0)
+        return;
+    if (now > (DWORD)(multiplayer_sync_timer_ms + Main_nut_delay_ms)) {
+        if (swrMultiplayer_networkTick != 0)
+            swrMultiplayer_InRace();
+        if (swrMultiplayer_racerListPageActive != 0)
+            swrMultiplayer_UpdatePlayerListItems();
+        multiplayer_sync_timer_ms = now;
+    }
+    if (swrMultiplayer_chatEnabled != 0) {
+        swrMultiplayer_TickRacerListOverlay();
+        swrMultiplayer_RenderRacerListOverlay();
+    }
+    // chat input owns the keyboard: drop this frame's menu and race input
+    if (swrMultiplayer_chatInputOpen != 0) {
+        swrControl_cancelPressedEdge = 0;
+        swrControl_menuAcceptPressedEdge = 0;
+        swrControl_acceptPressedEdge = 0;
+        inRaceLocalPlayerInputBitset1[0] = 0;
+        swrControl_ClearDeviceState(-1);
+    }
+}
+
 // 0x004240d0
 void Main_Shutdown(void)
 {

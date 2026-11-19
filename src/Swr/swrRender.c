@@ -312,6 +312,12 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
     HANG("TODO");
 }
 
+// 0x0044de10
+void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport)
+{
+    HANG("TODO");
+}
+
 // 0x0044e0c0
 void rdModel_SetFogEnabled_Maybe(int enable)
 {

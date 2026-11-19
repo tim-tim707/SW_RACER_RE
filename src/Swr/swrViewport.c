@@ -6,6 +6,7 @@
 #include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Swr/swrModel.h>
+#include <Swr/swrRender.h>
 #include <Unknown/rdMatrixStack.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrText.h>
@@ -374,6 +375,28 @@ void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2)
     swrViewport_ComputeClipMatrix(&swrViewport_array[viewportIndex]);
 }
 
+// 0x00431ba0
+void swrViewport_ResetCameraState_Maybe(void)
+{
+    translation_unk.x = 0.0f;
+    translation_unk.y = 0.0f;
+    translation_unk.z = 0.0f;
+    rotation_unk.x = 0.0f;
+    rotation_unk.y = 0.0f;
+    rotation_unk.z = 0.0f;
+    swrViewport_cameraResetWord = 0;
+    swrRender_frameClearFlags = 0;
+    swrViewport_renderStateUnkE2 = 2;
+    GameSettingFlags = GAME_SETTING_UNK_1 | GAME_SETTING_STEREO_PAN;
+    swrViewport_renderStateUnkE8 = 1.0f;
+    swrViewport_renderStateUnkE4 = 1.0f;
+    swrViewport_sceneInitArg = 0;
+    swrViewport_renderStateUnkF0 = 1;
+    swrViewport_renderStateUnkF4 = 30;
+    swrViewport_renderStateUnkF6 = 0;
+    swrViewport_renderStateUnkF8 = 0;
+}
+
 // 0x00483230
 void swrViewport_Enable(int viewportIndex, int cameraIndex)
 {
@@ -462,6 +485,12 @@ void swrRace_DrawDebugPosition(int debugLevel)
         sprintf(text, swrText_Translate(g_pTxtDebugCompFormat), comp);
         swrText_CreateColorlessFormattedEntry1(4, 300, 0xc2, text);
     }
+}
+
+// 0x00483ca0
+void swrRace_DrawDebugMetaCamera_Maybe(void)
+{
+    rdModel_BuildSceneNoDraw_Maybe(&swrViewport_array[1]);
 }
 
 // 0x00483fc0

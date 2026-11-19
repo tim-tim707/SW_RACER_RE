@@ -410,6 +410,21 @@ void swrPlayerHUD_LoadRaceHUD(int hudType, int weatherLevel, int racerData)
     SetPlanetIdAndTrackNumber(hudType, weatherLevel);
 }
 
+// 0x0042d490
+void swrPlayerHUD_RenderViewport(void* viewport, bool secondaryPass)
+{
+    if (InRaceSpritesEnabled != 0) {
+        UpdateSunAndLensFlareSprites((swrViewport*)viewport);
+        UpdateLightStreakSprites((swrViewport*)viewport);
+        swrPlayerHUD_RenderWorldSprites(viewport);
+        swrWeather_RenderParticles(viewport);
+        swrPlayerHUD_RenderDistanceText(viewport, secondaryPass);
+        return;
+    }
+    swrPlayerHUD_worldSpriteCount = 0;
+    swrPlayerHUD_RenderDistanceText(viewport, secondaryPass);
+}
+
 // 0x0042be60
 void swrPlayerHUD_SampleOcclusion(void)
 {

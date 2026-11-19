@@ -299,6 +299,13 @@ void updatePauseMenu(void)
     swrRace_UpdateInRaceMenu();
 }
 
+// 0x00445960
+void enablePauseOverlay_Maybe(void)
+{
+    swrViewport_ResetCameraState_Maybe();
+    GameSettingFlags |= GAME_SETTING_FOG_DISABLED;
+}
+
 // 0x00445780
 void requestUnpause(void)
 {
