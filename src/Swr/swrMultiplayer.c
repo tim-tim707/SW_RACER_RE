@@ -9,6 +9,7 @@
 #include <Dss/sithMessage.h>
 #include <Dss/sithMulti.h>
 #include <Swr/swrEvent.h>
+#include <Swr/swrObj.h>
 #include <Swr/swrText.h>
 #include <Swr/swrUI.h>
 #include <engine_config.h>
@@ -108,19 +109,55 @@ unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3,
 // 0x0041d3b0
 void swrMultiplayer_InitPlayerStatus(int slot)
 {
-    HANG("TODO");
+    swrMultiplayer_ReadyStatus* status;
+    int* payload;
+
+    if (multiplayer_enabled == 0)
+        return;
+    status = &swrMultiplayer_aReadyStatus[slot];
+    status->state = swrMultiplayer_READY_IDLE;
+    status->readyMask = 0;
+    status->sent = 0;
+    status->state = swrMultiplayer_READY_WAITING;
+    if (multiplayer_isHost != 0) {
+        payload = (int*)swrMultiplayer_message.data;
+        payload[0] = slot;
+        swrMultiplayer_message.length = 0;
+        swrMultiplayer_message.callbackId = swrMultiplayer_MSG_READY_MASK;
+        swrMultiplayer_message.dataSize = 4;
+        sithMessage_SendMessage(&swrMultiplayer_message, SITH_MESSAGE_TO_ALL, sithMessage_STREAM_NET, sithMessage_SEND_GUARANTEED);
+    }
 }
 
 // 0x0041d4e0
 void swrMultiplayer_SetPlayerStatusBit(int slot, int value)
 {
-    HANG("TODO");
+    swrMultiplayer_ReadyStatus* status;
+
+    if (multiplayer_enabled == 0)
+        return;
+    status = &swrMultiplayer_aReadyStatus[slot];
+    if (status->state == swrMultiplayer_READY_IDLE)
+        return;
+    if (status->sent == 0 || ((status->readyMask >> playerNumber) & 1) != (unsigned int)(value != 0)) {
+        status->sent = 1;
+        swrMultiplayer_SendReadyFlag(slot, value != 0);
+    }
 }
 
 // 0x0041d640
 int swrMultiplayer_PollPlayerStatus(int player)
 {
-    HANG("TODO");
+    if (multiplayer_enabled != 0) {
+        swrMultiplayer_PumpPackets();
+        swrMultiplayer_UpdateReadyState(player);
+        if (swrMultiplayer_aReadyStatus[player].state != swrMultiplayer_READY_IDLE) {
+            if (swrMultiplayer_aReadyStatus[player].state != swrMultiplayer_READY_ALL)
+                return 0;
+            swrMultiplayer_ClearPlayerStatus(player);
+        }
+    }
+    return 1;
 }
 
 // 0x0041d6b0
@@ -144,7 +181,16 @@ void swrMultiplayer_InRace(void)
 // 0x0041dc30
 void swrMultiplayer_RacerPick(int a)
 {
-    HANG("TODO");
+    int* payload = (int*)swrMultiplayer_message.data;
+
+    payload[0] = playerNumber;
+    payload[1] = a;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_RACER_PICK;
+    swrMultiplayer_message.dataSize = 8;
+    sithMessage_SendMessage(&swrMultiplayer_message, sithMulti_g_serverId, sithMessage_STREAM_NET, 0);
+    (&multiplayer_racer1_id)[playerNumber] = a;
+    swrUI_BroadcastToWindows(swrMultiplayer_MSG_RACER_PICK, (int)swrMultiplayer_message.data);
 }
 
 // 0x0041e5a0
@@ -156,7 +202,15 @@ void swrMultiplayer_BroadcastPlayerState(void)
 // 0x0041e660
 void swrMultiplayer_BroadcastRaceReset(void)
 {
-    HANG("TODO");
+    if (multiplayer_enabled == 0)
+        return;
+    memset(multiplayer_aPlayerQuit, 0, sizeof(multiplayer_aPlayerQuit));
+    memset(multiplayer_aPlayerFinished, 0, sizeof(multiplayer_aPlayerFinished));
+    swrMultiplayer_ignoreEvents = 0;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_RACE_RESET;
+    swrMultiplayer_message.dataSize = 0;
+    sithMessage_SendMessage(&swrMultiplayer_message, SITH_MESSAGE_TO_ALL, sithMessage_STREAM_NET, 0);
 }
 
 // 0x00420830
@@ -983,4 +1037,239 @@ void swrMultiplayer_PublishPodState(swrRace* player)
     swrMultiplayer_aRemoteLapComp[slot] = player->lapComp;
     swrMultiplayer_aRemoteLapCompMax[slot] = player->lapCompMax;
     swrMultiplayer_aRemoteLap[slot] = player->score_ptr->results_P1_Lap;
+}
+
+// 0x0041b750
+void swrMultiplayer_RegisterHandler(int subtype, void* handler)
+{
+    swrCallback_multiplayer[subtype] = (tSithCallback*)handler;
+}
+
+// 0x0041b7f0
+int swrMultiplayer_PumpPackets(void)
+{
+    HANG("TODO");
+    return 0;
+}
+
+// 0x0041c3f0
+void swrMultiplayer_SendMenuEvent(int value)
+{
+    int* payload;
+
+    if (multiplayer_enabled == 0)
+        return;
+    payload = (int*)swrMultiplayer_message.data;
+    payload[0] = playerNumber;
+    payload[1] = value;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_MENU_EVENT;
+    swrMultiplayer_message.dataSize = 8;
+    sithMessage_SendMessage(&swrMultiplayer_message, sithMulti_g_serverId, sithMessage_STREAM_NET, 0);
+    swrMultiplayer_menuEvent = value;
+}
+
+// 0x0041c450
+void swrMultiplayer_BroadcastMenuReset(void)
+{
+    if (multiplayer_enabled == 0)
+        return;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_MENU_RESET;
+    swrMultiplayer_message.dataSize = 0;
+    sithMessage_SendMessage(&swrMultiplayer_message, SITH_MESSAGE_TO_ALL, sithMessage_STREAM_NET, 0);
+}
+
+// 0x0041c490
+int swrMultiplayer_ApplyMenuEvent(void* message)
+{
+    tSithMessage* msg = (tSithMessage*)message;
+
+    if (msg->callbackId == swrMultiplayer_MSG_MENU_RESET) {
+        swrMultiplayer_SendMenuEvent(swrMultiplayer_menuEvent);
+        return 1;
+    }
+    swrUI_BroadcastToWindows(msg->callbackId, (int)msg->data);
+    return 1;
+}
+
+// 0x0041d060
+void swrMultiplayer_SendJoinResponse(int result, int value, DPID to)
+{
+    int* payload = (int*)swrMultiplayer_message.data;
+
+    payload[0] = result;
+    payload[1] = value;
+    swrMultiplayer_message.dataSize = 8;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_JOIN_RESPONSE;
+    sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, 0);
+}
+
+// 0x0041d0b0
+int swrMultiplayer_HandleNoOp(void)
+{
+    return 1;
+}
+
+// 0x0041d1d0
+int swrMultiplayer_ReplyPing(void* message)
+{
+    tSithMessage* msg = (tSithMessage*)message;
+
+    msg->callbackId = swrMultiplayer_MSG_PING_REPLY;
+    // faithful: sends the shared buffer, which is the received ping (PumpPackets receives into it)
+    sithMessage_SendMessage(&swrMultiplayer_message, msg->idFrom, sithMessage_STREAM_NET, 0);
+    return 1;
+}
+
+// 0x0041d2a0
+void swrMultiplayer_SendPlayerQuit(DPID player)
+{
+    if (multiplayer_isHost == 0)
+        return;
+    ((DPID*)swrMultiplayer_message.data)[0] = player;
+    swrMultiplayer_message.dataSize = 4;
+    swrMultiplayer_message.length = 0;
+    swrMultiplayer_message.callbackId = swrMultiplayer_MSG_PLAYER_QUIT;
+    sithMessage_SendMessage(&swrMultiplayer_message, player, sithMessage_STREAM_NET, sithMessage_SEND_GUARANTEED);
+}
+
+// 0x0041d420
+void swrMultiplayer_SendReadyFlag(int player, int ready)
+{
+    swrMultiplayer_ReadyStatus* status;
+    int* payload;
+    int localPlayer = playerNumber;
+
+    if (multiplayer_enabled == 0)
+        return;
+    status = &swrMultiplayer_aReadyStatus[player];
+    if (status->state == swrMultiplayer_READY_IDLE)
+        return;
+    if (ready == 0) {
+        status->readyMask &= ~(1u << playerNumber);
+    } else {
+        status->readyMask |= 1u << playerNumber;
+    }
+    if (multiplayer_isHost == 0) {
+        payload = (int*)swrMultiplayer_message.data;
+        payload[0] = player;
+        payload[1] = localPlayer;
+        payload[2] = ready;
+        swrMultiplayer_message.length = 0;
+        swrMultiplayer_message.callbackId = swrMultiplayer_MSG_READY_FLAG;
+        swrMultiplayer_message.dataSize = 0xc;
+        sithMessage_SendMessage(&swrMultiplayer_message, sithMulti_g_serverId, sithMessage_STREAM_NET, sithMessage_SEND_GUARANTEED);
+    }
+    swrMultiplayer_UpdateReadyState(player);
+}
+
+// 0x0041d540
+int swrMultiplayer_ApplyReadyFlag(void* message)
+{
+    int* payload = (int*)((tSithMessage*)message)->data;
+    swrMultiplayer_ReadyStatus* status;
+    int slot;
+
+    if (multiplayer_enabled == 0)
+        return 1;
+    slot = payload[0];
+    status = &swrMultiplayer_aReadyStatus[slot];
+    if (status->state != swrMultiplayer_READY_IDLE) {
+        if (payload[2] == 0) {
+            status->readyMask &= ~(1u << payload[1]);
+        } else {
+            status->readyMask |= 1u << payload[1];
+        }
+        swrMultiplayer_UpdateReadyState(slot);
+    }
+    return 1;
+}
+
+// 0x0041d5b0
+int swrMultiplayer_ApplyReadyMask(void* message)
+{
+    int slot = ((int*)((tSithMessage*)message)->data)[0];
+
+    if (multiplayer_enabled != 0 && swrMultiplayer_aReadyStatus[slot].state != swrMultiplayer_READY_IDLE)
+        swrMultiplayer_SendReadyFlag(slot, (swrMultiplayer_aReadyStatus[slot].readyMask >> playerNumber) & 1);
+    return 1;
+}
+
+// 0x0041d600
+int swrMultiplayer_ApplyReadyState(void* message)
+{
+    int* payload = (int*)((tSithMessage*)message)->data;
+
+    if (multiplayer_enabled != 0) {
+        // faithful: payload[1] (the sender's all-ready flag) is ignored
+        swrMultiplayer_aReadyStatus[payload[0]].state = swrMultiplayer_READY_ALL;
+        swrMultiplayer_aReadyStatus[payload[0]].readyMask = payload[2];
+    }
+    return 1;
+}
+
+// 0x0041d690
+void swrMultiplayer_ClearPlayerStatus(int player)
+{
+    swrMultiplayer_aReadyStatus[player].state = swrMultiplayer_READY_IDLE;
+    swrMultiplayer_aReadyStatus[player].readyMask = 0;
+    swrMultiplayer_aReadyStatus[player].sent = 0;
+}
+
+// 0x0041dca0
+int swrMultiplayer_ApplyRacerPick(void* message)
+{
+    int* payload = (int*)((tSithMessage*)message)->data;
+    int slot;
+    int pick;
+
+    if (multiplayer_enabled != 0) {
+        slot = payload[0];
+        pick = payload[1];
+        (&multiplayer_racer1_id)[slot] = pick;
+        swrRace_aProfiles[slot].pilotId = (uint8_t)pick;
+        swrUI_BroadcastToWindows(swrMultiplayer_MSG_RACER_PICK, (int)payload);
+    }
+    return 1;
+}
+
+// 0x0041e6c0
+int swrMultiplayer_ApplyRaceReset(void)
+{
+    memset(multiplayer_aPlayerQuit, 0, sizeof(multiplayer_aPlayerQuit));
+    memset(multiplayer_aPlayerFinished, 0, sizeof(multiplayer_aPlayerFinished));
+    swrMultiplayer_ignoreEvents = 0;
+    swrMultiplayer_SendMenuEvent(0);
+    swrObjHang_EnterMultiplayerMenu_Maybe();
+    return 1;
+}
+
+// 0x0041e700
+void swrMultiplayer_UpdateReadyState(int slot)
+{
+    swrMultiplayer_ReadyStatus* status = &swrMultiplayer_aReadyStatus[slot];
+    int* payload;
+    int allReady = 1;
+    int prevState;
+    unsigned int i;
+
+    for (i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
+        if (swrMultiplayer_IsPlayerActive(i) != 0 && (status->readyMask & (1u << i)) == 0)
+            allReady = 0;
+    }
+    prevState = status->state;
+    if (allReady)
+        status->state = swrMultiplayer_READY_ALL;
+    if (status->state != prevState && multiplayer_isHost != 0) {
+        payload = (int*)swrMultiplayer_message.data;
+        payload[2] = status->readyMask;
+        payload[1] = status->state == swrMultiplayer_READY_ALL;
+        payload[0] = slot;
+        swrMultiplayer_message.length = 0;
+        swrMultiplayer_message.callbackId = swrMultiplayer_MSG_READY_STATE;
+        swrMultiplayer_message.dataSize = 0xc;
+        sithMessage_SendMessage(&swrMultiplayer_message, SITH_MESSAGE_TO_ALL, sithMessage_STREAM_NET, sithMessage_SEND_GUARANTEED);
+    }
 }

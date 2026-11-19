@@ -40,7 +40,7 @@ void sithMulti_ResetCallbackState(void);
 unsigned int sithMulti_DefaultCallback(tSithMessage* message);
 
 // Clears a single field of a message struct (best guess).
-void sithMulti_ClearMessageField_Maybe(int message);
+void sithMulti_ClearMessageField_Maybe(tSithMessage* message);
 
 // Sends a player-leave message to one DirectPlay peer (best guess).
 void swrMultiplayer_SendPlayerLeave_Maybe(DPID to, unsigned short value);
