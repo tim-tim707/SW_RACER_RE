@@ -1548,6 +1548,7 @@ extern "C"
 
     typedef struct swrModel_NodeMeshGroup
     {
+        swrModel_Node node; // children.meshes holds the meshes
         float aabb[6];
         rdMatrix44* cached_model_matrix; // points into rdMatrix44_ringBuffer
         rdMatrix44* cached_mvp_matrix; // points into rdMatrix44_ringBuffer
@@ -2484,8 +2485,8 @@ extern "C"
     {
         RdThingType type;
         RdThingData data;
-        char unk8[4];
-        char unkc[4];
+        RdGeometryMode desiredGeoMode; // 0x8
+        RdLightMode desiredLightMode; // 0xc
         struct RdPuppet* pPuppet;
         int bSkipBuildingJoints;
         int rdFrameNum;
@@ -2494,7 +2495,7 @@ extern "C"
         int* paJointAmputationFlags;
         int matCelNum; // 0x28
         int geosetNum; // 0x2c
-        char unk30[4];
+        RdGeometryMode geoMode; // 0x30
         RdLightMode lightMode; // 0x34
         int frustumCullStatus;
         SithThing* pThing; // 0x3c
@@ -2948,12 +2949,13 @@ extern "C"
         int numTexVertices;
         int numFaces;
         float radius;
-        int someFaceFlags;
+        int16_t unk84; // incremented on every rdModel_AddMeshGroupToScene add, zeroed by rdModel_AddMeshGroupToScene2 on conversion
+        int16_t unk86; // same as unk84
         uint8_t colorFlags; // 0x88 vertex-color apply bits (0x1 rgb, 0x2 alpha, 0x4 per-vertex); rdModel_ConvertSwrModelMesh / rdModel3Mesh_ApplySwrModelColors
-        uint8_t unk89; // 0x89 light-set selector read by rdModel3_DrawMesh
+        uint8_t unk89; // 0x89 light-set selector read by rdModel3_DrawMesh; rdModel_AddMeshGroupToScene sets it to rdModel_LightingEnabled
         uint16_t unk8a;
-        void* unk8c; // read by rdModel3_DrawMesh, passed to rdModel3_DrawFace
-        void* unk90; // read by rdModel3_DrawMesh, passed to rdModel3_DrawFace
+        float uvOffsetU; // 0x8c 1 - material texture_offset[0] / texture width (rdModel_AddMeshGroupToScene)
+        float uvOffsetV; // 0x90 1 - material texture_offset[1] / texture height
     } rdModel3Mesh;
 
     // Indy
@@ -2978,6 +2980,8 @@ extern "C"
         rdVector3 pos;
         rdVector3 pyr;
         rdMatrix34 meshOrient;
+        int vertexBaseOffset; // 0xf0 swrModel_Mesh::vertex_base_offset of a bone-animated mesh part
+        rdMatrix34 boneMatrix; // 0xf4 swrModel_ComputeNodeRenderMatrix / swrModel_CopyNodeRenderMatrix
     } rdModel3HNode;
 
     // Indy

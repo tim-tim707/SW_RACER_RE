@@ -279,3 +279,64 @@ void rdMatrixStack34_PrecomputeMVPMatrices()
     }
     swrModel_CachePrecomputedMatrices();
 }
+
+// 0x0044bfb0
+void swrModel_ComputeNodeRenderMatrix(rdModel3HNode* node, int vertexBaseOffset)
+{
+    // faithful: reads the entry one below the stack top (0x00e37590 + top * 0x30), unlike
+    // rdMatrixStack34_PrecomputeMVPMatrices
+    rdMatrix34* src = rdMatrixStack34 + rdMatrixStack34_size - 1;
+    rdMatrix44 mvp;
+
+    if (rdModel_useModelTranslation != 0) {
+        src->scale.x = src->scale.x - rdVector_model_translation.x;
+        src->scale.y = src->scale.y - rdVector_model_translation.y;
+        src->scale.z = src->scale.z - rdVector_model_translation.z;
+    }
+    mvp.vA.x = src->rvec.x * rdMatrix44_model_MVP.vA.x + src->rvec.z * rdMatrix44_model_MVP.vC.x + src->rvec.y * rdMatrix44_model_MVP.vB.x;
+    mvp.vA.y = src->rvec.x * rdMatrix44_model_MVP.vA.y + src->rvec.z * rdMatrix44_model_MVP.vC.y + src->rvec.y * rdMatrix44_model_MVP.vB.y;
+    mvp.vA.z = src->rvec.x * rdMatrix44_model_MVP.vA.z + src->rvec.z * rdMatrix44_model_MVP.vC.z + src->rvec.y * rdMatrix44_model_MVP.vB.z;
+    mvp.vA.w = src->rvec.x * rdMatrix44_model_MVP.vA.w + src->rvec.z * rdMatrix44_model_MVP.vC.w + src->rvec.y * rdMatrix44_model_MVP.vB.w;
+    mvp.vB.x = src->lvec.x * rdMatrix44_model_MVP.vA.x + src->lvec.z * rdMatrix44_model_MVP.vC.x + src->lvec.y * rdMatrix44_model_MVP.vB.x;
+    mvp.vB.y = src->lvec.x * rdMatrix44_model_MVP.vA.y + src->lvec.z * rdMatrix44_model_MVP.vC.y + src->lvec.y * rdMatrix44_model_MVP.vB.y;
+    mvp.vB.z = src->lvec.x * rdMatrix44_model_MVP.vA.z + src->lvec.z * rdMatrix44_model_MVP.vC.z + src->lvec.y * rdMatrix44_model_MVP.vB.z;
+    mvp.vB.w = src->lvec.x * rdMatrix44_model_MVP.vA.w + src->lvec.z * rdMatrix44_model_MVP.vC.w + src->lvec.y * rdMatrix44_model_MVP.vB.w;
+    mvp.vC.x = src->uvec.x * rdMatrix44_model_MVP.vA.x + src->uvec.z * rdMatrix44_model_MVP.vC.x + src->uvec.y * rdMatrix44_model_MVP.vB.x;
+    mvp.vC.y = src->uvec.x * rdMatrix44_model_MVP.vA.y + src->uvec.z * rdMatrix44_model_MVP.vC.y + src->uvec.y * rdMatrix44_model_MVP.vB.y;
+    mvp.vC.z = src->uvec.x * rdMatrix44_model_MVP.vA.z + src->uvec.z * rdMatrix44_model_MVP.vC.z + src->uvec.y * rdMatrix44_model_MVP.vB.z;
+    mvp.vC.w = src->uvec.x * rdMatrix44_model_MVP.vA.w + src->uvec.z * rdMatrix44_model_MVP.vC.w + src->uvec.y * rdMatrix44_model_MVP.vB.w;
+    mvp.vD.x = src->scale.z * rdMatrix44_model_MVP.vC.x + src->scale.y * rdMatrix44_model_MVP.vB.x + src->scale.x * rdMatrix44_model_MVP.vA.x + rdMatrix44_model_MVP.vD.x;
+    mvp.vD.y = src->scale.z * rdMatrix44_model_MVP.vC.y + src->scale.y * rdMatrix44_model_MVP.vB.y + src->scale.x * rdMatrix44_model_MVP.vA.y + rdMatrix44_model_MVP.vD.y;
+    mvp.vD.z = src->scale.z * rdMatrix44_model_MVP.vC.z + src->scale.y * rdMatrix44_model_MVP.vB.z + src->scale.x * rdMatrix44_model_MVP.vA.z + rdMatrix44_model_MVP.vD.z;
+    mvp.vD.w = src->scale.z * rdMatrix44_model_MVP.vC.w + src->scale.y * rdMatrix44_model_MVP.vB.w + src->scale.x * rdMatrix44_model_MVP.vA.w + rdMatrix44_model_MVP.vD.w;
+    if (rdModel_useModelTranslation != 0) {
+        src->scale.x = rdVector_model_translation.x + src->scale.x;
+        src->scale.y = rdVector_model_translation.y + src->scale.y;
+        src->scale.z = rdVector_model_translation.z + src->scale.z;
+    }
+    // faithful: both ring-buffer slots are filled but never referenced afterwards
+    rdMatrix_Copy44_34(rdMatrix44_ringBuffer_Get(), src);
+    rdMatrix_Copy44(rdMatrix44_ringBuffer_Get(), &mvp);
+    node->boneMatrix = *src;
+    node->vertexBaseOffset = vertexBaseOffset;
+}
+
+// 0x0044c3b0
+void swrModel_CopyNodeRenderMatrix(swrModel_NodeMeshGroup* srcNode, rdModel3HNode* dstNode, int vertexBaseOffset)
+{
+    rdMatrix44* model = srcNode->cached_model_matrix;
+
+    dstNode->boneMatrix.rvec.x = model->vA.x;
+    dstNode->boneMatrix.rvec.y = model->vA.y;
+    dstNode->boneMatrix.rvec.z = model->vA.z;
+    dstNode->boneMatrix.lvec.x = model->vB.x;
+    dstNode->boneMatrix.lvec.y = model->vB.y;
+    dstNode->boneMatrix.lvec.z = model->vB.z;
+    dstNode->boneMatrix.uvec.x = model->vC.x;
+    dstNode->boneMatrix.uvec.y = model->vC.y;
+    dstNode->boneMatrix.uvec.z = model->vC.z;
+    dstNode->boneMatrix.scale.x = model->vD.x;
+    dstNode->boneMatrix.scale.y = model->vD.y;
+    dstNode->boneMatrix.scale.z = model->vD.z;
+    dstNode->vertexBaseOffset = vertexBaseOffset;
+}

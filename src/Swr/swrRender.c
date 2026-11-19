@@ -6,11 +6,14 @@
 #include <swr.h>
 
 #include <Engine/rdCamera.h>
+#include <Engine/rdMaterial.h>
+#include <Engine/rdThing.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdVector.h>
 #include <Primitives/rdModel.h>
 #include <Unknown/rdMatrixStack.h>
 #include <engine_config.h>
+#include <stdPlatform.h>
 #include <Win95/DirectX.h>
 #include <macros.h>
 
@@ -168,7 +171,50 @@ float* SetAlternativeLightColorsAndDirection(int light_index, short light_r, sho
 // 0x00432B80
 void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh* rdmesh, swrModel_Mesh* mesh)
 {
-    HANG("TODO");
+    rdVector4* vertColors = rdmesh->aVertColors;
+    rdVector4* lightIntensities = rdmesh->aLightIntensities;
+    int numVertices = rdmesh->numVertices;
+    swrModel_MeshMaterial* meshMaterial = mesh->mesh_material;
+    swrModel_Material* material;
+    float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float value;
+    int i, k;
+
+    if (meshMaterial == NULL)
+        return;
+    material = meshMaterial->material;
+    if (material != NULL) {
+        if (rdmesh->colorFlags & RDMESH_COLOR_PRIM_RGB) {
+            color[0] = (float)material->primitive_color[0] * (1.0f / 255.0f);
+            color[1] = (float)material->primitive_color[1] * (1.0f / 255.0f);
+            color[2] = (float)material->primitive_color[2] * (1.0f / 255.0f);
+        }
+        if (rdmesh->colorFlags & RDMESH_COLOR_PRIM_ALPHA)
+            color[3] = (float)material->primitive_color[3] * (1.0f / 255.0f);
+    }
+
+    if ((meshMaterial->type & swrModel_MESH_MATERIAL_VTX_NORMALS_MASK) == 0 && (rdmesh->colorFlags & RDMESH_COLOR_VERTEX_ALPHA_ONLY) == 0) {
+        // baked vertex colors, tinted by the primitive color
+        for (i = 0; i < numVertices; i++) {
+            for (k = 0; k < 4; k++) {
+                value = (float)(&mesh->vertices[i].v.r)[k] * color[k] * (1.0f / 255.0f);
+                (&vertColors[i].x)[k] = value;
+                (&lightIntensities[i].x)[k] = value;
+            }
+        }
+        return;
+    }
+    for (i = 0; i < numVertices; i++) {
+        vertColors[i].x = lightIntensities[i].x = color[0];
+        vertColors[i].y = lightIntensities[i].y = color[1];
+        vertColors[i].z = lightIntensities[i].z = color[2];
+        vertColors[i].w = lightIntensities[i].w = color[3];
+        if (rdmesh->colorFlags & RDMESH_COLOR_VERTEX_ALPHA_ONLY) {
+            value = (float)mesh->vertices[i].v.a * color[3] * (1.0f / 255.0f);
+            vertColors[i].w = value;
+            lightIntensities[i].w = value;
+        }
+    }
 }
 
 // 0x00432D30
@@ -214,22 +260,328 @@ void rdModel_RevertNodeSettings(char state)
     }
 }
 
+// One clip axis of AABBFrustumTest: `side` is -1/0/1 for a corner below/inside/above the
+// clip range, `allInside` stays nonzero while every corner was inside, `commonSide` stays
+// -1/1 while every corner was outside on the same side (-2 = no corner seen yet).
+static void AABBFrustumTest_AccumulateAxis(int16_t side, int16_t* allInside, int16_t* commonSide)
+{
+    if (side == 0) {
+        if (*allInside != 0)
+            *allInside = 1;
+        *commonSide = 0;
+        return;
+    }
+    *allInside = 0;
+    if (*commonSide == -side)
+        *commonSide = 0;
+    else if (*commonSide == -2)
+        *commonSide = side;
+}
+
+static int16_t AABBFrustumTest_ClassifySymmetric(float c, float w)
+{
+    if (w > 0.0f) {
+        if (c > w)
+            return 1;
+        if (c < -w)
+            return -1;
+        return 0;
+    }
+    if (c > -w)
+        return 1;
+    if (c < w)
+        return -1;
+    return 0;
+}
+
+// Returns 0 = outside the frustum, 1 = intersecting, 2 = fully inside (only with full_test).
 // 0x0044c510
 int16_t AABBFrustumTest(float* aabb, bool full_test)
 {
-    HANG("TODO");
+    // per clip row: each min/max component times its matrix column
+    float rowX[6];
+    float rowY[6];
+    float rowZ[6];
+    float rowW[6];
+    int16_t insideX, insideY, insideZ;
+    int16_t sideX, sideY, sideZ;
+    int16_t sideDepth;
+    int offX, offY, offZ;
+    float w;
+    int corner;
+
+    if (!(aabb[0] <= aabb[3]) || !(aabb[1] <= aabb[4]) || !(aabb[2] <= aabb[5]))
+        return 0;
+
+    rowX[0] = PrecomputedMVPMatrix.vA.x * aabb[0];
+    rowX[3] = PrecomputedMVPMatrix.vA.x * aabb[3];
+    rowX[1] = PrecomputedMVPMatrix.vB.x * aabb[1];
+    rowX[4] = PrecomputedMVPMatrix.vB.x * aabb[4];
+    rowX[2] = PrecomputedMVPMatrix.vC.x * aabb[2];
+    rowX[5] = PrecomputedMVPMatrix.vC.x * aabb[5];
+    rowY[0] = PrecomputedMVPMatrix.vA.y * aabb[0];
+    rowY[3] = PrecomputedMVPMatrix.vA.y * aabb[3];
+    rowY[1] = PrecomputedMVPMatrix.vB.y * aabb[1];
+    rowY[4] = PrecomputedMVPMatrix.vB.y * aabb[4];
+    rowY[2] = PrecomputedMVPMatrix.vC.y * aabb[2];
+    rowY[5] = PrecomputedMVPMatrix.vC.y * aabb[5];
+    rowZ[0] = PrecomputedMVPMatrix.vA.z * aabb[0];
+    rowZ[3] = PrecomputedMVPMatrix.vA.z * aabb[3];
+    rowZ[1] = PrecomputedMVPMatrix.vB.z * aabb[1];
+    rowZ[4] = PrecomputedMVPMatrix.vB.z * aabb[4];
+    rowZ[2] = PrecomputedMVPMatrix.vC.z * aabb[2];
+    rowZ[5] = PrecomputedMVPMatrix.vC.z * aabb[5];
+    rowW[0] = PrecomputedMVPMatrix.vA.w * aabb[0];
+    rowW[3] = PrecomputedMVPMatrix.vA.w * aabb[3];
+    rowW[1] = PrecomputedMVPMatrix.vB.w * aabb[1];
+    rowW[4] = PrecomputedMVPMatrix.vB.w * aabb[4];
+    rowW[2] = PrecomputedMVPMatrix.vC.w * aabb[2];
+    rowW[5] = PrecomputedMVPMatrix.vC.w * aabb[5];
+
+    if (full_test) {
+        insideX = -1;
+        insideY = -1;
+        insideZ = -1;
+    } else {
+        insideX = 0;
+        insideY = 0;
+        insideZ = 0;
+    }
+    sideX = -2;
+    sideY = -2;
+    sideZ = -2;
+
+    for (corner = 0; corner < 8; corner++) {
+        offZ = (corner & 1) * 3 + 2;
+        offY = ((corner >> 1) & 1) * 3 + 1;
+        offX = ((corner >> 2) & 1) * 3;
+        w = rowW[offY] + rowW[offX] + rowW[offZ] + PrecomputedMVPMatrix.vD.w;
+        if (insideX != 0 || sideX != 0)
+            AABBFrustumTest_AccumulateAxis(AABBFrustumTest_ClassifySymmetric(rowX[offY] + rowX[offX] + rowX[offZ] + PrecomputedMVPMatrix.vD.x, w), &insideX, &sideX);
+        if (insideY != 0 || sideY != 0)
+            AABBFrustumTest_AccumulateAxis(AABBFrustumTest_ClassifySymmetric(rowY[offY] + rowY[offX] + rowY[offZ] + PrecomputedMVPMatrix.vD.y, w), &insideY, &sideY);
+        if (insideZ != 0 || sideZ != 0) {
+            // depth only clips against the far plane; w <= 0 counts as behind the camera
+            if (!(w > 0.0f))
+                sideDepth = -1;
+            else if (rowZ[offY] + rowZ[offX] + rowZ[offZ] + PrecomputedMVPMatrix.vD.z > w)
+                sideDepth = 1;
+            else
+                sideDepth = 0;
+            AABBFrustumTest_AccumulateAxis(sideDepth, &insideZ, &sideZ);
+        }
+    }
+
+    if (insideX != 0 && insideY != 0 && insideZ != 0)
+        return 2;
+    if (sideX == 0 && sideY == 0 && sideZ == 0)
+        return 1;
+    return 0;
+}
+
+// Appends one scene hierarchy node per mesh of a mesh group under the root node, oriented by
+// `orient`, and returns the first appended node.
+static rdModel3HNode* rdModel_AppendMeshGroupHNodes(const rdMatrix34* orient, int numMeshes, int resetVertexBase)
+{
+    rdModel3HNode* nodes = swr_rootModel_ptr->aHierarchyNodes;
+    int first = swr_rootModel_ptr->numHNodes;
+    int end = first + numMeshes;
+    rdModel3HNode* hnode;
+    int i;
+
+    nodes->numChildren = end - 1;
+    if (&nodes[first - 1] == swr_rootModel_ptr->aHierarchyNodes)
+        nodes[first - 1].pChild = &nodes[first];
+    else
+        nodes[first - 1].pSibling = &nodes[first];
+    hnode = &nodes[first];
+    for (i = first; i < end; i++, hnode++) {
+        hnode->num = i;
+        hnode->meshIdx = -1;
+        memcpy(hnode->aName, "Unknown", 8);
+        hnode->pParent = swr_rootModel_ptr->aHierarchyNodes;
+        hnode->pSibling = i < end - 1 ? hnode + 1 : NULL;
+        hnode->pChild = NULL;
+        hnode->numChildren = 0;
+        if (resetVertexBase)
+            hnode->vertexBaseOffset = 0;
+        hnode->type = 1;
+        hnode->meshOrient = *orient;
+    }
+    swr_rootModel_ptr->numHNodes = end;
+    return &nodes[first];
+}
+
+static RdFaceFlag rdModel_MeshMaterialFaceFlags(const swrModel_MeshMaterial* material)
+{
+    if (material == NULL || (material->type & swrModel_MESH_MATERIAL_FRONT_FACING) != 0)
+        return 0;
+    return (material->type & swrModel_MESH_MATERIAL_MIRRORED) != 0 ? RD_FF_MIRRORED : RD_FF_DOUBLE_SIDED;
+}
+
+// Converts a mesh's N64 display list into the next free root-model mesh and returns it.
+static rdModel3Mesh* rdModel_ConvertMeshIntoRoot(swrModel_Mesh* mesh, rdModel3HNode* hnode, RdFaceFlag faceFlags, int resetCounters)
+{
+    Gfx* displayList = mesh->vertex_display_list;
+    int meshIndex = swrModel_AllocRootMeshIndex((unsigned int)displayList);
+    rdModel3Mesh* result = &rdModel_rootGeoSet->aMeshes[meshIndex];
+
+    result->geoMode = RD_GEOMETRY_SOLID;
+    hnode->meshIdx = meshIndex;
+    result->num = meshIndex;
+    result->name[0] = 'a';
+    result->name[1] = 'e';
+    result->name[2] = 's';
+    if (resetCounters) {
+        result->unk84 = 0;
+        result->unk86 = 0;
+    }
+    rdModel_ConvertSwrModelMesh(displayList, result, mesh, faceFlags);
+    // faithful: the source display list pointer is parked (unaligned) in the name after the tag
+    memcpy(&result->name[10], &mesh->vertex_display_list, sizeof(Gfx*));
+    mesh->converted_mesh = result;
+    result->radius = rdVector_Dist3((rdVector3*)&mesh->aabb[0], (rdVector3*)&mesh->aabb[3]) * 0.5f;
+    rdModel3Mesh_CalculateSurfaceNormals(result);
+    return result;
 }
 
 // 0x0044ca00
 void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node)
 {
-    HANG("TODO");
+    // faithful: the UV offsets and face flags are not reset per mesh, so an untextured or
+    // double-sided mesh inherits them from the meshes before it in the group
+    float uOffset = 0.0f;
+    float vOffset = 0.0f;
+    RdFaceFlag faceFlags = 0;
+    const rdMatrix34* orient;
+    rdModel3HNode* hnode;
+    swrModel_Mesh* mesh;
+    swrModel_MeshMaterial* material;
+    swrModel_MaterialTexture* texture;
+    rdModel3Mesh* converted;
+    rdModel3Mesh* result;
+    int16_t visibility;
+    int i;
+
+    if (rdModel_nodeTransformsEnabled != 0 && rdMatrixStack34_modified != 0)
+        rdMatrixStack34_PrecomputeMVPMatrices();
+    node->cached_model_matrix = PrecomputedModelMatrixPtr;
+    node->cached_mvp_matrix = PrecomputedMVPMatrixPtr;
+    if (rdModel_frustumCullEnabled == 0)
+        visibility = 2;
+    else
+        visibility = AABBFrustumTest(node->aabb, true);
+    if (visibility == 0)
+        return;
+
+    if (rdModel_nodeTransformsEnabled != 0) {
+        rdMatrixStack34_mvpComputed = 0;
+        orient = &rdMatrixStack34[rdMatrixStack34_size];
+    } else {
+        // faithful: with node transforms off, the node itself is read as the orientation
+        orient = (const rdMatrix34*)node;
+    }
+    hnode = rdModel_AppendMeshGroupHNodes(orient, node->node.num_children, 1);
+
+    for (i = 0; i < (int)node->node.num_children; i++, hnode++) {
+        mesh = node->node.children.meshes[i];
+        if (visibility != 2 && AABBFrustumTest(mesh->aabb, false) == 0)
+            continue;
+        converted = mesh->converted_mesh;
+        // faithful: the call also pushes mesh->mesh_material, which the callee ignores
+        rdModel_SetForceFlatNormals_Maybe(GameSettingFlags & GAME_SETTING_UNK_2000);
+        material = mesh->mesh_material;
+        faceFlags |= rdModel_MeshMaterialFaceFlags(material);
+        if ((GameSettingFlags & GAME_SETTING_UNTEXTURED) == 0 && material != NULL && material->material_texture != NULL) {
+            texture = material->material_texture;
+            uOffset = (float)material->texture_offset[0] / (float)texture->res[0];
+            vOffset = (float)material->texture_offset[1] / (float)texture->res[1];
+            // faithful: both calls push two more (ignored) arguments
+            if (texture->specs[0] == NULL)
+                rdModel_SetCurrentMaterial(rdMaterial_GetOrCreateDefaultMaterial(material));
+            else
+                rdModel_SetCurrentMaterial(texture->loaded_material);
+        } else {
+            // faithful: passes the mesh, not its material
+            rdModel_SetCurrentMaterial(rdMaterial_GetOrCreateDefaultMaterial(mesh));
+        }
+
+        if (strncmp(converted->name, "aes", 3) == 0) {
+            hnode->meshIdx = converted->num;
+            hnode->vertexBaseOffset = 0;
+            result = converted;
+            if (rdModel_CurrentMaterialSet != 0)
+                rdModel3Mesh_ApplyMaterialToAllFaces(converted);
+        } else {
+            result = rdModel_ConvertMeshIntoRoot(mesh, hnode, faceFlags, 0);
+        }
+
+        result->unk84++;
+        result->unk86++;
+        result->uvOffsetU = 1.0f - uOffset;
+        result->uvOffsetV = 1.0f - vOffset;
+        result->unk89 = rdModel_LightingEnabled != 0 ? 1 : 0;
+        if (rdroid_g_curRenderOptions2 != 0)
+            result->unk89 = 0;
+        rdModel_CurrentMaterialSet = 0;
+        if (result->colorFlags != 0)
+            rdModel3Mesh_ApplySwrModelColors(result, mesh);
+
+        if (converted != NULL && mesh->vertex_base_offset != 0) {
+            if (mesh->referenced_node == NULL)
+                swrModel_ComputeNodeRenderMatrix(hnode, mesh->vertex_base_offset);
+            else
+                swrModel_CopyNodeRenderMatrix((swrModel_NodeMeshGroup*)mesh->referenced_node, hnode, mesh->vertex_base_offset);
+        }
+    }
 }
 
 // 0x0044ceb0
 void rdModel_AddMeshGroupToScene2(swrModel_NodeMeshGroup* node)
 {
-    HANG("TODO");
+    const rdMatrix34* orient;
+    rdModel3HNode* hnode;
+    swrModel_Mesh* mesh;
+    swrModel_MeshMaterial* material;
+    swrModel_MaterialTexture* texture;
+    rdModel3Mesh* converted;
+    int i;
+
+    if (rdModel_nodeTransformsEnabled != 0 && rdMatrixStack34_modified != 0)
+        rdMatrixStack34_PrecomputeMVPMatrices();
+    node->cached_model_matrix = PrecomputedModelMatrixPtr;
+    node->cached_mvp_matrix = PrecomputedMVPMatrixPtr;
+    if (rdModel_nodeTransformsEnabled != 0) {
+        rdMatrixStack34_mvpComputed = 0;
+        orient = &rdMatrixStack34[rdMatrixStack34_size];
+    } else {
+        // faithful: with node transforms off, the node itself is read as the orientation
+        orient = (const rdMatrix34*)node;
+    }
+    if (node->node.num_children == 0)
+        return;
+    hnode = rdModel_AppendMeshGroupHNodes(orient, node->node.num_children, 0);
+
+    for (i = 0; i < (int)node->node.num_children; i++, hnode++) {
+        mesh = node->node.children.meshes[i];
+        converted = mesh->converted_mesh;
+        if (converted == NULL)
+            continue;
+        // faithful: the call also pushes mesh->mesh_material, which the callee ignores
+        rdModel_SetForceFlatNormals_Maybe(GameSettingFlags & GAME_SETTING_UNK_2000);
+        material = mesh->mesh_material;
+        texture = material != NULL ? material->material_texture : NULL;
+        // faithful: both calls push two more (ignored) arguments
+        if ((GameSettingFlags & GAME_SETTING_UNTEXTURED) == 0 && texture != NULL && texture->specs[0] != NULL)
+            rdModel_SetCurrentMaterial(texture->loaded_material);
+        else
+            rdModel_SetCurrentMaterial(NULL);
+
+        if (strncmp(converted->name, "aes", 3) == 0)
+            hnode->meshIdx = converted->num;
+        else
+            rdModel_ConvertMeshIntoRoot(mesh, hnode, rdModel_MeshMaterialFaceFlags(material), 1);
+    }
 }
 
 // 0x0044d1e0
@@ -510,16 +862,79 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
     rdModel_RevertNodeSettings(state);
 }
 
+// Inlined at the top of rdModel_BuildAndDrawScene and rdModel_BuildSceneNoDraw_Maybe.
+static void rdModel_CreateRootModel(void)
+{
+    rdModel3HNode* root;
+
+    swr_rootModel_ptr = (RdModel3*)stdPlatform_Alloc(sizeof(RdModel3));
+    rdModel3_NewEntry(swr_rootModel_ptr);
+    swr_rootModel_ptr->num = 0;
+    swr_rootModel_ptr->apMaterials = NULL;
+    swr_rootModel_ptr->numMaterials = 0;
+    swr_rootModel_ptr->numGeos = 1;
+    rdModel_rootGeoSet = &swr_rootModel_ptr->aGeos[swr_rootModel_ptr->curGeoNum];
+    swrModel_ResetRootMeshCounts();
+    rdModel_rootGeoSet->aMeshes = (rdModel3Mesh*)stdPlatform_Alloc(RDMODEL_ROOT_MAX_MESHES * sizeof(rdModel3Mesh));
+    memset(rdModel_rootGeoSet->aMeshes, 0, RDMODEL_ROOT_MAX_MESHES * sizeof(rdModel3Mesh));
+
+    swr_rootModelThing_ptr = rdThing_New(NULL);
+    swr_rootModelThing_ptr->type = RD_THING_MODEL3;
+    swr_rootModelThing_ptr->bSkipBuildingJoints = 1;
+    swr_rootModelThing_ptr->data.pModel3 = swr_rootModel_ptr;
+    swr_rootModelThing_ptr->geosetNum = -1;
+    swr_rootModelThing_ptr->geoMode = RD_GEOMETRY_FULL;
+    swr_rootModelThing_ptr->desiredGeoMode = RD_GEOMETRY_FULL;
+    swr_rootModelThing_ptr->paJointAmputationFlags = NULL;
+    swr_rootModelThing_ptr->apTweakedAngles = NULL;
+
+    swr_rootModel_ptr->aHierarchyNodes = (rdModel3HNode*)stdPlatform_Alloc(RDMODEL_ROOT_MAX_MESHES * sizeof(rdModel3HNode));
+    root = swr_rootModel_ptr->aHierarchyNodes;
+    root->num = 0;
+    memcpy(root->aName, "ROOT", 5);
+    root->pParent = NULL;
+    root->pSibling = NULL;
+    root->pChild = NULL;
+    root->numChildren = 0;
+    root->type = 1;
+    root->meshIdx = -1;
+    root->meshOrient = rdMatrix34_identity;
+}
+
 // 0x0044db70
 void rdModel_BuildAndDrawScene(Gfx** displayListCursor, swrViewport* viewport)
 {
-    HANG("TODO");
+    int i;
+
+    rdModel_displayListCursor = *displayListCursor;
+    rdModel_CurrentViewport = viewport;
+    if (swr_rootModel_ptr == NULL && swr_rootModelThing_ptr == NULL)
+        rdModel_CreateRootModel();
+    swr_rootModel_ptr->numHNodes = 1;
+    rdModel3_SetRootMaterials(swr_rootModel_ptr);
+    rdModel_sceneNodeDepth = 0;
+    rdMatrixStack34_Init();
+    rdModel_sceneBuildCount++;
+    memset(rdModel_sceneStatCounters, 0, sizeof(rdModel_sceneStatCounters));
+    swr_rootThing_ptr = NULL;
+    rdModel_mirroredWinding = (GameSettingFlags & GAME_SETTING_MIRROR) != 0;
+    rdModel_AddNodeToScene(viewport->model_root_node);
+    for (i = 1; i < (int)(sizeof(rdModel_sceneStatCounters) / sizeof(rdModel_sceneStatCounters[0])); i++)
+        rdModel_sceneStatCounters[0] += rdModel_sceneStatCounters[i];
+    rdThing_Draw((swrUI_Unk3*)swr_rootModelThing_ptr, &rdMatrix34_identity, (void*)(uintptr_t)((GameSettingFlags & GAME_SETTING_MIRROR) != 0), swrDisplay_screenWidth);
+    *displayListCursor = rdModel_displayListCursor;
 }
 
 // 0x0044de10
 void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport)
 {
-    HANG("TODO");
+    rdModel_CurrentViewport = viewport;
+    if (swr_rootModel_ptr == NULL && swr_rootModelThing_ptr == NULL)
+        rdModel_CreateRootModel();
+    swr_rootModel_ptr->numHNodes = 1;
+    rdModel3_SetRootMaterials(swr_rootModel_ptr);
+    rdModel_sceneNodeDepth = 0;
+    rdModel_AddNodeToScene2(viewport->model_root_node);
 }
 
 // 0x0044e000

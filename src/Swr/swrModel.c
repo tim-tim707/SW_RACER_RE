@@ -2050,9 +2050,7 @@ void swrModel_MeshGetAABB(swrModel_Mesh* mesh, float* aabb)
 // 0x00431850
 swrModel_Mesh* swrModel_NodeGetMesh(swrModel_NodeMeshGroup* node, int a2)
 {
-    // callers pass a NODE_MESH_GROUP swrModel_Node: its child mesh array sits at the same offset
-    // (0x18) as swrModel_NodeMeshGroup::cached_model_matrix.
-    return ((swrModel_Node*) node)->children.meshes[a2];
+    return node->node.children.meshes[a2];
 }
 
 // Classifies a mesh material's collision facing from its swrModel_MeshMaterial::type bits, telling

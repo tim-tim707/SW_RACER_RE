@@ -408,6 +408,9 @@ numEnabledLights 0x00004C3BA0 int[12]
 
 rdModel_useModelTranslation 0x004c3c08 int # nonzero -> factor rdVector_model_translation out of the stack-top translation around the MVP concat (model-origin-relative precision)
 rdMatrixStack34_modified 0x004c3c0c int
+rdModel_convertedMeshTag 0x004c3c14 char[4] # "aes": name prefix marking a swrModel_Mesh display list already converted to an rdModel3Mesh
+rdModel3HNode_defaultName 0x004c3c18 char[8] # "Unknown": name of the per-mesh scene hierarchy nodes
+rdModel3HNode_rootName 0x004c3c20 char[8] # "ROOT"
 rdModel_CurrentLightNum 0x004C3C10 int
 
 rdMatrix_unk5 0x004c3c38 rdMatrix44 = {{-1.0 / 6.0, 0.5, -0.5, 1.0 / 6.0}, {0.5, -1.0, 0.5, 0.0}, {-0.5, 0.0, 0.5, 0.0}, {1.0 /6.0, 2.0 / 3.0, 1.0 / 6.0, 0.0}}
@@ -910,6 +913,7 @@ swr_rootModel_ptr 0x0050c6b0 RdModel3*
 swr_rootModelThing_ptr 0x0050c6b4 RdThing* # wraps swr_rootModel_ptr; created by rdModel_BuildAndDrawScene, freed by swrDisplay_Shutdown
 rdMatrix44_ringBufferIndex 0x0050c6b8 int
 swr_rootThing_ptr 0x0050c6bc swrUI_Unk3*
+rdModel_sceneBuildCount 0x0050c6c0 int # incremented by every rdModel_BuildAndDrawScene; no reader on PC
 
 rdVector_model_translation 0x0050c6e8 rdVector3
 
@@ -1692,6 +1696,8 @@ repair_upgrade_level 0x00e364fb char
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
 rdModel_sceneStateUnusedE 0x00e374c4 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_displayListCursor 0x00e374c0 Gfx* # display-list cursor saved/restored around rdModel_BuildAndDrawScene
+rdModel_sceneStatCounters 0x00e374e0 int[16] # zeroed per rdModel_BuildAndDrawScene, then [0] += [1..15]; nothing else touches them on PC
 
 PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
 rdModel_sceneStateUnusedD 0x00e37524 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
@@ -1703,6 +1709,7 @@ rdModel_sceneState 0x00e37540 uint32_t[13] # write-only on PC; reset by rdModel_
 
 rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
+rdModel_rootGeoSet 0x00e37bf0 rdModel3GeoSet* # &swr_rootModel_ptr->aGeos[curGeoNum]; set when the root model is created
 
 rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 

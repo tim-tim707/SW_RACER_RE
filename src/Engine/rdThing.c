@@ -10,13 +10,31 @@
 // 0x00490b70
 RdThing* rdThing_New(SithThing* pThing)
 {
-    HANG("TODO");
+    RdThing* prdThing;
+
+    prdThing = (RdThing*)(*rdroid_hostServices_ptr->alloc)(sizeof(RdThing));
+    if (prdThing == NULL)
+        return NULL;
+    rdThing_NewEntry(prdThing, pThing);
+    return prdThing;
 }
 
 // 0x00490ba0
 void rdThing_NewEntry(RdThing* prdThing, SithThing* pThing)
 {
-    HANG("TODO");
+    prdThing->data.pModel3 = NULL;
+    prdThing->type = RD_THING_NONE;
+    prdThing->pPuppet = NULL;
+    prdThing->bSkipBuildingJoints = 0;
+    prdThing->rdFrameNum = 0;
+    prdThing->geosetNum = -1;
+    prdThing->matCelNum = -1;
+    prdThing->paJointMatrices = NULL;
+    prdThing->desiredGeoMode = RD_GEOMETRY_FULL;
+    prdThing->desiredLightMode = RD_LIGHTING_GOURAUD;
+    prdThing->geoMode = RD_GEOMETRY_FULL;
+    prdThing->lightMode = RD_LIGHTING_GOURAUD;
+    prdThing->pThing = pThing;
 }
 
 // 0x00490bf0
