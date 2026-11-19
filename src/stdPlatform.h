@@ -29,7 +29,7 @@ void stdPlatform_Shutdown(void);
 int stdPlatform_DebugLog(void* log_function, char* compile_filepath, int line_nb, char* msg, ...);
 
 int stdPlatform_Printf(const char* format, ...);
-void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3);
+void stdPlatform_Assert(const char* msg, const char* filePath, int line);
 void* stdPlatform_AllocHandle(size_t _Size);
 void stdPlatform_FreeHandle(void* _Memory);
 void* stdPlatform_ReallocHandle(void* _Memory, size_t _NewSize);

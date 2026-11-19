@@ -3,6 +3,7 @@
 #include "Window.h"
 #include "globals.h"
 #include "stdDisplay.h"
+#include "std.h"
 
 #include <macros.h>
 #include <engine_config.h>
@@ -11,10 +12,53 @@
 
 extern FILE* hook_log;
 
+// Inlined in every DirectX pixel-format reader: shift to the mask's low bit, then count its width.
+static void DirectX_ChannelFromMask(DWORD mask, int* posShift, int* shr, int* bits)
+{
+    DWORD m = mask;
+    int n = 0;
+    while ((m & 1) == 0) {
+        m >>= 1;
+        n++;
+    }
+    *posShift = n;
+    *shr = stdCalcBitPos(0xff / (mask >> n));
+    n = 0;
+    while ((m & 1) != 0) {
+        m >>= 1;
+        n++;
+    }
+    *bits = n;
+}
+
 // 0x00408510
 void DirectDraw_InitProgressBar(void)
 {
-    HANG("TODO");
+    DDBLTFX bltfx;
+
+    memset(&ddSurfaceDescForProgressBar, 0, sizeof(ddSurfaceDescForProgressBar));
+    ddSurfaceDescForProgressBar.dwSize = sizeof(DDSURFACEDESC2);
+    ddSurfaceDescForProgressBar.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+    ddSurfaceDescForProgressBar.dwWidth = 8;
+    ddSurfaceDescForProgressBar.dwHeight = 8;
+    ddSurfaceDescForProgressBar.ddsCaps.dwCaps = DDSCAPS_SYSTEMMEMORY;
+    if (IDirectDraw4_CreateSurface(std3D_pDirectDraw, &ddSurfaceDescForProgressBar, &ddSurfaceForProgressBar, NULL) != DD_OK) {
+        iDirectDraw4_error = 1;
+        return;
+    }
+    swrUI_progressBarX = (int)((float)(unsigned int)stdDisplay_g_frontBuffer.rasterInfo.width * 0.33333334f);
+    swrUI_progressBarWidth = swrUI_progressBarX;
+    swrUI_progressBarY = stdDisplay_g_frontBuffer.rasterInfo.height - ((unsigned int)stdDisplay_g_frontBuffer.rasterInfo.height >> 3);
+    memset(&bltfx, 0, sizeof(bltfx));
+    swrUI_progressBarHeight = 10;
+    bltfx.dwSize = sizeof(DDBLTFX);
+    bltfx.dwFillColor = 0xff;
+    IDirectDrawSurface4_Blt(ddSurfaceForProgressBar, NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &bltfx);
+    tagRect.top = 0;
+    tagRect.left = 0;
+    iDirectDraw4_error = 0;
+    tagRect.right = 8;
+    tagRect.bottom = 8;
 }
 
 // 0x00408620
@@ -210,8 +254,57 @@ BOOL __stdcall DirectDraw_EnumerateA_Callback(GUID* directDraw_guid, LPSTR drive
 // 0x00488f50
 HRESULT __stdcall DirectDraw_EnumDisplayModes_Callback(DDSURFACEDESC2* surfaceDesc, void* param_2)
 {
-    HANG("TODO");
-    return 0;
+    StdVideoMode* mode;
+    ColorInfo* color;
+    int pixels;
+
+    if ((unsigned int)stdDisplay_numVideoModes >= STD_DISPLAY_MAX_VIDEO_MODES)
+        return DDENUMRET_CANCEL;
+
+    if (directDrawSpecialDeviceId == 1 && !(surfaceDesc->dwWidth == 512 && surfaceDesc->dwHeight == 384) && !(surfaceDesc->dwWidth == 640 && surfaceDesc->dwHeight == 480) && !(surfaceDesc->dwWidth == 800 && surfaceDesc->dwHeight == 600))
+        return DDENUMRET_OK;
+
+    mode = &stdDisplay_aVideoModes[stdDisplay_numVideoModes];
+    mode->rasterInfo.width = surfaceDesc->dwWidth;
+    mode->rasterInfo.height = surfaceDesc->dwHeight;
+    mode->rasterInfo.rowSize = surfaceDesc->lPitch;
+    if ((mode->rasterInfo.width == 320 && mode->rasterInfo.height == 200) || (mode->rasterInfo.width == 640 && mode->rasterInfo.height == 400)) {
+        mode->aspectRatio = 0.75f;
+    } else {
+        mode->aspectRatio = 1.0f;
+    }
+
+    color = &mode->rasterInfo.colorInfo;
+    if (surfaceDesc->ddpfPixelFormat.dwFlags & DDPF_PALETTEINDEXED8) {
+        color->colorMode = T_STDCOLOR_PAL;
+        color->bpp = 8;
+        color->redBPP = 0;
+        color->greenBPP = 0;
+        color->blueBPP = 0;
+    } else if (surfaceDesc->ddpfPixelFormat.dwFlags & DDPF_RGB) {
+        color->colorMode = T_STDCOLOR_RGB;
+        color->bpp = surfaceDesc->ddpfPixelFormat.dwRGBBitCount;
+        DirectX_ChannelFromMask(surfaceDesc->ddpfPixelFormat.dwRBitMask, &color->redPosShift, &color->RedShr, &color->redBPP);
+        DirectX_ChannelFromMask(surfaceDesc->ddpfPixelFormat.dwGBitMask, &color->greenPosShift, &color->GreenShr, &color->greenBPP);
+        DirectX_ChannelFromMask(surfaceDesc->ddpfPixelFormat.dwBBitMask, &color->bluePosShift, &color->BlueShr, &color->blueBPP);
+    }
+
+    switch (color->bpp) {
+    // faithful: only 16-bit modes are listed (the 8/24/32 row widths are computed and discarded)
+    case 8:
+    case 24:
+    case 32:
+        return DDENUMRET_OK;
+    case 16:
+        mode->rasterInfo.rowWidth = (unsigned int)mode->rasterInfo.rowSize >> 1;
+        break;
+    }
+
+    pixels = mode->rasterInfo.width * mode->rasterInfo.height;
+    mode->rasterInfo.size = ((unsigned int)color->bpp >> 3) * pixels;
+    if ((unsigned int)directDrawVidMemTotal >= (unsigned int)((pixels + mode->rasterInfo.size) * 2))
+        stdDisplay_numVideoModes++;
+    return DDENUMRET_OK;
 }
 
 // 0x0048a140
@@ -303,15 +396,106 @@ bool Direct3d_CreateAndAttachViewport(void)
 // 0x0048b540
 HRESULT __stdcall Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx)
 {
-    HANG("TODO");
-    return 0;
+    StdDisplayDevice displayDevice;
+    Device3D* device;
+    DWORD textureCaps;
+    DWORD shadeCaps;
+
+    if (guid == NULL || hal_desc == NULL || hel_desc == NULL)
+        return D3DENUMRET_CANCEL;
+    if (memcmp(guid, &IID_IDirect3DNullDevice, sizeof(GUID)) == 0)
+        return D3DENUMRET_OK;
+    if ((unsigned int)std3D_numDevices >= STD3D_MAX_DEVICES)
+        return D3DENUMRET_CANCEL;
+
+    device = &std3D_aDevices[std3D_numDevices];
+    device->duid = *guid;
+    strncpy(device->deviceDescription, description, sizeof(device->deviceDescription) - 1);
+    device->deviceDescription[sizeof(device->deviceDescription) - 1] = '\0';
+    strncpy(device->deviceName, name, sizeof(device->deviceName) - 1);
+    device->deviceName[sizeof(device->deviceName) - 1] = '\0';
+    device->caps.bHAL = hal_desc->dwFlags != 0;
+    if (!device->caps.bHAL)
+        return D3DENUMRET_OK;
+
+    device->d3dDesc = *hal_desc;
+    if (DirectDraw_GetSelectedDevice(&displayDevice) != 0)
+        return D3DENUMRET_CANCEL;
+    if (displayDevice.bWindowRenderNotSupported == 0 && device->caps.bHAL == 0)
+        return D3DENUMRET_OK;
+
+    textureCaps = device->d3dDesc.dpcTriCaps.dwTextureCaps;
+    device->caps.bTexturePerspectiveSupported = textureCaps & D3DPTEXTURECAPS_PERSPECTIVE;
+    device->caps.hasZBuffer = device->d3dDesc.dwDeviceZBufferBitDepth != 0;
+    device->caps.bSqareOnlyTexture = (textureCaps & D3DPTEXTURECAPS_SQUAREONLY) != 0;
+    device->caps.bAlphaTextureSupported = (textureCaps & D3DPTEXTURECAPS_ALPHA) != 0;
+    shadeCaps = device->d3dDesc.dpcTriCaps.dwShadeCaps;
+    if ((shadeCaps & D3DPSHADECAPS_ALPHAFLATBLEND) == 0 && (shadeCaps & D3DPSHADECAPS_ALPHAFLATSTIPPLED) != 0) {
+        device->caps.bStippledShadeSupported = 1;
+    } else {
+        device->caps.bStippledShadeSupported = 0;
+    }
+    if (((device->d3dDesc.dpcTriCaps.dwTextureBlendCaps & D3DPTBLENDCAPS_MODULATE) && (shadeCaps & D3DPSHADECAPS_ALPHAGOURAUDBLEND)) || device->caps.bStippledShadeSupported != 0) {
+        device->caps.bAlphaBlendSupported = 1;
+    } else {
+        device->caps.bAlphaBlendSupported = 0;
+    }
+    device->caps.bColorkeyTextureSupported = (textureCaps & D3DPTEXTURECAPS_TRANSPARENCY) != 0;
+
+    if (device->d3dDesc.dwMinTextureWidth == 0) {
+        device->caps.minTexWidth = 16;
+        device->caps.minTexHeight = 16;
+        device->caps.maxTexWidth = 256;
+        device->caps.maxTexHeight = 256;
+    } else {
+        device->caps.minTexWidth = device->d3dDesc.dwMinTextureWidth;
+        device->caps.minTexHeight = device->d3dDesc.dwMinTextureHeight;
+        device->caps.maxTexWidth = device->d3dDesc.dwMaxTextureWidth;
+        device->caps.maxTexHeight = device->d3dDesc.dwMaxTextureHeight;
+    }
+    device->caps.maxVertexCount = device->d3dDesc.dwMaxVertexCount;
+    std3D_numDevices++;
+    return D3DENUMRET_OK;
 }
 
 // 0x0048b770
 HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx)
 {
-    HANG("TODO");
-    return 0;
+    stdTextureFormat* texFormat;
+    ColorInfo* color;
+
+    if ((unsigned int)std3D_numTextureFormats >= STD3D_MAX_TEXTURE_FORMATS)
+        return D3DENUMRET_CANCEL;
+
+    texFormat = &std3D_aTextureFormats[std3D_numTextureFormats];
+    texFormat->pixelFormat = *format;
+    if ((format->dwFlags & (DDPF_ALPHA | DDPF_FOURCC | DDPF_PALETTEINDEXED4 | DDPF_PALETTEINDEXED8)) != 0 || (format->dwFlags & (DDPF_PALETTEINDEXED1 | DDPF_PALETTEINDEXED2 | DDPF_LUMINANCE | DDPF_BUMPDUDV)) != 0)
+        return D3DENUMRET_OK;
+
+    color = &texFormat->texFormat;
+    if (format->dwFlags & DDPF_ALPHAPIXELS) {
+        std3D_bHasRGBTextureFormat = 1;
+        color->colorMode = T_STDCOLOR_RGBA;
+        color->bpp = format->dwRGBBitCount;
+        DirectX_ChannelFromMask(format->dwRBitMask, &color->redPosShift, &color->RedShr, &color->redBPP);
+        DirectX_ChannelFromMask(format->dwGBitMask, &color->greenPosShift, &color->GreenShr, &color->greenBPP);
+        DirectX_ChannelFromMask(format->dwBBitMask, &color->bluePosShift, &color->BlueShr, &color->blueBPP);
+        DirectX_ChannelFromMask(format->dwRGBAlphaBitMask, &color->alphaPosShift, &color->AlphaShr, &color->alphaBPP);
+    } else {
+        if ((format->dwFlags & DDPF_RGB) == 0)
+            return D3DENUMRET_OK;
+        std3D_bHasRGBTextureFormat = 1;
+        color->colorMode = T_STDCOLOR_RGB;
+        color->bpp = format->dwRGBBitCount;
+        DirectX_ChannelFromMask(format->dwRBitMask, &color->redPosShift, &color->RedShr, &color->redBPP);
+        DirectX_ChannelFromMask(format->dwGBitMask, &color->greenPosShift, &color->GreenShr, &color->greenBPP);
+        DirectX_ChannelFromMask(format->dwBBitMask, &color->bluePosShift, &color->BlueShr, &color->blueBPP);
+        color->alphaPosShift = 0;
+        color->AlphaShr = 0;
+        color->alphaBPP = 0;
+    }
+    std3D_numTextureFormats++;
+    return D3DENUMRET_OK;
 }
 
 // 0x0049d39c

@@ -8,6 +8,36 @@
 #include <string.h>
 #include <stdPlatform.h>
 #include <General/stdBmp.h>
+#include <General/stdColor.h>
+#include "std.h"
+
+// Inlined in every DirectDraw pixel-format reader: shift to the mask's low bit, then count its width.
+static void stdDisplay_ChannelFromMask(DWORD mask, int* posShift, int* shr, int* bits)
+{
+    DWORD m = mask;
+    int n = 0;
+    while ((m & 1) == 0) {
+        m >>= 1;
+        n++;
+    }
+    *posShift = n;
+    *shr = stdCalcBitPos(0xff / (mask >> n));
+    n = 0;
+    while ((m & 1) != 0) {
+        m >>= 1;
+        n++;
+    }
+    *bits = n;
+}
+
+static void stdDisplay_ColorInfoFromRGBMasks(ColorInfo* color, const DDPIXELFORMAT* format)
+{
+    color->colorMode = T_STDCOLOR_RGB;
+    color->bpp = format->dwRGBBitCount;
+    stdDisplay_ChannelFromMask(format->dwRBitMask, &color->redPosShift, &color->RedShr, &color->redBPP);
+    stdDisplay_ChannelFromMask(format->dwGBitMask, &color->greenPosShift, &color->GreenShr, &color->greenBPP);
+    stdDisplay_ChannelFromMask(format->dwBBitMask, &color->bluePosShift, &color->BlueShr, &color->blueBPP);
+}
 
 // 0x00487d20
 int stdDisplay_Startup(void)
@@ -365,13 +395,158 @@ LPDIRECTDRAW4 stdDisplay_GetDirectDraw(void)
 // 0x00489270
 int stdDisplay_SetWindowMode(HWND hWnd, StdVideoMode* pDisplayMode)
 {
-    HANG("TODO");
+    int width = pDisplayMode->rasterInfo.width;
+    int height = pDisplayMode->rasterInfo.height;
+    LPDIRECTDRAWCLIPPER clipper;
+    DDPIXELFORMAT* format;
+    unsigned int bytesPerPixel;
+
+    stdDisplay_g_frontBuffer.bSurfaceAllocated = 1;
+    stdDisplay_g_frontBuffer.lockSurfRefCount = 0;
+    stdDisplay_g_frontBuffer.bVideoMemory = 0;
+    stdDisplay_g_frontBuffer.pPixels = NULL;
+    memset(&stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc, 0, sizeof(DDSURFACEDESC2));
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwFlags = DDSD_CAPS;
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
+    if (IDirectDraw4_CreateSurface(stdDisplay_lpDD, &stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc, &stdDisplay_g_frontBuffer.pVSurface.pDDSurf, NULL) != DD_OK)
+        return 0;
+    if (IDirectDraw4_CreateClipper(stdDisplay_lpDD, 0, &clipper, NULL) != DD_OK)
+        return 0;
+    if (IDirectDrawClipper_SetHWnd(clipper, 0, hWnd) != DD_OK) {
+        IDirectDrawClipper_Release(clipper);
+        return 0;
+    }
+    if (IDirectDrawSurface4_SetClipper(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, clipper) != DD_OK) {
+        IDirectDrawClipper_Release(clipper);
+        return 0;
+    }
+    IDirectDrawClipper_Release(clipper);
+    if (IDirectDrawSurface4_GetSurfaceDesc(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, &stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc) != DD_OK)
+        return 0;
+
+    pDisplayMode->rasterInfo.width = stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwWidth;
+    pDisplayMode->rasterInfo.height = stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwHeight;
+    pDisplayMode->rasterInfo.rowSize = stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.lPitch;
+    if ((pDisplayMode->rasterInfo.width == 320 && pDisplayMode->rasterInfo.height == 200) || (pDisplayMode->rasterInfo.width == 640 && pDisplayMode->rasterInfo.height == 400)) {
+        pDisplayMode->aspectRatio = 0.75f;
+    } else {
+        pDisplayMode->aspectRatio = 1.0f;
+    }
+
+    format = &stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat;
+    if (format->dwFlags & (DDPF_PALETTEINDEXED4 | DDPF_PALETTEINDEXED8 | DDPF_PALETTEINDEXED1 | DDPF_PALETTEINDEXED2))
+        return 0;
+    if (format->dwFlags & DDPF_RGB)
+        stdDisplay_ColorInfoFromRGBMasks(&pDisplayMode->rasterInfo.colorInfo, format);
+
+    switch (pDisplayMode->rasterInfo.colorInfo.bpp) {
+    case 8:
+        pDisplayMode->rasterInfo.rowWidth = pDisplayMode->rasterInfo.rowSize;
+        break;
+    case 16:
+        pDisplayMode->rasterInfo.rowWidth = (unsigned int)pDisplayMode->rasterInfo.rowSize >> 1;
+        break;
+    case 24:
+        pDisplayMode->rasterInfo.rowWidth = (unsigned int)pDisplayMode->rasterInfo.rowSize / 3;
+        break;
+    case 32:
+        pDisplayMode->rasterInfo.rowWidth = (unsigned int)pDisplayMode->rasterInfo.rowSize >> 2;
+        break;
+    }
+    bytesPerPixel = (unsigned int)pDisplayMode->rasterInfo.colorInfo.bpp >> 3;
+    pDisplayMode->rasterInfo.size = bytesPerPixel * pDisplayMode->rasterInfo.width * pDisplayMode->rasterInfo.height;
+
+    stdDisplay_g_frontBuffer.rasterInfo = pDisplayMode->rasterInfo;
+    stdDisplay_g_frontBuffer.rasterInfo.rowSize = stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.lPitch;
+    stdDisplay_g_frontBuffer.rasterInfo.rowWidth = (unsigned int)stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.lPitch / bytesPerPixel;
+    if (stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_VIDEOMEMORY)
+        stdDisplay_g_frontBuffer.bVideoMemory = 1;
+
+    memset(&stdDisplay_g_backBuffer.pVSurface.ddSurfDesc, 0, sizeof(DDSURFACEDESC2));
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwWidth = width;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwHeight = height;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_3DDEVICE;
+    if (IDirectDraw4_CreateSurface(stdDisplay_lpDD, &stdDisplay_g_backBuffer.pVSurface.ddSurfDesc, &stdDisplay_g_backBuffer.pVSurface.pDDSurf, NULL) != DD_OK)
+        return 0;
+    stdDisplay_g_backBuffer.bSurfaceAllocated = 1;
+    stdDisplay_g_backBuffer.lockSurfRefCount = 0;
+    stdDisplay_g_backBuffer.bVideoMemory = 1;
+    if (IDirectDrawSurface4_GetSurfaceDesc(stdDisplay_g_backBuffer.pVSurface.pDDSurf, &stdDisplay_g_backBuffer.pVSurface.ddSurfDesc) != DD_OK)
+        return 0;
+
+    stdDisplay_g_backBuffer.rasterInfo.height = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwHeight;
+    stdDisplay_g_backBuffer.rasterInfo.width = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwWidth;
+    stdDisplay_g_backBuffer.rasterInfo.rowSize = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.lPitch;
+    format = &stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat;
+    if (format->dwFlags & (DDPF_PALETTEINDEXED4 | DDPF_PALETTEINDEXED8 | DDPF_PALETTEINDEXED1 | DDPF_PALETTEINDEXED2))
+        return 0;
+    if (format->dwFlags & DDPF_RGB)
+        stdDisplay_ColorInfoFromRGBMasks(&stdDisplay_g_backBuffer.rasterInfo.colorInfo, format);
+    stdDisplay_g_backBuffer.rasterInfo.rowSize = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.lPitch;
+    stdDisplay_coopLevelFlags = DDSCL_NORMAL;
+    // faithful: the back buffer's row width divides by the front mode's bytes per pixel
+    stdDisplay_g_backBuffer.rasterInfo.rowWidth = (unsigned int)stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.lPitch / bytesPerPixel;
+    return 1;
 }
 
 // 0x00489790
 int stdDisplay_SetFullscreenMode(HWND hwnd, StdVideoMode* pDisplayMode)
 {
-    HANG("TODO");
+    unsigned int bytesPerPixel;
+
+    stdDisplay_coopLevelFlags = DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE;
+    if (IDirectDraw4_SetCooperativeLevel(stdDisplay_lpDD, hwnd, DDSCL_FULLSCREEN | DDSCL_EXCLUSIVE) != DD_OK)
+        return 0;
+    if (IDirectDraw4_SetDisplayMode(stdDisplay_lpDD, pDisplayMode->rasterInfo.width, pDisplayMode->rasterInfo.height, pDisplayMode->rasterInfo.colorInfo.bpp, 0, 0) != DD_OK)
+        return 0;
+
+    stdDisplay_g_frontBuffer.lockSurfRefCount = 0;
+    stdDisplay_g_frontBuffer.bVideoMemory = 0;
+    stdDisplay_g_frontBuffer.bSurfaceAllocated = 1;
+    stdDisplay_g_frontBuffer.rasterInfo = pDisplayMode->rasterInfo;
+    stdDisplay_g_frontBuffer.pPixels = NULL;
+    memset(&stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc, 0, sizeof(DDSURFACEDESC2));
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwWidth = pDisplayMode->rasterInfo.width;
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwHeight = pDisplayMode->rasterInfo.height;
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwBackBufferCount = 1;
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
+    stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX | DDSCAPS_3DDEVICE;
+    if (IDirectDraw4_CreateSurface(stdDisplay_lpDD, &stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc, &stdDisplay_g_frontBuffer.pVSurface.pDDSurf, NULL) != DD_OK)
+        return 0;
+    if (IDirectDrawSurface4_GetSurfaceDesc(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, &stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc) != DD_OK)
+        return 0;
+
+    bytesPerPixel = (unsigned int)pDisplayMode->rasterInfo.colorInfo.bpp >> 3;
+    stdDisplay_g_frontBuffer.rasterInfo.rowSize = stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.lPitch;
+    stdDisplay_g_frontBuffer.rasterInfo.rowWidth = (unsigned int)stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.lPitch / bytesPerPixel;
+    if (stdDisplay_g_frontBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_VIDEOMEMORY)
+        stdDisplay_g_frontBuffer.bVideoMemory = 1;
+
+    stdDisplay_g_backBuffer.lockSurfRefCount = 0;
+    stdDisplay_g_backBuffer.bVideoMemory = 0;
+    stdDisplay_g_backBuffer.bSurfaceAllocated = 1;
+    stdDisplay_g_backBuffer.rasterInfo = pDisplayMode->rasterInfo;
+    stdDisplay_g_backBuffer.pPixels = NULL;
+    memset(&stdDisplay_g_backBuffer.pVSurface.ddSurfDesc, 0, sizeof(DDSURFACEDESC2));
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwWidth = pDisplayMode->rasterInfo.width;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwHeight = pDisplayMode->rasterInfo.height;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER | DDSCAPS_3DDEVICE;
+    stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.dwBackBufferCount = 1;
+    if (IDirectDrawSurface4_GetAttachedSurface(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, &stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddsCaps, &stdDisplay_g_backBuffer.pVSurface.pDDSurf) != DD_OK)
+        return 0;
+    if (IDirectDrawSurface4_GetSurfaceDesc(stdDisplay_g_backBuffer.pVSurface.pDDSurf, &stdDisplay_g_backBuffer.pVSurface.ddSurfDesc) != DD_OK)
+        return 0;
+    if (stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddsCaps.dwCaps & DDSCAPS_VIDEOMEMORY)
+        stdDisplay_g_backBuffer.bVideoMemory = 1;
+    stdDisplay_g_backBuffer.rasterInfo.rowSize = stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.lPitch;
+    stdDisplay_g_backBuffer.rasterInfo.rowWidth = (unsigned int)stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.lPitch / bytesPerPixel;
+    return 1;
 }
 
 // 0x00488410
@@ -448,7 +623,37 @@ int stdDisplay_VBufferFill(tVBuffer* pVBuffer, DWORD dwFillColor, LECRECT* pRect
 // 0x00488670
 tVBuffer* stdDisplay_VBufferConvertColorFormat(ColorInfo* texFormat, tVBuffer* src, int colorKey, void* PcolorKey)
 {
-    HANG("TODO, easy");
+    tVBuffer* dst;
+    tRasterInfo rasterInfo;
+    int row;
+
+    if (memcmp(texFormat, &src->rasterInfo.colorInfo, sizeof(ColorInfo)) == 0)
+        return src;
+    if (src->rasterInfo.colorInfo.colorMode == T_STDCOLOR_PAL && texFormat->colorMode == T_STDCOLOR_PAL)
+        return src;
+
+    dst = src;
+    if (src->rasterInfo.colorInfo.bpp != texFormat->bpp) {
+        rasterInfo = src->rasterInfo;
+        rasterInfo.colorInfo = *texFormat;
+        dst = stdDisplay_VBufferNew(&rasterInfo, 0, 0);
+        if (dst == NULL) {
+            stdPlatform_DebugLog(stdPlatform_hostServices_ptr->errorPrint, "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Jones3D\\Libs\\Std\\Win95\\stdDisplay.c", 1146, "Unable to allocate memory for new tVBuffer", 0, 0, 0, 0);
+            return NULL;
+        }
+    }
+
+    stdDisplay_VBufferLock(src);
+    stdDisplay_VBufferLock(dst);
+    for (row = 0; row < dst->rasterInfo.height; row++) {
+        stdColor_ColorConvertOneRow((char*)(dst->pPixels + row * dst->rasterInfo.rowSize), texFormat, (char*)(src->pPixels + row * src->rasterInfo.rowSize), &src->rasterInfo.colorInfo, dst->rasterInfo.width, colorKey, PcolorKey);
+    }
+    stdDisplay_VBufferUnlock(src);
+    stdDisplay_VBufferUnlock(dst);
+    dst->rasterInfo.colorInfo = *texFormat;
+    if (dst != src)
+        stdDisplay_VBufferFree(src);
+    return dst;
 }
 
 // 0x004887c0
@@ -489,7 +694,46 @@ int stdDisplay_VideoModeCompare(const StdVideoMode* pMode1, const StdVideoMode* 
 // 0x004888d0
 int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, int zBufferlessHSR)
 {
-    HANG("TODO");
+    DDSURFACEDESC2 lockDesc;
+
+    memset(&stdDisplay_zBuffer.ddSurfDesc, 0, sizeof(DDSURFACEDESC2));
+    stdDisplay_zBuffer.ddSurfDesc.dwHeight = stdDisplay_g_backBuffer.rasterInfo.height;
+    stdDisplay_zBuffer.ddSurfDesc.dwWidth = stdDisplay_g_backBuffer.rasterInfo.width;
+    stdDisplay_zBuffer.ddSurfDesc.dwSize = sizeof(DDSURFACEDESC2);
+    stdDisplay_zBuffer.ddSurfDesc.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
+    stdDisplay_zBuffer.ddSurfDesc.ddsCaps.dwCaps = bSystemMemory ? (DDSCAPS_ZBUFFER | DDSCAPS_SYSTEMMEMORY) : (DDSCAPS_ZBUFFER | DDSCAPS_VIDEOMEMORY);
+    stdDisplay_zBuffer.ddSurfDesc.ddpfPixelFormat = *pPixelFormat;
+    if (IDirectDraw4_CreateSurface(stdDisplay_lpDD, &stdDisplay_zBuffer.ddSurfDesc, &stdDisplay_zBuffer.pDDSurf, NULL) != DD_OK)
+        return 1;
+
+    if (!bSystemMemory) {
+        memset(&lockDesc, 0, sizeof(lockDesc));
+        lockDesc.dwSize = sizeof(DDSURFACEDESC2);
+        if (IDirectDrawSurface4_Lock(stdDisplay_zBuffer.pDDSurf, NULL, &lockDesc, DDLOCK_WAIT, NULL) == DD_OK) {
+            IDirectDrawSurface4_Unlock(stdDisplay_zBuffer.pDDSurf, NULL);
+        } else {
+            // the video-memory z-buffer can't be locked: retry in system memory, without HSR attachment
+            stdDisplay_zBuffer.ddSurfDesc.ddsCaps.dwCaps = DDSCAPS_SYSTEMMEMORY;
+            *(uint16_t*)&directDraw_BltFillColor = 0;
+            zBufferlessHSR = 1;
+            if (IDirectDraw4_CreateSurface(stdDisplay_lpDD, &stdDisplay_zBuffer.ddSurfDesc, &stdDisplay_zBuffer.pDDSurf, NULL) != DD_OK)
+                return 1;
+        }
+    }
+
+    if (zBufferlessHSR != 1 && IDirectDrawSurface4_AddAttachedSurface(stdDisplay_g_backBuffer.pVSurface.pDDSurf, stdDisplay_zBuffer.pDDSurf) != DD_OK)
+        return 1;
+    if (IDirectDrawSurface4_GetSurfaceDesc(stdDisplay_zBuffer.pDDSurf, &stdDisplay_zBuffer.ddSurfDesc) != DD_OK)
+        return 1;
+
+    // 0x10000000: undocumented DDCAPS2 bit of the selected device
+    if ((stdDisplay_pcurDevice->ddcaps.dwCaps2 & 0x10000000) != 0 && zBufferlessHSR != 1) {
+        stdDisplay_FillMainSurface_ptr = DirectDraw_FillMainSurface;
+    } else {
+        stdDisplay_FillMainSurface_ptr = (void (*)())stdPlatform_noop;
+    }
+    DirectDraw_FillMainSurface();
+    return 0;
 }
 
 // 0x004899a0
@@ -552,13 +796,48 @@ int stdDisplay_UnlockSurface(tVSurface* pSurf)
 // 0x00489ab0
 int stdDisplay_Update(void)
 {
+    HRESULT res;
+    POINT origin;
+    RECT srcRect;
+    RECT dstRect;
+
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
         return 0;
     }
 
-    HANG("TODO");
-    return 0;
+    for (;;) {
+        if (stdDisplay_bFullscreen) {
+            res = IDirectDrawSurface4_Flip(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, NULL, 0);
+        } else {
+            origin.x = 0;
+            origin.y = 0;
+            ClientToScreen(Window_GetHWND(), &origin);
+            dstRect.left = origin.x;
+            dstRect.top = origin.y;
+            dstRect.right = origin.x + stdDisplay_g_backBuffer.rasterInfo.width;
+            dstRect.bottom = origin.y + stdDisplay_g_backBuffer.rasterInfo.height;
+            srcRect.left = 0;
+            srcRect.top = 0;
+            srcRect.right = stdDisplay_g_backBuffer.rasterInfo.width;
+            srcRect.bottom = stdDisplay_g_backBuffer.rasterInfo.height;
+            res = IDirectDrawSurface4_Blt(stdDisplay_g_frontBuffer.pVSurface.pDDSurf, &dstRect, stdDisplay_g_backBuffer.pVSurface.pDDSurf, &srcRect, DDBLT_WAIT, NULL);
+        }
+        if (res == DD_OK)
+            return 0;
+        if (res == DDERR_SURFACELOST) {
+            if (IDirectDrawSurface4_Restore(stdDisplay_g_frontBuffer.pVSurface.pDDSurf) != DD_OK)
+                return 1;
+            res = DD_OK;
+            if (!stdDisplay_bFullscreen) {
+                res = IDirectDrawSurface4_Restore(stdDisplay_g_backBuffer.pVSurface.pDDSurf);
+                if (res != DD_OK)
+                    return 1;
+            }
+        }
+        if (res != DDERR_WASSTILLDRAWING && res != DD_OK)
+            return 1;
+    }
 }
 
 // 0x00489bc0
