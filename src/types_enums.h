@@ -826,6 +826,52 @@ typedef enum swrRace_TRACK
     swrRace_TRACK_SEBULBAS_LEGACY = 24
 } swrRace_TRACK;
 
+// swrSprite.flags; swrSprite_Draw2 translates them to swrSprite_DRAWFLAGS
+typedef enum swrSprite_FLAGS
+{
+    swrSprite_FLAGS_PASS_1 = 0x1, // drawn by swrSprite_DrawSprites(2); without it Z_OFFSET is ignored
+    swrSprite_FLAGS_PASS_2 = 0x2, // drawn by swrSprite_DrawSprites(1)
+    swrSprite_FLAGS_MIRROR_X = 0x4,
+    swrSprite_FLAGS_MIRROR_Y = 0x8,
+    swrSprite_FLAGS_UNK_10 = 0x10, // -> swrSprite_DRAWFLAGS_UNK_8000
+    swrSprite_FLAGS_VISIBLE = 0x20,
+    swrSprite_FLAGS_UNK_40 = 0x40, // -> swrSprite_DRAWFLAGS_UNK_10000
+    swrSprite_FLAGS_CLAMP_UV = 0x80,
+    swrSprite_FLAGS_ROTATED = 0x100,
+    swrSprite_FLAGS_UNK_200 = 0x200, // -> swrSprite_DRAWFLAGS_UNK_2
+    swrSprite_FLAGS_TRANSLUCENT = 0x400, // translucent even at full alpha
+    swrSprite_FLAGS_PASS_3 = 0x800, // drawn by swrSprite_DrawSprites(3)
+    swrSprite_FLAGS_CENTERED = 0x1000,
+    swrSprite_FLAGS_Z_OFFSET = 0x2000,
+    swrSprite_FLAGS_HIDDEN = 0x4000,
+    swrSprite_FLAGS_TEXTURED = 0x8000,
+    swrSprite_FLAGS_DOUBLE_RES = 0x10000,
+} swrSprite_FLAGS;
+
+// flags argument of swrSprite_Draw1 / swrSprite_Draw
+typedef enum swrSprite_DRAWFLAGS
+{
+    swrSprite_DRAWFLAGS_TRANSLUCENT = 0x1,
+    swrSprite_DRAWFLAGS_UNK_2 = 0x2,
+    swrSprite_DRAWFLAGS_SKIP = 0x8,
+    swrSprite_DRAWFLAGS_Z_OFFSET = 0x10, // add_z_offset of rdProcEntry_Add2DQuad3
+    swrSprite_DRAWFLAGS_UNSCALED = 0x20, // set by swrSprite_Draw1 when both scales are 1.0
+    swrSprite_DRAWFLAGS_DOUBLE_RES = 0x40, // viewport doubled, coordinates shifted by 3 instead of 2
+    swrSprite_DRAWFLAGS_HALF_TEXEL = 0x100, // texel start offset by half a texel
+    swrSprite_DRAWFLAGS_FLIP_X = 0x2000,
+    swrSprite_DRAWFLAGS_FLIP_Y = 0x4000,
+    swrSprite_DRAWFLAGS_UNK_8000 = 0x8000,
+    swrSprite_DRAWFLAGS_UNK_10000 = 0x10000,
+    swrSprite_DRAWFLAGS_CENTERED = 0x20000,
+    swrSprite_DRAWFLAGS_HIDDEN = 0x400000, // takes the rotated path, which then only calls swr_noop2
+    swrSprite_DRAWFLAGS_ROTATED = 0x800000,
+    swrSprite_DRAWFLAGS_CLAMP_U = 0x1000000,
+    swrSprite_DRAWFLAGS_CLAMP_V = 0x2000000,
+    swrSprite_DRAWFLAGS_CLAMP_U_ALT = 0x4000000,
+    swrSprite_DRAWFLAGS_CLAMP_V_ALT = 0x8000000,
+    swrSprite_DRAWFLAGS_TEXTURED = 0x10000000, // textured argument of rdProcEntry_Add2DQuad3
+} swrSprite_DRAWFLAGS;
+
 // This is a superset of SPRTID, used in game to add tga sprites
 typedef enum swrSprite_NAME
 {

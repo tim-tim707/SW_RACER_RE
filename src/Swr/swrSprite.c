@@ -5,15 +5,18 @@
 #include "engine_config.h"
 #include "swr.h"
 #include "swrLoader.h"
+#include "swrAssetBuffer.h"
 #include "swrUI.h"
 #include "swrObj.h"
 #include "swrText.h"
 #include "swrModel.h"
+#include "swrRender.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <General/utils.h>
+#include <General/stdMath.h>
 
 #include <Engine/rdMaterial.h>
 #include <Platform/std3D.h>
@@ -167,7 +170,133 @@ int swrUI_GetMenuRoot_Maybe(void)
 // 0x00412650
 void swrSprite_LoadAllSprites(void)
 {
-    HANG("TODO, easy");
+    if (SpritesLoaded)
+        swrSprite_UnloadAllSprites();
+    swrSprite_LoadFromId(swrSprite_lightstar_glowstar_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_topbtm_light_blue_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_as_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_tee_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_seb_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_rat_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_ald_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_maw_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_bum_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_wan_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_mar_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_ebe_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_dud_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_gas_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_clegg_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_elan_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_neeva_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_boz_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_boles_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_ody_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_fud_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_ben_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_slide_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_toy_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_flag_bullseye_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_anakin_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_teemto_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_sebulba_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_ratts_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_aldar_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_mawhonic_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_bumpy_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_wan_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_mars_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_ebe_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_dud_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_gasgano_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_clegg_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_elan_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_neva_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_bozzie_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_boles_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_ody_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_fud_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_ben_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_slide_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_toy_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_int_bullseye_rgb, NULL);
+    swrSprite_LoadFromId(swrSprite_sq_brdr_b, "sq_brdr_b");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_bl, "sq_brdr_bl");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_br, "sq_brdr_br");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_l, "sq_brdr_l");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_r, "sq_brdr_r");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_t, "sq_brdr_t");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_tl, "sq_brdr_tl");
+    swrSprite_LoadFromId(swrSprite_sq_brdr_tr, "sq_brdr_tr");
+    swrSprite_LoadFromId(swrSprite_radio_unchecked, "radio_unchecked");
+    swrSprite_LoadFromId(swrSprite_radio_checked, "radio_checked");
+    swrSprite_LoadFromId(swrSprite_axis_check_circ, "axis_check_circ");
+    swrSprite_LoadFromId(swrSprite_axis_check_circ_selected, "axis_check_circ_selected");
+    swrSprite_LoadFromId(swrSprite_tiny_box, "tiny_box");
+    swrSprite_LoadFromId(swrSprite_tiny_box_selected, "tiny_box_selected");
+    swrSprite_LoadFromId(swrSprite_axis_check_center, "axis_check_center");
+    swrSprite_LoadFromId(swrSprite_axis_check_end, "axis_check_end");
+    swrSprite_LoadFromId(swrSprite_axis_check_strch, "axis_check_strch");
+    swrSprite_LoadFromId(swrSprite_window_end, "window_end");
+    swrSprite_LoadFromId(swrSprite_window_strchbars, "window_strchbars");
+    swrSprite_LoadFromId(swrSprite_window_end_selected, "window_end_selected");
+    swrSprite_LoadFromId(swrSprite_window_strchbars_selected, "window_strchbars_selected");
+    swrSprite_LoadFromId(swrSprite_ok_button, "ok_button");
+    swrSprite_LoadFromId(swrSprite_ok_button_selected, "ok_button_selected");
+    swrSprite_LoadFromId(swrSprite_sml_window_end, "sml_window_end");
+    swrSprite_LoadFromId(swrSprite_sml_window_strch, "sml_window_strch");
+    swrSprite_LoadFromId(swrSprite_sml_window_end_selected, "sml_window_end_selected");
+    swrSprite_LoadFromId(swrSprite_sml_window_strch_selected, "sml_window_strch_selected");
+    swrSprite_LoadFromId(swrSprite_settings_btn_end, "settings_btn_end");
+    swrSprite_LoadFromId(swrSprite_settings_btn_strch_end, "settings_btn_strch_end");
+    swrSprite_LoadFromId(swrSprite_settings_btn_end2, "settings_btn_end2");
+    swrSprite_LoadFromId(swrSprite_settings_btn_strch_selected, "settings_btn_strch_selected");
+    swrSprite_LoadFromId(swrSprite_settings_btn_end_selected, "settings_btn_end_selected");
+    swrSprite_LoadFromId(swrSprite_settings_btn_end2_selected, "settings_btn_end2_selected");
+    swrSprite_LoadFromId(swrSprite_settings_btnback_end, "settings_btnback_end");
+    swrSprite_LoadFromId(swrSprite_edit_window_corner, "edit_window_corner");
+    swrSprite_LoadFromId(swrSprite_edit_window_vert, "edit_window_vert");
+    swrSprite_LoadFromId(swrSprite_edit_window_hor, "edit_window_hor");
+    swrSprite_LoadFromId(swrSprite_edit_window_bar_end, "edit_window_bar_end");
+    swrSprite_LoadFromId(swrSprite_edit_window_bar_strch, "edit_window_bar_strch");
+    swrSprite_LoadFromId(swrSprite_edit_window_bar_end_selected, "edit_window_bar_end_selected");
+    swrSprite_LoadFromId(swrSprite_edit_windowbar_strch_selected, "edit_window_bar_strch_selected");
+    swrSprite_LoadFromId(swrSprite_sml_edit_box_corner, "sml_edit_box_corner");
+    swrSprite_LoadFromId(swrSprite_sml_edit_box_left, "sml_edit_box_left");
+    swrSprite_LoadFromId(swrSprite_sml_edit_box_bottom, "sml_edit_box_bottom");
+    swrSprite_LoadFromId(swrSprite_edit_window_selected_end, "edit_window_selected_end");
+    swrSprite_LoadFromId(swrSprite_edit_window_selected_strch, "edit_window_selected_strch");
+    swrSprite_LoadFromId(swrSprite_editwindow_segmented, "editwindow_segmented");
+    swrSprite_LoadFromId(swrSprite_editwindow_segmented_selected, "editwindow_segmented_selected");
+    swrSprite_LoadFromId(swrSprite_segment, "segment");
+    swrSprite_LoadFromId(swrSprite_segment_selected, "segment_selected");
+    swrSprite_LoadFromId(swrSprite_undrline_tab, "undrline_tab");
+    swrSprite_LoadFromId(swrSprite_undrline_mid_strch, "undrline_mid_strch");
+    swrSprite_LoadFromId(swrSprite_undrline_corner, "undrline_corner");
+    swrSprite_LoadFromId(swrSprite_sml_undrline_tab, "sml_undrline_tab");
+    swrSprite_LoadFromId(swrSprite_sml_undrline_strch, "sml_undrline_strch");
+    swrSprite_LoadFromId(swrSprite_sml_undrline_corner, "sml_undrline_corner");
+    swrSprite_LoadFromId(swrSprite_sliderbar_end, "sliderbar_end");
+    swrSprite_LoadFromId(swrSprite_sliderbar_strch, "sliderbar_strch");
+    swrSprite_LoadFromId(swrSprite_sliderbar_end_selected, "sliderbar_end_selected");
+    swrSprite_LoadFromId(swrSprite_sliderbar_strch_selected, "sliderbar_strch_selected");
+    swrSprite_LoadFromId(swrSprite_vsliderbar_end, "vsliderbar_end");
+    swrSprite_LoadFromId(swrSprite_vsliderbar_strch, "vsliderbar_strch");
+    swrSprite_LoadFromId(swrSprite_vslider_end_selected, "vsliderbar_end_selected");
+    swrSprite_LoadFromId(swrSprite_vslider_strch_selected, "vsliderbar_strch_selected");
+    swrSprite_LoadFromId(swrSprite_slider_bracket, "slider_bracket");
+    swrSprite_LoadFromId(swrSprite_slider_gradient, "slider_gradient");
+    swrSprite_LoadFromId(swrSprite_slider_plus, "slider_plus");
+    swrSprite_LoadFromId(swrSprite_slider_minus, "slider_minus");
+    swrSprite_LoadFromId(swrSprite_slider_point, "slider_point");
+    swrSprite_LoadFromId(swrSprite_slider_point_center, "slider_point_center");
+    swrSprite_LoadFromId(swrSprite_hline, "hline");
+    swrSprite_LoadFromId(swrSprite_bline, "vline");
+    swrSprite_LoadFromId(swrSprite_branch, "branch");
+    swrSprite_LoadFromId(swrSprite_background, "background");
+    swrSprite_NewSprite(250, swrSprite_GetTextureFromTGA("data\\images\\background.tga", 250));
+    swrSprite_NewSprite(249, swrSprite_LoadTexture_(swrSprite_d_cursor_rgb));
+    SpritesLoaded = 1;
 }
 
 // 0x00412e20 TODO: crashes on release, works fine on debug
@@ -449,13 +578,81 @@ void swrSprite_TranslateBBox(swrSprite_BBox* bbox, int x, int y)
 // 0x00428030
 void swrSprite_Draw2(swrSprite* a1, int a2, float a3, float a4)
 {
-    HANG("TODO");
+    unsigned int flags;
+    unsigned int drawFlags;
+
+    if (swrViewport_force320x240 != 0)
+        return;
+    flags = a1->flags;
+    if ((flags & swrSprite_FLAGS_VISIBLE) == 0 || (flags & a2) == 0)
+        return;
+
+    if (a1->texture == NULL) {
+        // a is sign-extended before the compare, so the a >= 0xff branch is unreachable
+        if ((int8_t)a1->a < 0xff) {
+            swrSprite_Draw1(NULL, (int)(a1->x * a3), (int)(a1->y * a4), a1->width * a3 * 0.0625f, a1->height * a4, 0.0f, 0, 0, swrSprite_DRAWFLAGS_UNK_2, a1->r, a1->g, a1->b, a1->a);
+            return;
+        }
+        swrSprite_Draw1(NULL, (int)(a1->x * a3), (int)(a1->y * a4), a1->width * a3 * 0.0625f, a1->height * a4, 0.0f, 0, 0, swrSprite_DRAWFLAGS_TEXTURED, a1->r, a1->g, a1->b, 0xff);
+        return;
+    }
+
+    drawFlags = 0;
+    if (flags & swrSprite_FLAGS_Z_OFFSET)
+        drawFlags = swrSprite_DRAWFLAGS_Z_OFFSET;
+    if ((a2 & swrSprite_FLAGS_PASS_1) == 0)
+        drawFlags &= ~swrSprite_DRAWFLAGS_Z_OFFSET;
+    if (flags & swrSprite_FLAGS_UNK_10)
+        drawFlags |= swrSprite_DRAWFLAGS_UNK_8000;
+    if ((int8_t)a1->a != 0xff || (flags & swrSprite_FLAGS_TRANSLUCENT))
+        drawFlags |= swrSprite_DRAWFLAGS_TRANSLUCENT;
+    if (flags & swrSprite_FLAGS_CENTERED)
+        drawFlags |= swrSprite_DRAWFLAGS_CENTERED;
+    if (flags & swrSprite_FLAGS_MIRROR_X)
+        drawFlags |= swrSprite_DRAWFLAGS_FLIP_X;
+    if (flags & swrSprite_FLAGS_MIRROR_Y)
+        drawFlags |= swrSprite_DRAWFLAGS_FLIP_Y;
+    if (flags & swrSprite_FLAGS_UNK_40)
+        drawFlags |= swrSprite_DRAWFLAGS_UNK_10000;
+    if (flags & swrSprite_FLAGS_CLAMP_UV)
+        drawFlags |= swrSprite_DRAWFLAGS_CLAMP_U | swrSprite_DRAWFLAGS_CLAMP_V;
+    if (flags & swrSprite_FLAGS_ROTATED)
+        drawFlags |= swrSprite_DRAWFLAGS_ROTATED;
+    if (flags & swrSprite_FLAGS_TEXTURED)
+        drawFlags |= swrSprite_DRAWFLAGS_TEXTURED;
+    if (flags & swrSprite_FLAGS_HIDDEN)
+        drawFlags |= swrSprite_DRAWFLAGS_HIDDEN;
+    if (flags & swrSprite_FLAGS_UNK_200)
+        drawFlags |= swrSprite_DRAWFLAGS_UNK_2;
+    if (flags & swrSprite_FLAGS_DOUBLE_RES)
+        drawFlags |= swrSprite_DRAWFLAGS_DOUBLE_RES;
+    swrSprite_Draw1(a1->texture, (int)(a1->x * a3), (int)(a1->y * a4), a1->width * a3, a1->height * a4, a1->rotation_angle, (int)(a1->unk0x4 * a3), (int)(a1->unk0x6 * a4), drawFlags, a1->r, a1->g, a1->b, a1->a);
 }
 
 // 0x00428270
 int swrSprite_DrawSomeSprites(int a1)
 {
-    HANG("TODO");
+    int mask;
+    int count;
+    int i;
+
+    if (a1 == 2) {
+        mask = swrSprite_FLAGS_PASS_1;
+    } else if (a1 == 1) {
+        mask = swrSprite_FLAGS_PASS_2;
+    } else {
+        mask = swrSprite_FLAGS_PASS_3;
+        if (a1 != 3)
+            mask = a1;
+    }
+    count = swrSprite_extraSpriteCount;
+    for (i = 0; i < swrSprite_extraSpriteCount; i++) {
+        swrSprite_Draw2(swrSprite_extraSprites[i], mask, 1.0f, 1.0f);
+        count = swrSprite_extraSpriteCount;
+    }
+    if (a1 == 3)
+        swrSprite_extraSpriteCount = 0;
+    return count;
 }
 
 // 0x004282f0
@@ -505,7 +702,48 @@ void swrSprite_ResetAllSprites(void)
 // 0x004283B0
 void swrSprite_DrawSprites(int x)
 {
-    HANG("TODO");
+    float xscale;
+    float yscale;
+    int mask;
+    int i;
+
+    swrSprite_InitDrawing();
+    swrSprite_GetUIScale(&xscale, &yscale);
+    if (x == 2) {
+        mask = swrSprite_FLAGS_PASS_1;
+    } else if (x == 1) {
+        mask = swrSprite_FLAGS_PASS_2;
+    } else {
+        mask = swrSprite_FLAGS_PASS_3;
+        if (x != 3)
+            mask = x;
+    }
+
+    // the fade alphas are signed chars, so the a >= 0xff branches are unreachable
+    if (x == 3 && swrSprite_unk2_a > 0) {
+        if (swrSprite_unk2_a < 0xff)
+            swrSprite_Draw1(NULL, 0, 0, xscale * 20.0f, yscale * 240.0f, 0.0f, 0, 0, swrSprite_DRAWFLAGS_UNK_2, swrSprite_unk2_r, swrSprite_unk2_g, swrSprite_unk2_b, swrSprite_unk2_a);
+        else
+            swrSprite_Draw1(NULL, 0, 0, xscale * 20.0f, yscale * 240.0f, 0.0f, 0, 0, 0, swrSprite_unk2_r, swrSprite_unk2_g, swrSprite_unk2_b, 0xff);
+    }
+
+    for (i = 0; i < swrSprite_SpriteCount; i++)
+        swrSprite_Draw2(&swrSprite_array[i], mask, xscale, yscale);
+    swrSprite_DrawSomeSprites(x);
+
+    if (x == 3) {
+        if (swrSprite_unk1_a > 0) {
+            if (swrSprite_unk1_a < 0xff)
+                swrSprite_Draw1(NULL, 0, 0, xscale * 20.0f, yscale * 240.0f, 0.0f, 0, 0, swrSprite_DRAWFLAGS_UNK_2, swrSprite_unk1_r, swrSprite_unk1_g, swrSprite_unk1_b, swrSprite_unk1_a);
+            else
+                swrSprite_Draw1(NULL, 0, 0, xscale * 20.0f, yscale * 240.0f, 0.0f, 0, 0, 0, swrSprite_unk1_r, swrSprite_unk1_g, swrSprite_unk1_b, 0xff);
+        }
+        if (swrSprite_unk_visible != 0) {
+            swrSprite_Draw1(NULL, 0, 0, xscale * 20.0f, yscale * swrSprite_unk_x, 0.0f, 0, 0, swrSprite_DRAWFLAGS_UNK_2, 0, 0, 0, 0xff);
+            swrSprite_Draw1(NULL, 0, (int)(yscale * swrSprite_unk_y), xscale * 20.0f, (240.0f - swrSprite_unk_y) * yscale, 0.0f, 0, 0, swrSprite_DRAWFLAGS_UNK_2, 0, 0, 0, 0xff);
+        }
+    }
+    swr_noop2();
 }
 
 // 0x004285d0
@@ -1470,91 +1708,75 @@ void swrModel_ConvertTileToRdMaterial(void* tex, void* tile)
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
 {
-    HANG("TODO");
-#if 0
-    int nbSprites;
-    swrSpriteTexture* spriteTex;
-    swrSpriteTexturePage* _DstBuf;
-    unsigned int indicesBound[2];
+    swrSpriteTexture* tex;
+    swrSpriteTexturePage* pages;
+    char* cursor;
+    unsigned int spriteCount;
+    unsigned int bounds[2];
+    size_t size;
+    unsigned int end;
+    int i;
 
     swrLoader_OpenBlock(swrLoader_TYPE_SPRITE_BLOCK);
-    spriteTex = (swrSpriteTexture*)FUN_00445b40();
-    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, 0, &nbSprites, sizeof(int));
-    nbSprites = SWAP32(nbSprites);
-
-    if (index < 0 || index >= nbSprites)
-    {
+    tex = (swrSpriteTexture*)swrAssetBuffer_GetBuffer();
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, 0, &spriteCount, sizeof(spriteCount));
+    spriteCount = SWAP32(spriteCount);
+    if (index < 0 || index >= (int)spriteCount)
         return NULL;
-    }
 
-    // Get sprite header
-    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, indicesBound, sizeof(indicesBound));
-    SWAP32(indicesBound[0]);
-    SWAP32(indicesBound[1]);
-    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0], &spriteTex->header, sizeof(swrSpriteTextureHeader));
-    spriteTex->header.width = SWAP16(spriteTex->header.width);
-    spriteTex->header.height = SWAP16(spriteTex->header.height);
-    spriteTex->header.unk3 = SWAP16(spriteTex->header.unk3);
-    spriteTex->header.unk6 = SWAP16(spriteTex->header.unk6);
-    spriteTex->header.page_count = SWAP16(spriteTex->header.page_count);
-    spriteTex->header.palette_offset = SWAP32(spriteTex->header.palette_offset);
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, index * 4 + 4, bounds, sizeof(bounds));
+    for (i = 0; i < 2; i++)
+        bounds[i] = SWAP32(bounds[i]);
 
-    if (spriteTex->header.format != 2 || (_DstBuf = spriteTex, spriteTex->header.palette_offset != 0))
-    {
-        // Get all pages infos
-        swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + sizeof(swrSpriteTextureHeader), spriteTex->pages, spriteTex->header.page_count * sizeof(swrSpriteTexturePage));
-        if (0 < spriteTex->header.page_count)
-        {
-            for (int i = 0; i < spriteTex->header.page_count; i++)
-            {
-                spriteTex->pages[i].width = SWAP16(spriteTex->pages[i].width);
-                spriteTex->pages[i].height = SWAP16(spriteTex->pages[i].height);
-                spriteTex->pages[i].offset = SWAP32(spriteTex->pages[i].offset);
-            }
+    swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, bounds[0], &tex->header, sizeof(swrSpriteTextureHeader));
+    tex->header.width = SWAP16(tex->header.width);
+    tex->header.height = SWAP16(tex->header.height);
+    tex->header.unk3 = SWAP16(tex->header.unk3);
+    tex->header.palette_offset = SWAP32(tex->header.palette_offset);
+    tex->header.page_count = SWAP16(tex->header.page_count);
+    tex->header.unk6 = SWAP16(tex->header.unk6);
+    tex->header.page_table = (swrSpriteTexturePage*)SWAP32(tex->header.page_table);
+
+    // a paletted sprite without a palette loads only its header, and the asset buffer is not advanced
+    cursor = (char*)tex;
+    if (tex->header.format != 2 || tex->header.palette_offset != 0) {
+        pages = (swrSpriteTexturePage*)(tex + 1);
+        size = (short)tex->header.page_count * sizeof(swrSpriteTexturePage);
+        swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, bounds[0] + sizeof(swrSpriteTextureHeader), pages, size);
+        tex->header.page_table = pages;
+        for (i = 0; i < (short)tex->header.page_count; i++) {
+            tex->header.page_table[i].width = SWAP16(tex->header.page_table[i].width);
+            tex->header.page_table[i].height = SWAP16(tex->header.page_table[i].height);
+            tex->header.page_table[i].offset = SWAP32(tex->header.page_table[i].offset);
         }
 
-        // Get palette ?
-        if (spriteTex->header.palette_offset != 0)
-        {
-            // check if this is correct
-            swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + spriteTex->header.palette_offset, (int)(spriteTex->pages[spriteTex->header.page_count].offset) + 1 & 0xfffffff0, spriteTex->pages->offset - spriteTex->header.palette_offset);
+        cursor = (char*)pages;
+        if (tex->header.palette_offset != 0) {
+            cursor = (char*)(((uintptr_t)cursor + size + 0xf) & ~0xf);
+            size = tex->header.page_table[0].offset - tex->header.palette_offset;
+            swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, bounds[0] + tex->header.palette_offset, cursor, size);
+            tex->header.palette_offset = (uint32_t)cursor;
         }
 
-        // Get pixels ?
-        _DstBuf = (int)(&spriteTex->pages[spriteTex->header.page_count]) + 0xf & 0xfffffff0;
-        if (0 < spriteTex->header.page_count)
-        {
-            for (int j = 0; j < spriteTex->header.page_count; j++)
-            {
-                int k = 0;
-                if (j == spriteTex->header.page_count - 1)
-                {
-                    k = indicesBound[1] - indicesBound[0];
-                }
-                else
-                {
-                    k = spriteTex->pages[j + 1].offset;
-                }
-
-                swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, indicesBound[0] + spriteTex->pages[j].offset, _DstBuf, k - spriteTex->pages[j].offset);
-                spriteTex->pages[j].offset = _DstBuf;
-                if (index != 99)
-                {
-                    FUN_00446b60(spriteTex, spriteTex->pages[j]);
-                }
-                _DstBuf = (int)(&_DstBuf[spriteTex->header.page_count]) + 0xf & 0xfffffff0;
-            }
+        cursor = (char*)(((uintptr_t)cursor + size + 0xf) & ~0xf);
+        for (i = 0; i < (short)tex->header.page_count; i++) {
+            if (i == (short)tex->header.page_count - 1)
+                end = bounds[1] - bounds[0];
+            else
+                end = tex->header.page_table[i + 1].offset;
+            size = end - tex->header.page_table[i].offset;
+            swrLoader_ReadAt(swrLoader_TYPE_SPRITE_BLOCK, bounds[0] + tex->header.page_table[i].offset, cursor, size);
+            tex->header.page_table[i].offset = (uint32_t)cursor;
+            if (index != swrSprite_dial_gradient_rgb)
+                swrModel_ConvertTileToRdMaterial(tex, &tex->header.page_table[i]);
+            cursor = (char*)(((uintptr_t)cursor + size + 0xf) & ~0xf);
         }
-
-        if (index == 99)
-        {
-            swrModel_BuildTiledTextureMaterial(spriteTex);
-        }
+        if (index == swrSprite_dial_gradient_rgb)
+            swrModel_BuildTiledTextureMaterial(tex);
     }
     swrLoader_CloseBlock(swrLoader_TYPE_SPRITE_BLOCK);
-    FUN_00445b20(_DstBuf);
-    return spriteTex;
-#endif
+    swrAssetBuffer_SetBuffer(cursor);
+    return tex;
 }
 
 // 0x00446fb0 TODO: crashes on release, works fine on debug
@@ -1597,7 +1819,136 @@ void rdProcEntry_Add2DQuad5(int a1, int a2, int a3, int a4, int a5, int a6, int 
 // 0x0044F160
 void swrSprite_Draw(int* arg0, swrSpriteTexture* a1, RdMaterial** a2, float a3, float a4, float a5, float a6, int a7, int a8, int a9, int a10, int a11, int a12, int a13, short a14, float a15, float a16, int a17)
 {
-    HANG("TODO");
+    // a2 is the swrSpriteTexturePage: width/height shorts, then the page material
+    swrSpriteTexturePage* page = (swrSpriteTexturePage*)a2;
+    RdMaterial* material;
+    unsigned int alignMask;
+    int alignedWidth;
+    int rowHeight;
+    int doubleRes;
+    int state;
+    float viewMaxX;
+    float viewMaxY;
+    float viewMinX;
+    float viewMinY;
+    int x0;
+    int y0;
+    int x1;
+    int y1;
+    int swap;
+    int uStart;
+    int uEnd;
+    int vStart;
+    int vEnd;
+    float texWidth;
+    float texHeight;
+    BOOL textured;
+    BOOL addZOffset;
+
+    rowHeight = (short)a1->header.unk6;
+    switch (a1->header.page_width_align) {
+    case 0:
+        alignMask = 0xf;
+        break;
+    case 1:
+        alignMask = 7;
+        break;
+    case 2:
+        alignMask = 3;
+        break;
+    case 3:
+        alignMask = 1;
+        break;
+    default:
+        // the original reuses the a13 stack slot as the mask here
+        alignMask = a13;
+        break;
+    }
+    alignedWidth = ((short)page->width + alignMask) & ~alignMask;
+
+    doubleRes = a17 & swrSprite_DRAWFLAGS_DOUBLE_RES;
+    if (doubleRes) {
+        spriteViewportMaxX = spriteViewportMaxX * 2;
+        spriteViewportMaxY = spriteViewportMaxY * 2;
+    }
+    state = *arg0;
+    viewMaxX = (float)spriteViewportMaxX;
+    viewMaxY = (float)spriteViewportMaxY;
+    viewMinX = (float)spriteViewportMinX;
+    viewMinY = (float)spriteViewportMinY;
+    if (!(a3 < viewMaxX) || !(a4 < viewMaxY) || a5 < viewMinX || a6 < viewMinY)
+        goto done;
+
+    // with HIDDEN the original also clamps a7/a8 to the viewport, but only to pass them to the stripped swr_noop2 below
+    x0 = a3 < viewMinX ? spriteViewportMinX * 4 : (int)(a3 * 4.0f);
+    y0 = a4 < viewMinY ? spriteViewportMinY * 4 : (int)(a4 * 4.0f);
+    x1 = a5 < viewMaxX ? (int)(a5 * 4.0f) : spriteViewportMaxX * 4;
+    y1 = a6 < viewMaxY ? (int)(a6 * 4.0f) : spriteViewportMaxY * 4;
+
+    material = (RdMaterial*)page->offset;
+    if (material != swrSprite_CurrentMaterial) {
+        // the original also pushes U/V wrap flags (from the CLAMP_U and CLAMP_V bits) the callee ignores
+        rdModel_SetCurrentMaterial(material);
+        swrSprite_CurrentMaterial = (RdMaterial*)page->offset;
+    }
+
+    if (a17 & (swrSprite_DRAWFLAGS_HIDDEN | swrSprite_DRAWFLAGS_ROTATED)) {
+        if ((short)a13 != 0) {
+            uStart = 0;
+            uEnd = alignedWidth << 6;
+        } else {
+            uStart = alignedWidth << 6;
+            uEnd = 0;
+        }
+        if (a14 != 0) {
+            vStart = rowHeight << 6;
+            vEnd = 0;
+        } else {
+            vStart = 0;
+            vEnd = rowHeight << 6;
+        }
+        if (a17 & swrSprite_DRAWFLAGS_HIDDEN)
+            swr_noop2();
+        else
+            rdProcEntry_Add2DQuad5((int)&state, x0, x1, y0, y1, uEnd, uStart, vStart, vEnd, a15, a16);
+    } else {
+        texWidth = (float)a11 * (1.0f / 1024.0f) * (float)(abs(x0 - x1) >> 2) - 0.5f;
+        texHeight = (float)a12 * (1.0f / 1024.0f) * (float)(abs(y0 - y1) >> 2) - 0.5f;
+        if (doubleRes) {
+            x0 >>= 3;
+            y0 >>= 3;
+            x1 >>= 3;
+            y1 >>= 3;
+        } else {
+            x0 >>= 2;
+            y0 >>= 2;
+            x1 >>= 2;
+            y1 >>= 2;
+        }
+        textured = (a17 & swrSprite_DRAWFLAGS_TEXTURED) != 0;
+        addZOffset = (a17 & swrSprite_DRAWFLAGS_Z_OFFSET) != 0;
+        if ((short)a13 != 0) {
+            swap = x0;
+            x0 = x1;
+            x1 = swap;
+        }
+        if (a14 == 0) {
+            swap = y0;
+            y0 = y1;
+            y1 = swap;
+        }
+        if (a1 == swrSpriteTexture_dial_gradient_rgb || a1 == swrSpriteTexture_dial_gradient_rgb2)
+            rdProcEntry_Add2DPolygon(x1, y1, x0, y0, texWidth, texHeight, textured, addZOffset, a1);
+        else
+            rdProcEntry_Add2DQuad3(x1, y1, x0, y0, texWidth, texHeight, textured, addZOffset);
+    }
+
+done:
+    *arg0 = state;
+    if (doubleRes) {
+        spriteViewportMaxX = spriteViewportMaxX / 2;
+        spriteViewportMaxY = spriteViewportMaxY / 2;
+    }
 }
 
 // 0x0044F5F0
@@ -1697,9 +2048,161 @@ void RenderMiniMapDotsAndCrosses()
 }
 
 // 0x0044F670
-void swrSprite_Draw1(swrSpriteTexture* a1, short a2, int a3, float a4, float a5, float angle, short a7, short a8, int a9, float a10, unsigned __int8 a11, float a12, unsigned __int8 a13)
+void swrSprite_Draw1(swrSpriteTexture* tex, short x, short y, float scaleX, float scaleY, float angle, short x2, short y2, unsigned int flags, uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
-    HANG("TODO");
+    swrSpriteTexturePage* page;
+    int hflip;
+    int vflip;
+    float sinA;
+    float cosA;
+    float offsetX;
+    float offsetY;
+    int stepX;
+    int stepY;
+    unsigned int clampX;
+    unsigned int clampY;
+    int texelStepX;
+    int texelStepY;
+    int u0;
+    int u1;
+    int v0;
+    int v1;
+    int pageWidth;
+    int rowHeight;
+    int pageIndex;
+    int screenTop;
+    int screenLeft;
+    int uTexel;
+    int vTexel;
+    float left;
+    float top;
+    float right;
+    float bottom;
+    int drawState;
+
+    if (flags & swrSprite_DRAWFLAGS_SKIP)
+        return;
+    if (!(scaleX > 1e-05f) || !(scaleY > 1e-05f))
+        return;
+    if (scaleX == 1.0f && scaleY == 1.0f)
+        flags |= swrSprite_DRAWFLAGS_UNSCALED;
+    else
+        flags &= ~swrSprite_DRAWFLAGS_UNSCALED;
+    if (tex == NULL)
+        return;
+
+    page = tex->header.page_table;
+    hflip = flags & swrSprite_DRAWFLAGS_FLIP_X;
+    vflip = flags & swrSprite_DRAWFLAGS_FLIP_Y;
+    if (flags & swrSprite_DRAWFLAGS_ROTATED) {
+        stdMath_SinCos(angle, &sinA, &cosA);
+    } else {
+        sinA = 0.0f;
+        cosA = 1.0f;
+    }
+    if (flags & swrSprite_DRAWFLAGS_CENTERED) {
+        offsetX = (float)(short)tex->header.width * 0.5f * scaleX;
+        offsetY = (float)(short)tex->header.height * 0.5f * scaleY;
+    } else {
+        offsetX = 0.0f;
+        offsetY = 0.0f;
+    }
+    swrSprite_lastDrawFlags = flags;
+    rdProcEntry_SetCurrentColor(0, 0, r, g, b, a);
+
+    stepX = (int)(0.5f - -1024.0f / scaleX);
+    stepY = (int)(0.5f - -1024.0f / scaleY);
+    clampX = flags & (swrSprite_DRAWFLAGS_CLAMP_U | swrSprite_DRAWFLAGS_CLAMP_U_ALT);
+    texelStepX = clampX ? SWR_SPRITE_TEXEL_STEP_ONE : stepX;
+    clampY = flags & (swrSprite_DRAWFLAGS_CLAMP_V | swrSprite_DRAWFLAGS_CLAMP_V_ALT);
+    texelStepY = clampY ? SWR_SPRITE_TEXEL_STEP_ONE : stepY;
+    if (page == NULL)
+        return;
+
+    u0 = -1;
+    v0 = -1;
+    u1 = SWR_SPRITE_PAGE_CURSOR_START;
+    v1 = SWR_SPRITE_PAGE_CURSOR_START;
+    top = 0.0f;
+    bottom = 0.0f;
+    vTexel = 0;
+    // never initialized in the original; swrSprite_Draw threads it through every page
+    drawState = 0;
+    for (pageIndex = 0; pageIndex < (short)tex->header.page_count; pageIndex++, page++) {
+        pageWidth = (short)page->width;
+        if (pageWidth <= 0)
+            return;
+        if (hflip)
+            u0 = u1 - pageWidth;
+        else
+            u1 = u0 + pageWidth;
+
+        // pages are laid out in rows; the vertical span is only recomputed when a page leaves the current row
+        if (u0 < 0 || u1 > (short)tex->header.width) {
+            rowHeight = page->height != 0 ? (short)page->height : (short)tex->header.unk6;
+            if (v0 == -1) {
+                if (vflip) {
+                    v0 = (short)tex->header.height - rowHeight;
+                    v1 = (short)tex->header.height;
+                } else {
+                    v0 = 0;
+                    v1 = rowHeight;
+                }
+            } else if (vflip) {
+                v1 = v0;
+                v0 -= rowHeight;
+            } else {
+                v0 = v1;
+                v1 += rowHeight;
+            }
+            if (v0 < 0)
+                return;
+            if (v1 > (short)tex->header.height)
+                return;
+
+            if (hflip) {
+                u1 = (short)tex->header.width;
+                u0 = u1 - pageWidth;
+            } else {
+                u0 = 0;
+                u1 = pageWidth;
+            }
+
+            top = v0 * scaleY + (y - offsetY);
+            bottom = v1 * scaleY + (y - offsetY);
+            screenTop = (int)(top - -0.9999f);
+            if (vflip == 0) {
+                vTexel = (v1 - v0 - 1) * 32;
+            } else {
+                vTexel = ((int)(((float)screenTop - top) * stepY) + 0x10) >> 5;
+                if (flags & swrSprite_DRAWFLAGS_HALF_TEXEL)
+                    vTexel += 0x10;
+                if (clampY)
+                    vTexel += (int)((bottom - top) * -32.0f);
+            }
+        }
+
+        left = u0 * scaleX + (x - offsetX);
+        right = u1 * scaleX + (x - offsetX);
+        screenLeft = (int)(left - -0.9999f);
+        if (hflip) {
+            uTexel = (u1 - u0 - 1) * 32;
+            if (clampX)
+                uTexel += (int)((right - left) * 32.0f);
+        } else {
+            uTexel = ((int)(((float)screenLeft - left) * stepX) + 0x10) >> 5;
+            if (flags & swrSprite_DRAWFLAGS_HALF_TEXEL)
+                uTexel += 0x10;
+        }
+
+        if (page->offset != 0)
+            swrSprite_Draw(&drawState, tex, (RdMaterial**)page, left, top, right, bottom, x2, y2, uTexel, vTexel, texelStepX, texelStepY, hflip, vflip == 0, sinA, cosA, flags);
+
+        if (hflip)
+            u1 -= pageWidth;
+        else
+            u0 += pageWidth;
+    }
 }
 
 // 0x00484130
