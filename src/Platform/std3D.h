@@ -52,10 +52,10 @@ int std3D_Open(unsigned int deviceNum);
 void std3D_Close(void);
 
 // Selects a texture format and returns its color-key fields and color-mode descriptor (best guess).
-void std3D_GetTextureFormatInfo_Maybe(int formatType, tColorMode* outColorModes, int* outHasColorKey, void** outColorKey);
+void std3D_GetTextureFormatInfo_Maybe(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey);
 
 // Classifies a texture by a format field into one of three classes (best guess).
-int std3D_GetTextureFormatClass_Maybe(tSystemTexture* tex);
+StdColorFormatType std3D_GetTextureFormatClass_Maybe(ColorInfo* format);
 
 int std3D_GetNumTextureFormats(void);
 int std3D_StartScene(void);

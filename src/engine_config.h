@@ -512,4 +512,11 @@
 // sithMessage_SendMessage idTo that sithMessage_NetWrite fans out to every active player
 #define SITH_MESSAGE_TO_ALL ((DPID)0xffffffff)
 
+// rdMaterial texture filters (0x00431cf0..0x004320b0): 16-bit texel channel masks
+#define RD_TEXEL_4444_ALPHA_MASK (0xf000)
+#define RD_TEXEL_4444_COLOR_MASK (0x0fff)
+#define RD_TEXEL_5551_ALPHA_MASK (0x8000)
+// rdMaterial_LoadEntry (0x0048e6d0)
+#define RD_MATERIAL_FILE_REVISION (0x32) // rdMaterialHeader.revision accepted
+
 #endif // ENGINE_CONFIG_H

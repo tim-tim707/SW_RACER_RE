@@ -15,6 +15,7 @@
 #include <General/utils.h>
 
 #include <Engine/rdMaterial.h>
+#include <Platform/std3D.h>
 #include <Raster/rdCache.h>
 #include <Win95/stdConsole.h>
 
@@ -749,15 +750,150 @@ uint8_t swrSprite_setCurrentSpriteColor(uint8_t r, uint8_t g, uint8_t b, uint8_t
 }
 
 // 0x004321B0
-void rdProcEntry_Add2DPolygon(short a1, short a2, float a3, float a4, float a5, float a6, int a7, int a8, int a9)
+void rdProcEntry_Add2DPolygon(short x0, short y0, short x1, short y1, float tex_width, float tex_height, BOOL textured, BOOL add_z_offset, swrSpriteTexture* texture)
 {
-    HANG("TODO");
+    float position;
+    if (swrSpriteTexture_dial_gradient_rgb != NULL && swrSpriteTexture_dial_gradient_rgb == texture) {
+        position = speedDialPosition1;
+    } else {
+        if (swrSpriteTexture_dial_gradient_rgb2 == NULL || swrSpriteTexture_dial_gradient_rgb2 != texture)
+            return;
+        position = speedDialPosition2;
+    }
+
+    RdCacheProcEntry* pEntry = rdCache_GetProcEntry();
+    if (textured == 1)
+        rdMaterial_SaturateTextureR4G4B4A4(rdModel_CurrentMaterial);
+
+    rdVector4* aColors = pEntry->aVertColors;
+    pEntry->flags = RD_FF_ZWRITE_DISABLED | RD_FF_TEX_CLAMP_Y | RD_FF_TEX_CLAMP_X | RD_FF_TEX_TRANSLUCENT;
+    pEntry->lightingMode = RD_LIGHTING_LIT;
+    pEntry->pMaterial = rdModel_CurrentMaterial;
+    pEntry->matCelNum = 0;
+    pEntry->distance = 0.0f;
+    pEntry->uv_offset.x = 0.0f;
+    pEntry->uv_offset.y = 0.0f;
+    rdVector3* aVertices = pEntry->aVertices;
+    rdVector2* aUVs = pEntry->aUVCoords;
+
+    float z = rdCamera_pCurCamera->pClipFrustum->zNear;
+    if (add_z_offset == 1)
+        z = 100.0f;
+
+    const int midY = ((int)y0 + (int)y1) >> 1;
+    const int midX = ((int)x1 + (int)x0) >> 1;
+    const float u = tex_width / (float)(unsigned int)pEntry->pMaterial->width;
+    const float v = tex_height / (float)(unsigned int)pEntry->pMaterial->height;
+    const float uHalf = u * 0.5f;
+    const float vHalf = v * 0.5f;
+
+    if (position < 0.25) {
+        const float scale = position * 4.0f;
+        pEntry->numVertices = 3;
+        const short t = (short)(int)((float)(x1 - x0) * scale);
+        aVertices[2].x = (float)(x1 - t);
+        aVertices[2].y = (float)y0;
+        aVertices[2].z = z;
+        aUVs[2].y = 0.0f;
+        aUVs[2].x = u * scale;
+    } else if (position < 0.75) {
+        pEntry->numVertices = 4;
+        const float scale = (position + position) - 0.5f;
+        aVertices[2].x = (float)x0;
+        aVertices[2].y = (float)y0;
+        aVertices[2].z = z;
+        aVertices[3].x = (float)x0;
+        const short t = (short)(int)((float)(y1 - y0) * scale);
+        aVertices[3].y = (float)(t + y0);
+        aVertices[3].z = z;
+        aUVs[2].x = u;
+        aUVs[2].y = 0.0f;
+        aUVs[3].x = u;
+        aUVs[3].y = v * scale;
+    } else {
+        const float scale = position * 4.0f - 3.0f;
+        pEntry->numVertices = 5;
+        aVertices[2].x = (float)x0;
+        aVertices[2].y = (float)y0;
+        aVertices[2].z = z;
+        aVertices[3].x = (float)x0;
+        aVertices[3].y = (float)y1;
+        aVertices[3].z = z;
+        const short t = (short)(int)((float)(x1 - (short)midX) * scale);
+        aVertices[4].x = (float)(t + x0);
+        aVertices[4].y = (float)y1;
+        aVertices[4].z = z;
+        aUVs[2].x = u;
+        aUVs[3].x = u;
+        aUVs[2].y = 0.0f;
+        aUVs[3].y = v;
+        aUVs[4].y = v;
+        aUVs[4].x = u - (position - 0.75f) * 4.0 * (u - uHalf);
+    }
+
+    aVertices[0].x = (float)x1;
+    aVertices[0].y = (float)(short)midY;
+    aVertices[0].z = z;
+    aVertices[1].x = (float)x1;
+    aVertices[1].y = (float)y0;
+    aVertices[1].z = z;
+    aUVs[0].x = 0.0f;
+    aUVs[0].y = vHalf;
+    aUVs[1].x = 0.0f;
+    aUVs[1].y = 0.0f;
+    for (unsigned int i = 0; i < (unsigned int)pEntry->numVertices; i++)
+        aColors[i] = rdProcEntry_CurrentColor;
+
+    rdCache_AddProcFace(pEntry->numVertices, rdCache_ProcFaceFLAGS_VERTICES | rdCache_ProcFaceFLAGS_UVS | rdCache_ProcFaceFLAGS_INTENSITIES);
 }
 
 // 0x004325B0
 void rdProcEntry_Add2DQuad3(short x0, short y0, short x1, short y1, float tex_width, float tex_height, BOOL textured, BOOL add_z_offset)
 {
-    HANG("TODO");
+    RdCacheProcEntry* pEntry = rdCache_GetProcEntry();
+    if (textured == 1)
+        rdMaterial_SaturateTextureR4G4B4A4(rdModel_CurrentMaterial);
+
+    pEntry->flags = RD_FF_ZWRITE_DISABLED | RD_FF_TEX_CLAMP_Y | RD_FF_TEX_CLAMP_X | RD_FF_TEX_TRANSLUCENT;
+    pEntry->lightingMode = RD_LIGHTING_LIT;
+    pEntry->numVertices = 4;
+    pEntry->uv_offset.x = 0.0f;
+    pEntry->uv_offset.y = 0.0f;
+    pEntry->pMaterial = rdModel_CurrentMaterial;
+    pEntry->matCelNum = 0;
+    pEntry->distance = 0.0f;
+
+    rdVector3* aVertices = pEntry->aVertices;
+    rdVector2* aUVs = pEntry->aUVCoords;
+    rdVector4* aColors = pEntry->aVertColors;
+
+    float z = rdCamera_pCurCamera->pClipFrustum->zNear;
+    if (add_z_offset == 1)
+        z = 50.0f;
+
+    aVertices[0].x = (float)(int)x0;
+    aVertices[0].y = (float)(int)y0;
+    aVertices[1].x = (float)(int)x0;
+    aVertices[1].y = (float)(int)y1;
+    aVertices[2].x = (float)(int)x1;
+    aVertices[2].y = (float)(int)y1;
+    aVertices[3].x = (float)(int)x1;
+    aVertices[3].y = (float)(int)y0;
+    for (int i = 0; i < 4; i++) {
+        aVertices[i].z = z;
+        aColors[i] = rdProcEntry_CurrentColor;
+    }
+
+    aUVs[0].x = tex_width / (float)(unsigned int)pEntry->pMaterial->width;
+    aUVs[0].y = 0.0f;
+    aUVs[1].x = tex_width / (float)(unsigned int)pEntry->pMaterial->width;
+    aUVs[1].y = tex_height / (float)(unsigned int)pEntry->pMaterial->height;
+    aUVs[2].x = 0.0f;
+    aUVs[2].y = tex_height / (float)(unsigned int)pEntry->pMaterial->height;
+    aUVs[3].x = 0.0f;
+    aUVs[3].y = 0.0f;
+
+    rdCache_AddProcFace(pEntry->numVertices, rdCache_ProcFaceFLAGS_VERTICES | rdCache_ProcFaceFLAGS_UVS | rdCache_ProcFaceFLAGS_INTENSITIES);
 }
 
 // Emit an arbitrary 2D quad from four explicit corner points (x0,y0)..(x3,y3), fixed
@@ -878,6 +1014,78 @@ int swrSprite_UpperPowerOfTwo(int x)
     return res;
 }
 
+// 0x00445cd0
+void swrModel_CreateTextureMaterialFromPixels(int srcWidth, int srcHeight, int width, int height, unsigned int bufferKind, void** outMaterial, uint8_t* pixels)
+{
+    tVBuffer buffer;
+    tVBuffer* pBuffer = &buffer;
+
+    RdMaterial* material = rdMaterial_Load(".\\data\\default.mat");
+    swrModel_RegisterRootMaterial(bufferKind, material);
+    sprintf(material->aName, "Rovermatic");
+    // UV scale floats stored unaligned inside the name, overwriting its terminator
+    *(float*)(material->aName + 10) = (float)srcWidth / (float)width;
+    *(float*)(material->aName + 14) = (float)srcHeight / (float)height;
+    material->colorInfo.redBPP = 5;
+    material->colorInfo.greenBPP = 5;
+    material->colorInfo.blueBPP = 5;
+    material->colorInfo.RedShr = 3;
+    material->colorInfo.GreenShr = 3;
+    material->colorInfo.BlueShr = 3;
+    material->num = 0;
+    material->colorInfo.colorMode = T_STDCOLOR_RGBA;
+    material->colorInfo.bpp = 16;
+    material->colorInfo.alphaBPP = 1;
+    material->colorInfo.redPosShift = 11;
+    material->colorInfo.greenPosShift = 6;
+    material->colorInfo.bluePosShift = 1;
+    material->colorInfo.alphaPosShift = 0;
+    material->colorInfo.AlphaShr = 7;
+    material->formatType = STDCOLOR_FORMAT_RGBA_1BIT_ALPHA;
+    material->width = width;
+    material->height = height;
+    material->curCelNum = 1;
+    material->numCels = 0;
+
+    pBuffer->bSurfaceAllocated = 0;
+    pBuffer->lockSurfRefCount = 0;
+    pBuffer->bVideoMemory = 0;
+    pBuffer->rasterInfo.width = width;
+    pBuffer->rasterInfo.height = height;
+    pBuffer->rasterInfo.size = height * width * 2;
+    pBuffer->rasterInfo.rowSize = width * 2;
+    pBuffer->rasterInfo.rowWidth = width;
+    pBuffer->rasterInfo.colorInfo = material->colorInfo;
+    pBuffer->pPixels = pixels;
+    pBuffer->dword5C = 0;
+
+    std3D_ClearTexture(material->aTextures);
+    std3D_AllocSystemTexture(material->aTextures, &pBuffer, 1, material->formatType);
+    *outMaterial = material;
+}
+
+// 0x00445e50
+void swrModel_ConvertIndexedTextureRows(int width, int height, int paddedWidth, uint8_t* indices, uint16_t* palette, uint16_t** outCursor)
+{
+    uint16_t* out = *outCursor;
+
+    for (int row = height; row > 0; row--) {
+        int written = 0;
+        for (int x = width; x > 0; x--) {
+            // N64 big-endian RGBA5551 -> little-endian ARGB1555
+            uint16_t color = palette[*indices++];
+            color = (uint16_t)((color << 8) | (color >> 8));
+            *out++ = (uint16_t)((color >> 1) | (color << 15));
+            written = width;
+        }
+        if (written < paddedWidth) {
+            memset(out, 0, (paddedWidth - written) * sizeof(uint16_t));
+            out += paddedWidth - written;
+        }
+    }
+    *outCursor = out;
+}
+
 // 0x00445EE0
 void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_type_b, int orig_width, int orig_height, int width, int height, swrMaterial** texture_data_ptr, uint8_t** palette_ptr, char a9, char a10)
 {
@@ -894,46 +1102,85 @@ void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, u
     HANG("TODO");
 }
 
-#if 0
 // 0x00446a20
-void FUN_00446a20(swrSpriteTexture* spriteTex)
+void swrModel_BuildTiledTextureMaterial(void* tex)
 {
-    HANG("TODO");
+    swrSpriteTextureHeader* header = (swrSpriteTextureHeader*)tex;
+    int width = (short)header->width;
+    int height = (short)header->height;
+    uint16_t* palette = (uint16_t*)header->palette_offset;
+    int potWidth = swrSprite_UpperPowerOfTwo(width);
+    int potHeight = swrSprite_UpperPowerOfTwo(height);
+    swrSpriteTexturePage* page = header->page_table;
+    uint16_t* pixels = (uint16_t*)swrModel_AllocMaterial(page->offset, potHeight * potWidth * 2);
+    uint16_t* cursor = pixels;
+    void* material;
 
-    short w = swrSprite_UpperPowerOfTwo(spriteTex->header.width);
-    short h = swrSprite_UpperPowerOfTwo(spriteTex->header.height);
-    void* alloc = FUN_00408e60(spriteTex->header.page_table->offset, h * w * 2); // why * 2 ?
-
-    int page_index = spriteTex->header.page_count;
-    int unk;
-    while (page_index = page_index - 1, unk = h, 0 <= h)
-    {
-        int unk2;
-        switch (spriteTex->header.page_width_align)
-        {
+    // an align value above 3 keeps the previous mask, which starts out as potWidth
+    unsigned int mask = potWidth;
+    for (int i = (short)header->page_count - 1; i >= 0; i--) {
+        page = &header->page_table[i];
+        switch (header->page_width_align) {
         case 0:
-            unk2 = 15;
+            mask = 0xf;
+            break;
         case 1:
-            unk2 = 7;
+            mask = 7;
+            break;
         case 2:
-            unk2 = 3;
+            mask = 3;
+            break;
         case 3:
-            unk2 = 1;
+            mask = 1;
+            break;
         }
-        FUN_00445e50(spriteTex->header.page_table[page_index], spriteTex->header.page_table->height, w, spriteTex->header.page_table->offset, spriteTex->header.palette_offset, alloc);
-        spriteTex->header.page_table->width = 0;
-        spriteTex->header.page_table->height = 0;
-        spriteTex->header.page_table->offset = 0;
+        swrModel_ConvertIndexedTextureRows(((short)page->width + mask) & ~mask, (short)page->height, potWidth, (uint8_t*)page->offset, palette, &cursor);
+        page->width = 0;
+        page->height = 0;
+        page->offset = 0;
     }
 
-    int unk3;
-    FUN_00445cd0(spriteTex->header.width, spriteTex->header.height, w, h, spriteTex->header.page_table->offset, &unk3, &alloc);
-    spriteTex->header.page_table[0].width = spriteTex->header.width;
-    spriteTex->header.page_table[0].height = spriteTex->header.height;
-    spriteTex->header.page_table[0].offset = unk3;
-    spriteTex->header.page_count = 1;
+    swrModel_CreateTextureMaterialFromPixels(width, height, potWidth, potHeight, page->offset, &material, (uint8_t*)pixels);
+    header->page_table[0].width = (unsigned short)width;
+    header->page_table[0].height = (unsigned short)height;
+    header->page_table[0].offset = (uint32_t)material;
+    header->page_count = 1;
 }
-#endif
+
+// 0x00446b60
+void swrModel_ConvertTileToRdMaterial(void* tex, void* tile)
+{
+    swrSpriteTextureHeader* header = (swrSpriteTextureHeader*)tex;
+    swrSpriteTexturePage* page = (swrSpriteTexturePage*)tile;
+    uint8_t* palette = (uint8_t*)header->palette_offset;
+    int height = (short)page->height;
+    unsigned int mask;
+
+    switch (header->page_width_align) {
+    case 0:
+        mask = 0xf;
+        break;
+    case 1:
+        mask = 7;
+        break;
+    case 2:
+        mask = 3;
+        break;
+    case 3:
+    case 7:
+        mask = 1;
+        break;
+    default:
+        // the EXE reuses the tile pointer as the mask here
+        mask = (unsigned int)tile;
+        break;
+    }
+
+    int width = (mask + (short)page->width) & ~mask;
+    int potWidth = swrSprite_UpperPowerOfTwo(width);
+    int potHeight = swrSprite_UpperPowerOfTwo(height);
+    swrModel_ConvertTextureDataToRdMaterial(header->format, header->page_width_align, width, height, potWidth, potHeight, (swrMaterial**)&page->offset, &palette, 0, 0);
+}
 
 // 0x00446ca0
 swrSpriteTexture* swrSprite_LoadTexture(int index)
@@ -1016,7 +1263,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
 
         if (index == 99)
         {
-            FUN_00446a20(spriteTex);
+            swrModel_BuildTiledTextureMaterial(spriteTex);
         }
     }
     swrLoader_CloseBlock(swrLoader_TYPE_SPRITE_BLOCK);
@@ -1043,7 +1290,23 @@ void swrSprite_SetViewport(int minX, int maxX, int minY, int maxY)
 // 0x0044EFA0
 void rdProcEntry_Add2DQuad5(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, float a10, float a11)
 {
-    HANG("TODO");
+    // rotates the rect (a2,a4)-(a3,a5) about its center; a1 and a6..a9 are unused
+    const float cy = (float)(a5 + a4) * 0.5f;
+    const float cx = (float)(a3 + a2) * 0.5f;
+    const float dx0 = (float)a2 - cx;
+    const float dx1 = (float)a3 - cx;
+    const float dy0 = (float)a4 - cy;
+    const float dy1 = (float)a5 - cy;
+
+    const short y3 = (short)(int)(dy1 * a11 - dx0 * a10 + cy + 0.5f) >> 2;
+    const short x3 = (short)(int)(cx + dy1 * a10 + dx0 * a11 + 0.5f) >> 2;
+    const short y2 = (short)(int)(dy1 * a11 - dx1 * a10 + cy + 0.5f) >> 2;
+    const short x2 = (short)(int)(cx + dy1 * a10 + dx1 * a11 + 0.5f) >> 2;
+    const short y1 = (short)(int)(dy0 * a11 - dx1 * a10 + cy + 0.5f) >> 2;
+    const short x1 = (short)(int)(cx + dx1 * a11 + dy0 * a10 + 0.5f) >> 2;
+    const short y0 = (short)(int)(dy0 * a11 - dx0 * a10 + cy + 0.5f) >> 2;
+    const short x0 = (short)(int)(cx + dy0 * a10 + dx0 * a11 + 0.5f) >> 2;
+    rdProcEntry_Add2DQuad4(x0, y0, x1, y1, x2, y2, x3, y3);
 }
 
 // 0x0044F160

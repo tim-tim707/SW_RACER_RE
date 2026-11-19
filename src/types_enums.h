@@ -5062,6 +5062,12 @@ typedef enum sithMessage_SEND
 } sithMessage_SEND;
 
 // swrMultiplayer_ReadyStatus.state
+// rdTexinfoHeader.texture_type bits (rdMaterial_LoadEntry)
+typedef enum rdTexinfo_TYPE
+{
+    rdTexinfo_TYPE_HAS_EXT_HEADER = 0x8, // an rdTexinfoExtHeader follows
+} rdTexinfo_TYPE;
+
 typedef enum swrMultiplayer_READY
 {
     swrMultiplayer_READY_IDLE = 0,

@@ -788,8 +788,9 @@ static void apply_sprite_replacement(int index, swrSpriteTexture *tex) {
     glGenerateMipmap(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    mat0->height = full_w;         // POT width  (X UV denominator)
-    *(int *) mat0->unk = full_h;   // POT height (Y UV denominator)
+    // POT size = the UV denominators
+    mat0->width = full_w;
+    mat0->height = full_h;
     *(float *) (mat0->aName + kMaterialUvScaleXOffset) = 1.0f;
     *(float *) (mat0->aName + kMaterialUvScaleYOffset) = 1.0f;
     sys0->ddsd.dwWidth = full_w;
