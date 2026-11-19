@@ -706,8 +706,9 @@ swrMain_initialized 0x0050b5a0 int
 
 Windows_WinProc_res 0x0050b5a8 LRESULT
 
-Main_drawDevices 0x0050b5ac swrDrawDevices*
+Main_drawDevices 0x0050b5ac StdDisplayEnvironment*
 Main_settings_menu_only 0x0050b5b0 int
+Main_devMode 0x0050b5b4 int # copied into swrMainDisplaySettings.RegDevMode; never written (always 0)
 swrDisplay_directlyBlitVideoToScreen 0x0050b5bc int
 Main_settings_debug_hud 0x0050b5c0 int
 swrMain_introMoviesPending 0x0050b5c4 int # set to play the 3 startup Smush movies (Goldie/TextCrawl/IntroScene) in swrMain2_GuiAdvance; read by Window_PlayCinematic to pick full cinematic volume
@@ -1361,6 +1362,7 @@ swrRender_cameraPositions 0x00e22820 rdVector3[4] # eye position of each active 
 swrSprite_dirtyRects 0x00E22720 short[124]
 
 backBufferClearColor 0x00E229A8 int16_t[3]
+swrRender_displayListCursor 0x00e229b0 Gfx* # write cursor into this frame's 80000-byte display-list arena (0xdfb600, double-buffered by swrViewport_frameParity)
 swrModel_closestPointNormal 0x00e229c0 rdVector3 # swrModel_FindClosestPointOnModel result normal, in targetNode-local space
 swrModel_closestPoint 0x00e229d0 rdVector3 # swrModel_FindClosestPointOnModel result point, in targetNode-local space
 swrModel_closestPointChainOut 0x00e229dc swrModel_Node** # caller buffer receiving the NULL-terminated transform-node chain of the best hit

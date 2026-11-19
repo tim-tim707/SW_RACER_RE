@@ -448,6 +448,11 @@
 #define SWR_UI_CARET_SPRITE_ID (0xfa)
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
+
+// swrDisplay_SetSettingsFromRegistry (0x00424180): registry fallbacks + the only bpp FindMatchingVideoMode accepts
+#define SWR_DISPLAY_DEFAULT_WIDTH (640)
+#define SWR_DISPLAY_DEFAULT_HEIGHT (480)
+#define SWR_DISPLAY_BPP (16)
 #define SWR_UI_PAGE_TRANSITION_STAGGER (250) // swrUI_StartPageTransition: per-child delay of the vertical drop
 #define SWR_TEXT_MAX_ENTRIES (128) // swrTextEntries1* capacity
 #define SWR_TEXT_BBOX_RESET (1000) // swrText_RenderString: bbox min/max start at +/- this (empty)

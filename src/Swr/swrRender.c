@@ -312,8 +312,20 @@ void rdModel_AddNodeToScene2(swrModel_Node* a1)
     HANG("TODO");
 }
 
+// 0x0044db70
+void rdModel_BuildAndDrawScene(Gfx** displayListCursor, swrViewport* viewport)
+{
+    HANG("TODO");
+}
+
 // 0x0044de10
 void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport)
+{
+    HANG("TODO");
+}
+
+// 0x0044e000
+void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor)
 {
     HANG("TODO");
 }

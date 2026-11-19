@@ -5,8 +5,10 @@
 #include "swrModel.h"
 
 #include <macros.h>
+#include <string.h>
 #include <Engine/rdThing.h>
 #include <Engine/rdroid.h>
+#include <Platform/wuRegistry.h>
 #include <Platform/std3D.h>
 #include <Primitives/rdModel.h>
 #include <Win95/Window.h>
@@ -40,15 +42,61 @@ void swrDisplay_Shutdown(void)
 }
 
 // 0x00424180
-int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* a1, swrMainDisplaySettings* a2)
+int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDisplaySettings* displaySettings)
 {
-    HANG("TODO");
+    char name[256] = { wuRegistry_lpClass[0] };
+    StdDisplayInfo* info;
+    int i;
+
+    Main_drawDevices = env;
+    displaySettings->currentDevice = env->numInfos - 1;
+    wuRegistry_GetString("Display", name, sizeof(name), wuRegistry_lpClass);
+    for (i = 0; (unsigned int)i < (unsigned int)Main_drawDevices->numInfos; i++) {
+        if (strcmp(Main_drawDevices->aDisplayInfos[i].displayDevice.aDriverName, name) == 0) {
+            displaySettings->currentDevice = i;
+            break;
+        }
+    }
+
+    info = &Main_drawDevices->aDisplayInfos[displaySettings->currentDevice];
+    displaySettings->nb3DDevices = info->numDevices - 1;
+    wuRegistry_GetString("3D Device", name, sizeof(name), wuRegistry_lpClass);
+    for (i = 0; (unsigned int)i < (unsigned int)info->numDevices; i++) {
+        if (strcmp(info->aDevices[i].deviceDescription, name) == 0) {
+            displaySettings->nb3DDevices = i;
+            break;
+        }
+    }
+
+    swrMainDisplayMode.aspectRatio = 1.0f;
+    swrMainDisplayMode.rasterInfo.width = wuRegistry_GetInt("Display Width", SWR_DISPLAY_DEFAULT_WIDTH);
+    swrMainDisplayMode.rasterInfo.height = wuRegistry_GetInt("Display Height", SWR_DISPLAY_DEFAULT_HEIGHT);
+    swrMainDisplayMode.rasterInfo.colorInfo.bpp = SWR_DISPLAY_BPP;
+    swrMainDisplayMode.rasterInfo.colorInfo.colorMode = T_STDCOLOR_RGB;
+    displaySettings->_3DDeviceIndex = FindMatchingVideoMode(swrMainDisplayMode, displaySettings);
+    swrMainDisplayMode = info->aModes[displaySettings->_3DDeviceIndex];
+    displaySettings->geometryMode = RD_GEOMETRY_FULL;
+    displaySettings->lightMode = RD_LIGHTING_GOURAUD;
+    displaySettings->backbufferFill = 1;
+    displaySettings->RegFullScreen = Main_fullscreen_unk == 0;
+    displaySettings->RegFixFlicker = 0;
+    displaySettings->RegDevMode = Main_devMode;
+    displaySettings->RegUseFett = 0;
+    return 0;
 }
 
 // 0x004243C0
-int FindMatchingVideoMode(float a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int a9, int a10, int a11, int a12, int a13, int a14, int a15, int a16, int a17, int a18, int a19, int a20, swrMainDisplaySettings* a21)
+int FindMatchingVideoMode(StdVideoMode mode, swrMainDisplaySettings* displaySettings)
 {
-    HANG("TODO");
+    StdDisplayInfo* info = &Main_drawDevices->aDisplayInfos[displaySettings->currentDevice];
+    unsigned int i;
+
+    for (i = 0; i < (unsigned int)info->numModes; i++) {
+        const tRasterInfo* raster = &info->aModes[i].rasterInfo;
+        if (raster->colorInfo.bpp == SWR_DISPLAY_BPP && raster->width == mode.rasterInfo.width && raster->height == mode.rasterInfo.height)
+            return i;
+    }
+    return 0;
 }
 
 // 0x00423840
