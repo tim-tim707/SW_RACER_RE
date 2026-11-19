@@ -409,3 +409,15 @@ void swrPlayerHUD_LoadRaceHUD(int hudType, int weatherLevel, int racerData)
     swrPlayerHUD_SetupTrackOverlay(hudType, weatherLevel);
     SetPlanetIdAndTrackNumber(hudType, weatherLevel);
 }
+
+// 0x0042be60
+void swrPlayerHUD_SampleOcclusion(void)
+{
+    HANG("TODO");
+}
+
+// 0x00483cb0
+void swrPlayerHUD_RenderAllViewports(void)
+{
+    HANG("TODO");
+}

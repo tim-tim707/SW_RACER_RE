@@ -233,6 +233,15 @@ typedef enum swrObjJdge_VIEWPORT // swrObjJdge.viewportMode
     swrObjJdge_VIEWPORT_RACE_APPLIED = 5, // no-op
 } swrObjJdge_VIEWPORT;
 
+// pauseState @ 0x0050c5f0
+typedef enum swrPauseState
+{
+    swrPauseState_NONE = 0,
+    swrPauseState_PAUSED = 1, // pause menu fully shown
+    swrPauseState_OPENING = 2, // menu sliding in (InRace_PauseMenu_ScrollInOut 0 -> 1)
+    swrPauseState_CLOSING = 3, // requestUnpause: sliding out; endPause once the scroll reaches 0
+} swrPauseState;
+
 typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
 {
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
@@ -241,6 +250,7 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
 // swrRace_DebugFlag bits (only the ones named so far).
 typedef enum swrRace_DEBUGFLAG
 {
+    swrRace_DEBUGFLAG_SHOW_VERSION = 0x1, // updatePauseMenu prints "Version: GNOME 000" on the pause screen
     swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS = 0x2, // "Edit Vehicle Stats" row on the Game Cheats page
     swrRace_DEBUGFLAG_INVINCIBILITY = 0x4, // "Invincibility" toggle row
     swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows

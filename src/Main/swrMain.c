@@ -4,15 +4,45 @@
 #include "../macros.h"
 #include "../swr.h"
 #include "../Swr/swrObj.h"
+#include "../Swr/swrRace.h"
+#include "../Swr/swrSound.h"
+#include "../Swr/swrUI.h"
+#include "../Swr/swrText.h"
+#include "../Swr/swrDisplay.h"
+#include "../Swr/swrModel.h"
+#include "../Swr/swrEvent.h"
+#include "../Swr/swrViewport.h"
+#include "../Swr/swrPlayerHUD.h"
+#include "../Main/swrControl.h"
+#include "../Engine/rdCamera.h"
+#include "../Engine/rdroid.h"
+#include "../Platform/wuRegistry.h"
+#include "../Win95/DirectX.h"
+#include "../Win95/stdDisplay.h"
+#include "../Win95/Window.h"
+#include "../stdPlatform.h"
 
 #include <string.h>
 
 // 0x004240d0
 void Main_Shutdown(void)
 {
-    HANG("TODO");
+    swrMain_initialized = 0;
+    DirectDraw_Shutdown();
+    swrRace_SaveCurrentProfile();
+    swrSound_RewindChannels();
+    swrUI_Shutdown();
+    swr_noop2();
+    rdCamera_Shutdown();
+    swrSound_Teardown(1);
+    swrControl_Shutdown();
+    swrDisplay_Shutdown();
     (*stdPlatform_hostServices_ptr->debugPrint)("rdShutdown...");
-    // TODO
+    rdShutdown();
+    wuRegistry_Shutdown();
+    Window_set_msg_handler(NULL);
+    swrText_Shutdown();
+    stdPlatform_Shutdown();
 }
 
 // 0x00424140
@@ -174,6 +204,50 @@ int Main_ParseCmdLine(char* cmdline)
             return 1;
         }
     } while (true);
+}
+
+// 0x00445980
+void swrMain_RunFrame(short flags, short phase)
+{
+    if (phase == 1 || phase == 0) {
+        swrMain_UpdateInRaceLoopSfx();
+        swr_noop2();
+        swr_noop4();
+        swr_noop2();
+        updateInRaceInputBitsets();
+        swr_noop2();
+        swrRace_IncrementFrameTimer();
+        swr_noop4();
+        swrSound_UpdateDelayedSfx();
+        swrSound_UpdateMusic();
+        swrObjJudge_PollPause();
+        if (GetPauseState() == 0) {
+            swrModel_UpdateAnimations();
+            swrEvent_CallAllF0();
+            swr_noop4();
+            swrEvent_CallAllF1();
+            swrEvent_CallAllF2();
+            swr_noop4();
+            swrEvent_CallAllF3();
+        } else {
+            updatePauseMenu();
+        }
+        swrViewport_UpdateCameras();
+        swr_noop4();
+    }
+    if (phase == 2 || phase == 0) {
+        swrPlayerHUD_SampleOcclusion();
+        stdDisplay_FillMainSurface();
+        swrPlayerHUD_RenderAllViewports();
+        if (flags == 0) {
+            swr_noop2();
+            swrViewport_AdvanceFrameParity_Maybe();
+        }
+        swr_noop2();
+        swr_noop2();
+        swr_noop4();
+        swrSound_UpdateIfEnabled();
+    }
 }
 
 // 0x00426920

@@ -990,6 +990,15 @@ unsigned int swrSound_GetHardwareFlags(void)
     return Sound_A3Dinitted ? a3dCaps_hardware.dwFlags : 0;
 }
 
+// 0x004270d0
+void swrSound_UpdateIfEnabled(void)
+{
+    // only the low byte of the music volume is tested
+    if (sound_sfx_volume == 0 && *(uint8_t*)&sound_music_volume == 0)
+        return;
+    swrSound_Update();
+}
+
 // Set the min/max distance used to attenuate the next spatial sfx (the PlaySpatial path).
 // 0x004270f0
 void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist)
@@ -1899,6 +1908,12 @@ void swrSound_ResetChannels(void)
 //   1 arm       - queue the default theme (0x8f) unless a 'Test' event is active
 //   2 fade down - ramp the music gain at -0.2/s
 //   3 fade up   - ramp the music gain at -2.0/s
+// 0x00449ef0
+void swrSound_Update(void)
+{
+    HANG("TODO");
+}
+
 // 0x004277f0
 void swrSound_SetMusicFade(int mode)
 {

@@ -1000,6 +1000,12 @@ int swrRace_GetInRaceMenuResult(void)
     return swrRace_inRaceMenuResult;
 }
 
+// 0x0042ae00
+void swrRace_UpdateInRaceMenu(void)
+{
+    HANG("TODO");
+}
+
 // 0x00435700
 void swrRace_SelectVehicle(swrObjHang* hang)
 {
