@@ -272,7 +272,7 @@ void updatePauseMenu(void)
     char version[256];
     swrObjJdge* jdge;
 
-    if (swrRace_DebugFlag & swrRace_DEBUGFLAG_SHOW_VERSION) {
+    if (swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) {
         sprintf(version, "Version: %s", "GNOME 000      ");
         swrText_CreateColorlessEntry1(0x1e, 0xd2, version);
     }

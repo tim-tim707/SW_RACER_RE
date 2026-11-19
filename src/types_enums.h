@@ -250,7 +250,7 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
 // swrRace_DebugFlag bits (only the ones named so far).
 typedef enum swrRace_DEBUGFLAG
 {
-    swrRace_DEBUGFLAG_SHOW_VERSION = 0x1, // updatePauseMenu prints "Version: GNOME 000" on the pause screen
+    swrRace_DEBUGFLAG_DEV = 0x1, // pause screen shows "Version: GNOME 000" (updatePauseMenu) and accepts the debug-menu unlock sequence (swrRace_UpdateInRaceMenu)
     swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS = 0x2, // "Edit Vehicle Stats" row on the Game Cheats page
     swrRace_DEBUGFLAG_INVINCIBILITY = 0x4, // "Invincibility" toggle row
     swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows

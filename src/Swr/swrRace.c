@@ -1003,7 +1003,181 @@ int swrRace_GetInRaceMenuResult(void)
 // 0x0042ae00
 void swrRace_UpdateInRaceMenu(void)
 {
-    HANG("TODO");
+    float scroll;
+    float pulse;
+    float floatValue;
+    float r, g, b, a;
+    int intValue;
+    int index;
+    int row;
+    int rowY;
+    int x, y;
+    char label[64];
+    char help[256];
+    char text[256];
+    char line[256];
+
+    // debug viewport test: step through the four 320x240 quadrants, 10 frames each
+    if (swrViewport_force320x240 != 0) {
+        if (--swrViewport_force320x240Timer > 0)
+            return;
+        swrViewport_force320x240Timer = 10;
+        if (++swrViewport_force320x240Quadrant > 3)
+            swrViewport_force320x240 = 0;
+        return;
+    }
+
+    if (DebugMenuState != 2 && swrObjJdge_singleLocalViewport == 0)
+        swrRace_blankWorldForMenu = 1;
+    scroll = GetPauseMenuScrollInOut();
+    pulse = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
+
+    // dev builds: Up-Down-Left-Right style sequence on the pause screen unlocks the debug menu
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) && swrRace_DebugMenu <= 0 && inRaceLocalPlayerInputBitset1[0] != 0) {
+        if (swrRace_DebugMenu == 0 && inRaceLocalPlayerInputBitset1[0] == 0x1000) {
+            swrRace_DebugMenu = -1;
+        } else if (swrRace_DebugMenu == -1 && inRaceLocalPlayerInputBitset1[0] == 0x800) {
+            swrRace_DebugMenu = -2;
+        } else if (swrRace_DebugMenu == -2 && inRaceLocalPlayerInputBitset1[0] == 0x2000) {
+            swrRace_DebugMenu = -3;
+        } else if (swrRace_DebugMenu == -3) {
+            swrRace_DebugMenu = 1;
+            if (inRaceLocalPlayerInputBitset1[0] != 0x400)
+                swrRace_DebugMenu = 0;
+        } else {
+            swrRace_DebugMenu = 0;
+        }
+    }
+
+    if (scroll >= 1.0f) {
+        if (DebugMenuState == 2) {
+            if (KeyDownForPlayer1Or2(0x4000)) {
+                if (--swrRace_inRaceMenuCursor < 0)
+                    swrRace_inRaceMenuCursor = 0;
+                else
+                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+            }
+            if (KeyDownForPlayer1Or2(0x8000)) {
+                swrRace_inRaceMenuCursor++;
+                if (!swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor--;
+                else
+                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+            }
+            swrControl_uiInputActive = 0;
+            if (swrControl_acceptPressedEdge != 0) {
+                swrControl_menuAcceptPressedEdge = 0;
+                swrControl_acceptPressedEdge = 0;
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            }
+            if (swrControl_cancelPressedEdge != 0) {
+                if (DebugMenuState == 2)
+                    swrRace_inRaceMenuCursor = 0;
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            }
+        } else {
+            // up past the top wraps to the last row
+            if (((inRaceLocalPlayerInputBitset1[0] & 4) || (inRaceLocalPlayerInputBitset1[0] & 0x4000)) && --swrRace_inRaceMenuCursor < 0) {
+                swrRace_inRaceMenuCursor = 0;
+                while (swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor++;
+                swrRace_inRaceMenuCursor--;
+            }
+            if ((inRaceLocalPlayerInputBitset1[0] & 8) || (inRaceLocalPlayerInputBitset1[0] & 0x8000)) {
+                swrRace_inRaceMenuCursor++;
+                if (!swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
+                    swrRace_inRaceMenuCursor = 0;
+            }
+            if (inRaceLocalPlayerInputBitset1[0] & 0x20)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x10)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x1000)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -1.0f);
+            if ((inRaceLocalPlayerInputBitset1[0] & 0x2000) || (inRaceLocalPlayerInputBitset1[0] & 1))
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 1.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x400)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, 10.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x800)
+                swrRace_AdjustDebugValue(swrRace_inRaceMenuCursor, -10.0f);
+            if (inRaceLocalPlayerInputBitset1[0] & 1)
+                swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
+            if (inRaceLocalPlayerInputBitset1[0] & 0x200)
+                requestUnpause();
+            if (inRaceLocalPlayerInputBitset1[0] & 2)
+                swrRace_PopDebugMenuState();
+        }
+    }
+
+    // the "Are you sure?" prompt only has rows 1 and 2
+    if (swrRace_escMenuConfirmPending != 0) {
+        if (swrRace_inRaceMenuCursor < 1)
+            swrRace_inRaceMenuCursor = 1;
+        if (swrRace_inRaceMenuCursor > 2)
+            swrRace_inRaceMenuCursor = 2;
+    }
+
+    for (index = 0, row = 0x42, rowY = 0; row < 0x162; index++, row += 0xc, rowY += 0xe) {
+        if (!swrRace_GetInRaceMenuEntry(index, label, help, &intValue, &floatValue))
+            continue;
+        // value sentinels: float <= -9999.99 means "no float", int < -9999 means "no int"
+        if (floatValue < -9999.99 && intValue < -9999)
+            sprintf(text, swrText_Translate("~s%s\n"), label);
+        else if (floatValue > -9999.99)
+            sprintf(text, swrText_Translate("~s%s: %.2f\n"), label, (double)floatValue);
+        else
+            sprintf(text, swrText_Translate("~s%s: %d\n"), label, intValue);
+
+        // debug pages: two columns
+        if (row < 0xd2) {
+            x = 0x19;
+            y = rowY + 0x14;
+        } else {
+            x = 0xa5;
+            y = rowY - 0x78;
+        }
+        r = 255.0f;
+        b = 255.0f;
+        if (index == swrRace_inRaceMenuCursor) {
+            r = 0.0f;
+            b = 55.0f;
+        }
+
+        if (DebugMenuState == 2) {
+            x = 0xa0;
+            y = row;
+            scroll = GetPauseMenuScrollInOut();
+            if (scroll > 0.0f) {
+                a = scroll * 255.0f;
+                if (index == swrRace_inRaceMenuCursor) {
+                    r = pulse * 255.0f;
+                    g = pulse * 250.0f;
+                    b = pulse * 50.0f;
+                } else {
+                    r = 170.0f;
+                    g = 160.0f;
+                    b = 0.0f;
+                }
+                sprintf(line, "%s", text);
+                swrText_CreateEntry2(0xa0, row, (int)r, (int)g, (int)b, (int)a, line);
+            }
+        } else {
+            sprintf(line, swrText_Translate("~f4%s"), text);
+            swrText_CreateTextEntry1(x, y, (int)r, -1, (int)b, -1, line);
+            if (index != swrRace_inRaceMenuCursor)
+                continue;
+            if (help[0] != '\0') {
+                sprintf(line, swrText_Translate("~s%s\n"), help);
+                swrText_CreateTextEntry1(x + 0x82, y - 0x1e, 0, -1, -0x80, -1, line);
+            }
+        }
+        // faithful: on the debug pages the help line was already queued above, so it is drawn twice
+        if (index == swrRace_inRaceMenuCursor && help[0] != '\0') {
+            sprintf(line, swrText_Translate("~s%s\n"), help);
+            swrText_CreateTextEntry1(x + 0x82, y - 0x1e, 0, -1, -0x80, -1, line);
+        }
+    }
+    swrRace_inRaceMenuSavedCursor[DebugMenuState] = swrRace_inRaceMenuCursor;
 }
 
 // 0x00435700

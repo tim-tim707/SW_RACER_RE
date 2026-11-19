@@ -734,6 +734,7 @@ currentUnkCameraStructPtr 0x0050C034 swrCamera_unk*
 unkCameraArrayIndex 0x0050C038 int
 swrViewport_cameraApplied 0x0050c03c int # 0 when the active camera was just (re)selected, set to 1 by swrViewport_UpdateCameras once its transform is applied
 swrViewport_force320x240 0x0050c058 int # when nonzero, swrViewport_SetViewport forces a 320x240 viewport
+swrRace_blankWorldForMenu 0x0050c084 int # set by swrRace_UpdateInRaceMenu on debug pages: swrPlayerHUD_RenderAllViewports clears to black and skips the viewports, then resets it
 swrRace_escMenuConfirmPending 0x0050c064 int # 1 while the esc menu shows its quit/restart "Are you sure?" prompt
 swrRace_escMenuConfirmAction 0x0050c068 int # esc menu row (2 = Quit Race, 3 = Quit Game) awaiting confirmation
 swrRace_inRaceMenuSavedCursor 0x0050c070 int[3] # per-page cursor, indexed by DebugMenuState
@@ -2060,6 +2061,7 @@ swrWeather_particleScreenPositions 0x00e9a000 rdVector2[80]
 swrWeather_particleSpriteIds 0x00e9a280 int[80]
 swrWeather_particleStates 0x00e9a960 char[80]
 swrViewport_force320x240Quadrant 0x00e9a9b0 int # quadrant index (0-3) cycled by swrRace_UpdateInRaceMenu while force320x240 is active; bit0 hides the right half, bit1 hides the bottom half in swrViewport_ComputeScreenRect
+swrViewport_force320x240Timer 0x00e9a9b8 int # frames left on the current force320x240 quadrant (10 each, swrRace_UpdateInRaceMenu)
 swrRace_inRaceMenuStackDepth 0x00e9a9b4 int
 swrRace_inRaceMenuStateStack 0x00e9a9c0 int[3] # DebugMenuState history for swrRace_PopDebugMenuState; deepest path is ESC -> DEBUG_VALUES -> VEHICLE_STATS (size maybe wrong)
 
