@@ -202,6 +202,6 @@ void RenderMiniMapDotsAndCrosses();
 void swrSprite_AddDirtyRect(short x1, short y1, short x2, short y2);
 void swrSprite_ResetDirtyRects(void);
 
-void swrSprite_Draw1(swrSpriteTexture*, short, int, float, float, float angle, short, short, int, float, unsigned __int8, float, unsigned __int8);
+void swrSprite_Draw1(swrSpriteTexture* tex, short x, short y, float scaleX, float scaleY, float angle, short x2, short y2, unsigned int flags, uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 
 #endif // SWRSPRITE_H

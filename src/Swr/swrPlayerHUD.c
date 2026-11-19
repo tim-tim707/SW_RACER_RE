@@ -7,6 +7,8 @@
 #include "swrModel.h"
 #include "swrWeather.h"
 #include "swrText.h"
+#include "swr.h"
+#include "swrRender.h"
 #include <Win95/DirectX.h>
 
 #include <Primitives/rdVector.h>
@@ -546,5 +548,93 @@ void swrPlayerHUD_SampleOcclusion(void)
 // 0x00483cb0
 void swrPlayerHUD_RenderAllViewports(void)
 {
-    HANG("TODO");
+    int first;
+    int i;
+    int nextFrameBuffer;
+    int prevCurrent;
+    int prevPrev;
+    swrViewport* viewport;
+    swrViewportFog* fog;
+
+    first = 1;
+    if (assetBufferModelLoaded == 1) {
+        swrRace_DrawDebugMetaCamera_Maybe();
+        assetBufferModelLoaded = 0;
+    }
+    swr_noop2();
+
+    swrPlayerHUD_frameCounter++;
+    prevCurrent = swrPlayerHUD_frameBufferCurrent;
+    prevPrev = swrPlayerHUD_frameBufferPrev;
+    nextFrameBuffer = swrPlayerHUD_frameBuffers[swrViewport_frameTriple];
+    swrPlayerHUD_frameBufferPrev2 = prevPrev;
+    swrPlayerHUD_frameBufferPrev = prevCurrent;
+    swrPlayerHUD_frameBufferCurrent = nextFrameBuffer;
+    if (prevCurrent == 0)
+        swrPlayerHUD_frameBufferPrev = nextFrameBuffer;
+    if (prevPrev == 0)
+        swrPlayerHUD_frameBufferPrev2 = nextFrameBuffer;
+
+    swrRender_cameraCount = 0;
+    swrRender_displayListCursor = (Gfx*)(swrRender_displayListArena + swrViewport_frameParity * SWR_RENDER_DISPLAY_LIST_BYTES);
+    swrRender_displayListFrameStart = swrRender_displayListCursor;
+    swrViewport_Activate(0);
+
+    // swr_noop1 is a stripped sink; the original passes it the split-screen fog colours or the clear flag
+    if (swrObjJdge_splitscreenActive != 0 && (swrViewport_array[2].flag & swrViewport_FLAGS_CAMERA_VALID)) {
+        swr_noop1();
+    } else {
+        if (swrRace_blankWorldForMenu != 0) {
+            backBufferClearColor[0] = 0;
+            backBufferClearColor[1] = 0;
+            backBufferClearColor[2] = 0;
+        }
+        swr_noop1();
+    }
+    swrSprite_DrawSprites(1);
+
+    for (i = 0; i < SWR_VIEWPORT_COUNT; i++) {
+        viewport = &swrViewport_array[i];
+        if ((viewport->flag & swrViewport_FLAGS_CAMERA_VALID) == 0)
+            continue;
+        swrViewport_Activate(i);
+        if (swrObjJdge_splitscreenActive != 0 && i >= 1 && (swrViewport_array[2].flag & swrViewport_FLAGS_CAMERA_VALID)) {
+            fog = &swrPlayerHUD_viewportFog[i];
+            if (fog->enabled != 0) {
+                rdModel_SetFogEnabled_Maybe(1);
+                SetFogParameters(fog->start, 1000, fog->r, fog->g, fog->b, 0xff);
+            } else {
+                rdModel_SetFogEnabled_Maybe(0);
+            }
+            if (fog->skyboxVisible != 0) {
+                if (swrObjJdge_splitSkyboxNode != NULL)
+                    swrModel_NodeModifyFlags(swrObjJdge_splitSkyboxNode, 2, 3, 0x10, 2);
+            } else if (swrObjJdge_splitSkyboxNode != NULL) {
+                swrModel_NodeModifyFlags(swrObjJdge_splitSkyboxNode, 2, -4, 0x10, 3);
+            }
+        }
+        if (swrRace_blankWorldForMenu == 0) {
+            swrPlayerHUD_RenderViewport(viewport, !first);
+            swrViewport_Render(i);
+        }
+        // bounded by 31 although swrRender_cameraPositions holds one entry per viewport
+        if (swrRender_cameraCount < SWR_RENDER_MAX_CAMERA_POSITIONS) {
+            rdVector_Copy3(&swrRender_cameraPositions[swrRender_cameraCount], (rdVector3*)&unkCameraArray[viewport->unkCameraIndex].transform.vD);
+            swrRender_cameraCount++;
+        }
+        first = 0;
+    }
+
+    swrViewport_Activate(0);
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_HIDE_OVERLAY_KEYS) == 0 || swrRace_DebugLevel <= 0 || (inRaceLocalPlayerInputBitset3[0] & 0x1100) != 0x1100) {
+        swrSprite_DrawSprites(2);
+        // the original also passes the size of the last viewport's display list (in Gfx), which the callee ignores
+        swrRace_DrawDebugPosition(swrRace_DebugLevel);
+        DrawTextEntries();
+        swrSprite_DrawSprites(3);
+        DrawTextEntries2();
+    }
+    swrScene_UpdateTextureScroll_Maybe();
+    swrSprite_ResetDirtyRects();
+    swrRace_blankWorldForMenu = 0;
 }

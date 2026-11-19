@@ -241,6 +241,8 @@
 #define SWR_SCENE_CMAN_CAMERA_BASE (7) // first camera state taken over by a 'cMan' object
 #define SWR_CAM_STATE_COUNT (32) // unkCameraArray entries
 #define SWR_VIEWPORT_COUNT (4) // swrViewport_array entries
+#define SWR_RENDER_DISPLAY_LIST_BYTES (80000) // one frame of swrRender_displayListArena (double-buffered by swrViewport_frameParity)
+#define SWR_RENDER_MAX_CAMERA_POSITIONS (31) // swrPlayerHUD_RenderAllViewports bound on swrRender_cameraCount
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
@@ -488,6 +490,8 @@
 #define SWR_SPRITE_DYNAMIC_FIRST (251) // swrSprite_FindFreeId: dynamic ids sit above the named/static sprites
 #define SWR_SPRITE_DYNAMIC_END (399)
 #define SWR_SPRITE_MAX_DIRTY_RECTS (31) // swrSprite_dirtyRects holds 31 x {x1,y1,x2,y2}
+#define SWR_SPRITE_TEXEL_STEP_ONE (0x400) // swrSprite_Draw1 texel step of exactly one texel per pixel (1/1024 units), used on clamped axes
+#define SWR_SPRITE_PAGE_CURSOR_START (9000) // swrSprite_Draw1: initial far page edge, so the first page always starts a new row
 #define SWR_SPRITE_DIRTY_RECT_REF_WIDTH (320.0) // rects are scaled by screen size / 320x240
 #define SWR_SPRITE_DIRTY_RECT_REF_HEIGHT (240.0)
 

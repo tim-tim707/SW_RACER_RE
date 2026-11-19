@@ -729,6 +729,7 @@ swrSound_sfxVariantLastCategory 0x0050b680 int[23] # category that last armed ea
 swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
 swrSound_musicStartDelay 0x0050b6f0 float # seconds until swrSound_UpdateMusic starts the queued track
 swrSound_musicElapsed 0x0050b6f4 float # seconds since the current track was queued
+swrSprite_extraSpriteCount 0x0050b6fc int # entries in swrSprite_extraSprites; only swrSprite_DrawSomeSprites reads it (zeroed after the pass-3 draw)
 swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
 swrSound_musicGain 0x0050b6e4 float # music gain multiplier: reset to 1 on fade arm, ramped by swrSound_musicFadeRate (swrSound_UpdateMusic)
 swrSound_musicSecondsTruncated 0x0050b6ec int # whole-second music clock: (int)(self + dt) every frame, so it only advances when dt >= 1; no other readers
@@ -936,6 +937,7 @@ spriteViewportMaxY 0x0050C738 int
 spriteViewportMinX 0x0050C73C int
 spriteViewportMaxX 0x0050C740 int
 swrSprite_CurrentMaterial 0x0050C744 RdMaterial*
+swrSprite_lastDrawFlags 0x0050C748 unsigned int # draw flags of the last swrSprite_Draw1 call; written only
 
 swrText_timedMessageBuffer 0x0050c770 char[256]
 
@@ -1107,6 +1109,8 @@ swrObjJdge_musicFadedForPause 0x0050ca88 int
 PlanetID 0x0050CA8C int
 PlanetTrackNumber 0x0050CA90 int
 
+swrPlayerHUD_frameBufferPrev 0x0050cce0 int # swrPlayerHUD_frameBufferCurrent of the previous frame; no reader in the PC build
+swrPlayerHUD_frameBufferPrev2 0x0050cce4 int # swrPlayerHUD_frameBufferPrev of the previous frame; no reader in the PC build
 swrRender_cameraCount 0x0050ccec int # live entries in swrRender_cameraPositions
 swr_systemTimeMs 0x0050cb60 DWORD
 swrGui_Stopped 0x0050cb64 int
@@ -1131,6 +1135,7 @@ swrModel_Node3 0x0050cd00 swrModel_Node*
 swrModel_Node4 0x0050cd04 swrModel_Node* # shown/hidden alongside swrModel_Node1..3 in swrViewport_Render
 
 swrRace_scrapeSparkSoundTime 0x0050cb14 float # timetotal at which the next scrape-spark sound may play (swrRace_UpdateScrapeSparks only)
+swrPlayerHUD_frameCounter 0x0050cd0c int # incremented by every swrPlayerHUD_RenderAllViewports; no reader
 swrSprite_dirtyRectCount 0x0050cd10 short
 
 debug_buffer 0x0050cd18 char[2048]
@@ -1369,10 +1374,12 @@ rdCache_aVertices 0x009630d0 rdVector3[]
 rdCache_aTexVertices 0x00a530d8 rdVector2[]
 
 swrViewport_array 0x00dfb040 swrViewport[4]
+swrRender_displayListArena 0x00dfb600 char[160000] # two SWR_RENDER_DISPLAY_LIST_BYTES halves, selected by swrViewport_frameParity
 
 swrRender_cameraPositions 0x00e22820 rdVector3[4] # eye position of each active viewport camera, refreshed every frame
 swrSprite_dirtyRects 0x00E22720 short[124]
 
+swrRender_displayListFrameStart 0x00e229a0 Gfx* # start of this frame's half of swrRender_displayListArena
 backBufferClearColor 0x00E229A8 int16_t[3]
 swrRender_displayListCursor 0x00e229b0 Gfx* # write cursor into this frame's 80000-byte display-list arena (0xdfb600, double-buffered by swrViewport_frameParity)
 swrModel_closestPointNormal 0x00e229c0 rdVector3 # swrModel_FindClosestPointOnModel result normal, in targetNode-local space
@@ -1592,6 +1599,7 @@ miniMapDotTypes 0x00E345A0 char[190]
 swrTextEntries2Pos 0x00e34660 short[32][2]
 swrTextEntries1Pos 0x00e34860 short[128][2]
 
+swrPlayerHUD_frameBufferCurrent 0x00e6b160 int # swrPlayerHUD_frameBuffers[swrViewport_frameTriple] latched each frame
 assetBufferUnknownStats3 0x00E6B164 int
 swrModel_SkipByteswapCollisionVertices 0x00E6B168 int
 swrLoader_MaskBuffer 0x00E6B180 uint32_t[38400]
@@ -1678,6 +1686,7 @@ swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
 swrAssetBuffer_regionA 0x00e34a60 char* # 64-byte aligned block carved by swrAssetBuffer_ReserveRegionA_Maybe
+swrPlayerHUD_frameBuffers 0x00e34a70 int[3] # indexed by swrViewport_frameTriple; never written in the PC build (N64 framebuffer ring)
 swrRace_saveDataBackup 0x00e34a80 swrSaveData # snapshot taken by swrRace_BackupGameData (shop transaction rollback)
 swrRace_aCrc32Table 0x00e360a0 uint32_t[256] # lazily built by swrRace_InitCrc32Table (poly 0x04c11db7)
 swrRace_saveData 0x00e364a0 swrSaveData # in-memory tgfd.dat image: checksum, volumes, unlocks, 4 profile slots, track records
@@ -1836,6 +1845,7 @@ swrCam_lookAtMode 0x00e9ba40 short # blend look-at target kind: 0 = rdMatrix44*,
 swrCam_lookAtTarget 0x00e9ba44 void* # blend look-at target, NULL = interpolate the cameras' angles
 
 sound_3d_gain_adjust 0x00e9e048 float
+swrSprite_extraSprites 0x00e9ec60 swrSprite*[64] # extra sprite pointer list drawn by swrSprite_DrawSomeSprites; no writer in the PC build
 
 swrSound_sfxFlags 0x00e9ed60 int[24] # per-channel sfx status/flag bits (swrSound_{Test,Set,Clear}SfxFlag)
 swrScene_animations 0x00e9edc0 swrModel_Animation*[300] # related to models
