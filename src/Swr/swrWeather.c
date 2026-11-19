@@ -11,9 +11,9 @@
 
 #include <math.h>
 
-static float swrWeather_RandUnit(void)
+static double swrWeather_RandUnit(void)
 {
-    return (float)swrUtils_Rand() * SWR_CTL_RAND_NORM;
+    return (double)swrUtils_Rand() * SWR_CTL_RAND_NORM;
 }
 
 // 0x0042cca0

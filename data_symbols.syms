@@ -416,6 +416,9 @@ rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
 
+swrObjHang_workingDroidEngineEntry 0x004c0210 int = 1 # pod-model header entry the engine-spot pit droid works at (swrObjHang_UpdateLookAtVehicle); picks which exhaust its anim speed drives
+swrObjHang_workingDroidElmo 0x004c0214 int = -1 # elmo id of the engine-spot pit droid, -1 = none
+swrObjHang_workingDroidAnimSpeed 0x004c0218 float = 0.1 # its random-walked exhaust anim speed, 0.1..1.5
 swrObjHang_inspectCameraReset 0x004c021c int # set when the look-at-vehicle screen exits (accept/cancel); the next UpdateInspectCamera re-aims and re-derives the orbit
 swrObjHang_inspectCameraFresh 0x004c0220 int # 1 right after the inspect camera re-aims; the first stick/zoom input only clears it, and the idle timer runs while it is set
 swrRace_resultsPlaceP1 0x004c022c char # player 1's finishing place on the results screen
@@ -981,6 +984,11 @@ swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading
 swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
 swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
+swrObjHang_pitDroidSpots 0x0050c138 short[4] # swrObjHang_PIT_DROID_SPOT per pit droid, distinct, rolled on entering the look-at-vehicle screen
+swrObjHang_pitDroidSurfacePoints 0x0050c148 rdVector3[4] # closest pod-surface point each pit droid works at (node-local)
+swrObjHang_pitDroidSurfaceNormals 0x0050c0e0 rdVector3[4]
+swrObjHang_pitDroidNodeChains 0x0050c230 swrModel_Node*[40] # 10-deep node chain per pit droid from swrModel_FindClosestPointOnModel
+swrObjHang_workingDroidTargetNode 0x0050c534 int # pod-model header entry searched for the engine-spot droid's surface point
 swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
 swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
 swrObjHang_inspectCaption 0x0050c328 char[256] # caption of the inspected part/pilot drawn by UpdateInspectCamera

@@ -3675,6 +3675,12 @@ int swrModel_NodeSelectLOD(swrModel_Node* node)
     return i - 1;
 }
 
+// 0x00482c40
+void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* targetNode, rdVector3* queryPoint, int maxNodeDepth, void* nodeChainOut, rdVector3* outPoint, rdVector3* outNormal)
+{
+    HANG("TODO");
+}
+
 // 0x00482dd0
 void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, swrModel_Node** nodeChain, rdVector3* point, rdVector3* dir)
 {

@@ -243,6 +243,15 @@ typedef enum swrPauseState
     swrPauseState_CLOSING = 3, // requestUnpause: sliding out; endPause once the scroll reaches 0
 } swrPauseState;
 
+// swrObjHang_pitDroidSpots: where a pit droid works on the look-at-vehicle pod
+typedef enum swrObjHang_PIT_DROID_SPOT
+{
+    swrObjHang_PIT_DROID_SPOT_ENGINE = 0, // under an engine, x sign picks the side; drives that exhaust's anim speed
+    swrObjHang_PIT_DROID_SPOT_COCKPIT = 1,
+    swrObjHang_PIT_DROID_SPOT_ENGINE_L_SIDE = 2,
+    swrObjHang_PIT_DROID_SPOT_ENGINE_R_SIDE = 3,
+} swrObjHang_PIT_DROID_SPOT;
+
 typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
 {
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN

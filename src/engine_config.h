@@ -298,6 +298,21 @@
 #define SWR_SCENE_SLOT_CANTINA_PILOT (0x38)
 #define SWR_SCENE_SLOT_CANTINA_GUEST (0x39)
 #define SWR_MAX_PIT_DROIDS (4)
+
+// swrObjHang_UpdateLookAtVehicle (0x00437f70)
+#define SWROBJHANG_DISPLAY_POD_STRIDE (0x28) // bytes between per-player swrObjHang_displayPodPos entries
+#define SWR_SCENE_SLOT_LOOK_AT_PROPS (0x55) // .. 0x58: four props the look-at-vehicle screen lays out beside the pod
+#define SWR_LOOK_AT_PROP_COUNT (4)
+#define SWR_PIT_DROID_NODE_CHAIN_LEN (10) // swrObjHang_pitDroidNodeChains entries per droid (= FindClosestPointOnModel depth)
+#define SWR_PIT_DROID_SPOT_TRIES (20) // extra re-rolls of an engine-spot point that lands too low
+#define SWR_POD_ENTRY_ENGINE_R (1) // pod-model header entries the pit droids frame (5 when the entry is empty)
+#define SWR_POD_ENTRY_ENGINE_L (2)
+#define SWR_POD_ENTRY_ENGINE_FALLBACK (5)
+#define SWR_POD_ENTRY_COCKPIT (5)
+#define SWR_POD_ENTRY_SURFACE_A (0x11) // surface entries searched with ENGINE_R / ENGINE_L (0x2d when that entry is empty)
+#define SWR_POD_ENTRY_SURFACE_B (0x1f)
+#define SWR_POD_ENTRY_SURFACE_FALLBACK (0x2d)
+#define SWR_POD_ENTRY_COCKPIT_SURFACE (0x2d)
 #define SWR_CANTINA_PILOT_POOL (0x7ffff) // pilots 0..18; the cantina guest is a pit droid once any is unlocked
 
 // swrObjHang_NavigateVehicleSelect (0x00469c30): held left/right auto-repeat
