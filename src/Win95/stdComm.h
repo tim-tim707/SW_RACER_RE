@@ -52,7 +52,7 @@ int stdComm_Send(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD 
 int stdComm_Receive(DPID* pSender, void* pData, unsigned int* pLength);
 
 // Builds a DirectPlay session description and opens it to create and host a session.
-HRESULT stdComm_HostSession(int pSessionDesc);
+HRESULT stdComm_HostSession(StdCommSessionSettings* pSettings);
 
 int stdComm_GetSessionSettings(void* unused, StdCommSessionSettings* pSettings);
 
@@ -70,9 +70,9 @@ void stdComm_DestroyPlayer(DPID playerId);
 int stdComm_GetNumPlayers(void);
 DPID stdComm_GetPlayerId(int index);
 
-int stdComm_EnumSessionsCallback(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
+BOOL __stdcall stdComm_EnumSessionsCallback(LPCDPSESSIONDESC2 lpThisSD, LPDWORD lpdwTimeOut, DWORD dwFlags, LPVOID lpContext);
 
-BOOL stdComm_EnumPlayersCallback(DPID playerId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
+BOOL __stdcall stdComm_EnumPlayersCallback(DPID playerId, DWORD dwPlayerType, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext);
 int stdComm_ProcessSystemMessage(LPDPMSG_GENERIC pMessage, DPID* pSender);
 void stdComm_SessionToSettings(LPDPSESSIONDESC2 pSession, StdCommSessionSettings* pSettings);
 

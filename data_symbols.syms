@@ -559,7 +559,7 @@ swrUI_progressBarHeight 0x004d6bd8 int # progress-bar rect height
 swrUI_progressBarWidth 0x004d6bdc int # progress-bar rect width
 
 ddSurfaceForProgressBar 0x004d6be0 LPDIRECTDRAWSURFACE4
-ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC
+ddSurfaceDescForProgressBar 0x004d6be4 DDSURFACEDESC2
 
 defaultMaterial 0x004d6c60 RdMaterial*
 swrUI_progressBar_unk 0x004d6c64 int
@@ -1226,7 +1226,7 @@ stdDisplay_backbufHeight 0x00529574 int
 
 stdDisplay_zBuffer 0x00529578 tVSurface
 _ddSurfaceDesc 0x0052957c DDSURFACEDESC2
-stdDisplay_aVideoModes 0x005295f8 StdVideoMode[32]
+stdDisplay_aVideoModes 0x005295f8 StdVideoMode[64]
 
 stdDisplay_aDisplayDevices 0x0052a9f8 StdDisplayDevice[16]
 
@@ -1272,6 +1272,8 @@ std3D_bStartup 0x0052e64c int # unused
 std3D_bOpen 0x0052e650 int
 
 stdFilePrintf_buffer 0x0052e658 char[0x800]
+
+stdPlatform_bAssertInProgress 0x0052ee58 int # set on first stdPlatform_Assert; a nested assert breaks + exits
 
 Window_GUID 0x0052ee60 GUID
 Window_hWnd 0x0052ee70 HWND

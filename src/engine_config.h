@@ -541,4 +541,13 @@
 // rdMaterial_LoadEntry (0x0048e6d0)
 #define RD_MATERIAL_FILE_REVISION (0x32) // rdMaterialHeader.revision accepted
 
+// DirectDraw/Direct3D enumeration tables (DirectDraw_EnumDisplayModes_Callback, Direct3d_Enum*_Callback)
+#define STD_DISPLAY_MAX_VIDEO_MODES (64) // stdDisplay_aVideoModes length
+#define STD3D_MAX_DEVICES (4) // std3D_aDevices length
+#define STD3D_MAX_TEXTURE_FORMATS (8) // std3D_aTextureFormats length
+
+// stdComm DirectPlay session/player tables
+#define STDCOMM_MAX_SESSIONS (32) // stdCommSessionSettings length
+#define STDCOMM_MAX_PLAYERS (20) // stdComm_aPlayerInfos length
+
 #endif // ENGINE_CONFIG_H

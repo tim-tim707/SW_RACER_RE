@@ -5,7 +5,9 @@
 #include "globals.h"
 
 #include <macros.h>
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // 0x00408e40
 void* stdPlatform_Alloc(unsigned int size)
@@ -40,7 +42,34 @@ void stdPlatform_Shutdown(void)
 // 0x00484780
 int stdPlatform_DebugLog(void* log_function, char* compile_filepath, int line_nb, char* msg, ...)
 {
-    HANG("TODO");
+    int baseOffset = 0;
+    int hasSeparator = 0;
+    int i;
+    int len;
+    int remaining;
+    va_list args;
+
+    if (log_function == NULL)
+        return 0;
+
+    for (i = 0; compile_filepath[i] != '\0'; i++) {
+        if (compile_filepath[i] == '\\') {
+            hasSeparator = 1;
+            baseOffset = i;
+        }
+    }
+    if (hasSeparator)
+        baseOffset++;
+
+    len = _snprintf(debug_buffer, sizeof(debug_buffer), compile_filepath + baseOffset);
+    remaining = sizeof(debug_buffer) - len;
+    i = _snprintf(debug_buffer + len, remaining, "(%d): ", line_nb);
+    remaining -= i;
+    len += i;
+    va_start(args, msg);
+    _vsnprintf(debug_buffer + len, remaining, msg, args);
+    va_end(args);
+    ((int (*)(const char*, ...))log_function)(debug_buffer);
     return 0;
 }
 
@@ -59,47 +88,33 @@ int stdPlatform_Printf(const char* format, ...)
 }
 
 // 0x0048c4a0
-void stdPlatform_Assert(const char* param_1, const char* param_2, int param_3)
+void stdPlatform_Assert(const char* msg, const char* filePath, int line)
 {
-    HANG("");
+    char buffer[512];
+    int baseOffset = 0;
+    int hasSeparator = 0;
+    int i;
 
-    // int iVar1;
-    // char cVar2;
-    // bool is_path;
-    // int iVar4;
-    // int iVar5;
-    // char buffer[512];
+    if (stdPlatform_bAssertInProgress) {
+        DebugBreak();
+        exit(1);
+    }
+    stdPlatform_bAssertInProgress = 1;
 
-    // iVar5 = 0;
-    // is_path = false;
-    // if (DAT_0052ee58 != 0) // static variable only used in this function
-    // {
-    //     DebugBreak();
-    //     exit(1);
-    // }
-    // DAT_0052ee58 = 1;
-    // iVar4 = 0;
-    // cVar2 = *param_2;
-    // while (cVar2 != '\0')
-    // {
-    //     if (cVar2 == '\\')
-    //     {
-    //         is_path = true;
-    //         iVar5 = iVar4;
-    //     }
-    //     iVar1 = iVar4 + 1;
-    //     iVar4 = iVar4 + 1;
-    //     cVar2 = param_2[iVar1];
-    // }
-    // if (is_path)
-    // {
-    //     iVar5 = iVar5 + 1;
-    // }
-    // snprintf(buffer, sizeof(buffer), "%s(%d):  %s\n", param_2 + iVar5, param_3, param_1);
-    // (**(code**)(DAT_00ecc420 + 0x10))("ASSERT: %s", buffer);
-    // MessageBoxA(NULL, buffer, "Assert Handler", 0x2000);
-    // DebugBreak();
-    // exit(1);
+    for (i = 0; filePath[i] != '\0'; i++) {
+        if (filePath[i] == '\\') {
+            hasSeparator = 1;
+            baseOffset = i;
+        }
+    }
+    if (hasSeparator)
+        baseOffset++;
+
+    _snprintf(buffer, sizeof(buffer), "%s(%d):  %s\n", filePath + baseOffset, line, msg);
+    stdPlatform_hostServices_ptr->errorPrint("ASSERT: %s", buffer);
+    MessageBoxA(NULL, buffer, "Assert Handler", MB_TASKMODAL);
+    DebugBreak();
+    exit(1);
 }
 
 // 0x48c5a0

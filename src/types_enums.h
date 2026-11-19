@@ -5173,4 +5173,15 @@ typedef enum swrTexture_MIRROR
     swrTexture_MIRROR_S = 0x10,
 } swrTexture_MIRROR;
 
+// stdComm_Receive / stdComm_ProcessSystemMessage results (0 = a data message was received)
+typedef enum StdCommReceiveResult
+{
+    STDCOMM_RECV_ERROR = -2,
+    STDCOMM_RECV_NONE = -1, // no message pending (or a system message with nothing to report)
+    STDCOMM_RECV_SESSION_LOST = 1, // DPSYS_SESSIONLOST
+    STDCOMM_RECV_PLAYER_LEFT = 2, // DPSYS_DESTROYPLAYERORGROUP
+    STDCOMM_RECV_PLAYER_JOINED = 5, // DPSYS_CREATEPLAYERORGROUP (player)
+    STDCOMM_RECV_BECAME_HOST = 8, // DPSYS_HOST
+} StdCommReceiveResult;
+
 #endif // TYPES_ENUMS_H

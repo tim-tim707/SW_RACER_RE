@@ -2028,19 +2028,19 @@ extern "C"
     } rdProcEntry; // sizeof(0x6c) unsure
 
     // Indy3D for stdComm_SessionToSettings
-    // Real sizeof is 0x41 or 0x104 or 0x82 (FUN_00487450)?
     typedef struct StdCommSessionSettings
     {
         GUID guid;
         int maxPlayers;
         int numCurrentPlayers;
-        wchar_t aSessionName[64];
-        char aSomething[64];
+        wchar_t unk18[32];
+        wchar_t aSessionName[32]; // session name before ':' (L"%s:%S" in stdComm_HostSession)
+        char aSomething[32]; // text after ':'
         wchar_t aPassword[32];
-        int user1;
-        int user2;
-        int user3;
-    } StdCommSessionSettings;
+        int user1; // DPSESSIONDESC2.dwUser1
+        int user2; // DPSESSIONDESC2.dwUser3
+        int user3; // DPSESSIONDESC2.dwUser4
+    } StdCommSessionSettings; // sizeof(0x104)
 
     // Indy stdDisplay_SetMode
     typedef struct tRasterInfo
