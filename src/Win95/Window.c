@@ -437,6 +437,7 @@ int Window_CDCheck(void)
     char volumeLabel[128];
     char expectedLabel[128];
     char wheelMap[128];
+    FILE* wheelMapFile;
     int fd;
     int answer;
 
@@ -465,10 +466,13 @@ int Window_CDCheck(void)
     }
 
     // faithful: the EXE NOPs out the branches on GetDriveTypeA, fopen, GetVolumeInformationA and
-    // strncmp, so only the PlanetG.znm size decides; the fopen handle is never closed
+    // strncmp, so only the PlanetG.znm size decides
     GetDriveTypeA(rootPathName);
     sprintf(wheelMap, "%s\\%swheel.map", rootPathName, ".\\data\\config\\default\\");
-    fopen(wheelMap, "w");
+    // the EXE never closes this handle; closed here (the file is still created/truncated)
+    wheelMapFile = fopen(wheelMap, "w");
+    if (wheelMapFile != NULL)
+        fclose(wheelMapFile);
     sprintf(expectedLabel, "racer%s", "100_0");
     do {
         GetVolumeInformationA(rootPathName, volumeLabel, sizeof(volumeLabel), NULL, NULL, NULL, NULL, 0);
