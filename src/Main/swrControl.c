@@ -431,10 +431,10 @@ int swrControl_Startup(void)
 
     // RGB565 -> RGB555 table for the Smush cinematic frames (Window_SmushPlayCallback)
     Window_smushColorTable = NULL;
-    if (stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwRBitMask == 0x7c00 && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwGBitMask == 0x3e0 && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwBBitMask == 0x1f) {
+    if (stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwRBitMask == SWR_RGB555_RED_MASK && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwGBitMask == SWR_RGB555_GREEN_MASK && stdDisplay_g_backBuffer.pVSurface.ddSurfDesc.ddpfPixelFormat.dwBBitMask == SWR_RGB555_BLUE_MASK) {
         Window_smushColorTable = Window_smushRgb565To555;
         for (color = 0xffff; color >= 0; color--)
-            Window_smushColorTable[color] = (color & 0x1f) | ((color >> 1) & 0x7fe0);
+            Window_smushColorTable[color] = (color & SWR_RGB555_BLUE_MASK) | ((color >> 1) & (SWR_RGB555_RED_MASK | SWR_RGB555_GREEN_MASK));
     }
 
     memset(&ddSurfaceDescForVideo, 0, sizeof(ddSurfaceDescForVideo));
