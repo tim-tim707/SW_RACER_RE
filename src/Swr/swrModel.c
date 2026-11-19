@@ -3572,6 +3572,16 @@ int swrModel_NodeSelectLOD(swrModel_Node* node)
     return i - 1;
 }
 
+// 0x00482dd0
+void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, swrModel_Node** nodeChain, rdVector3* point, rdVector3* dir)
+{
+    rdMatrix44 m;
+
+    swrModel_ComputeNodeChainMatrix_Maybe(nodeChain, &m);
+    rdMatrix_Transform3(outPoint, point, &m);
+    rdMatrix_Multiply3(outDir, dir, &m);
+}
+
 // 0x00482e60
 float DistanceToNearestViewportCamera(rdVector3* point)
 {

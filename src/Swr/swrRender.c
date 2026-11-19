@@ -1,23 +1,63 @@
 #include "swrRender.h"
 
 #include "globals.h"
+#include "swrModel.h"
 
 #include <Engine/rdCamera.h>
+#include <Primitives/rdMath.h>
 #include <Primitives/rdVector.h>
 #include <Primitives/rdModel.h>
+#include <Unknown/rdMatrixStack.h>
+#include <engine_config.h>
 #include <Win95/DirectX.h>
 #include <macros.h>
 
 // 0x00409290
 void rdModel3Mesh_CalculateSurfaceNormals(rdModel3Mesh* mesh)
 {
-    HANG("TODO");
+    unsigned int faceIndex;
+    RdFace* face;
+    int cur;
+    int prev = 0;
+    int next = 0;
+
+    face = mesh->aFaces;
+    for (faceIndex = 0; faceIndex < (unsigned int)mesh->numFaces; faceIndex++, face++) {
+        // find a vertex whose neighbours are not collinear with it
+        for (cur = 0; cur < (int)face->numVertices; cur++) {
+            prev = cur - 1;
+            if (prev < 0)
+                prev = face->numVertices - 1;
+            next = (unsigned int)(cur + 1) % face->numVertices;
+            if (!rdMath_PointsCollinear(&mesh->apVertices[face->aVertIdxs[cur]], &mesh->apVertices[face->aVertIdxs[next]], &mesh->apVertices[face->aVertIdxs[prev]]))
+                break;
+        }
+        if (cur < (int)face->numVertices)
+            rdMath_CalcSurfaceNormal(&face->normal, &mesh->apVertices[face->aVertIdxs[cur]], &mesh->apVertices[face->aVertIdxs[next]], &mesh->apVertices[face->aVertIdxs[prev]]);
+    }
 }
 
 // 0x00409380
 void rdFace_ConfigureFogStartEnd(int16_t start, int16_t end)
 {
-    HANG("TODO");
+    float scaledStart;
+    float range;
+
+    scaledStart = (float)start * zNearEpsilon;
+    if (scaledStart < 1.0f)
+        fogStart = rdCamera_pCurCamera->pClipFrustum->zNear / (1.0f - scaledStart);
+    else
+        fogStart = rdCamera_pCurCamera->pClipFrustum->zFar;
+    if (!(fogStart < rdCamera_pCurCamera->pClipFrustum->zFar)) {
+        rdModel3_SetFogFlags(0);
+        return;
+    }
+    range = rdCamera_pCurCamera->pClipFrustum->zFar - fogStart;
+    oneOverFogRange = 1.0f / range;
+    // `end` is ignored: the fog end is always placed 1.7 x range past the start
+    fogEnd = fogStart - range * -0.7;
+    if (fogStart < rdCamera_pCurCamera->pClipFrustum->zNear)
+        fogStart = rdCamera_pCurCamera->pClipFrustum->zNear;
 }
 
 // Set the fog color from 0-255 component values, then push it (with the current
@@ -191,13 +231,44 @@ void rdModel_AddMeshGroupToScene2(swrModel_NodeMeshGroup* node)
 // 0x0044d1e0
 void NodeTransformedWithPivot_ApplyTransform(rdMatrix34* inout_transform, const rdMatrix34* transform, const rdVector3* pivot)
 {
-    HANG("TODO");
+    float* translation;
+    int i;
+
+    translation = &inout_transform->scale.x;
+    for (i = 0; i < 3; i++) {
+        translation[i] = translation[i] - (&transform->rvec.x)[i] * pivot->x - (&transform->lvec.x)[i] * pivot->y - pivot->z * (&transform->uvec.x)[i] + (&pivot->x)[i];
+    }
 }
 
 // 0x0044d240
 void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_Node* node)
 {
-    HANG("TODO");
+    int overflow;
+    int numChildren;
+    int i;
+    swrModel_Node* child;
+    uint32_t required;
+
+    rdModel_sceneNodeDepth++;
+    if (rdModel_sceneNodeDepth > RDMODEL_SCENE_MAX_DEPTH) {
+        overflow = 1;
+    } else {
+        overflow = 0;
+        if (rdModel_nodeTransformsEnabled != 0)
+            rdMatrixStack34_PushMultiply(transform);
+    }
+    numChildren = swrModel_NodeGetNumChildren(node);
+    for (i = 0; i < numChildren; i++) {
+        child = node->children.nodes[i];
+        if (child == NULL)
+            continue;
+        required = rdModel_CurrentViewport->node_flags1_exact_match_for_rendering;
+        if ((swrModel_NodeGetFlags1Or2(child, 2) & required) == required && (rdModel_CurrentViewport->node_flags1_any_match_for_rendering & swrModel_NodeGetFlags1Or2(child, 2)) != 0)
+            rdModel_AddNodeToScene(child);
+    }
+    if (!overflow && rdModel_nodeTransformsEnabled != 0)
+        rdMatrixStack34_Pop();
+    rdModel_sceneNodeDepth--;
 }
 
 // 0x0044d310
@@ -209,7 +280,24 @@ void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* no
 // 0x0044d740
 int NodeLODSelector_FindLODIndex(swrModel_NodeLODSelector* node)
 {
-    HANG("TODO");
+    int numChildren;
+    int i;
+
+    numChildren = swrModel_NodeGetNumChildren(&node->node);
+    if (numChildren <= 0)
+        return -1;
+    if (rdModel_nodeTransformsEnabled == 0)
+        return 0;
+    // LOD is selected for a fixed viewing distance of 10
+    if (10.0f < node->lod_distances[0])
+        return -1;
+    for (i = 1; i < 8; i++) {
+        if (node->lod_distances[i] == -1.0f || !(node->lod_distances[i] < 10.0f))
+            break;
+    }
+    if (i - 1 >= numChildren)
+        return -1;
+    return i - 1;
 }
 
 // 0x0044d7c0

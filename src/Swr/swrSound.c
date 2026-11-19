@@ -1923,6 +1923,58 @@ void swrSound_SetMusicFade(int mode)
     }
 }
 
+// 0x00427880
+void swrSound_UpdateMusic(void)
+{
+    float volume;
+    float fade;
+    int isLoopCue;
+
+    swrSound_SetMasterGain(1.0f - (float)(uint8_t)swrSprite_unk1_a * 0.003921569f);
+    volume = 1.0f - GetPauseMenuScrollInOut() * 0.9f;
+    if (GetPauseMenuScrollInOut() > 0.0f)
+        volume = 0.1f;
+    volume = volume * swrSound_musicGain;
+    swrSound_musicSecondsTruncated = (int)((double)swrSound_musicSecondsTruncated + swrRace_deltaTimeSecs);
+    swrSound_musicElapsed = swrSound_musicElapsed + swrRace_deltaTimeSecs;
+    // sound 0x22 is the one non-music looping cue routed through the music slot
+    isLoopCue = swrSound_currentMusicId == 0x22;
+
+    if (swrSound_musicStartDelay > 0.0f) {
+        swrSound_musicStartDelay = swrSound_musicStartDelay - swrRace_deltaTimeSecs;
+        if (swrSound_musicStartDelay <= 0.0f && !isLoopCue) {
+            swrSound_musicStartDelay = 0.0f;
+            volume = 1.0f;
+            playASound(swrSound_currentMusicId, 7, 0.25f, 1.0f, 0);
+        }
+    }
+    if (isLoopCue && swrSound_musicStartDelay <= 0.0f && GetPauseMenuScrollInOut() == 0.0f) {
+        if (swrSound_musicElapsed < 9.0f) {
+            volume = (9.0f - swrSound_musicElapsed) * 0.5f;
+            if (volume > 1.0f)
+                volume = 1.0f;
+            playASound(swrSound_currentMusicId, 7, 0.25f, volume, 1);
+        } else {
+            swrSound_currentMusicId = -1;
+        }
+    }
+
+    // the EXE pushes swrSound_queuedMusicId / -1 as a second swrSound_SetMusicFade arg, which it ignores
+    if (swrSound_musicFadeMode == 1) {
+        swrSound_musicGain = 1.0f;
+        if (swrSound_queuedMusicId >= 0)
+            playASound(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
+        swrSound_SetMusicFade(3);
+    } else if (swrSound_musicFadeMode > 1 && swrSound_musicFadeMode <= 3) {
+        fade = swrSound_musicFadeRate * swrRace_deltaTimeSecs + swrSound_musicGain;
+        swrSound_musicGain = fade;
+        if (fade <= 0.0f)
+            swrSound_SetMusicFade(0);
+        else if (swrSound_queuedMusicId >= 0)
+            playASound(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
+    }
+}
+
 // Queues the streamed theme for a track (planet/subtrack) from swrMusicTrackTable, saving it so a
 // later restore (restore != 0) can re-queue it. subtrack 3 is the special victory/results cue
 // (planet 1 -> 0x92, planet 4 -> 0x96; other planets keep the current queue).

@@ -118,6 +118,8 @@ iDirectDraw4_error 0x004b4758 int
 
 swrModel_slotMeshIndexBase 0x004b4760 int[5] = { 0, 100, 4000, 5000, 6000 } # per asset-buffer slot: first root mesh index
 zNearEpsilon 0x004b4774 float = 0.001
+rdModel_sceneNodeDepth 0x0050c6e0 short # scene-graph nesting depth during rdModel_AddNodeToScene; past RDMODEL_SCENE_MAX_DEPTH transformed nodes stop pushing matrices
+rdModel_nodeTransformsEnabled 0x004c3c04 int # default 1; 0 = the scene walk (rdModel_AddNodeToScene & co.) ignores node transforms and LOD selection (identity matrices, LOD 0)
 
 Main_force_feedback 0x004b4938 int = 1
 
@@ -591,6 +593,7 @@ swrMultiplayer_chatInputY 0x004e9f18 int # y of the chat input line (below the l
 
 time_buffer 0x004e9f20 char[256]
 
+swrMultiplayer_aRejoinRequested 0x004ea8a0 int[20] # per-slot: 1 once swrMultiplayer_SendRejoin asked the slot to rejoin; suppresses the "has left" chat line in sithMulti_ProcessPlayerLost, cleared on join/leave
 swrMultiplayer_rosterIdentifiers 0x004ea8f0 int[20] # per-slot racer identifier ('AAII' AI / 'REMO' remote) mirrored into swrScores[i].identifier
 swrMultiplayer_chatLineState 0x004ea940 int[15] # zeroed on add/free/reset; never read in the retail binary
 swrMultiplayer_chatInput 0x004ea988 char[1024] # chat input line: 4-char "~F0]" prefix + typed text
@@ -698,6 +701,8 @@ swrSound_recentSfxWriteIndex 0x0050b6dc int16_t
 swrSound_musicStartDelay 0x0050b6f0 float # seconds until swrSound_UpdateMusic starts the queued track
 swrSound_musicElapsed 0x0050b6f4 float # seconds since the current track was queued
 swrSound_musicFadeMode 0x0050b6e0 int # music fade state machine: 0 stop / 1 arm / 2 fade down / 3 fade up (swrSound_SetMusicFade -> swrSound_UpdateMusic)
+swrSound_musicGain 0x0050b6e4 float # music gain multiplier: reset to 1 on fade arm, ramped by swrSound_musicFadeRate (swrSound_UpdateMusic)
+swrSound_musicSecondsTruncated 0x0050b6ec int # whole-second music clock: (int)(self + dt) every frame, so it only advances when dt >= 1; no other readers
 swrSound_musicFadeRate 0x0050b6e8 float # per-second gain delta applied while fading (swrSound_UpdateMusic)
 
 swrMainDisplaySettings_g 0x0050b560 swrMainDisplaySettings
@@ -1683,7 +1688,20 @@ Mon_Gazza_textbuffer 0x00e99128 char[92]
 Oovo_IV_textbuffer 0x00e99184 char[92]
 Malastare_textbuffer 0x00e991e0 char[92]
 
-swrRace_SelectIndex 0x00e99240 int
+swrRace_vehicleSelectStep 0x0050c49c int # swrRace_SelectVehicle phase: 0 = browsing, 1 = picked/backing out, 2..3 = waiting on the transition, 5 = leave via swrObjHang_state2
+swrRace_vehicleSelectEntered 0x0050c4a0 int # cleared on menu entry, set to 1 on the first update; no other readers
+swrRace_vehicleSelectLoadedRacer 0x004c00b4 int # pod whose model is loaded in scene slot 0xf (-1 = none); a change reloads pod + pilot puppet
+swrRace_vehicleSelectShowStats 0x004c00c0 int # stats panel toggle (default 1); input bit 8 flips it
+swrRace_vehicleSelectPodScale 0x004c00b8 float # display-pod scale = swrRace_Transition * 4 (min 0.001), halved before swrRace_AnimateDisplayPod
+swrRace_vehicleSelectSaveSlot 0x0050c4a4 int # swrSaveData profile slot the pick is mirrored into (<4); an empty slot routes to name entry
+swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrRace_HangarMenu re-lays out its icons and resets the selection on the next update
+swrRace_hangarMenuFrame 0x0050c538 int # frames since the hangar menu (re)initialized, saturates at 2; frame 1 builds the inspect camera placements 0x1f..0x22
+swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrRace_HangarMenu refreshes stats + inspect camera
+swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrRace_HangarMenu update, which marks the selection dirty
+swrRace_hangarVisited 0x004c0224 int # set by the first swrRace_HangarMenu update; no readers
+swrObjHang_displayPodEngineREntry 0x004bfed4 int # pod-model header entry framed by inspect placement 0x1f (1, or 5 when entry 1 is empty; swrObjHang_UpdateLookAtVehicle)
+swrObjHang_displayPodEngineLEntry 0x004bfed8 int # pod-model header entry framed by inspect placement 0x22 (2, or 5 when entry 2 is empty)
+swrRace_SelectIndex 0x00e99240 swrRace_VehicleSelectEntry[23] # vehicle-select carousel (swrRace_BuildPartMenuList): unlocked pods first, rest racerId -1; 0xe992f8 ends it
 swrObjHang_screenSlideOffset 0x00e99358 float # front-end panel slide offset; animated -300 -> target by swrObjHang_UpdateScreenTransition, read by the shop/junkyard draw code
 
 swrRace_PodRotationAnimation 0x00e99384 float

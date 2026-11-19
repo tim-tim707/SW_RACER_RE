@@ -840,7 +840,231 @@ int swrRace_GetInRaceMenuResult(void)
 // 0x00435700
 void swrRace_SelectVehicle(swrObjHang* hang)
 {
-    HANG("TODO");
+    char text[256];
+    rdMatrix44 m;
+    rdVector3 unusedEye;
+    int reload;
+    int i;
+    int prevItem;
+    int width;
+    int pick;
+    float animTime;
+    float pitch;
+    float yaw;
+    float roll;
+    char* lastname;
+    char* name;
+
+    reload = 0;
+    if (swrObjHang_menuJustEntered) {
+        swrObjHang_menuJustEntered = 0;
+        UpdateUICameraPlacements(157.0f);
+        swrRace_vehicleSelectEntered = 0;
+        swrRace_vehicleSelectStep = 0;
+        swrObjHang_settledMenuItem = 0;
+        swrRace_vehicleSelectLoadedRacer = -1;
+        swrRace_vehicleSelectShowStats = 1;
+        swrObjHang_FocusMenuItem(hang, 0x24, ~swrObjHang_STATE_LEGAL, 0);
+        swrRace_BuildPartMenuList(hang);
+        swrRace_MenuSelectedItem = 0;
+        for (i = 0; i < swrRace_MenuMaxSelection; i++) {
+            if (swrRace_SelectIndex[i].racerId == (signed char)swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotId) {
+                swrRace_MenuSelectedItem = i;
+                break;
+            }
+        }
+        swrObjHang_ComputeUpgradedStats(swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId, -1, 0, -1);
+        swrObjHang_InitTrackSprites(hang, 0);
+        swrRace_PodRotationAnimation = 360.0f;
+    }
+
+    if (swrObjHang_cameraMoveMode != 0)
+        return;
+
+    swrRace_SelectedRacer = swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId;
+    if (swrRace_Transition > 0.0f) {
+        animTime = 0.025f - (float)swrRace_SelectIndex[swrObjHang_settledMenuItem].racerId * -0.05f;
+        swrModel_AnimationsSetSettings(swr_sceneAnimations[INGAME_MODELID_flag2_part], animTime, animTime, animTime, false, 0.0f, 0.0f);
+        // the EXE pushes swrObjHang_settledMenuItem, which the callee ignores
+        swrObjHang_AnimateTransitionNode();
+    } else if (swrRace_SelectedRacer != -1) {
+        animTime = 0.025f - (float)swrRace_SelectedRacer * -0.05f;
+        swrModel_AnimationsSetSettings(swr_sceneAnimations[INGAME_MODELID_flag2_part], animTime, animTime, animTime, false, 0.0f, 0.0f);
+    }
+
+    if (swrRace_vehicleSelectStep == 5 && swrObjHang_StepTransition(-3.3f) == 0.0f) {
+        swrObjElmo_SetAnimStateById(SWR_SCENE_SLOT_PILOT_PUPPETS, 0);
+        swrRace_SaveCurrentProfile();
+        if (multiplayer_enabled != 0) {
+            swrUI_PopMenuPage();
+            return;
+        }
+        swrObjHang_SetMenuState(hang, swrObjHang_state2);
+        return;
+    }
+
+    if (swrRace_vehicleSelectStep == 0) {
+        swrObjHang_vehicleStatsFade = swrObjHang_vehicleStatsFade - swrRace_fdeltaTimeSecs * 3.3f;
+        if (swrObjHang_vehicleStatsFade < 0.0f)
+            swrObjHang_vehicleStatsFade = 0.0f;
+        if (swrRace_vehicleSelectShowStats != 0)
+            swrRace_VehicleStatisticsSubMenu(hang, 105.0f, 135.0f);
+    }
+
+    swrText_CreateColorlessEntry1(0xa0, 0x19, swrText_Translate("/SCREENTEXT_525/~c~sSelect Vehicle"));
+    lastname = swrText_Translate(swrRacer_PodData[swrRace_SelectedRacer].lastname);
+    name = swrText_Translate(swrRacer_PodData[swrRace_SelectedRacer].name);
+    sprintf(text, swrText_Translate("~c~s%s %s"), name, lastname);
+    swrText_CreateTextEntry1(0xa0, 0x2a, 0, -1, 0, -1, text);
+    swrText_GetStringWidthByFont(text, 0);
+    width = swrText_GetStringWidthByFont(text, 0);
+    swrUI_Front_MenuAxisHorizontal((void*)(int)(160.0 - (double)width * 0.5), 0x2b);
+    hang->flag |= 4;
+
+    if (swrObjHang_menuRepeatCount == 0 && swrRace_vehicleSelectLoadedRacer != swrRace_SelectIndex[swrObjHang_settledMenuItem].racerId)
+        reload = 1;
+    if (swrRace_SelectedRacer != -1 && (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS] == NULL || reload)) {
+        swrModel_ClearSceneAnimations();
+        swrObjHang_CullElmoAssets(3);
+        swrRace_PodRotationAnimation = 0.0f;
+        swrModel_LoadModelIntoScene(swrRacer_PodData[swrRace_SelectedRacer].pod_modelID, swrRacer_PodData[swrRace_SelectedRacer].pod_alt_modelID, (INGAME_MODELID)SWR_SCENE_SLOT_POD_MODELS, false);
+        if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS] != NULL) {
+            swrObjHang_SetState5_Maybe();
+            swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3c].value = swrRace_SelectedRacer;
+            swrModel_LoadPuppet(swrRacer_PodData[swrRace_SelectedRacer].puppet_modelId, (INGAME_MODELID)SWR_SCENE_SLOT_PILOT_PUPPETS, swrObjElmo_KIND_PILOT, swrRacer_PodData[swrRace_SelectedRacer].float20);
+        }
+        swrRace_vehicleSelectLoadedRacer = swrRace_SelectedRacer;
+        swrModel_ReloadAnimations();
+        swrObjHang_UpdatePitDroidAnims(hang);
+        swrObjHang_ComputeUpgradedStats(swrRace_SelectedRacer, -1, -1, -1);
+    }
+
+    if (swrRace_vehicleSelectEntered == 0)
+        swrRace_vehicleSelectEntered = 1;
+    swrRace_PodRotationAnimation = swrRace_PodRotationAnimation - swrRace_fdeltaTimeSecs * -90.0f;
+    if (swrRace_PodRotationAnimation > 1800.0f)
+        swrRace_PodRotationAnimation = swrRace_PodRotationAnimation - 1800.0f;
+    if (swrRace_vehicleSelectStep == 1 && swrObjHang_StepTransition(-3.3f) == 0.0f)
+        swrRace_vehicleSelectStep = 2;
+
+    swrRace_vehicleSelectPodScale = swrRace_Transition * 4.0f;
+    if (swrRace_vehicleSelectPodScale < 0.001f)
+        swrRace_vehicleSelectPodScale = 0.001f;
+
+    if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS] != NULL && swrRace_Transition > 0.0f) {
+        swrObjHang_UpdateHoloBillboardMatrix();
+        if (swrRace_PodRotationAnimation < 540.0f) {
+            pitch = 100.08f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation, 540.0f);
+            yaw = 0.0f;
+            roll = 0.0f;
+        } else if (swrRace_PodRotationAnimation < 900.0f) {
+            pitch = 100.08f;
+            yaw = 180.0f;
+            roll = 180.0f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 540.0f, 360.0f);
+        } else if (swrRace_PodRotationAnimation < 1440.0f) {
+            pitch = 280.08002f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 900.0f, 540.0f);
+            yaw = 0.0f;
+            roll = 0.0f;
+        } else {
+            pitch = 100.08f;
+            yaw = 0.0f;
+            roll = -swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 1440.0f, 360.0f);
+        }
+        rdMatrix_SetRotation44(&m, pitch, yaw, roll);
+        rdVector_Copy3((rdVector3*)&m.vD, &maybeUICameraPlacements[0x24].position2);
+        swrRace_vehicleSelectPodScale = swrRace_vehicleSelectPodScale * 0.5f;
+        rdVector_Scale3Add3_both((rdVector3*)&m.vD, 0.5f, &maybeUICameraPlacements[0x24].position2, 0.5f, &maybeUICameraPlacements[0x24].position1);
+        swrRace_AnimateDisplayPod((swrModel_Node**)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS], &m, 1, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, -1157.0f, 0, 1.0f, 1.0f);
+        if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node != NULL)
+            swrModel_NodeModifyFlags(swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node, 2, 3, 0x10, 2);
+    }
+
+    if (swrRace_vehicleSelectStep != 0) {
+        if (swrRace_Transition == 0.0f)
+            swrRace_vehicleSelectStep++;
+        return;
+    }
+
+    for (i = hang->current_player_for_vehicle_selection; i < hang->current_player_for_vehicle_selection + 1; i++) {
+        if (swrObjHang_cameraMoveMode != 0)
+            break;
+        prevItem = swrRace_MenuSelectedItem;
+        swrObjHang_NavigateVehicleSelect(i, 1.0f, 1);
+        if (prevItem != swrRace_MenuSelectedItem)
+            swrObjHang_ComputeUpgradedStats(swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId, -1, 0, -1);
+        if (swrRace_Transition >= 1.0f && swrControl_cancelPressedEdge != 0) {
+            swrUI_PopMenuPage();
+            playUISound(0x4d);
+            if (hang->menuScreenPrev == swrObjHang_STATE_MAIN_MENU) {
+                swrObjHang_state2 = swrObjHang_STATE_MAIN_MENU;
+                swrRace_vehicleSelectStep = 1;
+                return;
+            }
+            playUISound(0x4d);
+            if (hang->current_player_for_vehicle_selection > 0) {
+                swrRace_vehicleSelectStep = 1;
+                hang->current_player_for_vehicle_selection--;
+                swrObjHang_state2 = swrObjHang_STATE_SELECT_VEHICLE;
+                return;
+            }
+            swrRace_vehicleSelectSaveSlot = 0;
+            swrRace_vehicleSelectStep = 1;
+            swrRace_vehicleSelectLoadedRacer = -1;
+            swrObjHang_state2 = swrObjHang_STATE_SPLASH;
+            swrObjHang_fadeState = -1;
+            swrRace_SaveCurrentProfile();
+            return;
+        }
+        if (swrRace_Transition >= 1.0f && swrControl_menuAcceptPressedEdge != 0) {
+            playUISound(0x54);
+            swrRace_vehicleSelectStep = 1;
+        }
+        if (swrUI_localPlayersInputPressedBitset[i] & 8) {
+            playUISound(0x54);
+            swrRace_vehicleSelectShowStats = swrRace_vehicleSelectShowStats == 0;
+        }
+    }
+
+    if (swrRace_vehicleSelectStep == 1) {
+        UpdateUICameraPlacements(swrRacer_PodData[swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId].float20);
+        for (i = hang->current_player_for_vehicle_selection; i < hang->current_player_for_vehicle_selection + 1; i++) {
+            (&hang->vehiclePlayer)[i] = (char)swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId;
+            pick = swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId;
+            swrRace_aProfiles[i].pilotId = (uint8_t)pick;
+            if (swrRace_vehicleSelectSaveSlot < ELFSAVE_NB_PROFILE_SLOTS) {
+                if (swrRace_saveData.profiles[swrRace_vehicleSelectSaveSlot].name[0] == 0) {
+                    swrRace_aProfiles[i].nbPitDroids = 1;
+                    swrRace_aProfiles[i].truguts = ELFSAVE_DEFAULT_TRUGUTS;
+                } else {
+                    swrRace_saveData.profiles[swrRace_vehicleSelectSaveSlot].pilotId = (uint8_t)pick;
+                }
+            }
+            if (swrMultiplayer_IsMultiplayerEnabled())
+                swrMultiplayer_RacerPick(swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId);
+        }
+        swrObjHang_GenerateJunkyardStock(hang);
+        if (hang->menuScreenPrev == swrObjHang_STATE_MAIN_MENU) {
+            swrObjHang_state2 = swrObjHang_STATE_MAIN_MENU;
+            return;
+        }
+        // faithful: the slot's name is read before the bounds check
+        if (swrRace_saveData.profiles[swrRace_vehicleSelectSaveSlot].name[0] == 0 && swrRace_vehicleSelectSaveSlot < ELFSAVE_NB_PROFILE_SLOTS) {
+            swrObjHang_state2 = swrObjHang_STATE_ENTER_NAME;
+            return;
+        }
+        if (hang->current_player_for_vehicle_selection < hang->num_local_players - 1) {
+            hang->current_player_for_vehicle_selection++;
+            swrObjHang_state2 = swrObjHang_STATE_SELECT_VEHICLE;
+            return;
+        }
+        swrObjHang_state2 = swrObjHang_STATE_SELECT_PLANET;
+        // dead copy, but the swrUtils_Rand draw advances the RNG
+        rdVector_Copy3(&unusedEye, &swrObjElmo_waypoints[9 + hang->unk50]);
+        swrUtils_Rand();
+        return;
+    }
+    if (swrRace_vehicleSelectStep == 2)
+        swrRace_vehicleSelectStep = 3;
 }
 
 // 0x004368a0
@@ -1164,7 +1388,136 @@ void swrRace_AudioVideoSettings(swrObjHang* hang)
 // 0x004396d0
 void swrRace_HangarMenu(swrObjHang* hang)
 {
-    HANG("TODO");
+    char text[48];
+    rdMatrix44 m;
+    HangCameraState item;
+    swrModel_Header* pod;
+
+    if (swrRace_hangarMenuReinit != 0 || swrObjHang_menuJustEntered != 0) {
+        swrRace_hangarMenuFrame = 0;
+        if (swrObjHang_menuJustEntered == 0)
+            swrObjHang_hangarUpgradeType = 0;
+        swrObjHang_LayoutVehicleSelectIcons(hang);
+        swrObjHang_ComputeUpgradedStats(hang->vehiclePlayer, (signed char)upgradeInfos[(signed char)uiUpgradeInfos[swrObjHang_hangarUpgradeType].index].type, 0, -1);
+        swrRace_SetupStatsMenuLighting();
+        swrRace_UpdatePartNodeSelection();
+        swrObjHang_cameraMoveMode = 0;
+        swrObjHang_menuJustEntered = 0;
+        swrRace_hangarMenuReinit = 0;
+    }
+
+    if (swrRace_hangarMenuFrame == 1) {
+        swrRace_hangarMenuFrame = 2;
+        pod = swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
+
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)pod->entries[swrObjHang_displayPodEngineREntry].node, &m);
+        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position1, (rdVector3*)&m.vD);
+        maybeUICameraPlacements[0x1f].position2.x = 0.0f;
+        maybeUICameraPlacements[0x1f].position1.x = swrObjHang_displayPodBoundsEngineR[3] + 200.0f;
+        maybeUICameraPlacements[0x1f].position1.y = swrObjHang_displayPodBoundsEngineR[4] + 300.0f;
+        maybeUICameraPlacements[0x1f].position1.z = maybeUICameraPlacements[0x1f].position1.z + 200.0f;
+
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
+        rdVector_Copy3(&maybeUICameraPlacements[0x20].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&maybeUICameraPlacements[0x20].position1, (rdVector3*)&m.vD);
+        maybeUICameraPlacements[0x20].position1.z = -152.0f;
+        maybeUICameraPlacements[0x20].position1.x = maybeUICameraPlacements[0x20].position1.x + 50.0f;
+        maybeUICameraPlacements[0x20].position1.y = maybeUICameraPlacements[0x20].position1.y - 300.0f;
+
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
+        rdVector_Copy3(&maybeUICameraPlacements[0x21].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&maybeUICameraPlacements[0x21].position1, (rdVector3*)&m.vD);
+        maybeUICameraPlacements[0x21].position1.x = maybeUICameraPlacements[0x21].position1.x - 100.0f;
+        maybeUICameraPlacements[0x21].position1.y = maybeUICameraPlacements[0x21].position1.y - 500.0f;
+        maybeUICameraPlacements[0x21].position1.z = maybeUICameraPlacements[0x21].position1.z + 100.0f;
+
+        swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[swrObjHang_displayPodEngineLEntry].node, &m);
+        rdVector_Copy3(&maybeUICameraPlacements[0x22].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&maybeUICameraPlacements[0x22].position1, (rdVector3*)&m.vD);
+        maybeUICameraPlacements[0x22].position1.z = -152.0f;
+        maybeUICameraPlacements[0x22].position1.x = swrObjHang_displayPodBoundsEngineL[0] - 300.0f;
+        maybeUICameraPlacements[0x22].position1.y = swrObjHang_displayPodBoundsEngineL[4] + 300.0f;
+
+        if (swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT)
+            swrObjHang_FocusMenuItem(hang, swrObjHang_hangarUpgradeType % 4 + HangCameraState_InspectUpgrades1, ~swrObjHang_STATE_LEGAL, 0);
+        else
+            swrRace_hangarSelectionDirty = 1;
+    }
+
+    sprintf(text, swrText_Translate("~s%s"), swrText_Translate((char*)upgradeInfos[(signed char)uiUpgradeInfos[swrObjHang_hangarUpgradeType].index].name));
+    if (swrObjHang_hangarUpgradeType == SWR_UPGRADE_CATEGORY_COUNT) {
+        if ((uint8_t)swrRace_nbPitDroids < 4)
+            sprintf(text, swrText_Translate("/SCREENTEXT_588/~sPit Droid Management"));
+        else
+            sprintf(text, swrText_Translate("/SCREENTEXT_99/~sNo more pit droids!"));
+    }
+    swrText_CreateTextEntry1(0x1e, 0x2c, -1, -1, -1, (int)(swrObjHang_lookAtMenuFade * 2.5f * 255.0f), text);
+
+    if (swrRace_hangarFirstVisit != 0) {
+        swrRace_hangarSelectionDirty = 1;
+        swrRace_hangarVisited = 1;
+        swrRace_hangarFirstVisit = 0;
+    }
+
+    if (swrMultiplayer_menuOverlayActive == 0 && swrControl_cancelPressedEdge != 0) {
+        playUISound(0x4d);
+        swrRace_hangarMenuReinit = 1;
+        swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
+        return;
+    }
+
+    if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_LEFT) && swrObjHang_hangarUpgradeType > 0) {
+        swrRace_hangarSelectionDirty = 1;
+        swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType - 1;
+        playUISound(0x58);
+    }
+    if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_RIGHT) && swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT) {
+        swrRace_hangarSelectionDirty = 1;
+        swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType + 1;
+        playUISound(0x58);
+    }
+    if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_UP) && swrObjHang_hangarUpgradeType > 1) {
+        swrRace_hangarSelectionDirty = 1;
+        swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType - 2;
+        playUISound(0x58);
+    }
+    if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_DOWN) && swrObjHang_hangarUpgradeType <= 5) {
+        swrRace_hangarSelectionDirty = 1;
+        swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType + 2;
+        playUISound(0x58);
+    }
+
+    if (swrRace_hangarSelectionDirty != 0 && swrObjHang_hangarUpgradeType != -1) {
+        swrRace_hangarSelectionDirty = 0;
+        swrRace_UpdatePartNodeSelection();
+        if (swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT) {
+            swrObjHang_ComputeUpgradedStats(hang->vehiclePlayer, (signed char)upgradeInfos[(signed char)uiUpgradeInfos[swrObjHang_hangarUpgradeType].index].type, 0, -1);
+            item = swrObjHang_hangarUpgradeType % 4 + HangCameraState_InspectUpgrades1;
+            if (item != hang->cameraState)
+                swrObjHang_FocusMenuItem(hang, item, ~swrObjHang_STATE_LEGAL, 0);
+        } else {
+            swrObjHang_ComputeUpgradedStats(hang->vehiclePlayer, swrObjHang_hangarUpgradeType, 0, -1);
+            swrObjHang_cameraMoveMode = 1;
+            hang->cameraState = HangCameraState_InspectPT01;
+            swrObjHang_AimHoloCamera(hang, HangCameraState_InspectPT01, 0);
+        }
+    }
+
+    if (swrMultiplayer_menuOverlayActive == 0 && swrControl_menuAcceptPressedEdge != 0 && (swrObjHang_hangarUpgradeType != SWR_UPGRADE_CATEGORY_COUNT || swrRace_nbPitDroids != 4)) {
+        playUISound(0x54);
+        swrObjHang_state2 = swrObjHang_STATE_WATTO;
+        swrObjHang_shopFocusTypePending = 1;
+        if (swrObjHang_hangarUpgradeType == SWR_UPGRADE_CATEGORY_COUNT) {
+            swrObjHang_shopFocusTypePending = 2;
+            hang->activeMenu = 1;
+        }
+        swrObjHang_fadeState = -1;
+        swrObjHang_lookAtMenuFade = 0.4f;
+    }
+
+    if (swrRace_hangarMenuFrame < 2)
+        swrRace_hangarMenuFrame++;
 }
 
 // The stored name field is 32 chars with NO guaranteed NUL (a fresh save holds 32 'A's); the
@@ -2213,6 +2566,31 @@ static float shopIconTilt(void)
     return (float)(c * swrObjHang_shopSwingLean * 45.0);
 }
 
+// 0x0043da10
+void swrRace_BuildPartMenuList(swrObjHang* hang)
+{
+    uint32_t unlocked;
+    int racer;
+    int count;
+
+    unlocked = swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotsUnlocked | ELFSAVE_DEFAULT_PILOTS;
+    count = 0;
+    for (racer = 0; racer < SWR_PILOT_COUNT; racer++) {
+        if ((unlocked & (1 << racer)) != 0 || multiplayer_enabled != 0) {
+            swrRace_SelectIndex[count].racerId = racer;
+            swrRace_SelectIndex[count].unk4 = 0xff;
+            swrRace_SelectIndex[count].unk5 = 0;
+            count++;
+        }
+    }
+    for (racer = count; racer < SWR_PILOT_COUNT; racer++) {
+        swrRace_SelectIndex[racer].racerId = -1;
+        swrRace_SelectIndex[racer].unk4 = 0xff;
+        swrRace_SelectIndex[racer].unk5 = 0;
+    }
+    swrRace_MenuMaxSelection = count;
+}
+
 // 0x0043dba0
 void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
 {
@@ -2502,7 +2880,91 @@ void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float fill, float a
 // 0x00455930
 void swrRace_DrawUpgradesPanel(swrObjHang* hang)
 {
-    HANG("TODO");
+    float alpha;
+    float x;
+    float y;
+    uint8_t a;
+    short id;
+    short px;
+    int i;
+    swrModel_Header* model;
+    swrModel_NodeTransformed* node;
+    swrUIUpgradeInfo* info;
+    rdVector3 pos;
+    rdMatrix44 billboard;
+    rdMatrix44 transform;
+
+    alpha = swrObjHang_lookAtMenuFade * 2.5f * 255.0f;
+    if (alpha > 254.0f)
+        alpha = 254.0f;
+    swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+
+    if (swrRace_MenuMaxSelection + 1 > 0) {
+        a = (uint8_t)(int)alpha;
+        for (i = 0; i < swrRace_MenuMaxSelection + 1; i++) {
+            id = 0x62 + i;
+            x = (float)((i % 2) * 40 + 210) + 5.0f;
+            y = (float)((i / 2) * 35 + 20);
+            swrSprite_SetVisible(id, 1);
+            px = (short)(int)(x + 2.0f);
+            swrSprite_SetPos(id, px, (short)(int)(y + 1.0f));
+            if (i == swrRace_MenuMaxSelection)
+                swrSprite_SetPos(id, px, (short)(int)(y + 2.0f));
+            swrSprite_SetColor(id, 0x32, 0xff, 0xff, a);
+
+            id = 0x6a + i;
+            swrSprite_SetVisible(id, 1);
+            swrSprite_SetPos(id, (short)(int)x, (short)(int)y);
+            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, a);
+
+            if (i == swrObjHang_hangarUpgradeType) {
+                id = 0x72 + (i >= swrRace_MenuMaxSelection);
+                swrSprite_SetVisible(id, 1);
+                px = (short)(int)(x - 5.0f);
+                swrSprite_SetPos(id, px, (short)(int)(y - 7.0f));
+                if (i == swrRace_MenuMaxSelection)
+                    swrSprite_SetPos(id, px, (short)(int)(y - 4.0f));
+                swrSprite_SetColor(id, 0x32, 0xff, 0xff, a);
+            }
+
+            if (i < swrRace_MenuMaxSelection)
+                swrRace_DrawStatBar(hang, (short)(int)(x + 36.0f), (short)(int)(y + 2.0f), (float)(uint8_t)(&swrRace_traction_upgrade_health)[i] * 0.003921569f, alpha, 3.0f, 30.0f);
+        }
+    }
+
+    for (i = 0; i < swrRace_MenuMaxSelection + 1; i++) {
+        model = swr_sceneModels[SWR_SCENE_SLOT_INSTALLED_PARTS + i];
+        node = (swrModel_NodeTransformed*)model->entries[0].node;
+        if (node == NULL)
+            continue;
+        info = &uiUpgradeInfos[i];
+        swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
+        if (i == swrRace_MenuMaxSelection && model->entries[3].node != NULL)
+            swrModel_NodeModifyFlags(model->entries[3].node, 2, -4, 0x10, 3);
+
+        swrObjHang_UpdateHoloBillboardMatrix();
+        rdMatrix_Copy44(&billboard, &swrObjHang_cameraMatrix);
+        rdVector_Copy3(&pos, (rdVector3*)&swrObjHang_cameraMatrix.vD);
+        rdVector_Scale3Add3(&pos, &pos, info->vector1.x, (rdVector3*)&swrObjHang_cameraMatrix.vA);
+        rdVector_Scale3Add3(&pos, &pos, info->vector1.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
+        rdVector_Scale3Add3(&pos, &pos, info->vector1.z, (rdVector3*)&swrObjHang_cameraMatrix.vC);
+        rdVector_Copy3((rdVector3*)&billboard.vD, &pos);
+        rdMatrix_Copy44(&transform, &billboard);
+
+        if (i == swrObjHang_hangarUpgradeType && i != swrRace_MenuMaxSelection) {
+            rdMatrix_AddRotationFromVectorAngle44After(&transform, &transform, swrObjHang_partSpinAngle * 4.0f, billboard.vC.x, billboard.vC.y, billboard.vC.z);
+            rdMatrix_AddRotationFromVectorAngle44After(&transform, &transform, 45.0f, billboard.vB.x, billboard.vB.y, billboard.vB.z);
+            rdMatrix_AddRotationFromVectorAngle44After(&transform, &transform, swrObjHang_partSpinAngle * -1.0f, billboard.vC.x, billboard.vC.y, billboard.vC.z);
+        }
+
+        alpha = swrObjHang_lookAtMenuFade * 2.5f * 0.003;
+        if (i == swrRace_MenuMaxSelection)
+            alpha = alpha * 5.5;
+        rdMatrix_ScaleBasis44(&transform, alpha, alpha, alpha, &transform);
+        rdVector_Copy3((rdVector3*)&transform.vD, &pos);
+        swrModel_NodeSetTransform(node, &transform);
+        swrModel_NodeModifyFlags(&node->node, 2, 3, 0x10, 2);
+    }
 }
 
 // 0x00455dc0
@@ -9183,6 +9645,24 @@ void swrRace_PollScreenshotKey(void)
         return;
     }
     swrRace_screenshotKeyHeld = 0;
+}
+
+// 0x004556c0
+void swrRace_UpdatePartNodeSelection(void)
+{
+    swrModel_Node* node;
+    int i;
+
+    for (i = 0; i < swrRace_MenuMaxSelection; i++) {
+        node = swr_sceneModels[SWR_SCENE_SLOT_INSTALLED_PARTS + i]->entries[0].node;
+        if (node == NULL)
+            continue;
+        if (i == swrObjHang_hangarUpgradeType)
+            node->light_index = 0;
+        else
+            node->light_index = 1;
+        node->flags_5 |= swrModel_NODEFLAGS5_LIGHT_INDEX;
+    }
 }
 
 // 0x00455720

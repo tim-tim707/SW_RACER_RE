@@ -6,6 +6,7 @@
 #include <General/stdString.h>
 #include <Platform/wuRegistry.h>
 #include <Win95/stdComm.h>
+#include <Dss/sithMessage.h>
 #include <Dss/sithMulti.h>
 #include <Swr/swrEvent.h>
 #include <Swr/swrText.h>
@@ -342,7 +343,42 @@ void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
 // 0x00420cc0
 void swrMultiplayer_PopulateRacerList(void)
 {
-    HANG("TODO");
+    unsigned int count;
+    unsigned int slot;
+    swrUI_unk* list;
+    swrUI_unk* row;
+
+    count = swrMultiplayer_GetActivePlayerCount();
+    list = swrUI_GetById(NULL, SWR_UI_ID_MP_RESULTS_LIST);
+    swrUI_RefreshListSelection(list);
+    for (slot = 0; slot < count; slot++) {
+        row = swrUI_CreateRaceResultRow(slot);
+        row->result_player_slot = slot;
+        swrUI_AddListElement(list, row);
+    }
+}
+
+// 0x00420d10
+void swrMultiplayer_UpdatePlayerListItems(void)
+{
+    swrUI_unk* list;
+    swrUI_unk* row;
+    int slot;
+
+    list = swrUI_GetById(NULL, SWR_UI_ID_MP_RESULTS_LIST);
+    for (row = list->next; row != NULL; row = row->next2) {
+        slot = row->result_player_slot;
+        if (multiplayer_aPlayerQuit[slot] == 0) {
+            // raw dword copies: slots 2/3 hold float times in an int array
+            row->result_lap = swrMultiplayer_aPodStatus[slot][1];
+            row->result_current_time = *(float*)&swrMultiplayer_aPodStatus[slot][2];
+            row->result_total_time = *(float*)&swrMultiplayer_aPodStatus[slot][3];
+            row->sort_key = swrMultiplayer_aPodStatus[slot][0] - 1;
+        } else {
+            row->sort_key = SWR_UI_RACE_RESULT_RETIRED;
+        }
+    }
+    swrUI_SortListItems(list);
 }
 
 // 0x00420f70
@@ -586,6 +622,21 @@ void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex)
             swrMultiplayer_rosterIdentifiers[playerIndex] = 'AAII';
         }
     }
+}
+
+// 0x0041c9e0
+void swrMultiplayer_OnPlayerJoined(DPID player)
+{
+    char text[1024];
+    int playerNum;
+
+    playerNum = sithMulti_GetPlayerNum(player);
+    if (multiplayer_isHost != 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0424/%s has joined the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
+        swrMultiplayer_PostChatMessage(text);
+    }
+    swrMultiplayer_aRejoinRequested[playerNum] = 0;
+    swrUI_BroadcastToWindows(0x3f, playerNum);
 }
 
 // 0x0041d0c0

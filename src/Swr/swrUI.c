@@ -3123,7 +3123,7 @@ int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* para
                 swrControl_cancelPressedEdge = 1;
                 break;
             }
-            swrMultiplayer_RacerPick((&swrRace_SelectIndex)[swrRace_MenuSelectedItem * 2]);
+            swrMultiplayer_RacerPick(swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId);
             button = swrUI_GetById(self, SWR_UI_ID_BACK_BUTTON);
             swrUI_RunCallbacks2(button, 0);
             swrUI_GetById(self, SWR_UI_ID_OK_BUTTON);
@@ -3822,7 +3822,58 @@ int swrUI_RaceResultRowProc(swrUI_unk* ui, unsigned int msg, void* param, int pa
 // 0x0041ac30
 void swrUI_DrawRaceResultRow(swrUI_unk* row)
 {
-    HANG("TODO");
+    char text[256];
+    int retired;
+    int finished;
+    int x;
+    int y;
+    int slot;
+    char* name;
+
+    retired = 0;
+    finished = 0;
+    if (row->sort_key == SWR_UI_RACE_RESULT_RETIRED)
+        retired = 1;
+    if (multiplayer_aPlayerQuit[row->result_player_slot] != 0)
+        retired = 1;
+    if (multiplayer_aPlayerFinished[row->result_player_slot] != 0)
+        finished = 1;
+    x = row->x;
+    y = row->y;
+
+    if (!retired) {
+        sprintf(text, "%d", row->sort_key + 1);
+        swrUI_DrawText(0, x + 5, y + 0x14, -1, -1, -1, -1, text, 0, 0, 0);
+    }
+
+    slot = row->result_player_slot;
+    if (swrMultiplayer_IsPlayerActive(slot))
+        name = swrMultiplayer_GetPlayerNameAscii(slot);
+    else
+        name = swrText_Translate(swrRacer_PodData[swrMultiplayer_GetRacerId(row->id)].name);
+    sprintf(text, swrTextFmtString1, name);
+    swrUI_DrawText(6, x + 0x19, y + 10, -1, -1, -1, -1, text, 0, 0, 0);
+
+    name = swrText_Translate(swrRacer_PodData[swrMultiplayer_GetRacerId(row->id)].lastname);
+    sprintf(text, "%s %s", swrText_Translate(swrRacer_PodData[swrMultiplayer_GetRacerId(row->id)].name), name);
+    swrUI_DrawText(0, x + 0x19, y + 0x23, -1, -1, -1, -1, text, 0, 0, 0);
+
+    if (!retired && !finished) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0548/Lap %d"), row->result_lap + 1);
+        swrUI_DrawText(0, x + 0xd2, y + 0x14, -1, -1, -1, -1, text, 0, 0, 0);
+    }
+    if (finished)
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0531/Final"));
+    else if (retired)
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0549/Retired"));
+    else
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0550/Current : %s"), swrMultiplayer_FormatTimeString_Maybe(row->result_current_time));
+    swrUI_DrawText(0, x + 0xd2, y + 0x1e, -1, -1, -1, -1, text, 0, 0, 0);
+
+    if (!retired) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0551/Total : %s"), swrMultiplayer_FormatTimeString_Maybe(row->result_total_time));
+        swrUI_DrawText(0, x + 0x154, y + 0x1e, -1, -1, -1, -1, text, 0, 0, 0);
+    }
 }
 
 // 0x0041af00
@@ -4038,7 +4089,7 @@ void swrUI_SortListItems(swrUI_unk* list)
     if (list == NULL) {
         return;
     }
-    // a zeroed element on the stack collects the items in ascending unk528 order
+    // a zeroed element on the stack collects the items in ascending sort_key order
     memset(&sorted, 0, sizeof(sorted));
     while (swrUI_CountSelectableItems(list) != 0) {
         lowest = list->next;
@@ -4047,7 +4098,7 @@ void swrUI_SortListItems(swrUI_unk* list)
             break;
         }
         for (child = list->next; child != NULL; child = child->next2) {
-            if (child->widget_class == swrUI_CLASS_LIST_ITEM && (unsigned int)child->unk528 < (unsigned int)lowest->unk528) {
+            if (child->widget_class == swrUI_CLASS_LIST_ITEM && (unsigned int)child->sort_key < (unsigned int)lowest->sort_key) {
                 lowest = child;
             }
         }
@@ -4979,7 +5030,7 @@ void swrUI_RefreshListLayout(swrUI_unk* list)
     for (item = list->next; item != NULL; item = item->next2) {
         if (((uint8_t)item->widget_class & swrUI_CLASS_LIST_ITEM) == swrUI_CLASS_LIST_ITEM) {
             swrUI_RunCallbacks2(item, 0);
-            item->unk528 = index;
+            item->sort_key = index;
             index++;
             if (index > SWR_UI_LIST_MAX_ITEMS)
                 overflow++;

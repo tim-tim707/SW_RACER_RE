@@ -195,8 +195,8 @@
 
 void swrWeather_RenderParticles(void* viewport);
 
-// Forwards into the sprite secondary-endpoint setter for a light streak (best guess).
-void swrSprite_SetStreakEndpoints_Maybe(float value);
+// Converts a screen-pixel point to 320x240 sprite space and forwards it to swrSprite_SetUVOffset_Maybe.
+void swrSprite_SetStreakEndpoints_Maybe(short id, short x, short y);
 
 void swrWeather_HideAllParticles(void);
 
