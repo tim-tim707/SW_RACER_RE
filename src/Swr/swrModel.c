@@ -3779,7 +3779,7 @@ static void swrModel_GfxLoadTriangleVertex(short* out, const Vtx* vertices, sign
 // 0x00482320
 void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
 {
-    const Vtx* vertices = NULL; // uninitialized in the original until the first GFX_OP_VERTEX
+    const Vtx* vertices = NULL; // uninitialized in the original; a triangle before any GFX_OP_VERTEX is skipped here
     short tri0[3][3];
     short tri1[3][3];
     int done = 0;
@@ -3792,12 +3792,16 @@ void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform,
             vertices = displayList->gSPVertex.vertex_offset;
             break;
         case GFX_OP_TRI1:
+            if (vertices == NULL)
+                break;
             swrModel_GfxLoadTriangleVertex(tri0[0], vertices, (signed char)displayList->gSP1Triangle.index0);
             swrModel_GfxLoadTriangleVertex(tri0[1], vertices, (signed char)displayList->gSP1Triangle.index1);
             swrModel_GfxLoadTriangleVertex(tri0[2], vertices, (signed char)displayList->gSP1Triangle.index2);
             swrModel_ClosestPointOnTriangle(tri0[0], tri0[1], tri0[2], transform, minDistSq, queryPoint, outPoint, outNormal);
             break;
         case GFX_OP_TRI2:
+            if (vertices == NULL)
+                break;
             swrModel_GfxLoadTriangleVertex(tri0[0], vertices, (signed char)displayList->gSP2Triangles.index0);
             swrModel_GfxLoadTriangleVertex(tri0[1], vertices, (signed char)displayList->gSP2Triangles.index1);
             swrModel_GfxLoadTriangleVertex(tri0[2], vertices, (signed char)displayList->gSP2Triangles.index2);
