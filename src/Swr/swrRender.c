@@ -278,11 +278,12 @@ void rdModel_AddTransformedNodeToScene(int a1, rdMatrix34* transform, swrModel_N
 // 0x0044d310
 void rdModel_NodeTransformedComputedToScene(swrModel_NodeTransformedComputed* node)
 {
-    rdMatrix34 transform;
+    // rotation rows and scale are uninitialized in the original for orientation_option > 3
+    rdMatrix34 transform = { 0 };
     rdMatrix34 peeked;
     rdVector3 toNode;
     rdVector3 up;
-    float scale = 1.0f; // uninitialized in the original for orientation_option > 3
+    float scale = 1.0f;
     swrModel_Node* child;
     uint32_t required;
     int numChildren;
