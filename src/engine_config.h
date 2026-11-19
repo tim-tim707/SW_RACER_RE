@@ -241,6 +241,8 @@
 #define SWR_SCENE_CMAN_CAMERA_BASE (7) // first camera state taken over by a 'cMan' object
 #define SWR_CAM_STATE_COUNT (32) // unkCameraArray entries
 #define SWR_VIEWPORT_COUNT (4) // swrViewport_array entries
+#define SWR_RENDER_DISPLAY_LIST_BYTES (80000) // one frame of swrRender_displayListArena (double-buffered by swrViewport_frameParity)
+#define SWR_RENDER_MAX_CAMERA_POSITIONS (31) // swrPlayerHUD_RenderAllViewports bound on swrRender_cameraCount
 #define SWR_ELMO_POOL_SIZE (60)
 #define SWR_ELMO_NUM_WAYPOINTS (16) // swrObjElmo_waypoints entries scanned by swrObjElmo_GetWaypointIndex
 #define SWR_ELMO_PIT_DROID_ANIM_WELD (20) // swrObjElmo_animFramesPitDroid entry of the welding loop (sparks + light flicker)
