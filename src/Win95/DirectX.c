@@ -155,7 +155,10 @@ BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID l
 // 0x004880c0
 int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
 {
-    HANG("TODO");
+    if (stdDisplay_numDevices == 0)
+        return 1;
+    *device = stdDisplay_aDisplayDevices[stdDisplay_curDevice];
+    return 0;
 }
 
 // 0x00488880
@@ -181,7 +184,20 @@ IDirectDrawSurface4* DirectDraw_GetZBuffer(void)
 // 0x00488a90
 void DirectDraw_FillMainSurface(void)
 {
-    HANG("TODO");
+    DDBLTFX fx;
+    HRESULT hr;
+
+    memset(&fx, 0, sizeof(fx));
+    fx.dwSize = sizeof(fx);
+    fx.dwFillDepth = directDraw_BltFillColor & 0xffff;
+    // clears the z-buffer; a lost surface is restored and the fill retried
+    do {
+        hr = stdDisplay_zBuffer.pDDSurf->lpVtbl->Blt(stdDisplay_zBuffer.pDDSurf, NULL, NULL, NULL, DDBLT_DEPTHFILL | DDBLT_WAIT, &fx);
+        if (hr == DD_OK)
+            return;
+        if (hr == DDERR_SURFACELOST)
+            hr = stdDisplay_zBuffer.pDDSurf->lpVtbl->Restore(stdDisplay_zBuffer.pDDSurf);
+    } while (hr == DD_OK);
 }
 
 // 0x00488d70

@@ -495,7 +495,16 @@ int stdDisplay_CreateZBuffer(LPDDPIXELFORMAT pPixelFormat, int bSystemMemory, in
 // 0x004899a0
 void stdDisplay_ReleaseBuffers(void)
 {
-    HANG("TODO");
+    if (stdDisplay_zBuffer.pDDSurf != NULL) {
+        stdDisplay_g_backBuffer.pVSurface.pDDSurf->lpVtbl->DeleteAttachedSurface(stdDisplay_g_backBuffer.pVSurface.pDDSurf, 0, stdDisplay_zBuffer.pDDSurf);
+        stdDisplay_zBuffer.pDDSurf->lpVtbl->Release(stdDisplay_zBuffer.pDDSurf);
+    }
+    // the back buffer is attached to the front (flip chain), so releasing the front frees both
+    if (stdDisplay_g_frontBuffer.pVSurface.pDDSurf != NULL)
+        stdDisplay_g_frontBuffer.pVSurface.pDDSurf->lpVtbl->Release(stdDisplay_g_frontBuffer.pVSurface.pDDSurf);
+    memset(&stdDisplay_zBuffer, 0, sizeof(stdDisplay_zBuffer));
+    memset(&stdDisplay_g_backBuffer, 0, sizeof(stdDisplay_g_backBuffer));
+    memset(&stdDisplay_g_frontBuffer, 0, sizeof(stdDisplay_g_frontBuffer));
 }
 
 // 0x00489a00
