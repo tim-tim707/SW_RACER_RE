@@ -86,6 +86,7 @@
 #define ELFSAVE_DEFAULT_TRUGUTS (400) // starting currency of a fresh profile
 #define ELFSAVE_NB_PROFILE_SLOTS (4) // swrSaveData::profiles
 #define RDMODEL_SCENE_MAX_DEPTH (0x20) // rdModel_sceneNodeDepth past which transformed nodes skip the matrix-stack push
+#define RDMODEL_ROOT_MAX_MESHES (6000) // swr_rootModel_ptr mesh pool (rdModel_rootGeoSet->aMeshes) and hierarchy-node pool
 // Player-upgradeable PodHandlingData categories (traction..repair); also the number
 // of garage stat bars swrRace_ComputeStatBars writes.
 #define SWR_UPGRADE_CATEGORY_COUNT (7)

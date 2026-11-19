@@ -63,16 +63,34 @@ typedef enum swrVehicleReaction
     swrVehicleReaction_Side = 0x20000000,
 } swrVehicleReaction;
 
+// swrModel_MeshMaterial::type bits
+typedef enum swrModel_MeshMaterialType
+{
+    swrModel_MESH_MATERIAL_VTX_NORMALS_MASK = 0x11, // either bit: vertices are Vtx_tn (normals) instead of Vtx_t (baked colors)
+    swrModel_MESH_MATERIAL_FRONT_FACING = 0x8, // one-sided, front-facing
+    swrModel_MESH_MATERIAL_MIRRORED = 0x40, // one-sided, mirrored
+} swrModel_MeshMaterialType;
+
+// rdModel3Mesh::colorFlags (rdModel3Mesh_ApplySwrModelColors)
+typedef enum rdModel3MeshColorFlag
+{
+    RDMESH_COLOR_PRIM_RGB = 0x1, // tint by the material's primitive color rgb
+    RDMESH_COLOR_PRIM_ALPHA = 0x2, // tint by the material's primitive color alpha
+    RDMESH_COLOR_VERTEX_ALPHA_ONLY = 0x4, // ignore baked vertex rgb, keep the vertex alpha
+} rdModel3MeshColorFlag;
+
 // GameSettingFlags @ 0x00e996dc: global render/gameplay setting bits.
 typedef enum GameSettingFlag
 {
     GAME_SETTING_UNK_1 = 0x1, // set by swrScene_LoadObjects; part of the swrViewport_ResetCameraState_Maybe default (9)
     GAME_SETTING_STEREO_PAN = 0x8, // swrSound_PlaySpatial pans sfx by their side of the listener
+    GAME_SETTING_UNTEXTURED = 0x10, // rdModel_AddMeshGroupToScene*: meshes take the default untextured material
     GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
     GAME_SETTING_UNK_200 = 0x200, // swrScene_Init skips latching its first argument when set
     GAME_SETTING_UNK_400 = 0x400, // swrScene_ResetRenderState also enables viewport 1
     GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
     GAME_SETTING_UNK_1000 = 0x1000, // resetInRaceInputBuffer clears local record 0 every frame while set
+    GAME_SETTING_UNK_2000 = 0x2000, // passed to rdModel_SetForceFlatNormals_Maybe for every scene mesh
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
@@ -4063,7 +4081,15 @@ typedef enum RdFaceFlag
     RD_FF_UNKNOWN_80 = 0x80,
     RD_FF_FOG_ENABLED = 0x100,
     RD_FF_3DO_WHIP_AIM = 0x200,
+    RD_FF_MIRRORED = 0x800, // swrModel_MESH_MATERIAL_MIRRORED one-sided meshes (rdModel_AddMeshGroupToScene*)
 } RdFaceFlag;
+
+// rdLight::type, as read by rdLight_CalcVertexIntensities
+typedef enum rdLightType
+{
+    RD_LIGHT_TYPE_DIRECTIONAL = 0, // aLightPos holds the light direction
+    RD_LIGHT_TYPE_POINT = 1, // lit within falloffMin, dimmed by distance * scalar
+} rdLightType;
 
 typedef enum RdLightMode
 {

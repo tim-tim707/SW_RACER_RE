@@ -146,7 +146,7 @@
 #define swrModel_AnimationsSetSettings_ADDR (0x0044B360)
 #define swrModel_GetAnimListTime_ADDR (0x0044b470)
 
-// Per-node render-matrix (MVP) compose + cache into swrModel_NodeTransformed +0xf4.
+// Bone-animated mesh parts: render matrix cached into rdModel3HNode::boneMatrix.
 #define swrModel_GetNodeYaw_ADDR (0x0044b4a0)
 #define swrModel_CachePrecomputedMatrices_ADDR (0x0044bbe0)
 #define swrModel_ComputeNodeRenderMatrix_ADDR (0x0044bfb0)
@@ -377,11 +377,11 @@ void swrModel_CompensateRootMotion(swrModel_Node** nodes, swrModel_Animation** a
 
 float swrModel_GetAnimListTime(swrModel_Animation** anims);
 
-// Per-node render-matrix caching (fills swrModel_NodeTransformed +0xf4 block used for collision/render).
+// Bone-animated mesh parts: render matrix cached into rdModel3HNode::boneMatrix.
 float swrModel_GetNodeYaw(swrModel_Node** nodes, swrModel_Animation** anims);
 void swrModel_CachePrecomputedMatrices(void);
-void swrModel_ComputeNodeRenderMatrix(swrModel_NodeTransformed* node, int a2);
-void swrModel_CopyNodeRenderMatrix(void* srcNode, swrModel_NodeTransformed* dstNode, int a3);
+void swrModel_ComputeNodeRenderMatrix(rdModel3HNode* node, int vertexBaseOffset);
+void swrModel_CopyNodeRenderMatrix(swrModel_NodeMeshGroup* srcNode, rdModel3HNode* dstNode, int vertexBaseOffset);
 
 Gfx* swrModel_MeshGetDisplayList(const swrModel_Mesh* a1);
 
