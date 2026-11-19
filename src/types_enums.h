@@ -1729,6 +1729,14 @@ typedef enum swrCamera_FLAG // swrCamera_unk.flags (unkCameraArray)
     swrCamera_FLAG_UNK_4 = 0x4, // set on camera 1 by swrCam_CamState_InitMatrices; no reader found
 } swrCamera_FLAG;
 
+// swrControl_CaptureBinding result, kept by swrControl_MappingsMenu to swallow the input that ended the capture
+typedef enum swrControl_CAPTURE
+{
+    swrControl_CAPTURE_SWALLOW_BACK = 0x1, // ignore the next back message (Esc / joystick button 1)
+    swrControl_CAPTURE_SWALLOW_ACCEPT = 0x2, // skip the next binding delete in swrControl_MappingsMenu
+    swrControl_CAPTURE_CHANGED = 0x4, // a binding was replaced
+} swrControl_CAPTURE;
+
 typedef enum swrControlBinding_FLAG
 {
     swrControlBinding_FLAG_ANALOG = 0x1, // feeds the action's *AxisInput value
