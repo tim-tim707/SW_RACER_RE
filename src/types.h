@@ -3074,14 +3074,15 @@ extern "C"
 
     typedef struct RdKeyframe
     {
-        char aName[64]; // jkdf 32, indy 64. 32 ?
+        char aName[64]; // 64 confirmed by the 0x4c type offset (jkdf 32)
         int idx;
         RdKeyframeFlag flags;
-        int type;
+        int unk48; // jkdf numJoints
+        int type; // 0x4c, masked against rdModel3HNode::type
         float fps;
         int numFrames;
-        int numJoints;
-        RdKeyframeNode* aNodes;
+        int numJoints; // 0x58
+        RdKeyframeNode* aNodes; // 0x5c
         int numMarkers;
         RdKeyframeMarker aMarkers[16]; // 8 in jkdf, ordered float[8] and markerType[8]
     } RdKeyframe;
@@ -3099,20 +3100,21 @@ extern "C"
         float noise;
         float playSpeed;
         float fadeSpeed;
-        int aNodes[64];
-        float curFrame;
+        int aNodes[64]; // 0x20, current entry index per keyframe node
+        char unk120[0x5cc0];
+        float curFrame; // 0x5de0
         float prevFrame;
         RdKeyframe* pKFTrack;
         RdPuppetTrackCallback pfCallback;
         unsigned int guid;
-    } RdPuppetTrack;
+    } RdPuppetTrack; // 0x5df4 bytes
 
     // Indy
     typedef struct RdPuppet
     {
         int unknown;
         RdThing* pThing;
-        RdPuppetTrack aTracks[8]; // Jkdf has 4. TODO: Check !
+        RdPuppetTrack aTracks[8]; // RDPUPPET_MAX_TRACKS, confirmed by rdPuppet_BuildJointMatrices
     } RdPuppet;
 
     typedef struct rdPrimit3

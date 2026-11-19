@@ -17,6 +17,7 @@
 #include <Win95/Window.h>
 #include <Main/swrMain.h>
 #include <Main/swrMain2.h>
+#include <Swr/swrMultiplayer.h>
 #include <Swr/swrUI.h>
 #include <Swr/swrText.h>
 #include <Platform/smush.h>
@@ -49,8 +50,45 @@ void Window_AddKeyEvent(WPARAM virtual_key_code, USHORT flags, uint8_t pressed)
 // 0x00423900
 LRESULT Window_msg_default_handler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT* uMsg_ptr)
 {
-    // TODO
-    return 0;
+    Windows_WinProc_res = 0;
+    switch (uMsg) {
+    case WM_ACTIVATEAPP:
+        Window_ActivateApp(hWnd, wParam, lParam);
+        return 0;
+    case WM_ACTIVATE:
+        Window_Activate(hWnd, LOWORD(wParam), lParam, HIWORD(wParam));
+        return 0;
+    case WM_SYSCOMMAND:
+        if (wParam == SC_KEYMENU || wParam == SC_SCREENSAVE)
+            Windows_WinProc_res = 1;
+        break;
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+        if (swrMultiplayer_chatEnabled == 0 || swrMultiplayer_chatInputOpen == 0) {
+            Window_AddKeyEvent(wParam, HIWORD(lParam) & WINDOW_KEY_SCANCODE_EXT_MASK, 1);
+            swrUI_HandleKeyEvent(wParam, 1);
+        }
+        break;
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        if (swrMultiplayer_chatEnabled == 0 || swrMultiplayer_chatInputOpen == 0) {
+            Window_AddKeyEvent(wParam, HIWORD(lParam) & WINDOW_KEY_SCANCODE_EXT_MASK, 0);
+            swrUI_HandleKeyEvent(wParam, 0);
+        } else {
+            swrMultiplayer_HandleChatKey(wParam);
+        }
+        break;
+    case WM_SIZING:
+        Window_Resize(hWnd, wParam, (struct tagRECT*)lParam);
+        return 0;
+    case WM_EXITSIZEMOVE:
+        Window_ResizeExit(hWnd);
+        return 0;
+    }
+
+    if (Windows_WinProc_res != 0)
+        *uMsg_ptr = 0;
+    return Windows_WinProc_res;
 }
 
 // 0x00423aa0

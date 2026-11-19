@@ -7,6 +7,7 @@
 
 #include <Engine/rdCamera.h>
 #include <Engine/rdMaterial.h>
+#include <Raster/rdFace.h>
 #include <Engine/rdThing.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdVector.h>
@@ -291,10 +292,270 @@ void rdModel3Mesh_ApplySwrModelColors(rdModel3Mesh* rdmesh, swrModel_Mesh* mesh)
     }
 }
 
+static int rdModel_ClampConvertIndex(int idx, int numVertices)
+{
+    // faithful: only idx > numVertices (unsigned) is rejected, idx == numVertices passes
+    if ((unsigned int)idx > (unsigned int)numVertices)
+        return 0;
+    return idx;
+}
+
+static void rdModel_InitConvertFace(RdFace* face, int num, RdFaceFlag flags, RdLightMode lightMode, int* aVertIdxs, int* aTexIdxs, RdMaterial* pMaterial)
+{
+    rdFace_NewEntry(face);
+    face->lightingMode = lightMode;
+    face->aVertIdxs = aVertIdxs;
+    face->num = num;
+    face->flags = flags;
+    face->geometryMode = RD_GEOMETRY_FULL;
+    face->numVertices = 3;
+    face->aTexIdxs = aTexIdxs;
+    face->pMaterial = pMaterial;
+}
+
+static void rdModel_SetConvertFaceIndices(RdFace* face, int a, int b, int c)
+{
+    face->aVertIdxs[0] = a;
+    face->aVertIdxs[1] = b;
+    face->aVertIdxs[2] = c;
+    face->aTexIdxs[0] = a;
+    face->aTexIdxs[1] = b;
+    face->aTexIdxs[2] = c;
+}
+
+static int rdModel_UsesPrimitiveColor(const uint8_t* combine)
+{
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        if (combine[i] == N64_CCMUX_PRIMITIVE || combine[i + 8] == N64_CCMUX_PRIMITIVE)
+            return 1;
+    }
+    return 0;
+}
+
 // 0x00432D30
 void rdModel_ConvertSwrModelMesh(Gfx* display_list, rdModel3Mesh* result, swrModel_Mesh* mesh, RdFaceFlag material_flags)
 {
-    HANG("TODO");
+    RdFace faces[RDMODEL_CONVERT_MAX_FACES];
+    swrModel_MeshMaterial* meshMaterial;
+    swrModel_MaterialTexture* texture;
+    swrModel_Material* material;
+    RdMaterial* pMaterial;
+    RdLightMode lightMode;
+    Vtx* vtx;
+    Gfx* cmd;
+    rdVector3* normal;
+    int* indexBuf;
+    uint32_t renderMode;
+    uint8_t texWrap;
+    uint8_t colorFlags;
+    float uScale;
+    float vScale;
+    float uDiv;
+    float vDiv;
+    int clampUV;
+    int hasNormals;
+    int numVertices;
+    int vertexBase;
+    int numFaces;
+    int indexBytes;
+    int done;
+    int i;
+
+    done = 0;
+    hasNormals = 0;
+    clampUV = 0;
+    numFaces = 0;
+    uScale = 1.0f;
+    vScale = 1.0f;
+    pMaterial = NULL;
+    colorFlags = 0;
+    lightMode = RD_LIGHTING_LIT;
+    renderMode = 0;
+    meshMaterial = mesh->mesh_material;
+
+    if (meshMaterial != NULL) {
+        material = meshMaterial->material;
+        texture = meshMaterial->material_texture;
+        if (texture == NULL) {
+            pMaterial = rdMaterial_GetOrCreateDefaultMaterial(meshMaterial);
+        } else {
+            pMaterial = texture->loaded_material;
+            if (texture->specs[0] != NULL) {
+                texWrap = ((uint8_t*)&texture->specs[0]->flags)[3];
+                if ((texWrap & swrModel_TEXWRAP_S_MIRROR) != 0)
+                    uScale = 2.0f;
+                if ((texWrap & swrModel_TEXWRAP_T_MIRROR) != 0)
+                    vScale = 2.0f;
+                if ((texWrap & swrModel_TEXWRAP_S_CLAMP) != 0 && (texWrap & swrModel_TEXWRAP_T_CLAMP) != 0)
+                    clampUV = 1;
+            }
+        }
+
+        if (material != NULL) {
+            renderMode = material->render_mode_1 | material->render_mode_2;
+            // color mux bytes of both cycles, then alpha mux bytes of both cycles
+            if (rdModel_UsesPrimitiveColor((const uint8_t*)&material->color_combine_mode_cycle1))
+                colorFlags = RDMESH_COLOR_PRIM_RGB;
+            if (rdModel_UsesPrimitiveColor((const uint8_t*)&material->alpha_combine_mode_cycle1)) {
+                colorFlags |= RDMESH_COLOR_PRIM_ALPHA;
+                material_flags |= RD_FF_TEX_TRANSLUCENT;
+            }
+
+            // the full render-mode words below are the specific N64 modes the PC port special-cases
+            if (rdMaterial_a_alpha_ice03_rgb != pMaterial) {
+                if ((renderMode & (N64_RM_Z_CMP | N64_RM_Z_UPD)) == 0)
+                    material_flags |= RD_FF_ZWRITE_DISABLED;
+                if (renderMode == 0xc81049f8 || renderMode == 0xc8104b50) {
+                    material_flags |= RD_FF_ZWRITE_DISABLED | RD_FF_DOUBLE_SIDED;
+                } else if (renderMode == 0xc1841c8) {
+                    if (pMaterial != NULL)
+                        rdMaterial_InvertTextureAlphaR4G4B4A4(pMaterial);
+                    material_flags |= RD_FF_NEAR_PLANE | RD_FF_ZWRITE_DISABLED | RD_FF_DOUBLE_SIDED;
+                } else if (rdMaterial_b_alpha_waterfall_ctr_rgb != pMaterial && rdMaterial_b_alpha_waterfall_edge_rgb != pMaterial) {
+                    if (renderMode == 0xc81041d8 || renderMode == 0xc81049d8) {
+                        material_flags |= RD_FF_ZWRITE_DISABLED | RD_FF_DOUBLE_SIDED;
+                    } else if (renderMode == 0xf0a2008) {
+                        material_flags |= RD_FF_ZWRITE_DISABLED;
+                    } else if (renderMode == 0xc184950) {
+                        material_flags |= RD_FF_ZWRITE_DISABLED;
+                        colorFlags |= RDMESH_COLOR_VERTEX_ALPHA_ONLY;
+                    } else if (renderMode != 0xc180079 && rdMaterial_mg_engturbine_rgb != pMaterial && renderMode != 0xc8104340 && (renderMode & N64_RM_ZMODE_XLU) == 0 && pMaterial != NULL) {
+                        if (pMaterial->formatType == STDCOLOR_FORMAT_RGBA_1BIT_ALPHA)
+                            rdMaterial_RemoveTextureAlphaR5G5B5A1(pMaterial);
+                        if (pMaterial->formatType == STDCOLOR_FORMAT_RGBA)
+                            rdMaterial_RemoveTextureAlphaR4G4B4A4(pMaterial);
+                    }
+                }
+            }
+
+            if (renderMode == 0xf0a2008)
+                clampUV = 1;
+            if (clampUV != 0)
+                material_flags |= RD_FF_TEX_CLAMP_X | RD_FF_TEX_CLAMP_Y;
+        }
+
+        if (renderMode != 0xc81041c8 && (meshMaterial->type & swrModel_MESH_MATERIAL_VTX_NORMALS_MASK) != 0) {
+            hasNormals = 1;
+            lightMode = RD_LIGHTING_GOURAUD;
+        }
+    }
+
+    vtx = mesh->vertices;
+    numVertices = (int16_t)mesh->num_vertices;
+    result->numVertices = numVertices;
+    result->apVertices = swrModel_AllocMaterial((unsigned int)meshMaterial, numVertices * sizeof(rdVector3));
+    result->numTexVertices = numVertices;
+    result->apTexVertices = swrModel_AllocMaterial((unsigned int)meshMaterial, numVertices * sizeof(rdVector2));
+    result->aVertColors = swrModel_AllocMaterial((unsigned int)meshMaterial, numVertices * sizeof(rdVector4));
+    result->aLightIntensities = swrModel_AllocMaterial((unsigned int)meshMaterial, numVertices * sizeof(rdVector4));
+    result->aVertNormals = swrModel_AllocMaterial((unsigned int)meshMaterial, numVertices * sizeof(rdVector3));
+    result->geoMode = RD_GEOMETRY_FULL;
+    result->lightMode = lightMode;
+    result->colorFlags = colorFlags;
+    rdVector_Set4(&result->meshColor, 1.0f, 1.0f, 1.0f, 1.0f);
+
+    if (numVertices != 0) {
+        // N64 texture coordinates are s10.5 fixed point over a 2x-mirrored page when the wrap mode mirrors
+        uDiv = uScale * 4096.0f;
+        vDiv = vScale * 4096.0f;
+        for (i = 0; i < numVertices; i++, vtx++) {
+            result->apVertices[i].x = (float)(int16_t)SWAP16(vtx->v.x);
+            result->apVertices[i].y = (float)(int16_t)SWAP16(vtx->v.y);
+            result->apVertices[i].z = (float)(int16_t)SWAP16(vtx->v.z);
+            result->apTexVertices[i].x = (float)(int16_t)SWAP16(vtx->v.u) / uDiv;
+            result->apTexVertices[i].y = (float)(int16_t)SWAP16(vtx->v.v) / vDiv;
+            if (hasNormals == 0) {
+                result->aVertColors[i].x = (float)vtx->v.r * (1.0f / 255.0f);
+                result->aVertColors[i].y = (float)vtx->v.g * (1.0f / 255.0f);
+                result->aVertColors[i].z = (float)vtx->v.b * (1.0f / 255.0f);
+                result->aVertColors[i].w = (float)vtx->v.a * (1.0f / 255.0f);
+            } else {
+                result->aVertColors[i].x = 1.0f;
+                result->aVertColors[i].y = 1.0f;
+                result->aVertColors[i].z = 1.0f;
+                result->aVertColors[i].w = 1.0f;
+                normal = &result->aVertNormals[i];
+                normal->x = (float)vtx->n.nx * (1.0f / 128.0f);
+                normal->y = (float)vtx->n.ny * (1.0f / 128.0f);
+                normal->z = (float)vtx->n.nz * (1.0f / 128.0f);
+                rdVector_Normalize3Acc_2(normal);
+            }
+            result->aLightIntensities[i] = result->aVertColors[i];
+        }
+    }
+
+    if (clampUV != 0) {
+        for (i = 0; i < numVertices; i++) {
+            result->apTexVertices[i].x = result->apTexVertices[i].x - 1.0f;
+            result->apTexVertices[i].y = result->apTexVertices[i].y - 1.0f;
+        }
+    }
+
+    indexBytes = 0;
+    cmd = display_list;
+    do {
+        if (cmd->type == GFX_OP_TRI1)
+            indexBytes += 2 * 3 * sizeof(int);
+        else if (cmd->type == GFX_OP_TRI2)
+            indexBytes += 2 * 2 * 3 * sizeof(int);
+        else if (cmd->type == GFX_OP_END_DL)
+            done = 1;
+        cmd++;
+    } while (done == 0);
+    indexBuf = swrModel_AllocMaterial((unsigned int)meshMaterial, indexBytes);
+
+    // faithful: vertexBase starts as the clampUV flag until the first gSPVertex sets it
+    vertexBase = clampUV;
+    done = 0;
+    cmd = display_list;
+    do {
+        if (cmd->type == GFX_OP_TRI1) {
+            int a = rdModel_ClampConvertIndex(((int8_t)cmd->gSP1Triangle.index0 >> 1) + vertexBase, numVertices);
+            int b = rdModel_ClampConvertIndex(((int8_t)cmd->gSP1Triangle.index1 >> 1) + vertexBase, numVertices);
+            int c = rdModel_ClampConvertIndex(((int8_t)cmd->gSP1Triangle.index2 >> 1) + vertexBase, numVertices);
+            rdModel_InitConvertFace(&faces[numFaces], numFaces, material_flags, lightMode, indexBuf, indexBuf + 3, pMaterial);
+            rdModel_SetConvertFaceIndices(&faces[numFaces], a, b, c);
+            indexBuf += 6;
+            numFaces++;
+        } else if (cmd->type == GFX_OP_VERTEX) {
+            rdModel_lastVertexLoad = cmd->gSPVertex.vertex_offset - mesh->vertex_base_offset;
+            vertexBase = ((int)rdModel_lastVertexLoad - (int)mesh->vertices) / (int)sizeof(Vtx);
+        } else if (cmd->type == GFX_OP_TRI2) {
+            int a = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index0 >> 1) + vertexBase, numVertices);
+            int b = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index1 >> 1) + vertexBase, numVertices);
+            int c = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index2 >> 1) + vertexBase, numVertices);
+            int d = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index3 >> 1) + vertexBase, numVertices);
+            int e = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index4 >> 1) + vertexBase, numVertices);
+            int f = rdModel_ClampConvertIndex(((int8_t)cmd->gSP2Triangles.index5 >> 1) + vertexBase, numVertices);
+            // faithful: both triangles get the same face num
+            for (i = 0; i < 2; i++) {
+                rdModel_InitConvertFace(&faces[numFaces + i], numFaces, material_flags, lightMode, indexBuf, indexBuf + 3, pMaterial);
+                indexBuf += 6;
+            }
+            rdModel_SetConvertFaceIndices(&faces[numFaces], a, b, c);
+            rdModel_SetConvertFaceIndices(&faces[numFaces + 1], d, e, f);
+            numFaces += 2;
+        } else if (cmd->type == GFX_OP_END_DL) {
+            done = 1;
+        }
+        cmd++;
+    } while (done == 0);
+
+    result->numFaces = numFaces;
+    result->aFaces = swrModel_AllocMaterial((unsigned int)meshMaterial, numFaces * sizeof(RdFace));
+    for (i = 0; i < numFaces; i++) {
+        rdFace_NewEntry(&result->aFaces[i]);
+        result->aFaces[i].num = faces[i].num;
+        result->aFaces[i].flags = faces[i].flags;
+        result->aFaces[i].geometryMode = faces[i].geometryMode;
+        result->aFaces[i].lightingMode = faces[i].lightingMode;
+        result->aFaces[i].numVertices = faces[i].numVertices;
+        result->aFaces[i].aVertIdxs = faces[i].aVertIdxs;
+        result->aFaces[i].aTexIdxs = faces[i].aTexIdxs;
+        result->aFaces[i].pMaterial = faces[i].pMaterial;
+    }
 }
 
 // 0x0044C440

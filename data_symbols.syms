@@ -1643,6 +1643,7 @@ swrModel_AlreadyByteSwappedMaterials 0x00E68280 swrModel_Material*[]
 swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
 swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
+rdModel_lastVertexLoad 0x00e996a0 Vtx* # last gSPVertex source (minus the mesh's vertex_base_offset) seen by rdModel_ConvertSwrModelMesh; write-only
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
 swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetCameraState_Maybe / ResetModelPreviewState_Maybe; no readers found
