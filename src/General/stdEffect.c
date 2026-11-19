@@ -1,9 +1,9 @@
 #include "stdEffect.h"
 
-#include <macros.h>
+#include "globals.h"
 
 // 0x0049ea00
 tStdFadeFactor* stdEffect_GetFadeFactor(void)
 {
-    HANG("TODO");
+    return &stdEffect_fadeFactor;
 }

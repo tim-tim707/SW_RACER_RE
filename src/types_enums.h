@@ -4084,6 +4084,13 @@ typedef enum RdFaceFlag
     RD_FF_MIRRORED = 0x800, // swrModel_MESH_MATERIAL_MIRRORED one-sided meshes (rdModel_AddMeshGroupToScene*)
 } RdFaceFlag;
 
+// rdLight::type, as read by rdLight_CalcVertexIntensities
+typedef enum rdLightType
+{
+    RD_LIGHT_TYPE_DIRECTIONAL = 0, // aLightPos holds the light direction
+    RD_LIGHT_TYPE_POINT = 1, // lit within falloffMin, dimmed by distance * scalar
+} rdLightType;
+
 typedef enum RdLightMode
 {
     RD_LIGHTING_NONE = 0,

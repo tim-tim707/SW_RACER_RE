@@ -202,12 +202,17 @@ void rdCache_SendWireframeFaceListToHardware(int numPolys, RdCacheProcEntry* aPo
 // 0x0048e5f0
 void rdCache_AddToTextureCache(tSystemTexture* pTexture, StdColorFormatType format)
 {
-    HANG("TODO");
+    if (pTexture->pD3DCachedTex == NULL) {
+        std3D_AddToTextureCache(pTexture, format);
+        return;
+    }
+    std3D_UpdateFrameCount(pTexture);
 }
 
-// !! TODO: Size and access do not match !!
 // 0x0048e640
 int rdCache_ProcFaceCompare(RdCacheProcEntry* pEntry1, RdCacheProcEntry* pEntry2)
 {
-    HANG("TODO");
+    if (pEntry1->pMaterial == pEntry2->pMaterial)
+        return pEntry2->matCelNum - pEntry1->matCelNum;
+    return (int)(pEntry2->pMaterial - pEntry1->pMaterial);
 }

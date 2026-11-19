@@ -1,6 +1,11 @@
 #include "rdLight.h"
 
+#include "globals.h"
+
+#include <Primitives/rdVector.h>
 #include <macros.h>
+
+#include <math.h>
 
 // 0x00490510
 int rdLight_NewEntry(rdLight* light)
@@ -17,9 +22,56 @@ int rdLight_NewEntry(rdLight* light)
 }
 
 // 0x00490550
-void rdLight_CalcVertexIntensities(RdLight** apLights, rdVector3* aLightPos, int numLights, rdVector3* aVertexNormal, rdVector3* aVertices, rdVector4* aVertexColors, rdVector4* aLightColors, int numVertices)
+void rdLight_CalcVertexIntensities(rdLight** apLights, rdVector3* aLightPos, int numLights, rdVector3* aVertexNormal, rdVector3* aVertices, rdVector4* aVertexColors, rdVector4* aLightColors, int numVertices, float scalar)
 {
-    HANG("TODO");
+    rdVector3 toLight;
+    rdVector4* out;
+    rdVector3* normal;
+    rdLight* light;
+    float dot;
+    float dist;
+    float falloff;
+    int v, l;
+
+    for (v = numVertices - 1; v >= 0; v--) {
+        out = &aLightColors[v];
+        normal = &aVertexNormal[v];
+        out->x = rdCamera_pCurCamera->ambientColor.x;
+        out->y = rdCamera_pCurCamera->ambientColor.y;
+        out->z = rdCamera_pCurCamera->ambientColor.z;
+        out->w = 1.0f;
+        for (l = numLights - 1; l >= 0; l--) {
+            light = apLights[l];
+            if (light->type == RD_LIGHT_TYPE_DIRECTIONAL) {
+                dot = normal->x * aLightPos[l].x + normal->y * aLightPos[l].y + normal->z * aLightPos[l].z;
+                if (dot > 0.0f) {
+                    out->x = light->color.x * dot + out->x;
+                    out->y = light->color.y * dot + out->y;
+                    out->z = light->color.z * dot + out->z;
+                }
+            } else if (light->type == RD_LIGHT_TYPE_POINT) {
+                toLight.x = aLightPos[l].x - aVertices[v].x;
+                toLight.y = aLightPos[l].y - aVertices[v].y;
+                toLight.z = aLightPos[l].z - aVertices[v].z;
+                dist = sqrtf(toLight.x * toLight.x + toLight.y * toLight.y + toLight.z * toLight.z);
+                if (dist < light->falloffMin) {
+                    rdVector_Normalize3Acc_2(&toLight);
+                    dot = normal->x * toLight.x + normal->y * toLight.y + normal->z * toLight.z;
+                    if (dot > 0.0f) {
+                        falloff = dist * scalar;
+                        out->x = (light->color.x - falloff) * dot + out->x;
+                        out->y = (light->color.y - falloff) * dot + out->y;
+                        out->z = (light->color.z - falloff) * dot + out->z;
+                    }
+                }
+            }
+            // faithful: the vertex color is multiplied in once per light, not once per vertex
+            out->x = aVertexColors[v].x * out->x;
+            out->y = aVertexColors[v].y * out->y;
+            out->z = aVertexColors[v].z * out->z;
+            out->w = aVertexColors[v].w * out->w;
+        }
+    }
 }
 
 // 0x00490750

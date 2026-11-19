@@ -1362,6 +1362,7 @@ Window_border_height 0x00dfaa38 int
 wuRegistry_bInitted 0x00dfaa3c int
 wuRegistry_lpSubKey 0x00dfaa40 LPCSTR
 wuRegistry_hKey 0x00dfaa44 HKEY
+stdEffect_fadeFactor 0x00dfaa48 tStdFadeFactor # returned by stdEffect_GetFadeFactor
 
 rdCache_aVertices 0x009630d0 rdVector3[]
 
