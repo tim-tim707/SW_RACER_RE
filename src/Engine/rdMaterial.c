@@ -19,7 +19,10 @@ RdMaterial* rdMaterial_Load(char* pFilename)
         return ((RdMaterial * (*)(char*)) rdMaterial_pMaterialsLoader)(pFilename);
 
     material = (RdMaterial*)(*rdroid_hostServices_ptr->alloc)(sizeof(RdMaterial));
-    if (material != NULL && rdMaterial_LoadEntry(pFilename, (swrMaterial*)material) == 0)
+    // the original passes a NULL alloc result to rdMaterial_Free (crash on OOM)
+    if (material == NULL)
+        return NULL;
+    if (rdMaterial_LoadEntry(pFilename, (swrMaterial*)material) == 0)
         return material;
 
     rdMaterial_Free(material);
