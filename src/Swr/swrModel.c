@@ -72,6 +72,13 @@ void swrModel_FreeSlotMaterials(int slot)
     swrMaterialSlot_array[slot] = NULL;
 }
 
+// 0x00408f90
+void swrModel_PopRootMaterial(void)
+{
+    swrModel3_root_numMaterials--;
+    swrModel_slotMaterialCount[swrModel_lastMaterialSlot]--;
+}
+
 // 0x00408fb0
 void swrModel_RegisterRootMaterial(unsigned int bufferKind, void* material)
 {
