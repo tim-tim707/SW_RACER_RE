@@ -300,6 +300,8 @@
 
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
+#define SWR_SPRITE_ID_SUN_GLARE (-0x68) // pseudo sprite id swrSprite_SetVisible/SetColor route to the full-screen sun glare tint (swrSprite_unk2_*)
+#define SWR_SUN_OCCLUDED_COVERAGE (50) // UpdateSunAndLensFlareSprites2: sun_occlusionCoverage at or above this hides the sun and its flares
 // in-race engine damage panel (swrRace_InRaceEngineUI): 6 part icons + 2 brackets per local player
 #define SWR_HUD_ENGINE_SPRITE_FIRST (0x1b)
 #define SWR_HUD_ENGINE_BRACKET_LEFT (0x21)

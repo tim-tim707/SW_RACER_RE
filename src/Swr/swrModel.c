@@ -7,6 +7,7 @@
 #include "swrViewport.h"
 #include "swrSprite.h"
 #include "swrText.h"
+#include "swrRace.h"
 
 #include <Engine/rdMaterial.h>
 #include <engine_config.h>
@@ -1486,6 +1487,101 @@ void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int 
     player_sprite_positions_on_map[player_id].x = position->x;
     player_sprite_positions_on_map[player_id].y = position->y;
     player_sprite_positions_on_map[player_id].z = position->z;
+}
+
+// 0x0042bb50
+void UpdateSunAndLensFlareSprites2(int screenX, int screenY, int sun)
+{
+    int coverage = sun_occlusionCoverage[sun];
+    int dx, dy;
+    int brightness;
+    int flare;
+    int alpha;
+    float visibility;
+    float size;
+    float dist;
+    float scroll;
+    float intensity;
+    int i;
+
+    if (coverage >= SWR_SUN_OCCLUDED_COVERAGE) {
+        swrSprite_SetVisible(sunSpriteIds[sun], 0);
+        for (i = 0; i < 8; i++) {
+            if (lensFlareSpriteIds[sun * 8 + i] != -1)
+                swrSprite_SetVisible(lensFlareSpriteIds[sun * 8 + i], 0);
+        }
+        return;
+    }
+
+    dx = screenX - swrDisplay_screenWidth / 2;
+    dy = screenY - swrDisplay_screenHeight / 2;
+    visibility = 1.0f - coverage * 0.02f;
+    size = visibility * sunSpriteScale[sun];
+    dist = stdMath_Sqrt((float)(dx * dx + dy * dy)) * 0.0125f;
+    if (dist <= 1.0f)
+        brightness = (int)(255.0f - dist * 255.0f);
+    else
+        brightness = 0;
+    // the alpha byte is read signed here and in the sun color below (faithful)
+    flare = (int)((float)((int)(size / sunSpriteScale[sun]) * brightness) * ((signed char)sunSpriteColors[sun * 4 + 3] * 0.003921569f));
+    if (flare > sun_maxFlareBrightness)
+        sun_maxFlareBrightness = flare;
+
+    swrSprite_SetVisible(sunSpriteIds[sun], 1);
+    swrSprite_SetPosF(sunSpriteIds[sun], screenX, screenY);
+    swrSprite_SetDim(sunSpriteIds[sun], size, size);
+    if (GetPauseState() != 0)
+        alpha = (int)(255.0f - GetPauseMenuScrollInOut() * 150.0f);
+    else
+        alpha = 255;
+    swrSprite_SetColor(sunSpriteIds[sun], sunSpriteColors[sun * 4], sunSpriteColors[sun * 4 + 1], sunSpriteColors[sun * 4 + 2], alpha * (signed char)sunSpriteColors[sun * 4 + 3] / 255);
+
+    if (dist <= 2.0f && swrRace_GetLensFlareEnabled() != 0) {
+        scroll = GetPauseMenuScrollInOut();
+        intensity = sunSpriteColors[sun * 4 + 3] * 0.003921569f * (float)((2.0f - dist) * 0.5f * visibility * (1.0f - scroll * 0.6f));
+        for (i = 0; i < 8; i++) {
+            int flareIndex = sun * 8 + i;
+            if (lensFlareSpriteIds[flareIndex] != -1) {
+                swrSprite_SetVisible(lensFlareSpriteIds[flareIndex], 1);
+                swrSprite_UpdateLensFlareSpriteSettings(lensFlareSpriteIds[flareIndex], screenX, screenY, lensFlareSize[flareIndex], lensFlareSpread[flareIndex], intensity, lensFlareColors[flareIndex * 3], lensFlareColors[flareIndex * 3 + 1], lensFlareColors[flareIndex * 3 + 2]);
+            }
+        }
+        return;
+    }
+    for (i = 0; i < 8; i++) {
+        if (lensFlareSpriteIds[sun * 8 + i] != -1)
+            swrSprite_SetVisible(lensFlareSpriteIds[sun * 8 + i], 0);
+    }
+}
+
+// 0x0042c1a0
+void UpdateSunAndLensFlareSprites(swrViewport* viewport)
+{
+    int anySun;
+    int sun;
+    float x, y, z, depth;
+
+    swrSprite_SetVisible(SWR_SPRITE_ID_SUN_GLARE, 0);
+    if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_HIDE_OVERLAY_KEYS) && swrRace_DebugLevel > 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1100) == 0x1100)
+        return;
+
+    sun_maxFlareBrightness = 0;
+    anySun = 0;
+    for (sun = 0; sun < 2; sun++) {
+        if (sunSpriteIds[sun] < 0)
+            continue;
+        sun_prevOcclusionSampleX[sun] = sun_occlusionSampleX[sun];
+        sun_prevOcclusionSampleY[sun] = sun_occlusionSampleY[sun];
+        sun_occlusionSampleX[sun] = sun_screenX[sun];
+        sun_occlusionSampleY[sun] = sun_screenY[sun];
+        anySun = 1;
+        swrViewport_ProjectToScreen(viewport, (rdVector4*)&sun_sprite_position[sun], &x, &y, &z, &depth, 1);
+        sun_screenX[sun] = (int)x;
+        sun_screenY[sun] = (int)y;
+        UpdateSunAndLensFlareSprites2(sun_screenX[sun], sun_screenY[sun], sun);
+    }
+    if (anySun)
+        swrSprite_SetColor(SWR_SPRITE_ID_SUN_GLARE, 0xff, 0xff, 200, (int)(sun_maxFlareBrightness * 0.9));
 }
 
 // 0x0042c3e0

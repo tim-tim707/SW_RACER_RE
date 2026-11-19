@@ -258,6 +258,7 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_MIRROR_TOGGLE = 0x20, // "Mirrored Mode" toggle row
     swrRace_DEBUGFLAG_UNLOCK_ALL = 0x40, // swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
     swrRace_DEBUGFLAG_IFLY = 0x2000, // I+F+L+Y with DebugMenuState 2 (swrMain_ProcessDebugKeys); read by swrRace_UpdateSurfaceTag
+    swrRace_DEBUGFLAG_HIDE_OVERLAY_KEYS = 0x200, // with swrRace_DebugLevel > 0, holding input bits 0x1100 hides the sun/flares and the 2D overlay sprites
     swrRace_DEBUGFLAG_DEBUG_KEYS = 0x100, // with swrRace_DebugLevel != 0, enables held-key debug toggles (e.g. hide the pod reflection)
     swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugColorsEqual_Maybe (profile-initials checks)
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
