@@ -1,12 +1,10 @@
 #include "rdPrimit3.h"
 
-#include <macros.h>
+#include "globals.h"
 
-// 0x004910a0
-void rdPrimit3_ClipFace(rdClipFrustum* pFrustrum, RdGeometryMode geoMode, RdLightMode lightMode, rdPrimit3* pSrc, rdPrimit3* pDest, rdVector2* pTexVertOffset)
-{
-    HANG("TODO");
-}
+#include <Engine/rdClip.h>
+
+#include <macros.h>
 
 static float rdPrimit3_ClampIntensity(float value)
 {
@@ -32,6 +30,78 @@ static void rdPrimit3_CopyVertexLight(rdMeshinfo* src, rdMeshinfo* dst, unsigned
     for (k = 0; k < 3; k++)
         out[k] = rdPrimit3_ClampIntensity(dynamicLight[k] + src->intensities[i * 4 + k]);
     out[3] = rdPrimit3_ClampIntensity(dynamicLight[3]);
+}
+
+// 0x004910a0
+void rdPrimit3_ClipFace(rdClipFrustum* pFrustrum, RdGeometryMode geoMode, RdLightMode lightMode, rdPrimit3* pSrc, rdPrimit3* pDest, rdVector2* pTexVertOffset)
+{
+    unsigned int i;
+
+    switch (geoMode) {
+    case RD_GEOMETRY_NONE:
+        for (i = 0; i < pSrc->numVertices; i++)
+            pDest->aVertices[i] = pSrc->aVertices[pSrc->aVertIdxs[i]];
+        break;
+    case RD_GEOMETRY_VERTEX:
+    case RD_GEOMETRY_WIREFRAME:
+        for (i = 0; i < pSrc->numVertices; i++)
+            pDest->aVertices[i] = pSrc->aVertices[pSrc->aVertIdxs[i]];
+        if (rdCamera_pCurCamera->projectType != rdCameraProjectType_Perspective) {
+            pDest->numVertices = rdClip_Face3WOrtho(pFrustrum, pDest->aVertices, pSrc->numVertices);
+            return;
+        }
+        pDest->numVertices = rdClip_Face3W(pFrustrum, pDest->aVertices, pSrc->numVertices);
+        return;
+    case RD_GEOMETRY_SOLID:
+        if (lightMode < RD_LIGHTING_NONE || lightMode > RD_LIGHTING_GOURAUD)
+            return;
+        for (i = 0; i < pSrc->numVertices; i++) {
+            pDest->aVertices[i] = pSrc->aVertices[pSrc->aVertIdxs[i]];
+            if (lightMode == RD_LIGHTING_GOURAUD)
+                rdPrimit3_CopyVertexLight((rdMeshinfo*)pSrc, (rdMeshinfo*)pDest, i);
+        }
+        if (lightMode != RD_LIGHTING_GOURAUD)
+            break;
+        if (rdCamera_pCurCamera->projectType != rdCameraProjectType_Perspective) {
+            pDest->numVertices = rdClip_Face3GSOrtho(pFrustrum, pDest->aVertices, pDest->aVertLights, pSrc->numVertices);
+            return;
+        }
+        pDest->numVertices = rdClip_Face3GS(pFrustrum, pDest->aVertices, pDest->aVertLights, pSrc->numVertices);
+        return;
+    case RD_GEOMETRY_FULL:
+        if (lightMode < RD_LIGHTING_NONE || lightMode > RD_LIGHTING_GOURAUD)
+            return;
+        for (i = 0; i < pSrc->numVertices; i++) {
+            pDest->aVertices[i] = pSrc->aVertices[pSrc->aVertIdxs[i]];
+            pDest->aTexVertices[i] = pSrc->aTexVertices[pSrc->aTexVertIdxs[i]];
+            pDest->aTexVertices[i].x = pTexVertOffset->x + pDest->aTexVertices[i].x;
+            pDest->aTexVertices[i].y = pDest->aTexVertices[i].y + pTexVertOffset->y;
+            if (lightMode == RD_LIGHTING_GOURAUD)
+                rdPrimit3_CopyVertexLight((rdMeshinfo*)pSrc, (rdMeshinfo*)pDest, i);
+        }
+        if (lightMode == RD_LIGHTING_GOURAUD) {
+            if (rdCamera_pCurCamera->projectType != rdCameraProjectType_Perspective) {
+                pDest->numVertices = rdClip_Face3TOrtho(pFrustrum, pDest->aVertices, pDest->aTexVertices, pDest->aVertLights, pSrc->numVertices);
+                return;
+            }
+            pDest->numVertices = rdClip_Face3T(pFrustrum, pDest->aVertices, pDest->aTexVertices, pDest->aVertLights, pSrc->numVertices);
+            return;
+        }
+        if (rdCamera_pCurCamera->projectType == rdCameraProjectType_Perspective) {
+            pDest->numVertices = rdClip_Face3GT(pFrustrum, pDest->aVertices, pDest->aTexVertices, pSrc->numVertices);
+            return;
+        }
+        pDest->numVertices = rdClip_Face3GTOrtho(pFrustrum, pDest->aVertices, pDest->aTexVertices, pSrc->numVertices);
+        return;
+    default:
+        return;
+    }
+
+    if (rdCamera_pCurCamera->projectType != rdCameraProjectType_Perspective) {
+        pDest->numVertices = rdClip_Face3SOrtho(pFrustrum, pDest->aVertices, pSrc->numVertices);
+        return;
+    }
+    pDest->numVertices = rdClip_Face3S(pFrustrum, pDest->aVertices, pSrc->numVertices);
 }
 
 // 0x00491ac0

@@ -1140,28 +1140,1306 @@ int rdClip_Face3SOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, int numVer
     return numOut;
 }
 
+// Faithful: unlike rdClip_Face3T, crossings leave the intensity w channel unwritten.
 // 0x00496e40
 int rdClip_Face3GS(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector4* aIntensities, int numVertices)
 {
-    HANG("TODO");
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector3* pDst;
+    rdVector3* pSwapV;
+    rdVector4* pPrevInt;
+    rdVector4* pCurInt;
+    rdVector4* pDstInt;
+    rdVector4* pSwapI;
+    int numIn;
+    int numOut;
+    int i;
+    float dR;
+    float dC;
+    float denom;
+    float cross;
+    float iC;
+    float adR;
+    float adC;
+    float t;
+
+    rdClip_faceStatus = 0;
+    rdClip_pSrcVerts = aVertices;
+    rdClip_pDstVerts = rdClip_workVerts;
+    rdClip_pSrcIntensities = aIntensities;
+    rdClip_pDstIntensities = rdClip_workIntensities;
+
+    // ---- pass 1: rightPlane, clip x, keep x >= plane * y ----
+    numOut = 0;
+    if (numVertices > 0) {
+        pDst = rdClip_pDstVerts;
+        pDstInt = rdClip_pDstIntensities;
+        pPrev = rdClip_pSrcVerts + numVertices - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevInt = rdClip_pSrcIntensities + numVertices - 1;
+        pCurInt = rdClip_pSrcIntensities;
+        i = numVertices;
+        do {
+            if (pFrustrum->rightPlane * pPrev->y <= pPrev->x || pFrustrum->rightPlane * pCur->y <= pCur->x) {
+                if (pPrev->x != pFrustrum->rightPlane * pPrev->y && pCur->x != pFrustrum->rightPlane * pCur->y && (pPrev->x < pFrustrum->rightPlane * pPrev->y || pCur->x < pFrustrum->rightPlane * pCur->y)) {
+                    dR = pCur->y - pPrev->y;
+                    dC = pCur->x - pPrev->x;
+                    denom = pFrustrum->rightPlane * dR - dC;
+                    cross = pCur->y * pPrev->x - pPrev->y * pCur->x;
+                    if (denom != 0.0) {
+                        cross = cross / denom;
+                    }
+                    iC = pFrustrum->rightPlane * cross;
+                    adR = dR < 0.0 ? -dR : dR;
+                    adC = dC < 0.0 ? -dC : dC;
+                    t = adR <= adC ? (iC - pPrev->x) / dC : (cross - pPrev->y) / dR;
+                    pDst[numOut].x = iC;
+                    pDst[numOut].y = cross;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                    pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                    pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_PLANE_A;
+                }
+                if (pFrustrum->rightPlane * pCur->y <= pCur->x) {
+                    pDst[numOut] = *pCur;
+                    pDstInt[numOut] = *pCurInt;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevInt = pCurInt;
+            pCurInt++;
+            i--;
+        } while (i != 0);
+    }
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 2: bottomPlane, clip x, keep x <= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pPrev->x <= pFrustrum->bottomPlane * pPrev->y || pCur->x <= pFrustrum->bottomPlane * pCur->y) {
+            if (pPrev->x != pFrustrum->bottomPlane * pPrev->y && pCur->x != pFrustrum->bottomPlane * pCur->y && (pFrustrum->bottomPlane * pPrev->y < pPrev->x || pFrustrum->bottomPlane * pCur->y < pCur->x)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->x - pPrev->x;
+                denom = pFrustrum->bottomPlane * dR - dC;
+                cross = pCur->y * pPrev->x - pPrev->y * pCur->x;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->bottomPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->x) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = iC;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_B;
+            }
+            if (pCur->x <= pFrustrum->bottomPlane * pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 3: leftPlane, clip z, keep z <= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pPrev->z <= pFrustrum->leftPlane * pPrev->y || pCur->z <= pFrustrum->leftPlane * pCur->y) {
+            if (pPrev->z != pFrustrum->leftPlane * pPrev->y && pCur->z != pFrustrum->leftPlane * pCur->y && (pFrustrum->leftPlane * pPrev->y < pPrev->z || pFrustrum->leftPlane * pCur->y < pCur->z)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->z - pPrev->z;
+                denom = pFrustrum->leftPlane * dR - dC;
+                cross = pCur->y * pPrev->z - pPrev->y * pCur->z;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->leftPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->z) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = iC;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_C;
+            }
+            if (pCur->z <= pFrustrum->leftPlane * pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 4: orthoBottomPlane, clip z, keep z >= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pFrustrum->orthoBottomPlane * pPrev->y <= pPrev->z || pFrustrum->orthoBottomPlane * pCur->y <= pCur->z) {
+            if (pPrev->z != pFrustrum->orthoBottomPlane * pPrev->y && pCur->z != pFrustrum->orthoBottomPlane * pCur->y && (pPrev->z < pFrustrum->orthoBottomPlane * pPrev->y || pCur->z < pFrustrum->orthoBottomPlane * pCur->y)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->z - pPrev->z;
+                denom = pFrustrum->orthoBottomPlane * dR - dC;
+                cross = pCur->y * pPrev->z - pPrev->y * pCur->z;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->orthoBottomPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->z) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = iC;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_D;
+            }
+            if (pFrustrum->orthoBottomPlane * pCur->y <= pCur->z) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 5: zNear, clip y, keep y >= zNear ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pFrustrum->zNear <= pPrev->y || pFrustrum->zNear <= pCur->y) {
+            if (pPrev->y != pFrustrum->zNear && pCur->y != pFrustrum->zNear && (pPrev->y < pFrustrum->zNear || pCur->y < pFrustrum->zNear)) {
+                t = (pFrustrum->zNear - pPrev->y) / (pCur->y - pPrev->y);
+                pDst[numOut].y = pFrustrum->zNear;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+            }
+            if (pFrustrum->zNear <= pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
+        return numOut;
+    }
+
+    // ---- pass 6: zFar, clip y, keep y <= zFar (only if far clip enabled) ----
+    if (pFrustrum->bFarClip != 0) {
+        pSwapV = rdClip_pSrcVerts;
+        rdClip_pSrcVerts = rdClip_pDstVerts;
+        rdClip_pDstVerts = pSwapV;
+        pSwapI = rdClip_pSrcIntensities;
+        rdClip_pSrcIntensities = rdClip_pDstIntensities;
+        rdClip_pDstIntensities = pSwapI;
+
+        numIn = numOut;
+        numOut = 0;
+        pDst = rdClip_pDstVerts;
+        pDstInt = rdClip_pDstIntensities;
+        pPrev = rdClip_pSrcVerts + numIn - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+        pCurInt = rdClip_pSrcIntensities;
+        i = numIn;
+        do {
+            if (pPrev->y <= pFrustrum->zFar || pCur->y <= pFrustrum->zFar) {
+                if (pPrev->y != pFrustrum->zFar && pCur->y != pFrustrum->zFar && (pFrustrum->zFar < pPrev->y || pFrustrum->zFar < pCur->y)) {
+                    t = (pFrustrum->zFar - pPrev->y) / (pCur->y - pPrev->y);
+                    pDst[numOut].y = pFrustrum->zFar;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                    pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                    pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_FARZ;
+                }
+                if (pCur->y <= pFrustrum->zFar) {
+                    pDst[numOut] = *pCur;
+                    pDstInt[numOut] = *pCurInt;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevInt = pCurInt;
+            pCurInt++;
+            i--;
+        } while (i != 0);
+        if (numOut < 3) {
+            return numOut;
+        }
+    }
+
+    if (rdClip_pDstVerts != aVertices) {
+        for (i = 0; i < numOut; i++) {
+            aVertices[i] = rdClip_pDstVerts[i];
+            aIntensities[i] = rdClip_pDstIntensities[i];
+        }
+    }
+    return numOut;
 }
 
 // 0x00497da0
 int rdClip_Face3GSOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector4* aIntensities, int numVertices)
 {
-    HANG("TODO");
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector3* pDst;
+    rdVector3* pSwapV;
+    rdVector4* pPrevInt;
+    rdVector4* pCurInt;
+    rdVector4* pDstInt;
+    rdVector4* pSwapI;
+    int numIn;
+    int numOut;
+    int i;
+    float plane;
+    float t;
+
+    rdClip_faceStatus = 0;
+    rdClip_pSrcVerts = aVertices;
+    rdClip_pDstVerts = rdClip_workVerts;
+    rdClip_pSrcIntensities = aIntensities;
+    rdClip_pDstIntensities = rdClip_workIntensities;
+
+    // ---- pass 1: nearPlane, clip x, keep x >= nearPlane ----
+    numOut = 0;
+    plane = pFrustum->nearPlane;
+    if (numVertices > 0) {
+        pDst = rdClip_pDstVerts;
+        pDstInt = rdClip_pDstIntensities;
+        pPrev = rdClip_pSrcVerts + numVertices - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevInt = rdClip_pSrcIntensities + numVertices - 1;
+        pCurInt = rdClip_pSrcIntensities;
+        i = numVertices;
+        do {
+            if (plane <= pPrev->x || plane <= pCur->x) {
+                if (pPrev->x != plane && pCur->x != plane && (pPrev->x < plane || pCur->x < plane)) {
+                    t = (plane - pPrev->x) / (pCur->x - pPrev->x);
+                    pDst[numOut].x = plane;
+                    pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                    pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                    pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_PLANE_A;
+                }
+                if (plane <= pCur->x) {
+                    pDst[numOut] = *pCur;
+                    pDstInt[numOut] = *pCurInt;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevInt = pCurInt;
+            pCurInt++;
+            i--;
+        } while (i != 0);
+    }
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 2: orthoLeftPlane, clip x, keep x <= orthoLeftPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustum->orthoLeftPlane;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pPrev->x <= plane || pCur->x <= plane) {
+            if (pPrev->x != plane && pCur->x != plane && (plane < pPrev->x || plane < pCur->x)) {
+                t = (plane - pPrev->x) / (pCur->x - pPrev->x);
+                pDst[numOut].x = plane;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_B;
+            }
+            if (pCur->x <= plane) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 3: farPlane, clip z, keep z <= farPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustum->farPlane;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (pPrev->z <= plane || pCur->z <= plane) {
+            if (pPrev->z != plane && pCur->z != plane && (plane < pPrev->z || plane < pCur->z)) {
+                t = (plane - pPrev->z) / (pCur->z - pPrev->z);
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = plane;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_C;
+            }
+            if (pCur->z <= plane) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 4: orthoTopPlane, clip z, keep z >= orthoTopPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustum->orthoTopPlane;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (plane <= pPrev->z || plane <= pCur->z) {
+            if (pPrev->z != plane && pCur->z != plane && (pPrev->z < plane || pCur->z < plane)) {
+                t = (plane - pPrev->z) / (pCur->z - pPrev->z);
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = plane;
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_D;
+            }
+            if (plane <= pCur->z) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapI = rdClip_pSrcIntensities;
+    rdClip_pSrcIntensities = rdClip_pDstIntensities;
+    rdClip_pDstIntensities = pSwapI;
+
+    // ---- pass 5: zNear, clip y, keep y >= zNear ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustum->zNear;
+    pDst = rdClip_pDstVerts;
+    pDstInt = rdClip_pDstIntensities;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+    pCurInt = rdClip_pSrcIntensities;
+    i = numIn;
+    do {
+        if (plane <= pPrev->y || plane <= pCur->y) {
+            if (pPrev->y != plane && pCur->y != plane && (pPrev->y < plane || pCur->y < plane)) {
+                t = (plane - pPrev->y) / (pCur->y - pPrev->y);
+                pDst[numOut].y = plane;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                // NOTE: faithful to the original - the zNear pass interpolates the
+                // intensity y/z deltas against prevInt.x (not .y/.z). This is a bug
+                // in the shipped game, isolated to this pass; kept for byte fidelity.
+                pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                pDstInt[numOut].y = (pCurInt->y - pPrevInt->x) * t + pPrevInt->y;
+                pDstInt[numOut].z = (pCurInt->z - pPrevInt->x) * t + pPrevInt->z;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+            }
+            if (plane <= pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstInt[numOut] = *pCurInt;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevInt = pCurInt;
+        pCurInt++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
+        return numOut;
+    }
+
+    // ---- pass 6: zFar, clip y, keep y <= zFar (only if far clip enabled) ----
+    if (pFrustum->bFarClip != 0) {
+        pSwapV = rdClip_pSrcVerts;
+        rdClip_pSrcVerts = rdClip_pDstVerts;
+        rdClip_pDstVerts = pSwapV;
+        pSwapI = rdClip_pSrcIntensities;
+        rdClip_pSrcIntensities = rdClip_pDstIntensities;
+        rdClip_pDstIntensities = pSwapI;
+
+        numIn = numOut;
+        numOut = 0;
+        plane = pFrustum->zFar;
+        pDst = rdClip_pDstVerts;
+        pDstInt = rdClip_pDstIntensities;
+        pPrev = rdClip_pSrcVerts + numIn - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevInt = rdClip_pSrcIntensities + numIn - 1;
+        pCurInt = rdClip_pSrcIntensities;
+        i = numIn;
+        do {
+            if (pPrev->y <= plane || pCur->y <= plane) {
+                if (pPrev->y != plane && pCur->y != plane && (plane < pPrev->y || plane < pCur->y)) {
+                    t = (plane - pPrev->y) / (pCur->y - pPrev->y);
+                    pDst[numOut].y = plane;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pDstInt[numOut].x = (pCurInt->x - pPrevInt->x) * t + pPrevInt->x;
+                    pDstInt[numOut].y = (pCurInt->y - pPrevInt->y) * t + pPrevInt->y;
+                    pDstInt[numOut].z = (pCurInt->z - pPrevInt->z) * t + pPrevInt->z;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_FARZ;
+                }
+                if (pCur->y <= plane) {
+                    pDst[numOut] = *pCur;
+                    pDstInt[numOut] = *pCurInt;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevInt = pCurInt;
+            pCurInt++;
+            i--;
+        } while (i != 0);
+        if (numOut < 3) {
+            return numOut;
+        }
+    }
+
+    if (rdClip_pDstVerts != aVertices) {
+        for (i = 0; i < numOut; i++) {
+            aVertices[i] = rdClip_pDstVerts[i];
+            aIntensities[i] = rdClip_pDstIntensities[i];
+        }
+    }
+    return numOut;
 }
 
 // 0x00498a60
 int rdClip_Face3GT(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTexVertices, int numVertices)
 {
-    HANG("TODO");
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector3* pDst;
+    rdVector3* pSwapV;
+    rdVector2* pPrevTex;
+    rdVector2* pCurTex;
+    rdVector2* pDstTex;
+    rdVector2* pSwapT;
+    int numIn;
+    int numOut;
+    int i;
+    float dR;
+    float dC;
+    float denom;
+    float cross;
+    float iC;
+    float adR;
+    float adC;
+    float t;
+
+    rdClip_faceStatus = 0;
+    rdClip_pSrcVerts = aVertices;
+    rdClip_pDstVerts = rdClip_workVerts;
+    rdClip_pSrcTexVerts = aTexVertices;
+    rdClip_pDstTexVerts = rdClip_workTexVerts;
+
+    // ---- pass 1: rightPlane, clip x, keep x >= plane * y ----
+    numOut = 0;
+    if (numVertices > 0) {
+        pDst = rdClip_pDstVerts;
+        pDstTex = rdClip_pDstTexVerts;
+        pPrev = rdClip_pSrcVerts + numVertices - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevTex = rdClip_pSrcTexVerts + numVertices - 1;
+        pCurTex = rdClip_pSrcTexVerts;
+        i = numVertices;
+        do {
+            if (pFrustrum->rightPlane * pPrev->y <= pPrev->x || pFrustrum->rightPlane * pCur->y <= pCur->x) {
+                if (pPrev->x != pFrustrum->rightPlane * pPrev->y && pCur->x != pFrustrum->rightPlane * pCur->y && (pPrev->x < pFrustrum->rightPlane * pPrev->y || pCur->x < pFrustrum->rightPlane * pCur->y)) {
+                    dR = pCur->y - pPrev->y;
+                    dC = pCur->x - pPrev->x;
+                    denom = pFrustrum->rightPlane * dR - dC;
+                    cross = pCur->y * pPrev->x - pPrev->y * pCur->x;
+                    if (denom != 0.0) {
+                        cross = cross / denom;
+                    }
+                    iC = pFrustrum->rightPlane * cross;
+                    adR = dR < 0.0 ? -dR : dR;
+                    adC = dC < 0.0 ? -dC : dC;
+                    t = adR <= adC ? (iC - pPrev->x) / dC : (cross - pPrev->y) / dR;
+                    pDst[numOut].x = iC;
+                    pDst[numOut].y = cross;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                    pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_PLANE_A;
+                }
+                if (pFrustrum->rightPlane * pCur->y <= pCur->x) {
+                    pDst[numOut] = *pCur;
+                    pDstTex[numOut] = *pCurTex;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevTex = pCurTex;
+            pCurTex++;
+            i--;
+        } while (i != 0);
+    }
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 2: bottomPlane, clip x, keep x <= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pPrev->x <= pFrustrum->bottomPlane * pPrev->y || pCur->x <= pFrustrum->bottomPlane * pCur->y) {
+            if (pPrev->x != pFrustrum->bottomPlane * pPrev->y && pCur->x != pFrustrum->bottomPlane * pCur->y && (pFrustrum->bottomPlane * pPrev->y < pPrev->x || pFrustrum->bottomPlane * pCur->y < pCur->x)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->x - pPrev->x;
+                denom = pFrustrum->bottomPlane * dR - dC;
+                cross = pCur->y * pPrev->x - pPrev->y * pCur->x;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->bottomPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->x) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = iC;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_B;
+            }
+            if (pCur->x <= pFrustrum->bottomPlane * pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 3: leftPlane, clip z, keep z <= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pPrev->z <= pFrustrum->leftPlane * pPrev->y || pCur->z <= pFrustrum->leftPlane * pCur->y) {
+            if (pPrev->z != pFrustrum->leftPlane * pPrev->y && pCur->z != pFrustrum->leftPlane * pCur->y && (pFrustrum->leftPlane * pPrev->y < pPrev->z || pFrustrum->leftPlane * pCur->y < pCur->z)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->z - pPrev->z;
+                denom = pFrustrum->leftPlane * dR - dC;
+                cross = pCur->y * pPrev->z - pPrev->y * pCur->z;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->leftPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->z) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = iC;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_C;
+            }
+            if (pCur->z <= pFrustrum->leftPlane * pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 4: orthoBottomPlane, clip z, keep z >= plane * y ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pFrustrum->orthoBottomPlane * pPrev->y <= pPrev->z || pFrustrum->orthoBottomPlane * pCur->y <= pCur->z) {
+            if (pPrev->z != pFrustrum->orthoBottomPlane * pPrev->y && pCur->z != pFrustrum->orthoBottomPlane * pCur->y && (pPrev->z < pFrustrum->orthoBottomPlane * pPrev->y || pCur->z < pFrustrum->orthoBottomPlane * pCur->y)) {
+                dR = pCur->y - pPrev->y;
+                dC = pCur->z - pPrev->z;
+                denom = pFrustrum->orthoBottomPlane * dR - dC;
+                cross = pCur->y * pPrev->z - pPrev->y * pCur->z;
+                if (denom != 0.0) {
+                    cross = cross / denom;
+                }
+                iC = pFrustrum->orthoBottomPlane * cross;
+                adR = dR < 0.0 ? -dR : dR;
+                adC = dC < 0.0 ? -dC : dC;
+                t = adR <= adC ? (iC - pPrev->z) / dC : (cross - pPrev->y) / dR;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = cross;
+                pDst[numOut].z = iC;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_D;
+            }
+            if (pFrustrum->orthoBottomPlane * pCur->y <= pCur->z) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 5: zNear, clip y, keep y >= zNear ----
+    numIn = numOut;
+    numOut = 0;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pFrustrum->zNear <= pPrev->y || pFrustrum->zNear <= pCur->y) {
+            if (pPrev->y != pFrustrum->zNear && pCur->y != pFrustrum->zNear && (pPrev->y < pFrustrum->zNear || pCur->y < pFrustrum->zNear)) {
+                t = (pFrustrum->zNear - pPrev->y) / (pCur->y - pPrev->y);
+                pDst[numOut].y = pFrustrum->zNear;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+            }
+            if (pFrustrum->zNear <= pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
+        return numOut;
+    }
+
+    // ---- pass 6: zFar, clip y, keep y <= zFar (only if far clip enabled) ----
+    if (pFrustrum->bFarClip != 0) {
+        pSwapV = rdClip_pSrcVerts;
+        rdClip_pSrcVerts = rdClip_pDstVerts;
+        rdClip_pDstVerts = pSwapV;
+        pSwapT = rdClip_pSrcTexVerts;
+        rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+        rdClip_pDstTexVerts = pSwapT;
+
+        numIn = numOut;
+        numOut = 0;
+        pDst = rdClip_pDstVerts;
+        pDstTex = rdClip_pDstTexVerts;
+        pPrev = rdClip_pSrcVerts + numIn - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+        pCurTex = rdClip_pSrcTexVerts;
+        i = numIn;
+        do {
+            if (pPrev->y <= pFrustrum->zFar || pCur->y <= pFrustrum->zFar) {
+                if (pPrev->y != pFrustrum->zFar && pCur->y != pFrustrum->zFar && (pFrustrum->zFar < pPrev->y || pFrustrum->zFar < pCur->y)) {
+                    t = (pFrustrum->zFar - pPrev->y) / (pCur->y - pPrev->y);
+                    pDst[numOut].y = pFrustrum->zFar;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                    pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_FARZ;
+                }
+                if (pCur->y <= pFrustrum->zFar) {
+                    pDst[numOut] = *pCur;
+                    pDstTex[numOut] = *pCurTex;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevTex = pCurTex;
+            pCurTex++;
+            i--;
+        } while (i != 0);
+        if (numOut < 3) {
+            return numOut;
+        }
+    }
+
+    if (rdClip_pDstVerts != aVertices) {
+        for (i = 0; i < numOut; i++) {
+            aVertices[i] = rdClip_pDstVerts[i];
+            aTexVertices[i] = rdClip_pDstTexVerts[i];
+        }
+    }
+    return numOut;
 }
 
 // 0x00499840
 int rdClip_Face3GTOrtho(rdClipFrustum* pFrustrum, rdVector3* aVertices, rdVector2* aTexVertices, int numVertices)
 {
-    HANG("TODO");
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector3* pDst;
+    rdVector3* pSwapV;
+    rdVector2* pPrevTex;
+    rdVector2* pCurTex;
+    rdVector2* pDstTex;
+    rdVector2* pSwapT;
+    int numIn;
+    int numOut;
+    int i;
+    float plane;
+    float t;
+
+    rdClip_faceStatus = 0;
+    rdClip_pSrcVerts = aVertices;
+    rdClip_pDstVerts = rdClip_workVerts;
+    rdClip_pSrcTexVerts = aTexVertices;
+    rdClip_pDstTexVerts = rdClip_workTexVerts;
+
+    // ---- pass 1: nearPlane, clip x, keep x >= nearPlane ----
+    numOut = 0;
+    plane = pFrustrum->nearPlane;
+    if (numVertices > 0) {
+        pDst = rdClip_pDstVerts;
+        pDstTex = rdClip_pDstTexVerts;
+        pPrev = rdClip_pSrcVerts + numVertices - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevTex = rdClip_pSrcTexVerts + numVertices - 1;
+        pCurTex = rdClip_pSrcTexVerts;
+        i = numVertices;
+        do {
+            if (plane <= pPrev->x || plane <= pCur->x) {
+                if (pPrev->x != plane && pCur->x != plane && (pPrev->x < plane || pCur->x < plane)) {
+                    t = (plane - pPrev->x) / (pCur->x - pPrev->x);
+                    pDst[numOut].x = plane;
+                    pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                    pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_PLANE_A;
+                }
+                if (plane <= pCur->x) {
+                    pDst[numOut] = *pCur;
+                    pDstTex[numOut] = *pCurTex;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevTex = pCurTex;
+            pCurTex++;
+            i--;
+        } while (i != 0);
+    }
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 2: orthoLeftPlane, clip x, keep x <= orthoLeftPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustrum->orthoLeftPlane;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pPrev->x <= plane || pCur->x <= plane) {
+            if (pPrev->x != plane && pCur->x != plane && (plane < pPrev->x || plane < pCur->x)) {
+                t = (plane - pPrev->x) / (pCur->x - pPrev->x);
+                pDst[numOut].x = plane;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_B;
+            }
+            if (pCur->x <= plane) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 3: farPlane, clip z, keep z <= farPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustrum->farPlane;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (pPrev->z <= plane || pCur->z <= plane) {
+            if (pPrev->z != plane && pCur->z != plane && (plane < pPrev->z || plane < pCur->z)) {
+                t = (plane - pPrev->z) / (pCur->z - pPrev->z);
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = plane;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_C;
+            }
+            if (pCur->z <= plane) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 4: orthoTopPlane, clip z, keep z >= orthoTopPlane ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustrum->orthoTopPlane;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (plane <= pPrev->z || plane <= pCur->z) {
+            if (pPrev->z != plane && pCur->z != plane && (pPrev->z < plane || pCur->z < plane)) {
+                t = (plane - pPrev->z) / (pCur->z - pPrev->z);
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDst[numOut].y = (pCur->y - pPrev->y) * t + pPrev->y;
+                pDst[numOut].z = plane;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_PLANE_D;
+            }
+            if (plane <= pCur->z) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        return numOut;
+    }
+    pSwapV = rdClip_pSrcVerts;
+    rdClip_pSrcVerts = rdClip_pDstVerts;
+    rdClip_pDstVerts = pSwapV;
+    pSwapT = rdClip_pSrcTexVerts;
+    rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+    rdClip_pDstTexVerts = pSwapT;
+
+    // ---- pass 5: zNear, clip y, keep y >= zNear ----
+    numIn = numOut;
+    numOut = 0;
+    plane = pFrustrum->zNear;
+    pDst = rdClip_pDstVerts;
+    pDstTex = rdClip_pDstTexVerts;
+    pPrev = rdClip_pSrcVerts + numIn - 1;
+    pCur = rdClip_pSrcVerts;
+    pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+    pCurTex = rdClip_pSrcTexVerts;
+    i = numIn;
+    do {
+        if (plane <= pPrev->y || plane <= pCur->y) {
+            if (pPrev->y != plane && pCur->y != plane && (pPrev->y < plane || pCur->y < plane)) {
+                t = (plane - pPrev->y) / (pCur->y - pPrev->y);
+                pDst[numOut].y = plane;
+                pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                // NOTE: faithful to the original - the zNear pass interpolates the
+                // in the shipped game, isolated to this pass; kept for byte fidelity.
+                numOut++;
+                rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+            }
+            if (plane <= pCur->y) {
+                pDst[numOut] = *pCur;
+                pDstTex[numOut] = *pCurTex;
+                numOut++;
+            }
+        }
+        pPrev = pCur;
+        pCur++;
+        pPrevTex = pCurTex;
+        pCurTex++;
+        i--;
+    } while (i != 0);
+    if (numOut < 3) {
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
+        return numOut;
+    }
+
+    // ---- pass 6: zFar, clip y, keep y <= zFar (only if far clip enabled) ----
+    if (pFrustrum->bFarClip != 0) {
+        pSwapV = rdClip_pSrcVerts;
+        rdClip_pSrcVerts = rdClip_pDstVerts;
+        rdClip_pDstVerts = pSwapV;
+        pSwapT = rdClip_pSrcTexVerts;
+        rdClip_pSrcTexVerts = rdClip_pDstTexVerts;
+        rdClip_pDstTexVerts = pSwapT;
+
+        numIn = numOut;
+        numOut = 0;
+        plane = pFrustrum->zFar;
+        pDst = rdClip_pDstVerts;
+        pDstTex = rdClip_pDstTexVerts;
+        pPrev = rdClip_pSrcVerts + numIn - 1;
+        pCur = rdClip_pSrcVerts;
+        pPrevTex = rdClip_pSrcTexVerts + numIn - 1;
+        pCurTex = rdClip_pSrcTexVerts;
+        i = numIn;
+        do {
+            if (pPrev->y <= plane || pCur->y <= plane) {
+                if (pPrev->y != plane && pCur->y != plane && (plane < pPrev->y || plane < pCur->y)) {
+                    t = (plane - pPrev->y) / (pCur->y - pPrev->y);
+                    pDst[numOut].y = plane;
+                    pDst[numOut].z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pDst[numOut].x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pDstTex[numOut].x = (pCurTex->x - pPrevTex->x) * t + pPrevTex->x;
+                    pDstTex[numOut].y = (pCurTex->y - pPrevTex->y) * t + pPrevTex->y;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_FARZ;
+                }
+                if (pCur->y <= plane) {
+                    pDst[numOut] = *pCur;
+                    pDstTex[numOut] = *pCurTex;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pCur++;
+            pPrevTex = pCurTex;
+            pCurTex++;
+            i--;
+        } while (i != 0);
+        if (numOut < 3) {
+            return numOut;
+        }
+    }
+
+    if (rdClip_pDstVerts != aVertices) {
+        for (i = 0; i < numOut; i++) {
+            aVertices[i] = rdClip_pDstVerts[i];
+            aTexVertices[i] = rdClip_pDstTexVerts[i];
+        }
+    }
+    return numOut;
 }
 
 // Clips a textured, per-vertex-lit triangle against the perspective view frustum
@@ -1978,5 +3256,154 @@ int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2*
             aIntensities[i] = rdClip_pDstIntensities[i];
         }
     }
+    return numOut;
+}
+
+// Comparisons below mirror the x87 FCOM flag tests, so NaN lands on the same side as in the original.
+// 0x0049c810
+int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
+{
+    rdVector3* first;
+    rdVector3* v;
+    unsigned int numVertices;
+    unsigned int i;
+
+    numVertices = pSrc->numVertices;
+    rdClip_pFaceVerts = pSrc->verticesProjected;
+    rdClip_pFaceVertIdxs = pSrc->vertexPosIdx;
+    first = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[0]];
+
+    // each plane rejects the face only when the first and every other vertex are outside it
+    if (!(first->y >= pFrustum->zNear)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (v->y >= pFrustum->zNear)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (pFrustum->bFarClip != 0 && first->y > pFrustum->zFar) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(v->y > pFrustum->zFar))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+
+    if (!(first->x >= pFrustum->rightPlane * first->y)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(pFrustum->rightPlane * v->y > v->x))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (first->x > pFrustum->bottomPlane * first->y) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (pFrustum->bottomPlane * v->y >= v->x)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+
+    if (first->z > pFrustum->leftPlane * first->y) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (pFrustum->leftPlane * v->y >= v->z)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (!(first->z >= pFrustum->orthoBottomPlane * first->y)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(pFrustum->orthoBottomPlane * v->y > v->z))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+    return numVertices;
+}
+
+// 0x0049c9f0
+int rdClip_Face3TClipPlane_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst)
+{
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector2* pPrevUV;
+    rdVector2* pCurUV;
+    rdVector4* pPrevLight;
+    rdVector4* pCurLight;
+    rdVector3* pOut;
+    rdVector2* pOutUV;
+    rdVector4* pOutLight;
+    int numVertices;
+    int numOut;
+    int i;
+    float t;
+
+    numVertices = pSrc->numVertices;
+    rdClip_faceStatus = 0;
+    rdClip_pFaceVerts = pSrc->verticesProjected;
+    rdClip_pFaceSrcUVs = pSrc->vertexUVs;
+    rdClip_pFaceSrcLights = (rdVector4*)pSrc->paDynamicLight;
+    rdClip_pFaceVertIdxs = pSrc->vertexPosIdx;
+    rdClip_pFaceUVIdxs = pSrc->vertexUVIdx;
+    rdClip_pFaceDstVerts = pDst->verticesProjected;
+    rdClip_pFaceDstUVs = pDst->vertexUVs;
+    rdClip_pFaceDstLights = (rdVector4*)pDst->paDynamicLight;
+
+    numOut = 0;
+    if (numVertices > 0) {
+        pPrevUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[numVertices - 1]];
+        pPrev = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[numVertices - 1]];
+        pPrevLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[numVertices - 1]];
+        pCur = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[0]];
+        pCurLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[0]];
+        pCurUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[0]];
+        for (i = 1; i <= numVertices; i++) {
+            if (pFrustum->zNear <= pPrev->y || pFrustum->zNear <= pCur->y) {
+                if (pPrev->y != pFrustum->zNear && pCur->y != pFrustum->zNear && (pPrev->y < pFrustum->zNear || pCur->y < pFrustum->zNear)) {
+                    t = (pFrustum->zNear - pPrev->y) / (pCur->y - pPrev->y);
+                    pOut = &rdClip_pFaceDstVerts[numOut];
+                    pOutUV = &rdClip_pFaceDstUVs[numOut];
+                    pOutLight = &rdClip_pFaceDstLights[numOut];
+                    pOut->y = pFrustum->zNear;
+                    pOut->z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pOut->x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pOutUV->x = (pCurUV->x - pPrevUV->x) * t + pPrevUV->x;
+                    pOutUV->y = (pCurUV->y - pPrevUV->y) * t + pPrevUV->y;
+                    pOutLight->x = (pCurLight->x - pPrevLight->x) * t + pPrevLight->x;
+                    pOutLight->y = (pCurLight->y - pPrevLight->y) * t + pPrevLight->y;
+                    pOutLight->z = (pCurLight->z - pPrevLight->z) * t + pPrevLight->z;
+                    pOutLight->w = (pCurLight->w - pPrevLight->w) * t + pPrevLight->w;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+                }
+                if (pFrustum->zNear <= pCur->y) {
+                    rdClip_pFaceDstVerts[numOut] = *pCur;
+                    rdClip_pFaceDstUVs[numOut] = *pCurUV;
+                    rdClip_pFaceDstLights[numOut] = *pCurLight;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pPrevUV = pCurUV;
+            pPrevLight = pCurLight;
+            // the original also reads index[numVertices] after the last edge, never using it
+            if (i < numVertices) {
+                pCur = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+                pCurUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[i]];
+                pCurLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[i]];
+            }
+        }
+    }
+    if (numOut < 3)
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
     return numOut;
 }

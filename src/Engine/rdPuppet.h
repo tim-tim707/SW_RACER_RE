@@ -9,7 +9,7 @@
 // void __cdecl rdPuppet_BuildJointMatrices(RdThing* prdThing, const RdMatrix* pPlacement)
 void rdPuppet_BuildJointMatrices(void* prdThing, rdMatrix34* pPlacement);
 
-// Clips a perspective textured-gouraud face: copies and offsets verts, then culls and W-clips it (best guess).
-void rdClip_Face3T_Maybe(rdClipFrustum* frustum, unsigned int* srcFace, int* dstFace, float* offset);
+// Gathers a face into pDst (vertices, offset UVs, clamped light) and clips it against the frustum.
+void rdClip_Face3T_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst, rdVector2* pTexOffset);
 
 #endif // RDPUPPET_H

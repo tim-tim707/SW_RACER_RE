@@ -921,7 +921,7 @@ void rdModel_BuildAndDrawScene(Gfx** displayListCursor, swrViewport* viewport)
     rdModel_AddNodeToScene(viewport->model_root_node);
     for (i = 1; i < (int)(sizeof(rdModel_sceneStatCounters) / sizeof(rdModel_sceneStatCounters[0])); i++)
         rdModel_sceneStatCounters[0] += rdModel_sceneStatCounters[i];
-    rdThing_Draw((swrUI_Unk3*)swr_rootModelThing_ptr, &rdMatrix34_identity, (void*)(uintptr_t)((GameSettingFlags & GAME_SETTING_MIRROR) != 0), swrDisplay_screenWidth);
+    rdThing_Draw((swrUI_Unk3*)swr_rootModelThing_ptr, &rdMatrix34_identity, (GameSettingFlags & GAME_SETTING_MIRROR) != 0, swrDisplay_screenWidth);
     *displayListCursor = rdModel_displayListCursor;
 }
 

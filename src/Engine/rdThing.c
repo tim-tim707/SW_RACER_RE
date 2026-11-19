@@ -4,8 +4,14 @@
 #include "rdCanvas.h"
 
 #include <Primitives/rdMatrix.h>
+#include <Primitives/rdModel.h>
+#include <Primitives/rdParticle.h>
+#include <Primitives/rdPolyLine.h>
+#include <Primitives/rdSprite.h>
 
 #include <macros.h>
+
+#include <stdint.h>
 
 // 0x00490b70
 RdThing* rdThing_New(SithThing* pThing)
@@ -71,9 +77,30 @@ void rdThing_FreeEntry(RdThing* pThing)
 
 // int __cdecl rdThing_Draw(RdThing* prdThing, const RdMatrix* pOrient)
 // 0x00490c80
-int rdThing_Draw(swrUI_Unk3* param_1, rdMatrix34* identity, void* param_3, int screen_width)
+int rdThing_Draw(swrUI_Unk3* pThing, rdMatrix34* pOrient, int bMirrorX, int screenWidth)
 {
-    HANG("TODO");
+    rdCamera_bMirrorX = bMirrorX;
+    rdCamera_screen_width = screenWidth;
+    if (rdroid_g_curGeometryMode == RD_GEOMETRY_NONE)
+        return 0;
+
+    switch (pThing->unk0) {
+    case RD_THING_MODEL3:
+        return rdModel3_Draw((RdThing*)pThing, pOrient);
+    case RD_THING_SPRITE3:
+        return rdSprite_Draw(pThing, pOrient);
+    case RD_THING_PARTICLE:
+        return rdParticle_Draw((RdThing*)pThing, pOrient);
+    case RD_THING_POLYLINE:
+        return rdPolyLine_Draw((RdThing*)pThing, pOrient);
+    case RD_THING_NONE:
+    case RD_THING_CAMERA:
+    case RD_THING_LIGHT:
+        return 0;
+    default:
+        // faithful: out-of-range types return the thing pointer itself
+        return (int)(intptr_t)pThing;
+    }
 }
 
 // 0x00490d10
