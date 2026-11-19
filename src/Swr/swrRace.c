@@ -1005,9 +1005,9 @@ void swrRace_UpdateInRaceMenu(void)
 {
     float scroll;
     float pulse;
-    float floatValue;
+    float floatValue = 0.0f;
     float r, g, b, a;
-    int intValue;
+    int intValue = 0;
     int index;
     int row;
     int rowY;
