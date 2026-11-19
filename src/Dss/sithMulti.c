@@ -5,6 +5,8 @@
 #include <macros.h>
 #include <Win95/stdComm.h>
 
+#include <string.h>
+
 // 0x00404760
 void sithMulti_InitializeConnection(int connectionIndex)
 {
@@ -66,4 +68,11 @@ void sithMulti_CloseGame(void)
 void sithMulti_ClearMessageField_Maybe(tSithMessage* message)
 {
     message->unk14 = 0;
+}
+
+// 0x0041b920
+void sithMulti_ResetCallbackState(void)
+{
+    memset(sithMulti_aPendingMessages, 0, sizeof(sithMulti_aPendingMessages));
+    sithMulti_numPendingMessages = 0;
 }

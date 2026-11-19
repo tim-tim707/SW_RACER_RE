@@ -590,11 +590,13 @@ multiplayer_in_mp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
 
+sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyPlayerLeave clears bits)
 swr_unk_array2 0x004e9918 int[256]
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
+sithMulti_numPendingMessages 0x004e9eb8 int # live entries in sithMulti_aPendingMessages
 swrMultiplayer_aReadyStatus 0x004ea020 swrMultiplayer_ReadyStatus[3] # size maybe wrong: handshake ids 1 and 2 are the only ones used (swrObjJdge)
 swrMultiplayer_chatSavedUiInputActive 0x004e9ecc int # swrControl_uiInputActive saved by swrMultiplayer_OpenChatInput, restored on Enter/Esc
 swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: ms until it expires (10000 on add)
@@ -615,6 +617,8 @@ swrMultiplayer_chatCaret 0x004eb1c4 int # caret index into swrMultiplayer_chatIn
 
 multiplayer_isHost 0x004eb1c8 int
 multiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
+swrMultiplayer_sessionResetUnk 0x004eb1d0 int # only swrMultiplayer_ResetSession writes it (0); no reader
+swrMultiplayer_quitState 0x004eb1d4 int # swrMultiplayer_ApplyPlayerQuit skips the quit broadcast when 2; only ResetSession writes it (0)
 swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' when a net race ends
 
 swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetRacerListDisplay)
@@ -622,6 +626,10 @@ swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
+swrMultiplayer_joinLocked 0x004eb1f8 int # while set, swrMultiplayer_ApplyPlayerJoin only admits the reserved DPID; cleared by ResetSession
+swrMultiplayer_pingSentTime 0x004eb208 int # timeGetTime() of the outgoing ping, matched by swrMultiplayer_ApplyPingReply; no writer found
+swrMultiplayer_rosterUnk 0x004eb214 int # cleared by swrMultiplayer_ApplyRoster; no reader
+swrMultiplayer_raceBeginValid 0x004eb218 int # swrMultiplayer_raceBegin holds a broadcast roster (re-sent on a roster request)
 
 g_objHang1 0x004eb21c swrObjHang*
 swrMultiplayer_chatLastTickMs 0x004eb220 unsigned int # timeGetTime() of the last chat-line expiry tick
@@ -1830,6 +1838,7 @@ multiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top
 
 multiplayer_laps 0x00ea02b8 int
 multiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
+swrMultiplayer_raceBegin 0x00ea0320 int[10] # head of the host's 'Begn' payload (swrObjHang_StartRace) as last broadcast by swrMultiplayer_BroadcastRoster
 
 multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
 
@@ -1845,11 +1854,15 @@ swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from st
 swrMultiplayer_aLocalPodTransform 0x00ec76a0 rdMatrix44[20] # this machine's pod transforms by net slot, published by swrMultiplayer_PublishPodState
 
 multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
+swrMultiplayer_rosterPilots 0x00ea0540 int[20] # per-slot pilot id from the roster message (swrMultiplayer_ApplyRoster); no reader
 swrMultiplayer_message 0x00ec7ba0 tSithMessage # shared in/out buffer: every sender builds here, swrMultiplayer_PumpPackets receives here
 
 swrObjHang_someState 0x00ea05a0 swrObjHang_STATE
+swrMultiplayer_hangSyncUnk1 0x00ea05a4 int # synced with swrObjHang_someState by the race-settings message (0x38); no other reader
+swrMultiplayer_hangSyncUnk2 0x00ea05a8 int # see swrMultiplayer_hangSyncUnk1
 
 g_LoadTrackModel 0x00ea05ac INGAME_MODELID
+swrMultiplayer_hangSyncUnk4 0x00ea05b0 int # see swrMultiplayer_hangSyncUnk1
 
 swrObjHang_holoCameraMatrixStart 0x00e2b3e0 rdMatrix44 # snapshot of swrObjHang_holoCameraMatrix taken when a move begins
 
