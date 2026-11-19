@@ -77,10 +77,11 @@ void sithMulti_ProcessPlayerLost(DPID idPlayer)
         return;
 
     sithMulti_RemovePlayer(playerNum);
-    if (swrMultiplayer_proxyPlayer != -1)
+    if (swrMultiplayer_proxyPlayer != -1) {
         swrMultiplayer_MarkPodLocal_Maybe(playerNum);
-    else
+    } else {
         swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'lost', playerNum);
+    }
 
     if (swrMultiplayer_lowestLostSlot >= playerNum)
         swrMultiplayer_lowestLostSlot = playerNum;
