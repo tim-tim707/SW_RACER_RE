@@ -1981,14 +1981,151 @@ int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2*
     return numOut;
 }
 
+// Comparisons below mirror the x87 FCOM flag tests, so NaN lands on the same side as in the original.
 // 0x0049c810
 int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
 {
-    HANG("TODO");
+    rdVector3* first;
+    rdVector3* v;
+    unsigned int numVertices;
+    unsigned int i;
+
+    numVertices = pSrc->numVertices;
+    rdClip_pFaceVerts = pSrc->verticesProjected;
+    rdClip_pFaceVertIdxs = pSrc->vertexPosIdx;
+    first = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[0]];
+
+    // each plane rejects the face only when the first and every other vertex are outside it
+    if (!(first->y >= pFrustum->zNear)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (v->y >= pFrustum->zNear)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (pFrustum->bFarClip != 0 && first->y > pFrustum->zFar) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(v->y > pFrustum->zFar))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+
+    if (!(first->x >= pFrustum->rightPlane * first->y)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(pFrustum->rightPlane * v->y > v->x))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (first->x > pFrustum->bottomPlane * first->y) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (pFrustum->bottomPlane * v->y >= v->x)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+
+    if (first->z > pFrustum->leftPlane * first->y) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (pFrustum->leftPlane * v->y >= v->z)
+                break;
+        }
+        if (i == 0)
+            return 0;
+    } else if (!(first->z >= pFrustum->orthoBottomPlane * first->y)) {
+        for (i = numVertices - 1; i > 0; i--) {
+            v = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+            if (!(pFrustum->orthoBottomPlane * v->y > v->z))
+                break;
+        }
+        if (i == 0)
+            return 0;
+    }
+    return numVertices;
 }
 
 // 0x0049c9f0
 int rdClip_Face3TClipPlane_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst)
 {
-    HANG("TODO");
+    rdVector3* pPrev;
+    rdVector3* pCur;
+    rdVector2* pPrevUV;
+    rdVector2* pCurUV;
+    rdVector4* pPrevLight;
+    rdVector4* pCurLight;
+    rdVector3* pOut;
+    rdVector2* pOutUV;
+    rdVector4* pOutLight;
+    int numVertices;
+    int numOut;
+    int i;
+    float t;
+
+    numVertices = pSrc->numVertices;
+    rdClip_faceStatus = 0;
+    rdClip_pFaceVerts = pSrc->verticesProjected;
+    rdClip_pFaceSrcUVs = pSrc->vertexUVs;
+    rdClip_pFaceSrcLights = (rdVector4*)pSrc->paDynamicLight;
+    rdClip_pFaceVertIdxs = pSrc->vertexPosIdx;
+    rdClip_pFaceUVIdxs = pSrc->vertexUVIdx;
+    rdClip_pFaceDstVerts = pDst->verticesProjected;
+    rdClip_pFaceDstUVs = pDst->vertexUVs;
+    rdClip_pFaceDstLights = (rdVector4*)pDst->paDynamicLight;
+
+    numOut = 0;
+    if (numVertices > 0) {
+        pPrevUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[numVertices - 1]];
+        pPrev = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[numVertices - 1]];
+        pPrevLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[numVertices - 1]];
+        pCur = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[0]];
+        pCurLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[0]];
+        pCurUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[0]];
+        for (i = 1; i <= numVertices; i++) {
+            if (pFrustum->zNear <= pPrev->y || pFrustum->zNear <= pCur->y) {
+                if (pPrev->y != pFrustum->zNear && pCur->y != pFrustum->zNear && (pPrev->y < pFrustum->zNear || pCur->y < pFrustum->zNear)) {
+                    t = (pFrustum->zNear - pPrev->y) / (pCur->y - pPrev->y);
+                    pOut = &rdClip_pFaceDstVerts[numOut];
+                    pOutUV = &rdClip_pFaceDstUVs[numOut];
+                    pOutLight = &rdClip_pFaceDstLights[numOut];
+                    pOut->y = pFrustum->zNear;
+                    pOut->z = (pCur->z - pPrev->z) * t + pPrev->z;
+                    pOut->x = (pCur->x - pPrev->x) * t + pPrev->x;
+                    pOutUV->x = (pCurUV->x - pPrevUV->x) * t + pPrevUV->x;
+                    pOutUV->y = (pCurUV->y - pPrevUV->y) * t + pPrevUV->y;
+                    pOutLight->x = (pCurLight->x - pPrevLight->x) * t + pPrevLight->x;
+                    pOutLight->y = (pCurLight->y - pPrevLight->y) * t + pPrevLight->y;
+                    pOutLight->z = (pCurLight->z - pPrevLight->z) * t + pPrevLight->z;
+                    pOutLight->w = (pCurLight->w - pPrevLight->w) * t + pPrevLight->w;
+                    numOut++;
+                    rdClip_faceStatus |= rdClip_FaceStatus_NEARZ;
+                }
+                if (pFrustum->zNear <= pCur->y) {
+                    rdClip_pFaceDstVerts[numOut] = *pCur;
+                    rdClip_pFaceDstUVs[numOut] = *pCurUV;
+                    rdClip_pFaceDstLights[numOut] = *pCurLight;
+                    numOut++;
+                }
+            }
+            pPrev = pCur;
+            pPrevUV = pCurUV;
+            pPrevLight = pCurLight;
+            // the original also reads index[numVertices] after the last edge, never using it
+            if (i < numVertices) {
+                pCur = &rdClip_pFaceVerts[rdClip_pFaceVertIdxs[i]];
+                pCurUV = &rdClip_pFaceSrcUVs[rdClip_pFaceUVIdxs[i]];
+                pCurLight = &rdClip_pFaceSrcLights[rdClip_pFaceVertIdxs[i]];
+            }
+        }
+    }
+    if (numOut < 3)
+        rdClip_faceStatus |= rdClip_FaceStatus_DEGENERATE;
+    return numOut;
 }

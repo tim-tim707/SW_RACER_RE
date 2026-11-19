@@ -1354,6 +1354,9 @@ rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 
 rdParticle_aTransformedVertices 0x00df8b20 rdVector3[256]
 
+rdSprite_aClippedVerts 0x00df9728 rdVector3[80]
+rdSprite_aFaceVerts 0x00df9ae8 rdVector3[4]
+
 # rdClip Sutherland-Hodgman scratch buffers + ping-pong pointers (shared by the rdClip_Face3* family)
 rdClip_pSrcTexVerts 0x00df9ea8 rdVector2*
 rdClip_pDstTexVerts 0x00df9eac rdVector2*
@@ -1365,6 +1368,15 @@ rdClip_pSrcIntensities 0x00dfa13c rdVector4*
 rdClip_workVerts 0x00dfa140 rdVector3[80]
 rdClip_workIntensities 0x00dfa500 rdVector4[80]
 rdClip_faceStatus 0x00dfaa04 int
+# rdClip_Face3TTestFrustum_Maybe / rdClip_Face3TClipPlane_Maybe indexed-face streams
+rdClip_pFaceSrcUVs 0x00dfaa08 rdVector2*
+rdClip_pFaceDstUVs 0x00dfaa0c rdVector2*
+rdClip_pFaceDstLights 0x00dfaa10 rdVector4*
+rdClip_pFaceDstVerts 0x00dfaa14 rdVector3*
+rdClip_pFaceVertIdxs 0x00dfaa18 int*
+rdClip_pFaceVerts 0x00dfaa1c rdVector3*
+rdClip_pFaceSrcLights 0x00dfaa20 rdVector4*
+rdClip_pFaceUVIdxs 0x00dfaa24 int*
 
 g_hWnd 0x00dfaa28 HWND
 g_nCmdShow 0x00dfaa2c int
