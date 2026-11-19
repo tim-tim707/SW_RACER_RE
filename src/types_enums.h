@@ -72,6 +72,7 @@ typedef enum GameSettingFlag
     GAME_SETTING_UNK_200 = 0x200, // swrScene_Init skips latching its first argument when set
     GAME_SETTING_UNK_400 = 0x400, // swrScene_ResetRenderState also enables viewport 1
     GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
+    GAME_SETTING_UNK_1000 = 0x1000, // resetInRaceInputBuffer clears local record 0 every frame while set
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
 
@@ -242,9 +243,29 @@ typedef enum swrPauseState
     swrPauseState_CLOSING = 3, // requestUnpause: sliding out; endPause once the scroll reaches 0
 } swrPauseState;
 
+// swrObjHang_pitDroidSpots: where a pit droid works on the look-at-vehicle pod
+typedef enum swrObjHang_PIT_DROID_SPOT
+{
+    swrObjHang_PIT_DROID_SPOT_ENGINE = 0, // under an engine, x sign picks the side; drives that exhaust's anim speed
+    swrObjHang_PIT_DROID_SPOT_COCKPIT = 1,
+    swrObjHang_PIT_DROID_SPOT_ENGINE_L_SIDE = 2,
+    swrObjHang_PIT_DROID_SPOT_ENGINE_R_SIDE = 3,
+} swrObjHang_PIT_DROID_SPOT;
+
 typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
 {
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
+    // stick bits derived by updateInRaceInputBitsets from the record's axis shorts
+    swrRace_INRACE_INPUT_Y_POS = 0x4000, // y > SWR_CONTROL_RECORD_AXIS_FULL
+    swrRace_INRACE_INPUT_Y_NEG = 0x8000,
+    swrRace_INRACE_INPUT_X_NEG = 0x10000,
+    swrRace_INRACE_INPUT_X_POS = 0x20000,
+    swrRace_INRACE_INPUT_X_CENTER = 0x40000, // |x| < SWR_CONTROL_RECORD_AXIS_CENTER
+    swrRace_INRACE_INPUT_Y_CENTER = 0x80000,
+    swrRace_INRACE_INPUT_X_NEG_SOFT = 0x100000, // x between -FULL and -CENTER (inclusive)
+    swrRace_INRACE_INPUT_X_POS_SOFT = 0x200000,
+    swrRace_INRACE_INPUT_Y_POS_SOFT = 0x400000,
+    swrRace_INRACE_INPUT_Y_NEG_SOFT = 0x800000,
 } swrRace_INRACE_INPUT;
 
 // swrRace_DebugFlag bits (only the ones named so far).
@@ -1482,6 +1503,7 @@ typedef enum swrSprite_FLAG // swrSprite.flags
     swrSprite_FLAG_MIRROR_H = 0x4, // from swrUI_SPRITE_SLOT_MIRROR_H
     swrSprite_FLAG_MIRROR_V = 0x8, // from swrUI_SPRITE_SLOT_MIRROR_V
     swrSprite_FLAG_ADDITIVE = 0x800, // from swrUI_SPRITE_SLOT_ADDITIVE
+    swrSprite_FLAG_STREAK = 0x4000, // drawn as a streak to the swrSprite_SetStreakEndpoints_Maybe endpoint (weather)
     swrSprite_FLAG_UNK_8000 = 0x8000, // set on the hangar track-grid windows; no reader in the draw path yet
     swrSprite_FLAG_UNK_10000 = 0x10000, // set every frame on swrUI element sprites and the caret
 } swrSprite_FLAG;

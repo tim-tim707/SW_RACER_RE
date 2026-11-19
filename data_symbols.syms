@@ -215,6 +215,7 @@ unkCameraArray 0x004B91C4 swrCamera_unk*
 swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitTrack sees 2+ local players; read by swrRace_UpdateInRaceMenu
 InRaceSpritesEnabled 0x004B94C0 int
 
+swrPlayerHUD_zBufferDepthScale 0x004b94b0 float[4] # 1/255, 1/65535, 1/(2^24-1), 1/2^32: raw z-buffer value -> [0,1] per depth byte count
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
 sunSpriteScale 0x004b94d0 float[2] # sun glow size; SetSunSprite, scaled by occlusion in UpdateSunAndLensFlareSprites2
 sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
@@ -415,6 +416,9 @@ rdMatrix_unk6 0x004c3cf8 rdMatrix44 = {{-1.0, 3.0, -3.0, 1.0}, {3.0, -6.0, 3.0, 
 rdMatrix_unk4 0x004c3d38 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {-3.0, 9.0, -9.0, 3.0}, {6.0, -12.0, 6.0, 0.0}, {-3.0, 3.0, 0.0, 0.0}}
 rdMatrix_unk2 0x004c3d78 rdMatrix44 = {{0.0, 0.0, 0.0, 0.0}, {0.0, 0.0, 0.0, 0.0}, {-6.0, 18.0, -18.0, 6.0}, {6.0, -12.0, 6.0, 0.0}}
 
+swrObjHang_workingDroidEngineEntry 0x004c0210 int = 1 # pod-model header entry the engine-spot pit droid works at (swrObjHang_UpdateLookAtVehicle); picks which exhaust its anim speed drives
+swrObjHang_workingDroidElmo 0x004c0214 int = -1 # elmo id of the engine-spot pit droid, -1 = none
+swrObjHang_workingDroidAnimSpeed 0x004c0218 float = 0.1 # its random-walked exhaust anim speed, 0.1..1.5
 swrObjHang_inspectCameraReset 0x004c021c int # set when the look-at-vehicle screen exits (accept/cancel); the next UpdateInspectCamera re-aims and re-derives the orbit
 swrObjHang_inspectCameraFresh 0x004c0220 int # 1 right after the inspect camera re-aims; the first stick/zoom input only clears it, and the idle timer runs while it is set
 swrRace_resultsPlaceP1 0x004c022c char # player 1's finishing place on the results screen
@@ -481,6 +485,7 @@ swrModel_poddCableRestVertices 0x004c7c30 rdVector3[6] = { { 0.0, 0.0, 0.0 }, { 
 swrModel_poddCableRestLights 0x004c7c78 rdVector4[6] = { { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 } } # per-vertex light intensities matching swrModel_poddCableRestVertices
 swrSpline_validateSampleMeshes 0x00e259a0 int # gates swrSpline_ValidateSampleTrackMesh in swrSpline_Build; never written in retail
 
+stdControl_bReadMouse 0x004c8170 int # set by stdControl_EnableAxisRead for mouse axes
 sithControl_secFPS 0x004c8174 float
 sithControl_msecFPS 0x004c8178 float
 
@@ -979,6 +984,11 @@ swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading
 swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
 swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
+swrObjHang_pitDroidSpots 0x0050c138 short[4] # swrObjHang_PIT_DROID_SPOT per pit droid, distinct, rolled on entering the look-at-vehicle screen
+swrObjHang_pitDroidSurfacePoints 0x0050c148 rdVector3[4] # closest pod-surface point each pit droid works at (node-local)
+swrObjHang_pitDroidSurfaceNormals 0x0050c0e0 rdVector3[4]
+swrObjHang_pitDroidNodeChains 0x0050c230 swrModel_Node*[40] # 10-deep node chain per pit droid from swrModel_FindClosestPointOnModel
+swrObjHang_workingDroidTargetNode 0x0050c534 int # pod-model header entry searched for the engine-spot droid's surface point
 swrObjHang_vehicleIntroStep 0x0050c140 int # swrObjHang_UpdateVehicleSelectIntro camera/droid sequence step, 0..5
 swrObjHang_vehicleIntroTimer 0x0050c564 float # vehicle-select intro step timer (3 s on entry, 5 s while the droid walks)
 swrObjHang_inspectCaption 0x0050c328 char[256] # caption of the inspected part/pilot drawn by UpdateInspectCamera
@@ -1368,6 +1378,7 @@ swrModel_collisionContactLogCount 0x0050c5d4 int
 swrModel_collisionContactLogEnabled 0x0050c5d8 int
 swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
 swrModel_collisionSphereAcceptBackFaces 0x004c1778 int # 1; when 0 the sphere test skips faces whose plane the center is behind
+resetInRaceInputBuffer_pendingClear 0x004c1770 int # 1 at boot; resetInRaceInputBuffer clears record 0 once, then drops it
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
@@ -1709,7 +1720,7 @@ swrControl_aPlayerAxisX 0x00e98ea0 float[4] # per-local-player steer stick X (pa
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
-inRaceLocalPlayerInputRecord 0x00e98ee0 char[20] # local player raw input record: +0/+2 steer X/Y shorts, +4.. action bytes (strided 0x18/player); consumed by updateInRaceInputBitsets
+inRaceLocalPlayerInputRecord 0x00e98ee0 swrControl_InRaceInputRecord[4] # per-local-player raw input; consumed by updateInRaceInputBitsets
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
