@@ -15,6 +15,7 @@
 #include "mod_registry.h"
 #include "crash_logger.h"
 #include "memsafety.h"
+#include "test_runner.h"
 
 FILE *hook_log = nullptr;
 
@@ -136,6 +137,8 @@ HICON __stdcall LoadIconHook(HINSTANCE hInstance, LPCSTR lpIconName) {
     mod_ai_full_lod = register_mod(&ai_full_lod_mod);
 
     memsafety_RegisterHooks();
+    test_runner_Init();
+    test_runner_RegisterHooks();
 
     crash_logger_stage("init: renderer hooks");
     init_renderer_hooks();

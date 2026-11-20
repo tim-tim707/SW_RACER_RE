@@ -1,4 +1,5 @@
 #include "custom_tracks.h"
+#include "test_runner.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -303,7 +304,9 @@ void init_customTracks() {
             (int) default_track_model_infos().size(), (int) default_spline_hashes().size());
     fflush(hook_log);
 
-    const char *custom_tracks_path = "./assets/custom_tracks";
+    const char *custom_tracks_path = test_runner_CustomTracksDir();
+    if (custom_tracks_path == nullptr)
+        custom_tracks_path = "./assets/custom_tracks";
     if (std::filesystem::exists(custom_tracks_path) &&
         std::filesystem::is_directory(custom_tracks_path)) {
         for (auto const &entry: std::filesystem::recursive_directory_iterator(custom_tracks_path)) {

@@ -20,6 +20,7 @@ extern "C" {
 // show_imgui (the F5 overlay toggle) comes from imgui_utils.h.
 
 bool debug_ui_show_dev_panels = true;
+bool debug_ui_test_expand_all = false;
 
 static std::vector<DebugPanel *> g_panels;
 
@@ -55,7 +56,7 @@ void debug_ui_load_settings() {
 }
 
 static bool panel_visible(const DebugPanel *p) {
-    return !p->dev_only || debug_ui_show_dev_panels;
+    return !p->dev_only || debug_ui_show_dev_panels || debug_ui_test_expand_all;
 }
 
 static bool panel_tabbed(const DebugPanel *p) {
@@ -250,7 +251,7 @@ static void draw_toolbar() {
 static void draw_panel_windows() {
     const ImGuiViewport *viewport = ImGui::GetMainViewport();
     for (DebugPanel *p: g_panels) {
-        if (!p->open || !panel_visible(p) || panel_tabbed(p))
+        if (!(p->open || debug_ui_test_expand_all) || !panel_visible(p) || panel_tabbed(p))
             continue;
 
         if (p == g_just_opened) {
@@ -262,7 +263,9 @@ static void draw_panel_windows() {
         ImGui::SetNextWindowSize(ImVec2(440.0f, 0.0f), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSizeConstraints(ImVec2(240.0f, 60.0f),
                                             ImVec2(FLT_MAX, viewport->WorkSize.y * 0.9f));
-        if (ImGui::Begin(p->name, &p->open)) {
+        if (debug_ui_test_expand_all)
+            ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+        if (ImGui::Begin(p->name, debug_ui_test_expand_all ? nullptr : &p->open)) {
             ImGui::PushID(p->name);
             p->draw();
             ImGui::PopID();
@@ -273,7 +276,7 @@ static void draw_panel_windows() {
 }
 
 static void draw_tabbed_window() {
-    if (!g_tabbed_open)
+    if (!g_tabbed_open && !debug_ui_test_expand_all)
         return;
 
     if (g_tabbed_select) {
@@ -296,12 +299,16 @@ static void draw_tabbed_window() {
     }
     if (entries.empty())
         return;
-    if (std::find(entries.begin(), entries.end(), g_tabbed_current) == entries.end())
-        g_tabbed_current = entries[0];
+    auto current = std::find(entries.begin(), entries.end(), g_tabbed_current);
+    if (debug_ui_test_expand_all && current != entries.end())
+        current++;// test runner: a different tab each frame, so every tab body runs
+    g_tabbed_current = current == entries.end() ? entries[0] : *current;
     sidebar_w += ImGui::GetStyle().WindowPadding.x * 2.0f + ImGui::GetFontSize() * 2.0f;
 
     ImGui::SetNextWindowSize(ImVec2(720.0f, 640.0f), ImGuiCond_FirstUseEver);
-    if (ImGui::Begin(k_tabbed_menu, &g_tabbed_open)) {
+    if (debug_ui_test_expand_all)
+        ImGui::SetNextWindowCollapsed(false, ImGuiCond_Always);
+    if (ImGui::Begin(k_tabbed_menu, debug_ui_test_expand_all ? nullptr : &g_tabbed_open)) {
         // A separator wherever the menu sub-path changes.
         if (ImGui::BeginChild("##sidebar", ImVec2(sidebar_w, 0.0f), ImGuiChildFlags_Borders)) {
             const char *group = nullptr;
