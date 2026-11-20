@@ -3086,6 +3086,8 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrMain_RunFrame", (uint32_t) swrMain_RunFrame_ADDR,
                   (uint8_t *) swrMain_RunFrame_delta);
+    hook_function("swrSound_UpdateIfEnabled", (uint32_t) swrSound_UpdateIfEnabled_ADDR,
+                  (uint8_t *) swrSound_UpdateIfEnabled_delta);
 
     // Multiplayer "disable pod collision": when the local player turns it on, skip pod-to-pod
     // collision resolution for their pod so they pass through other racers. Hooked by address; the

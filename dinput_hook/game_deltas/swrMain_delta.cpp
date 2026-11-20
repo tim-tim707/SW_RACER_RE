@@ -52,6 +52,14 @@ double s_accum = 0.0;// unspent wall-clock seconds carried between render frames
 // per-tick bump makes every loop reset and restart (the "broken record" stutter).
 unsigned int s_frametotalThisFrame = 0;
 
+// swrSound_Update derives 3D doppler velocity as (position - last position) / swrRace_deltaTimeSecs
+// and turns doppler off for the local pod's own voices only when the voice's position equals its
+// transform. Vanilla runs it in phase 2, where the racers/camera hold smoothed display poses while
+// looping voices carry the tick positions playASoundImpl stamped -> spiky relative velocity (engine/
+// wind warble) and own-pod doppler left on. While engaged it runs right after the ticks instead, on
+// tick poses with dt = the sim time those ticks covered, and not at all on tickless frames.
+bool s_soundRanAfterTicks = false;
+
 // Input is sampled per render frame but consumed per tick: press/release edges and held level are
 // OR-latched across tickless frames and handed to the FIRST tick only. bitset3 is restored after
 // the ticks because updateInRaceInputBitsets derives next frame's edges by diffing against it.
@@ -245,8 +253,11 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         smoothing_restore();
 
     const bool engage = swr_fixedTimestep && is_actively_driving();
+    if (phase != 2)
+        s_soundRanAfterTicks = false;
 
     if (!engage) {
+        s_soundRanAfterTicks = false;
         endRngSplit();
         smoothing_reset();
         reset_fixed_step_state();
@@ -381,6 +392,13 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         // Cameras are copied out of cMan from the true tick poses; the display poses (racers, then
         // the cameras themselves) are swapped in after, for render only.
         ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
+        if (steps > 0) {
+            const double savedDt = swrRace_deltaTimeSecs;
+            swrRace_deltaTimeSecs = dt0 * steps;
+            hook_call_original((void_fn_t) swrSound_UpdateIfEnabled_ADDR);
+            swrRace_deltaTimeSecs = savedDt;
+        }
+        s_soundRanAfterTicks = true;
         if (stillDriving) {
             smoothing_apply((float) (s_accum / dt0));
             smoothing_apply_render_rate_fx((float) (s_accum / dt0));
@@ -391,5 +409,12 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
     if (phase == 0 || phase == 2) {
         hook_call_original((swrMain_RunFrame_t) swrMain_RunFrame_ADDR, flags, (short) 2);
         smoothing_restore();
+        s_soundRanAfterTicks = false;
     }
+}
+
+void __cdecl swrSound_UpdateIfEnabled_delta(void) {
+    if (s_soundRanAfterTicks)
+        return;
+    hook_call_original((void_fn_t) swrSound_UpdateIfEnabled_ADDR);
 }

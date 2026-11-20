@@ -18,3 +18,7 @@ extern int swr_fixedTimestep_cosDrawsLastFrame; // cosmetic draws between the la
 
 // Hook for swrMain_RunFrame (0x00445980); passes straight through unless engaged.
 void __cdecl swrMain_RunFrame_delta(short flags, short phase);
+
+// Hook for swrSound_UpdateIfEnabled (0x004270d0): skipped in phase 2 while the fixed step is engaged,
+// which runs it right after the ticks on tick poses instead (3D doppler consistency).
+void __cdecl swrSound_UpdateIfEnabled_delta(void);
