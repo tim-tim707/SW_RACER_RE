@@ -23,8 +23,14 @@ cut): the inside stays in the spinning mesh (new vertex list + F3DEX2 display li
 becomes a copy of the mesh in a static mesh group next to the spinning node:
     parent -> new BASIC node -> [ pivot node (spins) -> mesh group (inside),  static mesh group (outside) ]
 
-The animation is written switched off: the racer-select preview would otherwise spin it too. The
-mod switches baked pod animations on only during races (pod_edits_animations_frame).
+The animation is written switched on, so the game plays it as soon as it loads the pod -- no mod
+code needed (it also turns in the racer-select preview).
+
+A spin group in the pod's alt model ('MAlt') works the same through the pod model: the game never
+animates an alt model, but when it loads a pod it merges the alt model's AltN nodes into the pod
+model, writing each one wherever the pod model's AltN entry at the same index points. So the alt
+model's pivot node is added to its AltN list, and the pod model gets the animation plus an AltN
+entry pointing at that animation's node pointer: the game links the two itself.
 
 "cables extra" gives a 2-engine pod a second pair of cockpit -> engine cables: copies of its cable
 nodes (part slots 10 / 11) in the 4-engine pods' cable slots 12 / 13, sharing the cable meshes and
@@ -44,8 +50,8 @@ move to a copy of the mesh (whole meshes move as they are) in a new mesh group u
 node, the rest stays, and the original group, the pivot node (and a cut's static rim) sit side by
 side under a new BASIC node in the group's place. Each mesh's faces may belong to one spin group.
 
-Hide groups are skipped (they stay an in-game pod edit: the editor's Build & install writes them,
-renumbered for the split meshes, to assets/pod_edits).
+A hide group's faces are removed from their meshes (any spin selection in the same mesh is
+renumbered to the faces that are left).
 
 Mesh keys: "<model>:<hex offset>" (offset in that model's file; exports from the current mod) or a
 plain hex offset (older exports: the in-memory offset, off the file offset by the buffer's alignment
@@ -509,7 +515,7 @@ def read_block_entry(block, model_id):
 def parse_edits(path):
     groups = {}
     parse_edits.extra_cables = False
-    parse_edits.hide_keys = []
+    parse_edits.hides = {}
     parse_edits.trails = []
     for raw in open(path, encoding='utf-8'):
         line = raw.split('#', 1)[0].split()
@@ -530,9 +536,11 @@ def parse_edits(path):
                 tris.update(range(int(a), int(b or a) + 1))
             g = groups.setdefault((rpm, pivot, axis, offset, scale, cut), {})
             g[key] = tris
-        elif line[0] == 'hide':
-            parse_edits.hide_keys.append(line[1].lower())
-            print(f'note: hide line for mesh {line[1]} skipped (keep the .txt in assets/pod_edits for it)')
+        elif line[0] == 'hide' and len(line) >= 3:
+            tris = parse_edits.hides.setdefault(line[1].lower(), set())
+            for r in line[2].split(','):
+                a, _, b = r.partition('-')
+                tris.update(range(int(a), int(b or a) + 1))
         elif line[:2] == ['cables', 'extra']:
             parse_edits.extra_cables = True
         elif line[0] == 'trail' and len(line) >= 5 and line[1] in ('R', 'L'):
@@ -600,13 +608,14 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
     spin_groups = parse_edits(edits_path)
     extra_cables = parse_edits.extra_cables
     trails = parse_edits.trails
-    if not spin_groups and not extra_cables and not trails:
-        sys.exit('nothing to bake: no spin groups, "cables extra" or "trail" lines in the edits file')
+    hides = parse_edits.hides
+    if not spin_groups and not hides and not extra_cables and not trails:
+        sys.exit('nothing to bake: no spin or hide lines in the edits file')
     export_keys = []
     if export_path:
         import json
         export_keys = [x['key'].lower() for x in json.load(open(export_path, encoding='utf-8'))['meshes']]
-    keys = list(dict.fromkeys([k for g in spin_groups.values() for k in g] + parse_edits.hide_keys))
+    keys = list(dict.fromkeys([k for g in spin_groups.values() for k in g] + list(hides)))
     idx = pod_index(block)
     resolved = resolve_keys(idx, keys, export_keys)
     missing = [k for k in keys if k not in resolved]
@@ -622,21 +631,36 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
             by_model.setdefault(mid, {})[off] = tris
         for mid, ms in by_model.items():
             per_model.setdefault(mid, {})[params] = ms
+    hides_per_model = {}
+    for k, tris in hides.items():
+        mid, off = resolved[k]
+        hides_per_model.setdefault(mid, {}).setdefault(off, set()).update(tris)
+        per_model.setdefault(mid, {})
+    pod_id = pod_model_of(idx, export_keys or keys)
     cable_model = None
     if extra_cables or trails:
-        cable_model = pod_model_of(idx, export_keys or keys)
+        cable_model = pod_id
         if cable_model is None:
             sys.exit('"cables extra": cannot find this pod\'s model (pass --export <the pod\'s export .json>)')
         per_model.setdefault(cable_model, {})
+    is_alt_model = lambda mid: idx.get(mid, (b'',))[0] == b'MAlt'
+    # Spins in the alt model are animated from the pod model: bake the alt model first.
+    if any(is_alt_model(mid) and any(params[0] for params in groups) for mid, groups in per_model.items()):
+        if pod_id is None:
+            sys.exit('spinning parts in the alt model: cannot find this pod\'s main model (pass --export <the pod\'s export .json>)')
+        per_model.setdefault(pod_id, {})
+    alt_anims = []
     if out_dir is None:
         out_dir = os.path.join(game_dir, 'replacement_models') if workspace else \
             os.path.join(game_dir, 'assets', 'replacement_models')
     written = []
-    for mid in sorted(per_model):
+    for mid in sorted(per_model, key=lambda i: (not is_alt_model(i), i)):
         m = Model(*read_block_entry(block, mid))
         print(f'model {mid}: {m.data[:4].decode()}, {len(m.data)} bytes')
         out = bake_model(m, mid, per_model[mid], mid == cable_model and extra_cables, dry_run,
-                         trails if mid == cable_model else [])
+                         trails if mid == cable_model else [], hides_per_model.get(mid, {}),
+                         alt_anims if mid == pod_id else [])
+        alt_anims += getattr(bake_model, 'alt_spins', [])
         if out is None:
             continue
         os.makedirs(out_dir, exist_ok=True)
@@ -649,18 +673,40 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
             print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod places them:')
             for node, side, pos, scale in bake_model.trail_nodes:
                 print(f'    trailnode {mid}:{node:x} {side} {" ".join(fmt(c) for c in pos + scale)}')
-        if bake_model.spin_nodes:
-            print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod turns them:')
-            for node, rpm, ax in bake_model.spin_nodes:
-                print(f'    spinnode {mid}:{node:x} {fmt(rpm)} {" ".join(fmt(c) for c in ax)}')
     return written
 
 
-def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
-    """One model: its spin groups ({params: {mesh file offset: faces}}) and maybe the extra cable
-    pair. Returns the RAWM file bytes (None for a dry run)."""
+def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=(), hides=None, alt_anims=()):
+    """One model: its spin groups ({params: {mesh file offset: faces}}), hidden faces ({mesh file
+    offset: faces}) and maybe the extra cable pair. alt_anims: the alt model's spinning parts
+    [(rpm, axis)] to animate from this (the pod) model, in the order the alt model's AltN lists them.
+    Returns the RAWM file bytes (None for a dry run); bake_model.alt_spins: this alt model's."""
     parents, mesh_groups = m.walk()
     mesh_to_group = {x: g for g, ms in mesh_groups.items() for x in ms}
+    bake_model.alt_spins = []
+
+    # 0) Hidden faces leave their meshes for good; spin selections in the same meshes are renumbered.
+    spin_groups = {params: dict(ms) for params, ms in spin_groups.items()}
+    for mesh, hid in (hides or {}).items():
+        if mesh not in mesh_to_group:
+            sys.exit(f'mesh {mid}:{mesh:x} is not in a mesh group of this model')
+        tris, has_normals = decode_mesh(m, mesh)
+        if any(t < 0 or t >= len(tris) for t in hid):
+            sys.exit(f'mesh {mid}:{mesh:x}: the hide group names faces past its {len(tris)} faces')
+        remap, k = [], 0
+        for t in range(len(tris)):
+            remap.append(-1 if t in hid else k)
+            k += t not in hid
+        write_mesh(m, mesh, [tr for t, tr in enumerate(tris) if t not in hid], has_normals)
+        print(f'  hid {len(hid)} of {len(tris)} faces of mesh {mid}:{mesh:x}')
+        for ms in spin_groups.values():
+            if mesh in ms:
+                kept = {remap[t] for t in ms[mesh] if 0 <= t < len(remap) and remap[t] >= 0}
+                if kept:
+                    ms[mesh] = kept
+                else:
+                    del ms[mesh]
+    spin_groups = {params: ms for params, ms in spin_groups.items() if ms}
 
     # Each spin group's mesh groups: whole groups spin as they are, otherwise the faces are split off.
     plan = []
@@ -697,11 +743,15 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
     # the part slots directly, and never runs an alt model's animations -- its spinning nodes are
     # printed as "spinnode" lines instead (the mod turns them; the editor's Build & install writes
     # them to the in-game edits file).
+    # An alt model's spinning pivot nodes go into its AltN list instead, and the pod model gets their
+    # animations, each linked through the pod model's AltN entry at the same index (see the notes).
     is_alt = m.data[:4] == b'MAlt'
     bake_model.spin_nodes = []
     h = m.header()
     anim_slots = []
-    n_new = 0 if is_alt else sum(1 for p in plan if p['rpm'])
+    n_own = 0 if is_alt else sum(1 for p in plan if p['rpm'])
+    n_new = n_own + len(alt_anims)
+    n_altn = sum(1 for p in plan if p['rpm']) if is_alt else len(alt_anims)
     if n_new == 0:
         pass
     elif 'anim' in h:
@@ -715,10 +765,23 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
         anim_slots = [at + 4 + 4 * i for i in range(n_new)]
     for slot in anim_slots:  # placeholders: a 0 would end the list early and hide AltN from the walk
         m.put32(slot, 1)
+    altn_slots = []
+    if n_altn:
+        h2 = m.header()
+        o = h2.get('anim_end', h2['after_data'] - 4) + 4
+        if m.data[o:o + 4] != b'AltN':
+            sys.exit(f"model {mid} has no AltN list to link the alt model's spinning parts through")
+        o += 4
+        while m.u32(o):
+            o += 4
+        m.insert(o, 4 * n_altn)
+        altn_slots = [o + 4 * i for i in range(n_altn)]
+        for slot in altn_slots:
+            m.put32(slot, 1)
     parents, mesh_groups = m.walk()  # offsets moved
 
     # 2) New pivot node + animation per spin group, appended at the end of the model.
-    shift = (4 + 4 * n_new + 4 if 'anim' not in h else 4 * n_new) if n_new else 0
+    shift = ((4 + 4 * n_new + 4 if 'anim' not in h else 4 * n_new) if n_new else 0) + 4 * n_altn
     for p in plan:
         p['static'] = []
         if not p['cut'] or not p['whole']:  # partial groups are cut after their split
@@ -861,6 +924,8 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
         al = math.sqrt(sum(c * c for c in ax)) or 1.0
         ax = tuple(c / al for c in ax)
         if is_alt:
+            m.set_ptr(altn_slots[len(bake_model.alt_spins)], node)
+            bake_model.alt_spins.append((rpm, ax))
             bake_model.spin_nodes.append((node, rpm, ax))
             continue
         period = 60.0 / abs(rpm)
@@ -880,7 +945,7 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
         m.putf(b + 24, period)  # animation_end_time
         m.putf(b + 28, period)  # animation_duration
         m.putf(b + 32, period)  # duration3
-        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP)  # enabled by the mod during races only
+        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED)
         m.put32(b + 40, nk)
         m.putf(b + 44, period)  # duration4
         m.putf(b + 48, period)  # duration5
@@ -891,6 +956,36 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
         m.set_ptr(anim_slots[slot_i], anim)
         slot_i += 1
 
+    # The alt model's spinning parts: their animations, each node pointer filled in by the game from
+    # the alt model's AltN list when it merges the two (this model's AltN entry points at it).
+    for i, (rpm, ax) in enumerate(alt_anims):
+        period = 60.0 / abs(rpm)
+        sign = 1.0 if rpm > 0 else -1.0
+        nk = 5
+        times = m.append(4 * nk)
+        values = m.append(16 * nk)
+        for k in range(nk):
+            m.putf(times + 4 * k, period * k / (nk - 1))
+            for j in range(3):
+                m.putf(values + 16 * k + 4 * j, ax[j])
+            m.putf(values + 16 * k + 12, sign * 360.0 * k / (nk - 1))
+        anim = m.append(ANIM_SIZE)
+        b = anim + 220
+        m.putf(b + 24, period)
+        m.putf(b + 28, period)
+        m.putf(b + 32, period)
+        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED)
+        m.put32(b + 40, nk)
+        m.putf(b + 44, period)
+        m.putf(b + 48, period)
+        m.putf(b + 52, 1.0)
+        m.set_ptr(b + 64, times)
+        m.set_ptr(b + 68, values)  # b + 72 (the node): from the alt model
+        m.set_ptr(anim_slots[slot_i], anim)
+        slot_i += 1
+        m.set_ptr(altn_slots[i], b + 72)
+        print(f"  animation for the alt model's spinning part {i + 1} at {rpm:g} rpm (linked through AltN)")
+
     if extra_cables:
         add_extra_cables(m)
     bake_model.trail_nodes = add_trails(m, trails) if trails else []
@@ -899,8 +994,11 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
         m.data += b'\0'
         m.bits.append(False)
     mask = m.mask_bytes()
-    print(f'  baked model {mid} with {n_new + len(bake_model.spin_nodes)} spinning part(s)'
-          + (' (turned by the mod)' if bake_model.spin_nodes else '') + (' and an extra cable pair' if extra_cables else ''))
+    print(f'  baked model {mid} with {n_own + len(bake_model.spin_nodes)} spinning part(s)'
+          + (' (animated from the pod model)' if bake_model.spin_nodes else '')
+          + (f' and {len(alt_anims)} animation(s) for the alt model' if alt_anims else '')
+          + (f', {len(hides)} mesh(es) with hidden faces' if hides else '')
+          + (' and an extra cable pair' if extra_cables else ''))
     return b'RAWM' + struct.pack('<II', len(mask), len(m.data)) + mask + bytes(m.data)
 
 

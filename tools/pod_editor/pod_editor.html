@@ -117,7 +117,7 @@
     <h2>Separate</h2>
     <div class="row">
       <button id="btnSpin" disabled title="Split the selected faces into a part that spins in game">New spin group</button>
-      <button id="btnHide" disabled title="Hide the selected faces in game">New hide group</button>
+      <button id="btnHide" disabled title="Remove the selected faces from the model">New hide group</button>
     </div>
     <div id="groups"></div>
 
@@ -142,7 +142,7 @@
 
     <h2>Save</h2>
     <div class="row">
-      <button class="primary" id="btnBuild" disabled title="Bake the spin groups into the game's model format and install it, with the in-game edits, into Desktop\SWEP1R Pod Editor">Build &amp; install…</button>
+      <button class="primary" id="btnBuild" disabled title="Bake the spin and hide groups into the game's model format and install it into Desktop\SWEP1R Pod Editor">Build &amp; install…</button>
       <span class="dim" id="gameDir"></span>
     </div>
     <div id="buildResult" style="display:none; border-radius:6px; padding:6px 8px; margin:4px 0; font-size:12px; white-space:pre-wrap"></div>
@@ -152,9 +152,10 @@
     </div>
     <input type="file" id="fileBlock" accept=".bin" hidden>
     <div class="dim">Build &amp; install asks once for the folder <b>SWEP1R Pod Editor</b> on your Desktop (the mod
-      makes it; browsers can't write into Program Files) and writes <code>replacement_models/&lt;id&gt;.bin</code> and
-      <code>pod_edits/&lt;Pod&gt;.txt</code> there (the full edits go to <code>pod_edits/source/</code>).
-      The mod uses them before the game folder's. In game: Mods › Pod Editor › “Reload edits”, and restart the race for a new model.</div>
+      makes it; browsers can't write into Program Files) and writes the baked models,
+      <code>replacement_models/&lt;id&gt;.bin</code>, there (the edits go to <code>pod_edits/source/</code>, to reopen
+      later). The mod loads them; restart the race for a new model. Mods › Pod Editor › “Write into out_modelblock.bin”
+      builds them into the game's own data.</div>
   </div>
 
   <div id="view">
@@ -1971,33 +1972,35 @@ async function buildAndInstall(e) {
       block = new Uint8Array(await file.arrayBuffer());
     }
     const full = buildEditsText(), model = state.pod.model;
-    const hasSpins = state.groups.some(g => g.type === 'spin' && [...g.tris.values()].some(s => s.size));
-    const extraCables = !!(state.layout && state.layout.extra) ||
-      !!(state.fx && (state.fx.pts.trail.R.length || state.fx.pts.trail.L.length));// extra cables or trails
+    // Spin and hide groups are baked into the models (and, with the mod's runtime edits, extra
+    // cables / trails too).
+    const hasGroups = state.groups.some(g => [...g.tris.values()].some(s => s.size));
+    const extraCables = RUNTIME_EDITS && (!!(state.layout && state.layout.extra) ||
+      !!(state.fx && (state.fx.pts.trail.R.length || state.fx.pts.trail.L.length)));// extra cables or trails
     let baked = null, note = '';
     buildReport('info', 'Building…');
-    if (hasSpins || extraCables) baked = bakePod(block, full, state.meshes.map(m => m.key));
+    if (hasGroups || extraCables) baked = bakePod(block, full, state.meshes.map(m => m.key));
     else {
       const { ids } = window.PodBake.podModels(block, state.meshes.map(m => m.key));
-      note = `No spin groups or extra cables, so there is no model to bake.` +
+      note = `No spin or hide groups, so there is no model to bake.` +
              (ids.length ? ` If replacement_models/ holds ${ids.map(i => i + '.bin').join(' or ')} from an earlier bake of this pod, delete it.` : '');
     }
-    const runtime = runtimeEditsText(block, baked);
+    const runtime = RUNTIME_EDITS ? runtimeEditsText(block, baked) : null;
     const written = [];
     const put = async (path, data) => { await writeFile(dir, [...out, ...path], data); written.push([...out, ...path].join('/')); };
     if (dir) {
       for (const r of baked ? baked.models : []) await put(['replacement_models', r.modelId + '.bin'], r.bytes);
       await put(['pod_edits', 'source', model + '.txt'], full);
-      await put(['pod_edits', model + '.txt'], runtime);
+      if (runtime) await put(['pod_edits', model + '.txt'], runtime);
     } else {
       for (const r of baked ? baked.models : []) download(r.modelId + '.bin', r.bytes);
-      download(model + '.txt', runtime);
+      download(model + '.txt', runtime || full);
     }
     dirty = false;
     const head = dir ? `Installed in ${dir.name}:\n  ${written.join('\n  ')}` :
-      'Downloaded: put the .bin in Desktop\\SWEP1R Pod Editor\\replacement_models and the .txt in its pod_edits folder.';
-    buildReport('ok', head + (baked ? '\nIn game: Mods › Pod Editor › “Reload edits”, then restart the race to load the new model.'
-                                    : '\nIn game: Mods › Pod Editor › “Reload edits”.') + (note ? '\n' + note : ''),
+      'Downloaded: put the .bin in Desktop\\SWEP1R Pod Editor\\replacement_models (keep the .txt to reopen the edits).';
+    buildReport('ok', head + (baked ? '\nIn game: restart the race to load the new model (or Mods › Pod Editor › “Write into out_modelblock.bin” to build it into the game\'s data).'
+                                    : '') + (note ? '\n' + note : ''),
                 baked ? baked.log : []);
   } catch (err) {
     if (err.name === 'AbortError') buildReport('info', 'Build cancelled.');
