@@ -383,6 +383,7 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
         ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
         if (stillDriving) {
             smoothing_apply((float) (s_accum / dt0));
+            smoothing_apply_render_rate_fx((float) (s_accum / dt0));
             smoothing_apply_cameras();
         }
     }

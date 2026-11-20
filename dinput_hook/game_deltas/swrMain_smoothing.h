@@ -23,6 +23,10 @@ void smoothing_capture(int ticks);
 // Display values for alpha = fraction of a tick elapsed since the last one, in [0, 1). Call after
 // swrViewport_UpdateCameras, so the cameras copy the true poses.
 void smoothing_apply(float alpha);
+// Per-frame cosmetics the tick would otherwise step at the sim rate: engine-exhaust flicker and
+// swrObjSmok particles (engine fire, smoke). Call after smoothing_apply, whether or not smoothing
+// is on; undone by smoothing_restore.
+void smoothing_apply_render_rate_fx(float alpha);
 // Camera display poses; call right after swrViewport_UpdateCameras (which copies cMan's tick-rate
 // camera into each viewport).
 void smoothing_apply_cameras();

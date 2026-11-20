@@ -12,6 +12,8 @@
 extern "C" {
 #include <Swr/swrEvent.h>   // swrEvent_GetEventCount, swrEvent_GetItem
 #include <Swr/swrModel.h>   // swrModel_AnimationUpdateTime_ADDR, swrModel_Update*Animation_ADDR
+#include <Swr/swrObj.h>     // swrObjSmok_F3_ADDR
+#include <Swr/swrRace.h>    // swrRace_UpdateEngineExhaust_ADDR
 #include <Swr/swrViewport.h>// swrViewport_SetMat3_ADDR
 #include <globals.h>
 }
@@ -636,6 +638,169 @@ namespace {
         }
     }
 
+    // swrRace_UpdateEngineExhaust (0x0046f2c0, from swrObjTest_F3) re-rolls the flame flicker on
+    // every call, so vanilla flickers per rendered frame; the tick alone would flicker at the sim
+    // rate. Re-run it per frame on the cosmetic RNG stream.
+    constexpr int kFlameParts[] = {28, 29, 42, 43};// partNodes / partXf indices it writes
+    constexpr int kNumFlameParts = sizeof(kFlameParts) / sizeof(kFlameParts[0]);
+    constexpr int kNumEnginesPerSide = 3;          // engineStatus[0..2] left, [3..5] right
+    constexpr float kExhaustSlidingScale = 0.5f;   // 0x004ad95c, flags1 SLIDING
+    constexpr float kExhaustDestroyedScale = 0.2f; // 0x004ad980
+    typedef void(__cdecl *swrRace_UpdateEngineExhaust_t)(swrRace *, int, float, float);
+    struct PartXfSave {
+        rdMatrix44 *matrix;
+        rdMatrix44 pose;
+    };
+    std::vector<PartXfSave> s_partXfSaves;
+
+    // Inverts exhaustSize = (target + exhaustSize) * 0.5 so the call lands on the tick's size.
+    float exhaust_target(const swrRace *racer, int firstEngine) {
+        float target = racer->throttle;
+        if ((racer->flags1 & swrObjTest_FLAG1_SLIDING) != 0)
+            target *= kExhaustSlidingScale;
+        for (int i = firstEngine; i < firstEngine + kNumEnginesPerSide; i++)
+            if ((racer->engineStatus[i] & swrRace_ENGINESTATUS_DAMAGED) != 0) {
+                target *= kExhaustDestroyedScale;
+                break;
+            }
+        return target;
+    }
+
+    void apply_exhaust_flicker(double displaySeconds) {
+        const double savedTime = timetotal;
+        timetotal = savedTime + displaySeconds;
+        const int racers = swrEvent_GetEventCount(kEventTest);
+        for (int r = 0; r < racers; r++) {
+            swrRace *racer = (swrRace *) swrEvent_GetItem(kEventTest, r);
+            if (racer == nullptr || racer->partNodes == nullptr ||
+                (racer->flags0 & swrObjTest_FLAG0_RESET) != 0)
+                continue;
+            uint32_t visibility[kNumFlameParts] = {};
+            for (int i = 0; i < kNumFlameParts; i++) {
+                swrModel_Node *node = racer->partNodes[kFlameParts[i]];
+                if ((uintptr_t) node < kMinValidAddress)
+                    continue;
+                visibility[i] = node->flags_1;
+                swrModel_NodeTransformed *tn = (swrModel_NodeTransformed *) node;
+                if (s_animNodes.insert(node).second)
+                    s_animNodeSaves.push_back({tn, tn->transform, node->flags_3});
+                rdMatrix44 *xf = &racer->unk350_mat + kFlameParts[i];
+                s_partXfSaves.push_back({xf, *xf});
+            }
+            const float sizeL = racer->exhaustSizeLeft;
+            const float sizeR = racer->exhaustSizeRight;
+            racer->exhaustSizeLeft = 2.0f * sizeL - exhaust_target(racer, 0);
+            racer->exhaustSizeRight = 2.0f * sizeR - exhaust_target(racer, kNumEnginesPerSide);
+            ((swrRace_UpdateEngineExhaust_t) swrRace_UpdateEngineExhaust_ADDR)(racer, 0, -1.0f, -1.0f);
+            racer->exhaustSizeLeft = sizeL;
+            racer->exhaustSizeRight = sizeR;
+            for (int i = 0; i < kNumFlameParts; i++) {
+                swrModel_Node *node = racer->partNodes[kFlameParts[i]];
+                if ((uintptr_t) node >= kMinValidAddress)
+                    node->flags_1 = visibility[i];
+            }
+        }
+        timetotal = savedTime;
+    }
+
+    // swrObjSmok_F3 (engine fire, smoke) spins + scrolls particles by deltaTimeSecs, so they'd step
+    // at the sim rate (and fast spins snap instead of blending). Re-run it per frame at the display
+    // time, anchor interpolated via s_matrices. Phase only advances for free-running lifetimes: the
+    // engine fire is topped up every tick, so its phase holds still, as in vanilla.
+    constexpr int kEventSmok = 0x536d6f6b;// 'Smok'
+    constexpr short kObjFlagsSkipUpdate = swrObj_FLAG_FREED | swrObj_FLAG_SLEEPING;// swrEvent_CallAll* skip
+    constexpr double kSmokAlphaWindowRate = 4.0;// swrObjSmok_F0: windows sweep 4 / totalLifetime per s
+    constexpr int kSmokParticles = 5;
+    typedef void(__cdecl *swrObjSmok_F3_t)(swrObjSmok *);
+    struct SmokLifetime {
+        float prev;
+        float curr;
+        unsigned int seenCapture;
+    };
+    std::unordered_map<swrObjSmok *, SmokLifetime> s_smokLifetimes;
+    struct MaterialSave {
+        swrModel_MeshMaterial *meshMaterial;
+        int16_t textureOffset[2];
+        uint32_t type;
+        uint8_t color[4];
+        uint32_t flags_1;
+        swrModel_Node *node;
+    };
+    std::vector<MaterialSave> s_materialSaves;
+
+    bool smok_active(const swrObjSmok *smok) {
+        return (smok->obj.flags & kObjFlagsSkipUpdate) == 0;
+    }
+
+    void capture_smoks() {
+        const int count = swrEvent_GetEventCount(kEventSmok);
+        for (int i = 0; i < count; i++) {
+            swrObjSmok *smok = (swrObjSmok *) swrEvent_GetItem(kEventSmok, i);
+            if (smok == nullptr || !smok_active(smok))
+                continue;
+            record(s_matrices, &smok->transform, to_xform(smok->transform));
+            SmokLifetime &l = s_smokLifetimes[smok];
+            l.prev = l.seenCapture + 1 == s_capture ? l.curr : smok->lifetime;
+            l.curr = smok->lifetime;
+            l.seenCapture = s_capture;
+        }
+        for (auto it = s_smokLifetimes.begin(); it != s_smokLifetimes.end();)
+            it = it->second.seenCapture != s_capture ? s_smokLifetimes.erase(it) : std::next(it);
+    }
+
+    void restore_smoks() {
+        for (auto it = s_materialSaves.rbegin(); it != s_materialSaves.rend(); ++it) {
+            it->meshMaterial->texture_offset[0] = it->textureOffset[0];
+            it->meshMaterial->texture_offset[1] = it->textureOffset[1];
+            it->meshMaterial->type = it->type;
+            if (it->meshMaterial->material != nullptr)
+                memcpy(it->meshMaterial->material->primitive_color, it->color, 4);
+            it->node->flags_1 = it->flags_1;
+        }
+        s_materialSaves.clear();
+    }
+
+    void apply_smok_animation(double displaySeconds, double tickSeconds) {
+        const double savedDt = swrRace_deltaTimeSecs;
+        const int count = swrEvent_GetEventCount(kEventSmok);
+        for (int i = 0; i < count; i++) {
+            swrObjSmok *smok = (swrObjSmok *) swrEvent_GetItem(kEventSmok, i);
+            if (smok == nullptr || !smok_active(smok) || smok->lifetime <= 0.0f)
+                continue;
+            for (int p = 0; p < smok->particleCount && p < kSmokParticles; p++) {
+                swrModel_Node *node = smok->particleNodes[p];
+                if ((uintptr_t) node < kMinValidAddress)
+                    continue;
+                swrModel_NodeTransformed *tn = (swrModel_NodeTransformed *) node;
+                if (s_animNodes.insert(node).second)
+                    s_animNodeSaves.push_back({tn, tn->transform, node->flags_3});
+                swrModel_MeshMaterial *mm = swrModel_NodeFindFirstMeshMaterial(node);
+                if ((uintptr_t) mm < kMinValidAddress)
+                    continue;
+                MaterialSave m{mm, {mm->texture_offset[0], mm->texture_offset[1]}, mm->type, {}, node->flags_1, node};
+                if (mm->material != nullptr)
+                    memcpy(m.color, mm->material->primitive_color, 4);
+                s_materialSaves.push_back(m);
+            }
+            const swrObjSmok saved = *smok;
+            auto l = s_smokLifetimes.find(smok);
+            const bool freeRunning = l != s_smokLifetimes.end() && l->second.seenCapture == s_capture &&
+                                     l->second.prev - l->second.curr >
+                                         0.5 * tickSeconds * (double) s_ticksLastCapture;
+            if (freeRunning && smok->lifetime - displaySeconds > 0.0) {
+                if (smok->alphaWindowFront < 1.0f)
+                    smok->alphaWindowFront += (float) (displaySeconds * kSmokAlphaWindowRate / smok->totalLifetime);
+                if (smok->lifetime < smok->totalLifetime)
+                    smok->alphaWindowTail += (float) (displaySeconds * kSmokAlphaWindowRate / smok->totalLifetime);
+                smok->lifetime -= (float) displaySeconds;
+            }
+            swrRace_deltaTimeSecs = displaySeconds;
+            ((swrObjSmok_F3_t) swrObjSmok_F3_ADDR)(smok);
+            *smok = saved;
+        }
+        swrRace_deltaTimeSecs = savedDt;
+    }
+
     bool is_transform_anim(const swrModel_Animation *anim) {
         const uint32_t type = anim->flags & kAnimTypeMask;
         return (anim->flags & ANIMATION_ENABLED) != 0 && (anim->flags & ANIMATION_DISABLED) == 0 &&
@@ -775,6 +940,10 @@ namespace {
         }
         for (const AnimSave &a: s_animSaves)
             *a.anim = a.state;
+        restore_smoks();
+        for (const PartXfSave &p: s_partXfSaves)
+            *p.matrix = p.pose;
+        s_partXfSaves.clear();
         for (const TextRestore &r: s_textRestores)
             memcpy(swrTextEntries1Text[r.index], r.text, sizeof(r.text));
         for (const NodeRestore &r: s_nodeRestores)
@@ -842,6 +1011,7 @@ void smoothing_capture(int ticks) {
         for (rdMatrix44 *m: parts)
             record(s_matrices, m, to_xform(*m));
     }
+    capture_smoks();
     capture_hud();
     // Node / material keys are only compared, never dereferenced, outside a live walk, so stale ones
     // are safe to keep until here.
@@ -875,6 +1045,13 @@ void smoothing_apply(float alpha) {
     const float displaySeconds = (alpha - (1.0f - s_framePrediction)) / hz;
     apply_animations(displaySeconds);
     apply_time_text(displaySeconds, 1.0f / hz);
+}
+
+void smoothing_apply_render_rate_fx(float alpha) {
+    const float hz = swr_fixedTimestepHz > 1.0f ? swr_fixedTimestepHz : 1.0f;
+    const float ticksPastCurr = s_frameReady ? alpha - (1.0f - s_framePrediction) : alpha;
+    apply_exhaust_flicker(ticksPastCurr / hz);
+    apply_smok_animation(ticksPastCurr / hz, 1.0 / hz);
 }
 
 void smoothing_apply_cameras() {
@@ -922,6 +1099,7 @@ void smoothing_restore() {
 }
 
 void smoothing_reset() {
+    s_smokLifetimes.clear();
     smoothing_restore();
     s_nodes.clear();
     s_matrices.clear();
