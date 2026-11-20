@@ -43,6 +43,10 @@ struct TrackManifest {
     TrackAsset spline;
     std::vector<TrackAsset> textures;
 
+    // A track whose spline does not loop ends after one traversal, so it has no lap count to ask
+    // for. Recorded when the track is converted, so a catalog entry knows before it is downloaded.
+    bool point_to_point;
+
     TrackPlacement placement;
     std::filesystem::path directory;
 };
@@ -51,6 +55,10 @@ struct TrackManifest {
 // manifests; a manifest naming assets the content store does not hold still parses -- reading the
 // assets is what fails then.
 bool track_manifest_Read(const std::filesystem::path &path, TrackManifest *out);
+
+// The same, from the manifest text a catalog entry carries. `label` names it in the log;
+// `directory` is left empty, since nothing is on disk yet.
+bool track_manifest_Parse(const std::string &json, const char *label, TrackManifest *out);
 
 // Every manifest under ./assets/tracks/*/track.json, in directory order.
 std::vector<TrackManifest> track_manifest_ScanAll();
