@@ -2105,7 +2105,6 @@ unsigned char swrControl_CaptureBinding(int bAnalogCapture, swrConfig_DEVICE dev
                 if (device != swrConfig_DEVICE_KEYBOARD && button == 1)
                     result = swrControl_CAPTURE_SWALLOW_BACK;
                 action = swrControl_FindMapping((unsigned char*)device, button, 0, &mapFlags);
-                choice = 0;
                 if (action >= 0) {
                     keyName = swrText_Translate(swrControl_FindKeyName(action, mapFlags));
                     if (_strcmpi(keyName, functionName) == 0) {
