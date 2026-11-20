@@ -361,8 +361,8 @@ extern "C"
     {
         short x; // Position x
         short y; // Position y
-        short unk0x4; // 0x4, written by swrSprite_SetUVOffset_Maybe
-        short unk0x6; // 0x6, written by swrSprite_SetUVOffset_Maybe
+        short unk0x4; // 0x4, written by swrSprite_SetSecondPos_Maybe
+        short unk0x6; // 0x6, written by swrSprite_SetSecondPos_Maybe
         float width; // 0x8 Size X / scale X
         float height; // 0xC Size Y / scale Y
         float rotation_angle; // written in sub_428720
@@ -866,7 +866,7 @@ extern "C"
         float countdownTimer_ms; // 0x1cc. pre-race countdown timer; loaded from race config and counted down in F0 state 1; sets flag bit 0x20 when positive
         float best_lap_time_ms; // 0x1d0. annodue: RecordLap1
         float recordLap3_ms; // 0x1d4. annodue: RecordLap3
-        float boostLightLevel[2]; // 0x1d8. per local player boost-ready light, ramps 0..1 at 4/s while CAN_CHARGE_BOOST (swrObjJdge_DrawSpeedDialHud_Maybe)
+        float boostLightLevel[2]; // 0x1d8. per local player boost-ready light, ramps 0..1 at 4/s while CAN_CHARGE_BOOST (swrObjJdge_DrawBoostDialHud)
         int viewportMode; // 0x1e0. swrObjJdge_VIEWPORT, consumed by swrObjJdge_UpdateViewportLayout
         float unk1e4;
     } swrObjJdge; // sizeof(0x1e8)
@@ -3398,13 +3398,13 @@ extern "C"
         char unk64[4]; // 0x64
     } swrFont; // sizeof(0x68)
 
-    // Palette-cycling record walked by swrScene_UpdateTextureScroll_Maybe (retail instance at 0x4c1c90).
+    // Palette-cycling record walked by swrScene_UpdatePaletteScroll (retail instance at 0x4c1c90).
     // Every `period` seconds each of the `count` entries advances its phase by one (mod
     // `paletteSize`) and copies srcPalette[phase] into destPalette[destIndex].
     typedef struct swrScene_PaletteScroll
     {
         int unk00; // 0x00
-        uint16_t* destPalette; // 0x04 NULL disables the copy (swrScene_ClearTextureAnim_Maybe)
+        uint16_t* destPalette; // 0x04 NULL disables the copy (swrScene_ClearPaletteScrollTarget)
         uint16_t* srcPalette; // 0x08
         short paletteSize; // 0x0c phase modulus
         float period; // 0x10 seconds per step
@@ -3507,7 +3507,7 @@ extern "C"
     typedef BOOL(__stdcall* cifr_IFReleaseEffectsFn)(HIFORCEPROJECT project, IDirectInputEffect** effects);
     typedef BOOL(__stdcall* cifr_IFReleaseProjectFn)(HIFORCEPROJECT project);
 
-    // One downloaded force-feedback effect (cifr_InitEffectSlot_Maybe / cifr_CreateEffect).
+    // One downloaded force-feedback effect (cifr_ResetEffectParams / cifr_CreateEffect).
     // params' axis/direction/envelope pointers aim into this slot.
     typedef struct cifr_Effect
     {
@@ -3517,7 +3517,7 @@ extern "C"
         LONG directions[0x20]; // 0x3c
         DWORD axes[0x20]; // 0xbc
         DIENVELOPE envelope; // 0x13c
-        int* typeSpecificBuffer; // 0x150. owned copy of the type-specific params (cifr_SetCustomForceData_Maybe)
+        int* typeSpecificBuffer; // 0x150. owned copy of the type-specific params (cifr_SetTypeSpecificParams)
         int effectId; // 0x154. swrForceEffect currently created in this slot, -1 = none
         char name[0x18]; // 0x158. .fcr effect name of effectId
         unsigned int lastEffectId; // 0x170. highest swrForceEffect this slot serves
@@ -3544,7 +3544,7 @@ extern "C"
     {
         uint8_t id; // 0x0
         uint8_t level; // 0x1
-        uint8_t shopTracksRequired; // 0x2. Watto lists the part once (unlocked tracks - 3) >= this (LoadUpgradeModelsIntoScene_Maybe)
+        uint8_t shopTracksRequired; // 0x2. Watto lists the part once (unlocked tracks - 3) >= this (swrObjHang_LoadShopPartModels)
         uint8_t type; // 0x3
         uint32_t price; // 0x4. base price at full health (scaled by health / 255 in swrRace_ComputeUpgradePrices)
         MODELID model; // 0x8

@@ -12,7 +12,7 @@
 #define swrSprite_DisplayCursor_ADDR (0x00408220)
 
 #define swrSprite_GetTextureFromTGA_ADDR (0x004114d0)
-#define swrUI_GetMenuRoot_Maybe_ADDR (0x00411720)
+#define swrUI_IsTextEntryActive_ADDR (0x00411720)
 
 #define swrSprite_LoadAllSprites_ADDR (0x00412650)
 
@@ -53,7 +53,7 @@
 #define swrSprite_DrawSprites_ADDR (0x004283B0)
 #define swrSprite_SetVisible_ADDR (0x004285d0)
 #define swrSprite_SetPos_ADDR (0x00428660)
-#define swrSprite_SetUVOffset_Maybe_ADDR (0x004286c0)
+#define swrSprite_SetSecondPos_Maybe_ADDR (0x004286c0)
 #define swrSprite_SetDim_ADDR (0x004286f0)
 #define swrSprite_SetRotation_ADDR (0x00428720)
 #define swrSprite_SetColor_ADDR (0x00428740)
@@ -107,8 +107,8 @@ void swrSprite_DisplayCursor(void);
 
 swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id);
 
-// Returns the global UI tree root pointer (best guess).
-int swrUI_GetMenuRoot_Maybe(void);
+// Returns swrUI_textEntryActive (gates Space as accept while typing).
+int swrUI_IsTextEntryActive(void);
 
 void swrSprite_LoadAllSprites(void);
 
@@ -149,7 +149,7 @@ void swrSprite_ResetAllSprites(void);
 void swrSprite_DrawSprites(int);
 void swrSprite_SetVisible(short id, int visible);
 void swrSprite_SetPos(short id, short x, short y);
-void swrSprite_SetUVOffset_Maybe(short id, short u, short v);
+void swrSprite_SetSecondPos_Maybe(short id, short u, short v);
 
 void swrSprite_SetDim(short id, float width, float height);
 void swrSprite_SetRotation(short id, float);

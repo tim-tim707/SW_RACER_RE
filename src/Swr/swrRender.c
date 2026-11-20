@@ -1273,7 +1273,7 @@ void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport)
 }
 
 // 0x0044e000
-void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor)
+void rdModel_SetupSceneFogAndLights(Gfx** displayListCursor)
 {
     Gfx* cursor;
 
@@ -1298,7 +1298,7 @@ void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor)
 }
 
 // 0x0044e0c0
-void rdModel_SetFogEnabled_Maybe(int enable)
+void rdModel_SetFogEnabled(int enable)
 {
     if (enable != 0) {
         GameSettingFlags = GameSettingFlags & ~GAME_SETTING_FOG_DISABLED;

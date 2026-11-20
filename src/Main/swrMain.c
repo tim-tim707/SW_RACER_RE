@@ -366,7 +366,7 @@ int Main_Startup(char* cmdline)
     stdPlatform_Initialize(&stdPlatform_hostServices);
     swrText_ParseRacerTab(".\\data\\racer.tab");
     swrDisplay_SetWindowSize();
-    swrControl_ClearPollState_Maybe();
+    swrControl_ClearUIInputChangeFlags();
     swrUI_Initialize();
     Windows_hinstance_unused = (int)GetModuleHandleA(NULL);
     wuRegistry_Startup(HKEY_LOCAL_MACHINE, "Software\\LucasArts Entertainment Company LLC\\Star Wars: Episode I Racer\\v1.0");
@@ -600,7 +600,7 @@ void swrMain_RunFrame(short flags, short phase)
         swrPlayerHUD_RenderAllViewports();
         if (flags == 0) {
             swr_noop2();
-            swrViewport_AdvanceFrameParity_Maybe();
+            swrViewport_AdvanceFrameParity();
         }
         swr_noop2();
         swr_noop2();

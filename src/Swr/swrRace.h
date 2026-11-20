@@ -231,7 +231,7 @@
 #define swrRace_CopyProfileFromSave_ADDR (0x0044e500)
 #define swrRace_CopyProfileToSave_ADDR (0x0044e530)
 #define swrRace_SaveCurrentProfile_ADDR (0x0044e560)
-#define swrRace_UpdatePitDroidModels_Maybe_ADDR (0x00456200)
+#define swrRace_UpdatePitDroidModels_ADDR (0x00456200)
 #define swrRace_UpdateAIGlidePitch_ADDR (0x0046aec0)
 #define swrRace_SendFlameAttackEvent_ADDR (0x0046bb30)
 #define swrRace_SpawnFlameAttackByIndex_ADDR (0x0046bb50)
@@ -327,8 +327,8 @@ void swrRace_DrawStatBar(swrObjHang* hang, short x, short y, float fill, float a
 void swrRace_DrawUpgradesPanel(swrObjHang* hang);
 void swrRace_UpdateStatPartModels(void);
 
-// Randomizes and positions the pit-droid models and sets the stats-menu light (best guess).
-void swrRace_UpdatePitDroidModels_Maybe(void);
+// Randomizes and positions the pit-droid models and sets the stats-menu light.
+void swrRace_UpdatePitDroidModels(void);
 
 // ray = {origin.xyz, dir.xyz, maxDist}; returns hit distance (<0 = miss), fills outHit/outNormal.
 float swrRace_RaycastModel(swrModel_Node* model, float* ray, rdVector3* outHit, rdVector3* outNormal);

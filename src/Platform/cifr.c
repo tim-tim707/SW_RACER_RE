@@ -26,7 +26,7 @@ void cifr_Init(cifr_EffectSet* effects)
         effect->numInterfaces = 0;
         effect->interfaces = NULL;
         effect->typeSpecificBuffer = NULL;
-        cifr_InitEffectSlot_Maybe(effect);
+        cifr_ResetEffectParams(effect);
     }
     device = stdControl_joystickDeviceIndex;
     cifr_device = (&stdControlJoystickDevice)[device * STDCONTROL_JOYSTICK_RECORD_DWORDS];
@@ -43,7 +43,7 @@ void cifr_Init(cifr_EffectSet* effects)
 }
 
 // 0x00403f00
-void cifr_ReinitEffects_Maybe(cifr_EffectSet* effects)
+void cifr_ReinitEffects(cifr_EffectSet* effects)
 {
     if (swrConfig_FORCE_ENABLED == 0) {
         return;
@@ -150,12 +150,12 @@ int cifr_CreateEffect(cifr_Effect* effect, char* name, HIFORCEPROJECT project)
         return 0;
     }
     for (i = 0; i < effect->numInterfaces; i++) {
-        cifr_InitEffectSlot_Maybe(effect);
+        cifr_ResetEffectParams(effect);
         iface = effect->interfaces[i];
         result = iface->lpVtbl->GetParameters(iface, (LPDIEFFECT)&effect->params, DIEP_ALLPARAMS_DX5);
         if (result == DIERR_MOREDATA) {
             size = effect->params.cbTypeSpecificParams;
-            cifr_InitEffectSlot_Maybe(effect);
+            cifr_ResetEffectParams(effect);
             effect->typeSpecificBuffer = (*stdPlatform_hostServices_ptr->alloc)(size);
             effect->params.lpvTypeSpecificParams = effect->typeSpecificBuffer;
             effect->params.cbTypeSpecificParams = size;
@@ -358,7 +358,7 @@ int cifr_SetDuration(cifr_Effect* effect, int durationMs, int start)
 }
 
 // 0x00404590
-int cifr_SetCustomForceData_Maybe(cifr_Effect* effect, unsigned int size, void* data, int start)
+int cifr_SetTypeSpecificParams(cifr_Effect* effect, unsigned int size, void* data, int start)
 {
     IDirectInputEffect* iface;
 
@@ -379,7 +379,7 @@ int cifr_SetCustomForceData_Maybe(cifr_Effect* effect, unsigned int size, void* 
 }
 
 // 0x00404640
-int cifr_QueryEffectStatus_Maybe(cifr_Effect* effect, GUID* outGuid)
+int cifr_GetEffectGuid(cifr_Effect* effect, GUID* outGuid)
 {
     IDirectInputEffect* iface;
 
@@ -394,13 +394,13 @@ int cifr_QueryEffectStatus_Maybe(cifr_Effect* effect, GUID* outGuid)
 }
 
 // 0x00404670
-int cifr_GetForceFeedbackState_Maybe(cifr_Effect* effect, char* outEffType)
+int cifr_GetEffectType(cifr_Effect* effect, char* outEffType)
 {
     GUID guid;
     DIEFFECTINFOA info;
     LPDIRECTINPUTDEVICE2A device;
 
-    if (cifr_QueryEffectStatus_Maybe(effect, &guid) == 0) {
+    if (cifr_GetEffectGuid(effect, &guid) == 0) {
         return 0;
     }
     device = (LPDIRECTINPUTDEVICE2A)cifr_device;
@@ -413,7 +413,7 @@ int cifr_GetForceFeedbackState_Maybe(cifr_Effect* effect, char* outEffType)
 }
 
 // 0x004046e0
-void cifr_InitEffectSlot_Maybe(cifr_Effect* effect)
+void cifr_ResetEffectParams(cifr_Effect* effect)
 {
     memset(&effect->params, 0, sizeof(effect->params));
     effect->params.lpEnvelope = &effect->envelope;

@@ -2000,7 +2000,7 @@ int swrMultiplayer_ApplyRaceReset(void)
     memset(multiplayer_aPlayerFinished, 0, sizeof(multiplayer_aPlayerFinished));
     swrMultiplayer_ignoreEvents = 0;
     swrMultiplayer_SendMenuEvent(0);
-    swrObjHang_EnterMultiplayerMenu_Maybe();
+    swrObjHang_ReturnToMultiplayerLobby();
     return 1;
 }
 

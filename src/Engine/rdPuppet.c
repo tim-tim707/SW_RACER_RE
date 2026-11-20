@@ -237,7 +237,7 @@ static float rdClip_ClampLight(float value)
 }
 
 // 0x00493b80
-void rdClip_Face3T_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst, rdVector2* pTexOffset)
+void rdPrimit3_ClipFace3T(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst, rdVector2* pTexOffset)
 {
     rdVector4* srcLight;
     rdVector4* intensity;
@@ -272,9 +272,9 @@ void rdClip_Face3T_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* 
     }
 
     if (rdCamera_pCurCamera->projectType == rdCameraProjectType_Perspective) {
-        pDst->numVertices = rdClip_Face3TTestFrustum_Maybe(pFrustum, pSrc);
+        pDst->numVertices = rdClip_Face3TTestFrustum(pFrustum, pSrc);
         if (pDst->numVertices != 0)
-            pDst->numVertices = rdClip_Face3TClipPlane_Maybe(pFrustum, pSrc, pDst);
+            pDst->numVertices = rdClip_Face3TClipNear(pFrustum, pSrc, pDst);
     } else {
         pDst->numVertices = rdClip_Face3TOrtho(pFrustum, pDst->verticesProjected, pDst->vertexUVs, rdClip_face3TDstLights, pSrc->numVertices);
     }

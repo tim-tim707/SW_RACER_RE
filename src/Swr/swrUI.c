@@ -558,19 +558,19 @@ void swrUI_BuildAuxPages(void)
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
     // built under the Watto id; swrObjHang_SetMenuState looks up swrUI_WINDOW_HANGAR_JUNKYARD (0x87), which nothing creates
-    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_WATTO, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_WATTO, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard);
     if (page != NULL) {
         rect[0] = 0x28;
         rect[1] = 0x1b;
         rect[2] = 0x5e;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
         rect[0] = 0x217;
         rect[1] = 0x1b;
         rect[2] = 0x24d;
         rect[3] = 0x56;
-        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard_Maybe, 0);
+        arrow = swrUI_NewSpriteElement(page, SWR_UI_ID_HANGAR_JUNKYARD_ARROW_RIGHT, rect, 0, 0, (swrUI_unk_F2*)swrUI_Menu_HangarJunkyard, 0);
         swrUI_SetSpriteColor(arrow, 0, 0xff, 0xff, 0xff, 0);
     }
     swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_HANGAR_LOOK_AT_VEHICLE, (swrUI_unk_F2*)swrUI_Menu_HangarLookAtVehicle);
@@ -806,7 +806,7 @@ swrUI_unk* swrUI_NewList(swrUI_unk* parent, int id, int* rect, int new_index, in
     swrUI_SetSize(ui, right - left + 1, bottom - top + 1);
     swrUI_SetPos(ui, left, top);
     swrUI_BuildPanelFrame(ui, 0, 0);
-    swrUI_SetSpriteSelectionBBox_Maybe(inset, 0);
+    swrUI_GetListFrameInsets(inset, 0);
     ui->content_left = left + inset[0];
     ui->content_top = top + inset[1];
     ui->item_flags = (swrUI_ITEM_FLAG)flag;
@@ -1375,7 +1375,7 @@ swrUI_unk* swrUI_NewDialog(swrUI_unk* parent, int x, int y, char* title, char* m
     if (rowWidth >= 0)
         width = rowWidth;
 
-    swrUI_GetButtonBBoxFromText_Maybe((int*)&messageBox, message, 0);
+    swrUI_GetWrappedTextBBox((int*)&messageBox, message, 0);
     height += (int)(messageBox.y2 - messageBox.y) + 1;
     rowWidth = (int)(messageBox.x2 - messageBox.x) + 1;
     if (width <= rowWidth)
@@ -2326,7 +2326,7 @@ int swrUI_ListProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
         box.x2 = ui->width;
         box.y2 = ui->height;
         swrSprite_MoveBBoxTo(&box, (int)param, param2);
-        swrUI_SetSpriteSelectionBBox_Maybe(margins, 0);
+        swrUI_GetListFrameInsets(margins, 0);
         ui->content_left = box.x + margins[0];
         ui->content_top = box.y + margins[1];
         ui->content_right = box.x2 - margins[2];
@@ -2713,7 +2713,7 @@ void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font)
 }
 
 // 0x00417740
-void swrUI_GetButtonBBoxFromText_Maybe(int* bbox_out, char* text, int font)
+void swrUI_GetWrappedTextBBox(int* bbox_out, char* text, int font)
 {
     int width = swrText_GetStringWidth(text, swrText_fontsByIndex[font]);
     int height = swrText_GetStringHeight(text, swrText_fontsByIndex[font]);
@@ -3156,7 +3156,7 @@ int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* para
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, 1, multiplayer_enabled == 0);
             if (multiplayer_enabled != 0)
-                swrObjHang_OnSelectVehicle_Maybe();
+                swrObjHang_EnterVehicleSelect();
         }
         break;
     case swrUI_MSG_PAGE_POPPED:
@@ -3213,7 +3213,7 @@ int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
             swrUI_RefreshPageButtons(self, multiplayer_enabled == 0, 1);
             if (multiplayer_enabled != 0)
-                swrObjHang_OnSelectPlanet_Maybe();
+                swrObjHang_EnterPlanetSelect();
         }
         break;
     case swrUI_MSG_ELEMENT_ACTIVATED:
@@ -3335,7 +3335,7 @@ int swrUI_Menu_HangarWatto(swrUI_unk* self, unsigned int msg, void* param_3, swr
 }
 
 // 0x00419770
-int swrUI_Menu_HangarJunkyard_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_HangarJunkyard(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
 {
     if (msg == swrUI_MSG_MOUSE_DOWN) {
         if (self->id == SWR_UI_ID_HANGAR_JUNKYARD_ARROW_LEFT)
@@ -3355,7 +3355,7 @@ int swrUI_Menu_HangarJunkyard_Maybe(swrUI_unk* self, unsigned int msg, void* par
 }
 
 // 0x004197f0
-void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed)
+void swrUI_GetListFrameInsets(int* bbox_out, int collapsed)
 {
     if (bbox_out != NULL) {
         if (collapsed != 0) {
@@ -4539,7 +4539,7 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY)
 }
 
 // 0x0043b1d0
-void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang)
+void swrUI_Front_SyncTrackSelection(swrObjHang* hang)
 {
     // the selection index counts only playable tracks before the current one
     swrRace_MenuSelectedItem = 0;
@@ -4749,7 +4749,7 @@ bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
 }
 
 // 0x00440d50
-void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4)
+void swrUI_Front_SetOkBackActive(int arg2, int arg4)
 {
     swrUI_unk* page = swrUI_GetCurrentPage();
     swrUI_RunCallbacks2(swrUI_GetById(page, 2), arg2);
@@ -5596,7 +5596,7 @@ int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* u
         switch ((int)param) {
         case SWR_UI_ID_MAIN_FREEPLAY:
             page = swrUI_GetById(NULL, swrUI_WINDOW_PROFILE_SELECT);
-            swrConfig_RefreshPlayerListMenu_Maybe(page);
+            swrConfig_RefreshProfileListMenu(page);
             swrUI_RunCallbacksScreenText(swrUI_GetById(page, 1), swrText_Translate("/MONDOTEXT_H_0000/SINGLE-PLAYER FREEPLAY ~nRACER ROSTER"), 0);
             swrObjHang_pendingTournamentMode = 0;
             swrUI_PushMenuPage(swrUI_WINDOW_PROFILE_SELECT);
@@ -5612,7 +5612,7 @@ int swrUI_Menu_Main(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* u
             return 0;
         case SWR_UI_ID_MAIN_TOURNAMENT:
             page = swrUI_GetById(NULL, swrUI_WINDOW_PROFILE_SELECT);
-            swrConfig_RefreshPlayerListMenu_Maybe(page);
+            swrConfig_RefreshProfileListMenu(page);
             swrUI_RunCallbacksScreenText(swrUI_GetById(page, 1), swrText_Translate("/MONDOTEXT_H_0001/SINGLE-PLAYER TOURNAMENT ~nRACER ROSTER"), 0);
             swrObjHang_pendingTournamentMode = 1;
             swrUI_PushMenuPage(swrUI_WINDOW_PROFILE_SELECT);
@@ -5670,7 +5670,7 @@ int swrUI_Menu_SettingsHub(swrUI_unk* self, unsigned int msg, void* param, swrUI
             swrUI_PushMenuPage(swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS);
             return 0;
         case SWR_UI_ID_SETTINGS_LOAD_SAVE:
-            swrConfig_RefreshConfigListMenu_Maybe(swrUI_GetById(NULL, swrUI_WINDOW_CONFIG_FILES));
+            swrConfig_RefreshConfigFilesMenu(swrUI_GetById(NULL, swrUI_WINDOW_CONFIG_FILES));
             swrUI_PushMenuPage(swrUI_WINDOW_CONFIG_FILES);
             return 0;
         }
@@ -5720,7 +5720,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         if (id == 0) {
             sprintf(path, "%s%s", ".\\data\\config\\", name);
             stdFileUtil_DelTree(path);
-            swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+            swrConfig_RefreshConfigFilesMenu(swrUI_configFilesPage);
             swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0541/                       Removed settings file."), 2.0f);
         }
         return 0;
@@ -5810,7 +5810,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         swrConfig_WriteVideoConfig(swrUI_configNameEntry->str_allocated);
         swrConfig_WriteAudioConfig(swrUI_configNameEntry->str_allocated);
         swrConfig_WriteForceFeedbackConfig(swrUI_configNameEntry->str_allocated);
-        swrConfig_RefreshConfigListMenu_Maybe(swrUI_configFilesPage);
+        swrConfig_RefreshConfigFilesMenu(swrUI_configFilesPage);
         swrUI_SelectListItem(swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated), 1);
         swrUI_RunCallbacks2(swrUI_configNameEntry, 0);
         swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0540/                       Saved settings file."), 2.0f);

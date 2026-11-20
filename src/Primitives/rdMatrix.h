@@ -9,9 +9,9 @@
 #define rdMatrix_Multiply44_ADDR (0x0042fb70)
 #define rdMatrix_Multiply44Acc_ADDR (0x0042ff80)
 #define rdMatrix_Unk1_ADDR (0x00430310)
-#define rdMatrix_LUDecompose_Maybe_ADDR (0x004304c0)
-#define rdMatrix_LUSolve_Maybe_ADDR (0x00430730)
-#define rdMatrix_InvertGeneral_Maybe_ADDR (0x00430810)
+#define rdMatrix_LUDecompose_ADDR (0x004304c0)
+#define rdMatrix_LUSolve_ADDR (0x00430730)
+#define rdMatrix_InvertAffine_ADDR (0x00430810)
 #define rdMatrix_Multiply3_ADDR (0x00430980)
 #define rdMatrix_Transform3_ADDR (0x00430a00)
 #define rdMatrix_Multiply4_ADDR (0x00430ab0)
@@ -64,13 +64,13 @@ void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2);
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2);
 
 // Crout LU factorization with partial pivoting of the 3x3 part of a stride-4 matrix (0 = singular).
-int rdMatrix_LUDecompose_Maybe(float* mat, float* in, int* pivots);
+int rdMatrix_LUDecompose(float* mat, float* in, int* pivots);
 
 // Solves a 3x3 linear system in place by forward and back substitution using the LU pivots.
-void rdMatrix_LUSolve_Maybe(float* lu, int* pivots, float* b);
+void rdMatrix_LUSolve(float* lu, int* pivots, float* b);
 
 // Inverts an affine matrix: the 3x3 part via LU decomposition + back-substitution, translation = -t * inverse.
-void rdMatrix_InvertGeneral_Maybe(rdMatrix44* out, rdMatrix44* in);
+void rdMatrix_InvertAffine(rdMatrix44* out, rdMatrix44* in);
 void rdMatrix_Multiply3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat);
 void rdMatrix_Multiply4(rdVector4* out, rdVector4* in, rdMatrix44* mat);

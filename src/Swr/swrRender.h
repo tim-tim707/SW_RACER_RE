@@ -30,8 +30,8 @@
 #define rdModel_AddNodeToScene2_ADDR (0x0044dae0)
 #define rdModel_BuildAndDrawScene_ADDR (0x0044db70)
 #define rdModel_BuildSceneNoDraw_Maybe_ADDR (0x0044de10)
-#define rdModel_SetupSceneFogAndLights_Maybe_ADDR (0x0044e000)
-#define rdModel_SetFogEnabled_Maybe_ADDR (0x0044e0c0)
+#define rdModel_SetupSceneFogAndLights_ADDR (0x0044e000)
+#define rdModel_SetFogEnabled_ADDR (0x0044e0c0)
 
 #define SetFogParameters_ADDR (0x0044E0E0)
 #define SetPrimaryLightColorsAndDirection_ADDR (0x0044E140)
@@ -81,11 +81,11 @@ void rdModel_BuildAndDrawScene(Gfx** displayListCursor, swrViewport* viewport);
 // Builds the scene without drawing it, walking the viewport root in an accumulation pass (best guess).
 void rdModel_BuildSceneNoDraw_Maybe(swrViewport* viewport);
 
-// Initializes scene fog and light globals and enables or disables fog and the primary light (best guess).
-void rdModel_SetupSceneFogAndLights_Maybe(Gfx** displayListCursor);
+// Initializes scene fog and light globals and enables or disables fog and the primary light.
+void rdModel_SetupSceneFogAndLights(Gfx** displayListCursor);
 
-// Toggles the fog-disable game-setting flag (best guess).
-void rdModel_SetFogEnabled_Maybe(int enable);
+// Clears (enable != 0) or sets GAME_SETTING_FOG_DISABLED.
+void rdModel_SetFogEnabled(int enable);
 
 void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA);
 void SetPrimaryLightColorsAndDirection(short* ambient_color, short* light_color, short* light_position);

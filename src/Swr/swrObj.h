@@ -7,10 +7,10 @@
 #define swrObjHang_SetHangar2State_ADDR (0x004336d0)
 #define swrObjHang_SetHangar2_ADDR (0x004336f0)
 #define swrObjHang_SetUnused_ADDR (0x00433700)
-#define swrObjHang_OnSelectVehicle_Maybe_ADDR (0x00433720)
-#define swrObjHang_OnSelectPlanet_Maybe_ADDR (0x00433740)
-#define swrObjHang_EnterMultiplayerMenu_Maybe_ADDR (0x00433760)
-#define swrObjHang_SetState5_Maybe_ADDR (0x004337d0)
+#define swrObjHang_EnterVehicleSelect_ADDR (0x00433720)
+#define swrObjHang_EnterPlanetSelect_ADDR (0x00433740)
+#define swrObjHang_ReturnToMultiplayerLobby_ADDR (0x00433760)
+#define swrObjHang_RequestDisplayPodReset_ADDR (0x004337d0)
 #define swrRace_AnimateDisplayPod_ADDR (0x004337e0)
 #define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
@@ -19,7 +19,7 @@
 #define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
 #define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
 #define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
-#define swrObjHang_PlayWattoVoiceLines_Maybe_ADDR (0x00437ea0)
+#define swrObjHang_PlayShopGreeting_ADDR (0x00437ea0)
 #define swrObjHang_UpdateLookAtVehicle_ADDR (0x00437f70)
 #define swrObjHang_UpdateInspectCamera_ADDR (0x00438d20)
 #define swrObjHang_UpdateJunkyard_ADDR (0x0043abc0)
@@ -30,16 +30,16 @@
 #define swrObjHang_UpdateScreenTransition_ADDR (0x0043da90)
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
 #define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
-#define swrObjHang_FadeScreenFlash_Maybe_ADDR (0x0043e490)
+#define swrObjHang_UpdateFadeIn_ADDR (0x0043e490)
 #define UpdateUICameraPlacements_ADDR (0x0043e5b0)
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
 #define ComputeModelViewBounds_ADDR (0x0043e6f0)
-#define LoadUpgradeModelsIntoScene_Maybe_ADDR (0x0043e840)
+#define swrObjHang_LoadShopPartModels_ADDR (0x0043e840)
 #define swrObjHang_CycleInspectCamera_ADDR (0x0043f770)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
-#define swrUI_DebugColorsEqual_Maybe_ADDR (0x00440990)
+#define swrUI_DebugInitialsMatch_ADDR (0x00440990)
 #define compare3Chars_ADDR (0x004409d0)
 #define GetRequiredPlaceToProceed_ADDR (0x00440a00)
 #define isTrackUnlocked_ADDR (0x00440a20)
@@ -47,7 +47,7 @@
 #define VerifySelectedTrack_ADDR (0x00440af0)
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
 #define resetInRaceInputBuffer_ADDR (0x00440d90)
-#define getInRaceInputBufferEntry_Maybe_ADDR (0x00440de0)
+#define swrObjHang_IsExtraSplashPageEnabled_ADDR (0x00440de0)
 #define updateInRaceInputBitsets_ADDR (0x00440df0)
 #define swrModel_SetRaycastIgnoreFacing_ADDR (0x00441010)
 #define swrObjJudge_PollPause_ADDR (0x00445680)
@@ -59,7 +59,7 @@
 #define enablePause_ADDR (0x004457b0)
 #define pollPauseInput_ADDR (0x004457d0)
 #define updatePauseMenu_ADDR (0x00445860)
-#define enablePauseOverlay_Maybe_ADDR (0x00445960)
+#define swrViewport_InitRenderDefaults_ADDR (0x00445960)
 #define swrObj_Free_ADDR (0x00450e30)
 #define swrObjcMan_UpdatePreRaceSweepTimer_ADDR (0x00451020)
 #define swrObjcMan_UpdateLighting_ADDR (0x00451160)
@@ -247,34 +247,34 @@
 #define swrScene_Stub_Maybe_ADDR (0x00449090)
 #define swrScene_InitCameras_ADDR (0x004490a0)
 #define swrScene_Init_ADDR (0x004491f0)
-#define swrScene_ClearTextureAnim_Maybe_ADDR (0x00449260)
-#define swrScene_UpdateTextureScroll_Maybe_ADDR (0x00449270)
+#define swrScene_ClearPaletteScrollTarget_ADDR (0x00449260)
+#define swrScene_UpdatePaletteScroll_ADDR (0x00449270)
 #define swrObjcMan_UpdateSplineGuideMarker_ADDR (0x004535c0)
 #define swrObjHang_LoadScreenAssets_ADDR (0x004586e0)
 #define swrObjHang_SetupScreenScene_ADDR (0x00459150)
 #define swrUI_ResetMenuInputBitsets_ADDR (0x0045a3e0)
-#define swrObjHang_EaseSine_Maybe_ADDR (0x0045a420)
+#define swrObjHang_CosineEase_ADDR (0x0045a420)
 #define swrObjHang_LayoutVehicleSelectIcons_ADDR (0x0045a840)
-#define swrObjHang_ResetCameraAssignments_Maybe_ADDR (0x0045bb60)
-#define swrObjJdge_DrawSpeedDialHud_Maybe_ADDR (0x0045fe70)
-#define swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR (0x004603f0)
+#define swrObjHang_ResetCameraAssignments_ADDR (0x0045bb60)
+#define swrObjJdge_DrawBoostDialHud_ADDR (0x0045fe70)
+#define swrObjJdge_LayoutHudFrameSprites_ADDR (0x004603f0)
 #define swrObjJdge_OnCycleHudButton_ADDR (0x00462cf0)
 #define swrObjJdge_SetupLensFlareSprites_ADDR (0x00463ec0)
-#define RecordLoadedModel_Maybe_ADDR (0x00465820)
-#define swrObjJdge_ToggleSkyboxVisibility_Maybe_ADDR (0x00466e40)
-#define swrObjElmo_PlayRandomVoiceSfx_Maybe_ADDR (0x00467c80)
-#define swrObjElmo_Init_Maybe_ADDR (0x004686b0)
-#define swrObjHang_TickHolotableSpin_Maybe_ADDR (0x00469010)
+#define swrModel_NodeLinkSharedChild_ADDR (0x00465820)
+#define swrObjJdge_ApplySkyboxVisibility_ADDR (0x00466e40)
+#define swrObjElmo_PlayRandomVoiceSfx_ADDR (0x00467c80)
+#define swrObjElmo_Init_ADDR (0x004686b0)
+#define swrObjHang_UpdateAmbientAnimSpeed_ADDR (0x00469010)
 #define swrObjElmo_WalkIntoView_ADDR (0x00469070)
 #define swrObjHang_UpdateCantinaHolotable_ADDR (0x00469380)
-#define swrModel_GetNodeTranslation_Maybe_ADDR (0x00469b50)
+#define swrObjElmo_GetNodePosition_ADDR (0x00469b50)
 #define swrObjHang_StepTransition_ADDR (0x00469b90)
-#define swrObjHang_TickMenuRepeatDelay_Maybe_ADDR (0x00469bf0)
+#define swrObjHang_TickMenuRepeatDelay_ADDR (0x00469bf0)
 #define swrObjHang_NavigateVehicleSelect_ADDR (0x00469c30)
 #define swrRace_ClosestApproach2D_ADDR (0x0047aee0)
 #define swrObjTrig_AddTriggerDescriptions_ADDR (0x0047d380)
-#define swrObjTrig_InitColorBands_Maybe_ADDR (0x0047d890)
-#define swrObjTrig_ApplyNodeRegionColor_Maybe_ADDR (0x0047da10)
+#define swrObjTrig_InitRegionGrid_ADDR (0x0047d890)
+#define swrObjTrig_ComputeNodeRegionMask_ADDR (0x0047da10)
 #define swrScene_SetObjectsLoaded_ADDR (0x004804a0)
 #define swrScene_ResetRenderState_ADDR (0x004834b0)
 
@@ -286,17 +286,17 @@ void swrObjHang_SetHangar2(swrObjHang* hang);
 
 void swrObjHang_SetUnused(void);
 
-// Menu callback that switches to the select-vehicle screen and sets a flag (best guess).
-void swrObjHang_OnSelectVehicle_Maybe(void);
+// Hangar page SET_ACTIVE (multiplayer): enters vehicle select and arms the accept guard.
+void swrObjHang_EnterVehicleSelect(void);
 
-// Menu callback that switches to the select-planet screen (best guess).
-void swrObjHang_OnSelectPlanet_Maybe(void);
+// Hangar page SET_ACTIVE (multiplayer): enters planet select.
+void swrObjHang_EnterPlanetSelect(void);
 
-// Menu callback that enters the multiplayer menu, firing page callbacks and pushing its page (best guess).
-void swrObjHang_EnterMultiplayerMenu_Maybe(void);
+// After an MP race reset: back to the race-setup / racer-list pages, then resets hangar state and fade.
+void swrObjHang_ReturnToMultiplayerLobby(void);
 
-// Sets a hangar menu state flag (best guess).
-void swrObjHang_SetState5_Maybe(void);
+// Arms swrObjHang_displayPodResetFrames after a pod model (re)load.
+void swrObjHang_RequestDisplayPodReset(void);
 
 void DrawTracks(swrObjHang* hang, char circuit);
 
@@ -307,8 +307,8 @@ void swrObjHang_UpdateEnterName(swrObjHang* hang);
 void swrObjHang_UpdateMainMenu(swrObjHang* hang);
 void swrObjHang_UpdateWattoShop(swrObjHang* hang); // parts / pit-droid shop
 
-// Plays gated Watto-shop voice lines for greeting versus parts banter (best guess).
-void swrObjHang_PlayWattoVoiceLines_Maybe(int hang);
+// One-shot shop greeting: parts or pit-droid intro the first time, a random line after that.
+void swrObjHang_PlayShopGreeting(int hang);
 void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang); // view-pod 3D screen
 
 // Drives the inspect-vehicle screen: orbit camera, per-part screen text, and cancel back to the main menu.
@@ -321,15 +321,15 @@ int swrObjHang_UpdateScreenTransition(swrObjHang* hang, int startSlide, int targ
 // Fades the active screen to black, then on completion commits the queued menu-state change.
 int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 
-// Fades a screen-flash sprite's alpha down over three cycles, hides it, and returns done (best guess).
-int swrObjHang_FadeScreenFlash_Maybe(void);
+// Fades the black overlay sprite out after the delay frames; returns 1 once the hold frames run out.
+int swrObjHang_UpdateFadeIn(void);
 // Re-bases each UI camera placement's eye z (mode 1: eye and look-at) on a floor height; mode = low word of unk1.
 void UpdateUICameraPlacements(float time);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
 
-// Returns whether two RGB triplets match when the debug flag is set (best guess).
-int swrUI_DebugColorsEqual_Maybe(char* a, char* b);
+// Debug-only: true when the first 3 chars of two names match (planet-intro skip by initials).
+int swrUI_DebugInitialsMatch(char* a, char* b);
 // Returns whether the first three characters of two strings match.
 int compare3Chars(char* a, char* b);
 // Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
@@ -339,8 +339,8 @@ void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 // aims the inspect-vehicle camera framing at the cockpit.
 void ComputeModelViewBounds(void);
 
-// Builds the upgrade-info rows and loads the upgrade pod-part models into the hangar shop scene (best guess).
-void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang);
+// Builds the Watto/junkyard part rows from the track-unlock count and loads the part models into the shop slots.
+void swrObjHang_LoadShopPartModels(swrObjHang* hang);
 // Whether the hangar camera is still moving toward its target menu position.
 int swrObjHang_IsCameraMoving(swrObjHang* hang);
 // Moves the menu selection/camera to the adjacent valid item in the current room.
@@ -375,7 +375,7 @@ void* resetInRaceInputBuffer(void);
 // (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen. NOT
 // input-related despite the name. The table is never written anywhere in the retail
 // binary (BSS, always 0), so the extra splash never shows.
-int getInRaceInputBufferEntry_Maybe(int index);
+int swrObjHang_IsExtraSplashPageEnabled(int index);
 // Build the per-player rising-edge / held / released in-race input bitsets
 // (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
 void updateInRaceInputBitsets(void);
@@ -394,8 +394,8 @@ void endPause(void); // finish unpausing: clear state, fire the 'All!' event, st
 void enablePause(void); // re-enable pausing (clears pauseDisabled)
 void updatePauseMenu(void); // per-frame: animate the menu slide-in/out, then update the UI
 
-// Activates the pause or options overlay, calling an init helper and setting a game-setting flag (best guess).
-void enablePauseOverlay_Maybe(void);
+// Startup-only: resets viewport render state, then disables fog.
+void swrViewport_InitRenderDefaults(void);
 float GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
 
 void swrObj_Free(swrObj* obj);
@@ -492,8 +492,8 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
 // Resets the front-end menu input bitsets to their default state.
 void swrUI_ResetMenuInputBitsets(void);
 
-// Computes a cosine-based sine ease used by the holo-transition animators (best guess).
-float swrObjHang_EaseSine_Maybe(float t, float period);
+// Half-cosine ease: (1 - cos(t / period * 180)) / 2 * period.
+float swrObjHang_CosineEase(float t, float period);
 
 // Build a local player's menu (UI) input bitsets (swrUI_localPlayersInputPressedBitset /
 // DownBitset) for this frame by edge-detecting the player's held in-race input
@@ -548,8 +548,8 @@ void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out);
 void* swrObjHang_BuildRosterMultiplayer(swrObjHang* hang, int* out);
 int swrObjHang_FindPlayerRacerSlot(swrObjHang* hang);
 
-// Clears the per-player camera assignment indices to -1 (best guess).
-void swrObjHang_ResetCameraAssignments_Maybe(void);
+// Clears the per-player camera assignment indices to -1.
+void swrObjHang_ResetCameraAssignments(void);
 // Assign a cMan camera to each local-human racer ('NAsn' sub-event); set up the camera->player map.
 void swrObjHang_AssignRacerCameras(swrObjHang* hang);
 void swrObjHang_InitCameraAssignments(swrObjHang* hang);
@@ -598,8 +598,8 @@ void AddFireballToModelScene();
 
 void LoadTrackModels(swrObjJdge* judge);
 
-// Increments a counter and stores a value into a small loaded-model record (best guess).
-void RecordLoadedModel_Maybe(void* record, int value);
+// Makes node's child list the single shared template node (beam/spark), bumping num_children; NULL-safe.
+void swrModel_NodeLinkSharedChild(void* record, int value);
 
 void swrObjJdge_InitSplineCursor(swrObjJdge* judge);
 
@@ -611,8 +611,8 @@ void InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
 
-// Toggles the skybox root node's visibility and sets the debug clear color (best guess).
-void swrObjJdge_ToggleSkyboxVisibility_Maybe(int unused, unsigned char mode);
+// Shows or hides the skybox node and frame color-clear from view flag bit 4; debug combo forces a black clear.
+void swrObjJdge_ApplySkyboxVisibility(int unused, unsigned char mode);
 
 // track/level load pipeline (called from swrObjJdge_InitTrack):
 // Selects the track spline by planet/track, loads it, and sets fog/clear color + start camera.
@@ -644,14 +644,14 @@ void swrObjJdge_ScrollCredits(swrObjJdge* jdge, int restartScroll);
 // Standings/position HUD + full-screen minimap state machine (keyed on hud_mode).
 void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge);
 
-// Draws a player's speed-dial gauge, boost text, and net-play prompt on the HUD (best guess).
-void swrObjJdge_DrawSpeedDialHud_Maybe(swrObjJdge* jdge, swrRace* pod, short x, short y, int playerIdx);
+// Draws a player's boost dial: boost light, bar fill and color, the first-track "Boost" hint and the net-pause notice.
+void swrObjJdge_DrawBoostDialHud(swrObjJdge* jdge, swrRace* pod, short x, short y, int playerIdx);
 // Draws a centered HUD meter sprite (id 0x1a) sized/colored by a race metric (_DAT_00e9824c),
 // hidden below threshold. Exact metric uncertain (boost/charge-like bar).
 void swrObjJdge_DrawHudBar(void);
 
-// Positions the single-player HUD frame, border, and minimap-scroll sprites by mode bits (best guess).
-void swrObjJdge_LayoutHudFrameSprites_Maybe(unsigned int mode);
+// Positions the single-player HUD frame, border, and minimap-scroll sprites by mode bits.
+void swrObjJdge_LayoutHudFrameSprites(unsigned int mode);
 // Per-racer HUD: in-race timer, engine UI, finish statistics and the lap marker.
 void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score);
 
@@ -689,22 +689,22 @@ void swrObjElmo_F3(swrObjElmo* elmo);
 
 int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents);
 
-// Initializes a fresh Elmo object, setting node pointers, zeroing vectors, and seeding random phase (best guess).
-void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind);
+// Initializes a fresh Elmo object, setting node pointers, zeroing vectors, and seeding random phase.
+void swrObjElmo_Init(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind);
 
 // swrObjElmo behavior/animation (pit-droid / hangar character AI):
 // Sets the current animation state (maps a state command to an anim id, plays sounds).
 void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd);
 
-// Plays one of five random Elmo voice sounds when the sound flag gate allows it (best guess).
-void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5);
+// Plays one of five random Elmo voice sounds when the sound flag gate allows it.
+void swrObjElmo_PlayRandomVoiceSfx(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5);
 // Look up the 'Elmo' entity by index, set its node transform + anim params, then SetAnimState.
 void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* position, rdVector3* moveTarget, float yaw, float yawTarget);
 // Look up the 'Elmo' entity by index and forward to swrObjElmo_SetAnimState.
 void swrObjElmo_SetAnimStateById(int elmoId, int animCmd);
 
-// Advances the holotable spin timer and updates its icon-spin value each frame (best guess).
-void swrObjHang_TickHolotableSpin_Maybe(void);
+// Advances the hangar ambient-anim phase and derives a cosine-eased anim speed.
+void swrObjHang_UpdateAmbientAnimSpeed(void);
 
 // Steps the walking pilot along its path until it is in front of the front-end camera.
 void swrObjElmo_WalkIntoView(swrObjElmo* elmo);
@@ -726,14 +726,14 @@ void swrObjElmo_TurnToFaceTarget(swrObjElmo* elmo);
 // Animates the vehicle and track select holotable: lerps lighting, scales the projector and beam, and drives the holo light (best guess).
 void swrObjHang_UpdateCantinaHolotable(int menuScreen);
 
-// Copies the translation of an entity's indexed child node into the output (best guess).
-void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex);
+// Copies the translation of an Elmo's indexed child node.
+void swrObjElmo_GetNodePosition(rdVector3* out, int entity, int childIndex);
 
 // Advances the front-end screen-transition progress by a rate and clamps it to zero through one.
 float swrObjHang_StepTransition(float rate);
 
-// Decrements the menu key-repeat delay timer toward zero each frame (best guess).
-void swrObjHang_TickMenuRepeatDelay_Maybe(void);
+// Decrements the menu key-repeat delay timer toward zero each frame.
+void swrObjHang_TickMenuRepeatDelay(void);
 
 // Handles up/down vehicle-select navigation with key-repeat, UI sounds, and transition stepping.
 void swrObjHang_NavigateVehicleSelect(int player, float speed, int slideInWhenSettled);
@@ -828,11 +828,11 @@ swrModel_Node* swrObjTrig_AddNodeToScene(swrModel_TriggerDescription*, int, int)
 // Walks the trigger-description list, registering each and applying per-type node, animation, and transform setup.
 void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions, int param2);
 
-// Computes the position threshold globals per planet id for the region-color routine (best guess).
-void swrObjTrig_InitColorBands_Maybe(void);
+// Fills the region-grid X/Y bounds (8 rows x 3 columns) for layout 1 or 2.
+void swrObjTrig_InitRegionGrid(void);
 
-// Maps a node's position to a region color and applies it to the node (best guess).
-unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node);
+// Converts a mesh group's AABB into an 8-row x 3-column region mask stored in the node flags.
+unsigned int swrObjTrig_ComputeNodeRegionMask(swrModel_Node* node);
 
 unsigned int swrObjTrig_FindAndInitializeTriggersInNode(swrModel_Node* node);
 swrModel_Node* swrObjTrig_CreateTriggerSceneNode();
@@ -856,11 +856,11 @@ void swrScene_Stub_Maybe(void);
 void swrScene_InitCameras(void);
 void swrScene_Init(short sceneArg, int unused);
 
-// Clears the texture-animation block driven by the texture-scroll tick (best guess).
-void swrScene_ClearTextureAnim_Maybe(void);
+// Clears the palette-scroll destination palette.
+void swrScene_ClearPaletteScrollTarget(void);
 
-// Advances scrolling palette animation each step, rotating and copying palette entries (best guess).
-void swrScene_UpdateTextureScroll_Maybe(void);
+// Steps the palette-scroll timer, rotating source palette entries into the destination palette.
+void swrScene_UpdatePaletteScroll(void);
 // Sets the scene-objects-loaded flag; called by swrObjJdge_F4 at 'Begn'.
 void swrScene_SetObjectsLoaded(void);
 void swrScene_ResetRenderState(void);

@@ -31,7 +31,7 @@
 #define swrViewport_Render_ADDR (0x00483A90)
 #define swrViewport_Activate_ADDR (0x00483BB0)
 #define swrRace_DrawDebugPosition_ADDR (0x00483be0)
-#define swrRace_DrawDebugMetaCamera_Maybe_ADDR (0x00483ca0)
+#define swrRace_RebuildViewport1Scene_Maybe_ADDR (0x00483ca0)
 
 #define swrViewport_SetRootNodeForAllViewports_ADDR (0x00483fc0)
 #define swrViewport_SetNodeFlagsForAllViewports_ADDR (0x00483ff0)
@@ -73,8 +73,8 @@ void swrViewport_Activate(int viewportIndex);
 // Prints the pod position and lap progress as a debug text overlay.
 void swrRace_DrawDebugPosition(int debugLevel);
 
-// Debug overlay near DrawDebugPosition; forwards to the metacamera draw (best guess).
-void swrRace_DrawDebugMetaCamera_Maybe(void);
+// Rebuilds the scene for viewport 1 after an asset-buffer model load (exact purpose unresolved).
+void swrRace_RebuildViewport1Scene_Maybe(void);
 
 void swrViewport_SetRootNodeForAllViewports(swrModel_Node* unk);
 void swrViewport_SetNodeFlagsForAllViewports(int flag, int value);

@@ -57,8 +57,8 @@ int rdMaterial_LoadEntry(char* mat_fpath, swrMaterial* material)
     material->nbTextures = header.num_texinfo;
     material->colorInfo = header.tex_format;
     material->unk8c = 0;
-    material->unk_mat_flag = std3D_GetTextureFormatClass_Maybe(&material->colorInfo);
-    std3D_GetTextureFormatInfo_Maybe(material->unk_mat_flag, &convertFormat, &hasColorKey, &colorKey);
+    material->unk_mat_flag = std3D_GetColorFormatType(&material->colorInfo);
+    std3D_GetTextureFormat(material->unk_mat_flag, &convertFormat, &hasColorKey, &colorKey);
 
     for (i = 0; i < material->nbTextures; i++) {
         if ((*rdroid_hostServices_ptr->fileRead)(file, &texinfo, sizeof(texinfo)) != sizeof(texinfo))

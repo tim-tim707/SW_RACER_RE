@@ -1686,7 +1686,7 @@ void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, r
         }
     }
 
-    swrCam_PickNearestSplitCameraTransform_Maybe(&listener, &position->x);
+    swrCam_PickNearestSplitCameraTransform(&listener, &position->x);
     rdVector_Point3ToPerspective3(&listenerPlane, (rdVector3*)&listener.vC, (rdVector3*)&listener.vD);
     offset.x = position->x - listener.vD.x;
     offset.y = position->y - listener.vD.y;

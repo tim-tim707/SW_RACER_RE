@@ -134,7 +134,7 @@
 //        swrSprite_Draw (0x44f160) routes 0x400000 to swr_noop2 (0x426910, a single
 //        RET). So a streaking sprite emits zero geometry at any resolution, and the
 //        streak endpoints the code computes + stores (swrSprite_array[id].unk0x4 /
-//        unk0x6, normalized to 320x240 by swrSprite_SetStreakEndpoints_Maybe) are
+//        unk0x6, normalized to 320x240 by swrSprite_SetStreakEndFromScreen) are
 //        dead data. (An earlier guess of a precision bug in the streak math was
 //        wrong -- there is no streak draw to be buggy.)
 //
@@ -173,7 +173,7 @@
 // =====================================================================================
 
 #define swrWeather_RenderParticles_ADDR (0x0042cca0)
-#define swrSprite_SetStreakEndpoints_Maybe_ADDR (0x0042d330)
+#define swrSprite_SetStreakEndFromScreen_ADDR (0x0042d330)
 
 #define swrWeather_HideAllParticles_ADDR (0x0042d380)
 
@@ -195,8 +195,8 @@
 
 void swrWeather_RenderParticles(void* viewport);
 
-// Converts a screen-pixel point to 320x240 sprite space and forwards it to swrSprite_SetUVOffset_Maybe.
-void swrSprite_SetStreakEndpoints_Maybe(short id, short x, short y);
+// Converts a screen-pixel point to 320x240 sprite space and forwards it to swrSprite_SetSecondPos_Maybe.
+void swrSprite_SetStreakEndFromScreen(short id, short x, short y);
 
 void swrWeather_HideAllParticles(void);
 

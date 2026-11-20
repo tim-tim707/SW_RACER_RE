@@ -884,7 +884,7 @@ void swrConfig_RefreshForceFeedbackMenu(swrUI_unk* page)
 }
 
 // 0x0040c260
-void swrConfig_RefreshConfigListMenu_Maybe(swrUI_unk* page)
+void swrConfig_RefreshConfigFilesMenu(swrUI_unk* page)
 {
     swrUI_unk* list;
     swrUI_unk* item;
@@ -919,7 +919,7 @@ void swrConfig_RefreshConfigListMenu_Maybe(swrUI_unk* page)
 }
 
 // 0x0040c4e0
-void swrConfig_RefreshPlayerListMenu_Maybe(swrUI_unk* page)
+void swrConfig_RefreshProfileListMenu(swrUI_unk* page)
 {
     swrUI_unk* list;
     swrUI_unk* label;
@@ -1235,7 +1235,7 @@ static void swrConfig_BuildPointerDeviceMenu(swrUI_unk* page, swrConfig_DEVICE d
     if (columnWidth < frameWidth)
         columnWidth = frameWidth;
 
-    swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
+    swrUI_GetListFrameInsets(bbox, 0);
     listHeight = (isJoystick && cifr_deviceIsWheel != 0 ? 13 : 11) * rowHeight;
     listRect[0] = 0xf;
     listRect[1] = 0xf;
@@ -1371,7 +1371,7 @@ void swrConfig_BuildKeyboardMenu(swrUI_unk* page)
     keyValueX = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0283/~sX"), 0) * 2;
     keyWidth = swrText_GetStringWidthByFont(swrText_Translate("/MONDOTEXT_H_0256/Numpad Enter"), 0);
 
-    swrUI_SetSpriteSelectionBBox_Maybe(bbox, 0);
+    swrUI_GetListFrameInsets(bbox, 0);
     listHeight = rowHeight * 11;
     panelRect[0] = 0xf;
     panelRect[1] = 0xf;

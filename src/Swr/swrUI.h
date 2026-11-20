@@ -164,7 +164,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_IsElementFocused_ADDR (0x00417670)
 #define swrUI_SetHighlightState_ADDR (0x00417690)
 #define swrUI_GetPaddedTextBBox_ADDR (0x004176f0)
-#define swrUI_GetButtonBBoxFromText_Maybe_ADDR (0x00417740)
+#define swrUI_GetWrappedTextBBox_ADDR (0x00417740)
 #define swrUI_GetButtonRowBBox_ADDR (0x004177b0)
 #define swrUI_FramedTextProc_ADDR (0x00417940) // class 0xa (swrUI_NewFramedText; checkable/radio item)
 #define swrUI_3PatchBoxProc_ADDR (0x00417be0) // class 0xb (swrUI_New3PatchBox)
@@ -189,8 +189,8 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Menu_HangarLookAtVehicle_ADDR (0x00419620)
 #define swrUI_Menu_HangarUnused89_Maybe_ADDR (0x004196b0)
 #define swrUI_Menu_HangarWatto_ADDR (0x00419700)
-#define swrUI_Menu_HangarJunkyard_Maybe_ADDR (0x00419770)
-#define swrUI_SetSpriteSelectionBBox_Maybe_ADDR (0x004197f0)
+#define swrUI_Menu_HangarJunkyard_ADDR (0x00419770)
+#define swrUI_GetListFrameInsets_ADDR (0x004197f0)
 #define swrUI_BuildPanelFrame_ADDR (0x00419830) // build the panel's 9-slice background sprites
 #define swrUI_BuildSliderSprites_ADDR (0x00419db0) // render a slider/scrollbar (track/fill/thumb/ticks) from its value
 #define swrUI_HandleSliderKey_ADDR (0x0041a640) // +/- (key) adjust of a slider value, clamped 0-100
@@ -221,7 +221,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Front_LoadTrackFromId_ADDR (0x00420930)
 #define swrUI_Menu_MpForwardKeyToChat_ADDR (0x00420960)
 #define swrUI_Front_HandleCircuits_ADDR (0x0043b0b0)
-#define swrUI_Front_SeekToCurrentTrack_Maybe_ADDR (0x0043b1d0)
+#define swrUI_Front_SyncTrackSelection_ADDR (0x0043b1d0)
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
 #define swrUI_Front_MenuAxisHorizontal_ADDR (0x00440150)
 #define swrUI_Front_DrawRecord_ADDR (0x004403e0)
@@ -229,7 +229,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
 #define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
 #define swrObjHang_SelectCreditsTracks_ADDR (0x00440c10)
-#define swrUI_Front_DispatchPageCallbacks_Maybe_ADDR (0x00440d50)
+#define swrUI_Front_SetOkBackActive_ADDR (0x00440d50)
 #define swrUI_Front_LoadPlanetModels_ADDR (0x00457C20)
 #define swrUI_Front_LoadMapPartModels_ADDR (0x00457CF0)
 #define swrUI_Front_LoadUIElements_ADDR (0x00457ed0)
@@ -260,10 +260,10 @@ int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param
 int swrUI_Menu_HangarSelectTrack(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_HangarMainMenu(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_HangarWatto(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
-int swrUI_Menu_HangarJunkyard_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // built under the Watto id 0x85, not 0x87
+int swrUI_Menu_HangarJunkyard(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // built under the Watto id 0x85, not 0x87
 
-// Writes a sprite selection rectangle, all-zero when collapsed (best guess).
-void swrUI_SetSpriteSelectionBBox_Maybe(int* bbox_out, int collapsed);
+// Writes list/panel frame insets {20,26,20,26}, or all zeros when collapsed is set.
+void swrUI_GetListFrameInsets(int* bbox_out, int collapsed);
 int swrUI_Menu_HangarLookAtVehicle(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2);
 int swrUI_Menu_HangarUnused89_Maybe(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2); // window 0x89: no hangar screen maps to it
 void swrUI_UpdateMouseState(void);
@@ -349,8 +349,8 @@ void swrUI_DrawTextAligned(int font, char* text, short* bbox, unsigned int align
 // Write a padded text bbox: width + 0x13, height + 0x1d.
 void swrUI_GetPaddedTextBBox(int* bbox_out, char* text, int font);
 
-// Measures a text string and writes a padded button bounding box sized to fit it (best guess).
-void swrUI_GetButtonBBoxFromText_Maybe(int* bbox_out, char* text, int font);
+// Box size for text wrapped into a roughly square block: side = sqrt(w * (h + 5) / 8).
+void swrUI_GetWrappedTextBBox(int* bbox_out, char* text, int font);
 // Size a 1-3 button row from its labels; writes the row bbox and returns the uniform button width.
 unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, char* label3, int font);
 // Sum glyph advance widths over substring [start, end) of text.
@@ -457,8 +457,8 @@ void swrUI_Menu_MpForwardKeyToChat(swrUI_unk* page, int key);
 
 void swrUI_Front_HandleCircuits(swrObjHang* hang);
 
-// Counts playable tracks up to the active one and leaves that as the menu selected index (best guess).
-void swrUI_Front_SeekToCurrentTrack_Maybe(swrObjHang* hang);
+// Sets swrRace_MenuSelectedItem to the current track's index among the circuit's playable tracks.
+void swrUI_Front_SyncTrackSelection(swrObjHang* hang);
 
 void swrUI_Front_TextMenu(swrObjHang* hang, int posX, int posY, int rowSpacing, int selectedIndex, int itemIndex, char* screenText);
 
@@ -478,8 +478,8 @@ bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
 // Enters credits mode and picks five random unlocked tracks for the AI races behind the end credits.
 void swrObjHang_SelectCreditsTracks(swrObjHang* hang);
 
-// Runs the current page's id-2 and id-4 widget callbacks with the matching arguments (best guess).
-void swrUI_Front_DispatchPageCallbacks_Maybe(int arg2, int arg4);
+// Sends SET_ACTIVE with the given args to the current page's OK (id 2) and Back (id 4) buttons.
+void swrUI_Front_SetOkBackActive(int arg2, int arg4);
 
 void swrUI_Front_LoadPlanetModels();
 void swrUI_Front_LoadMapPartModels();

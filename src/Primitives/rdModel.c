@@ -379,7 +379,7 @@ int rdModel3_DrawFace(RdFace* pFace, int bIsBackFace, rdVector4* pMeshColor, flo
     if (rdCamera_pCurCamera->canvas->vbuffer->rasterInfo.colorInfo.bpp == 8) {
         rdPrimit3_NoClipFace((rdGeoMode_t)pFace->geometryMode, entry->lightingMode, &rdModel3_clipSrc, &rdModel3_clipDst, &pFace->texVertOffset);
     } else {
-        rdClip_Face3T_Maybe(rdCamera_pCurCamera->pClipFrustum, &rdModel3_clipSrc, &rdModel3_clipDst, &pFace->texVertOffset);
+        rdPrimit3_ClipFace3T(rdCamera_pCurCamera->pClipFrustum, &rdModel3_clipSrc, &rdModel3_clipDst, &pFace->texVertOffset);
     }
     if (rdModel3_clipDst.numVertices < 3)
         return 0;

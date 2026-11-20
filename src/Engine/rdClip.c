@@ -3261,7 +3261,7 @@ int rdClip_Face3TOrtho(rdClipFrustum* pFrustum, rdVector3* aVertices, rdVector2*
 
 // Comparisons below mirror the x87 FCOM flag tests, so NaN lands on the same side as in the original.
 // 0x0049c810
-int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
+int rdClip_Face3TTestFrustum(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
 {
     rdVector3* first;
     rdVector3* v;
@@ -3331,7 +3331,7 @@ int rdClip_Face3TTestFrustum_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc)
 }
 
 // 0x0049c9f0
-int rdClip_Face3TClipPlane_Maybe(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst)
+int rdClip_Face3TClipNear(rdClipFrustum* pFrustum, rdMeshinfo* pSrc, rdMeshinfo* pDst)
 {
     rdVector3* pPrev;
     rdVector3* pCur;
