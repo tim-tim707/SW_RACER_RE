@@ -21,7 +21,7 @@ void rdMath_CalcSurfaceNormal2(rdVector4* out, rdVector3* a, rdVector3* b, rdVec
     bc.z = c->z - b->z;
     rdVector_Cross3((rdVector3*) out, &ab, &bc);
     rdVector_Normalize3Acc((rdVector3*) out);
-    out->w = a->x * out->x + a->y * out->y + a->z * out->z;
+    out->w = ((long double)a->y * out->y + (long double)a->z * out->z) + (long double)a->x * out->x; // (y + z) + x
 }
 
 // 0x0048eb60
@@ -32,12 +32,13 @@ void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2
 
     rdVector_Sub3(&b, edge2, edge1);
     rdVector_Sub3(&a, edge3, edge1);
-    rdVector_Normalize3Acc(&b);
-    rdVector_Normalize3Acc(&a);
+    // Retail normalizes with rdVector_Normalize3Acc_2 (0x00492440) all three times.
+    rdVector_Normalize3Acc_2(&b);
+    rdVector_Normalize3Acc_2(&a);
     rdVector_Cross3(out, &b, &a);
-    rdVector_Normalize3Acc(out);
+    rdVector_Normalize3Acc_2(out);
 
-    rdMath_ClampVector(out, 0.000001);
+    rdMath_ClampVector(out, 0x1.0c6f7a0b5ed8dp-20); // 0.000001
 }
 
 // 0x0048ec50
@@ -112,7 +113,7 @@ int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3)
     {
         tmp = -tmp;
     }
-    if ((0.999 <= tmp) && (tmp <= 1.001))
+    if ((0x1.ff7ced916872bp-1 <= tmp) && (tmp <= 0x1.004189374bc6ap+0)) // 0.999, 1.001
     {
         return 1;
     }
@@ -122,7 +123,19 @@ int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3)
 // 0x004813A0
 void rdMath_SlerpQuaternions(const rdVector4* a, const rdVector4* b, float t, rdVector4* result)
 {
-    float d = a->x * b->x + a->y * b->y + a->z * b->z + a->w * b->w;
+    long double d;
+    float d32;
+    long double angle;
+    float angle32;
+    float fa32;
+    long double fb;
+    float sin_angle, cos_angle;
+    float sin_a, cos_a;
+    float sin_b, cos_b;
+
+    // Retail accumulates the dot product as ((z + y) + w) + x.
+    d = (((long double)a->z * b->z + (long double)a->y * b->y) + (long double)a->w * b->w) + (long double)a->x * b->x;
+    d32 = d;
     if (d < 0)
     {
         const rdVector4 a_flipped = { -a->x, -a->y, -a->z, -a->w };
@@ -130,34 +143,30 @@ void rdMath_SlerpQuaternions(const rdVector4* a, const rdVector4* b, float t, rd
         return;
     }
 
-    if (d > 1)
-        d = 1;
+    if (d32 > 1)
+        d32 = 1;
 
-    const float angle = stdMath_ArcCos(d);
-
-    float fa, fb;
-    if (angle > 0.00001)
+    // ArcCos is consumed straight from ST0; only the copy passed on to SinCos is rounded.
+    angle = stdMath_ArcCosUnrounded(d32);
+    angle32 = angle;
+    if (angle > 0x1.4f8b588e368f1p-17) // 0.00001 (double)
     {
-        float sin_angle, cos_angle;
-        stdMath_SinCos(angle, &sin_angle, &cos_angle);
-
-        float sin_angle_a, cos_angle_a;
-        stdMath_SinCos((1 - t) * angle, &sin_angle_a, &cos_angle_a);
-        fa = sin_angle_a / sin_angle;
-
-        float sin_angle_b, cos_angle_b;
-        stdMath_SinCos(t * angle, &sin_angle_b, &cos_angle_b);
-        fb = sin_angle_b / sin_angle;
+        stdMath_SinCos(angle32, &sin_angle, &cos_angle);
+        stdMath_SinCos((1 - t) * angle32, &sin_a, &cos_a);
+        fa32 = sin_a / sin_angle;
+        stdMath_SinCos(angle32 * t, &sin_b, &cos_b);
+        fb = (long double)sin_b / sin_angle;
     }
     else
     {
-        fa = 1 - t;
+        fa32 = 1 - t;
         fb = t;
     }
-    result->x = fa * a->x + fb * b->x;
-    result->y = fa * a->y + fb * b->y;
-    result->z = fa * a->z + fb * b->z;
-    result->w = fa * a->w + fb * b->w;
+    // fa is spilled to float, fb stays at register width.
+    result->x = a->x * fa32 + fb * b->x;
+    result->y = a->y * fa32 + fb * b->y;
+    result->z = a->z * fa32 + fb * b->z;
+    result->w = a->w * fa32 + fb * b->w;
 }
 
 // 0x00481520
@@ -171,13 +180,13 @@ void rdMath_QuaternionToAxisAngle(rdVector4* axis_angle, const rdVector4* q)
     // The thresholds are float32 constants at 0x004adff8 / 0x004adffc (1e-05f, whose value
     // is 9.999999747e-06), not the double 0.0000099999997 that was written here.
     float l = q->y * q->y + q->z * q->z + q->x * q->x;
-    if (l >= 1e-05f || l <= -1e-05f)
+    if (l >= 0x1.4f8b58p-17f || l <= -0x1.4f8b58p-17f) // 1e-05f
     {
         float angle = stdMath_ArcCos(q->w);
         float sin_angle, cos_angle;
         stdMath_SinCos(angle, &sin_angle, &cos_angle);
 
-        if (sin_angle >= 1e-05f || sin_angle <= -1e-05f)
+        if (sin_angle >= 0x1.4f8b58p-17f || sin_angle <= -0x1.4f8b58p-17f) // 1e-05f
         {
             *axis_angle = (rdVector4){
                 q->x / sin_angle,
