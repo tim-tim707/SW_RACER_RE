@@ -3627,38 +3627,32 @@ swrModel_Node* swrRace_GetCollisionHit(void)
 // (consumed by swrRace_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
 // Display only: the flight model reads the raw podStats directly, never this output.
 // 0x00449330
-void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats)
+RETAIL_FP void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats)
 {
     int i;
-    float tmp;
+    float* bar;
 
+    // Every constant is a float32.
     out_stats->antiSkid = stats->antiSkid;
-    out_stats->turnResponse = stats->turnResponse * 0.001;
-    tmp = stdMath_Sqrt(stats->acceleration);
-    out_stats->maxTurnRate = 1.0 - tmp * 0.4761905;
-    out_stats->acceleration = (stats->maxSpeed - 450.0) * 0.005;
-    tmp = stdMath_Sqrt(stats->airBrakeInv * 0.5);
-    i = 7;
-    out_stats->maxSpeed = 8.0 / tmp - 1.68;
-    out_stats->airBrakeInv = stats->coolRate * 0.05;
+    out_stats->turnResponse = stats->turnResponse * (float)0.001f;
+    out_stats->maxTurnRate = 1.0f - stdMath_Sqrt(stats->acceleration) * (float)0.4761905f;
+    out_stats->acceleration = (stats->maxSpeed - 450.0f) * (float)0.005f;
+    out_stats->maxSpeed = 8.0f / stdMath_Sqrt(stats->airBrakeInv * 0.5f) - (float)1.68f;
+    out_stats->airBrakeInv = stats->coolRate * (float)0.05f;
     out_stats->deceleration_interval = stats->repairRate;
-    do
-    {
-        if (out_stats->antiSkid < 0.05)
-        {
-            out_stats->antiSkid = 0.05;
-        }
-        if (1.0 < out_stats->antiSkid)
-        {
-            out_stats->antiSkid = 1.0;
-        }
-        out_stats = (PodHandlingData*)&out_stats->turnResponse;
-        i = i + -1;
-    } while (i != 0);
+
+    // The seven bars are the first seven fields, each clamped to [0.05, 1].
+    bar = &out_stats->antiSkid;
+    for (i = 0; i < 7; i++) {
+        if (bar[i] < (float)0.05f)
+            bar[i] = (float)0.05f;
+        if (1.0f < bar[i])
+            bar[i] = 1.0f;
+    }
 }
 
 // 0x00449d00
-void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
+RETAIL_FP void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData* pBaseStats, char* pUpgradeLevels, char* pUpgradeHealths)
 {
     int i;
     memcpy(pActiveStats, pBaseStats, 0x3Cu);
@@ -3666,82 +3660,83 @@ void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData
     i = 0;
     do
     {
-        swrRace_CalculateUpgradedStat(pActiveStats, i, (int)pUpgradeLevels[i], (float)(unsigned int)(uint8_t)(pUpgradeLevels + i)[(int)pUpgradeHealths - (int)pUpgradeLevels] * 0.003921569);
+        swrRace_CalculateUpgradedStat(pActiveStats, i, (int)pUpgradeLevels[i], (float)(unsigned int)(uint8_t)(pUpgradeLevels + i)[(int)pUpgradeHealths - (int)pUpgradeLevels] * (float)0.003921569f);
         i = i + 1;
     } while (i < 7);
 }
 
 // 0x004493f0
-void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth)
+RETAIL_FP void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth)
 {
-    float tmp;
+    // Retail tests the unrounded sum against the upper bound, then the stored float against the lower.
+    long double tmp;
 
     switch (upgradeCategory)
     {
     case 0:
         if (upgradeLevel == 1)
         {
-            tmp = upgradeHealth * 0.05 + podHandlingData->antiSkid;
+            tmp = upgradeHealth * (float)0.05f + podHandlingData->antiSkid;
             podHandlingData->antiSkid = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->antiSkid = 1.0;
+                podHandlingData->antiSkid = 1.0f;
             }
-            if (podHandlingData->antiSkid < 0.01)
+            if (podHandlingData->antiSkid < (float)0.01f)
             {
-                podHandlingData->antiSkid = 0.01;
+                podHandlingData->antiSkid = (float)0.01f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = upgradeHealth * 0.1 + podHandlingData->antiSkid;
+            tmp = upgradeHealth * (float)0.1f + podHandlingData->antiSkid;
             podHandlingData->antiSkid = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->antiSkid = 1.0;
+                podHandlingData->antiSkid = 1.0f;
             }
-            if (podHandlingData->antiSkid < 0.01)
+            if (podHandlingData->antiSkid < (float)0.01f)
             {
-                podHandlingData->antiSkid = 0.01;
+                podHandlingData->antiSkid = (float)0.01f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = upgradeHealth * 0.15 + podHandlingData->antiSkid;
+            tmp = upgradeHealth * (float)0.15f + podHandlingData->antiSkid;
             podHandlingData->antiSkid = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->antiSkid = 1.0;
+                podHandlingData->antiSkid = 1.0f;
             }
-            if (podHandlingData->antiSkid < 0.01)
+            if (podHandlingData->antiSkid < (float)0.01f)
             {
-                podHandlingData->antiSkid = 0.01;
+                podHandlingData->antiSkid = (float)0.01f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = upgradeHealth * 0.2 + podHandlingData->antiSkid;
+            tmp = upgradeHealth * (float)0.2f + podHandlingData->antiSkid;
             podHandlingData->antiSkid = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->antiSkid = 1.0;
+                podHandlingData->antiSkid = 1.0f;
             }
-            if (podHandlingData->antiSkid < 0.01)
+            if (podHandlingData->antiSkid < (float)0.01f)
             {
-                podHandlingData->antiSkid = 0.01;
+                podHandlingData->antiSkid = (float)0.01f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = upgradeHealth * 0.25 + podHandlingData->antiSkid;
+            tmp = upgradeHealth * 0.25f + podHandlingData->antiSkid;
             podHandlingData->antiSkid = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->antiSkid = 1.0;
+                podHandlingData->antiSkid = 1.0f;
             }
-            if (podHandlingData->antiSkid < 0.01)
+            if (podHandlingData->antiSkid < (float)0.01f)
             {
-                podHandlingData->antiSkid = 0.01;
+                podHandlingData->antiSkid = (float)0.01f;
                 return;
             }
         }
@@ -3749,67 +3744,67 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 1:
         if (upgradeLevel == 1)
         {
-            tmp = upgradeHealth * 116.0 + podHandlingData->turnResponse;
+            tmp = upgradeHealth * 116.0f + podHandlingData->turnResponse;
             podHandlingData->turnResponse = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->turnResponse = 1000.0;
+                podHandlingData->turnResponse = 1000.0f;
             }
-            if (podHandlingData->turnResponse < 50.0)
+            if (podHandlingData->turnResponse < 50.0f)
             {
-                podHandlingData->turnResponse = 50.0;
+                podHandlingData->turnResponse = 50.0f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = upgradeHealth * 232.0 + podHandlingData->turnResponse;
+            tmp = upgradeHealth * 232.0f + podHandlingData->turnResponse;
             podHandlingData->turnResponse = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->turnResponse = 1000.0;
+                podHandlingData->turnResponse = 1000.0f;
             }
-            if (podHandlingData->turnResponse < 50.0)
+            if (podHandlingData->turnResponse < 50.0f)
             {
-                podHandlingData->turnResponse = 50.0;
+                podHandlingData->turnResponse = 50.0f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = upgradeHealth * 348.0 + podHandlingData->turnResponse;
+            tmp = upgradeHealth * 348.0f + podHandlingData->turnResponse;
             podHandlingData->turnResponse = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->turnResponse = 1000.0;
+                podHandlingData->turnResponse = 1000.0f;
             }
-            if (podHandlingData->turnResponse < 50.0)
+            if (podHandlingData->turnResponse < 50.0f)
             {
-                podHandlingData->turnResponse = 50.0;
+                podHandlingData->turnResponse = 50.0f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = upgradeHealth * 464.0 + podHandlingData->turnResponse;
+            tmp = upgradeHealth * 464.0f + podHandlingData->turnResponse;
             podHandlingData->turnResponse = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->turnResponse = 1000.0;
+                podHandlingData->turnResponse = 1000.0f;
             }
-            if (podHandlingData->turnResponse < 50.0)
+            if (podHandlingData->turnResponse < 50.0f)
             {
-                podHandlingData->turnResponse = 50.0;
+                podHandlingData->turnResponse = 50.0f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = upgradeHealth * 578.0 + podHandlingData->turnResponse;
+            tmp = upgradeHealth * 578.0f + podHandlingData->turnResponse;
             podHandlingData->turnResponse = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->turnResponse = 1000.0;
+                podHandlingData->turnResponse = 1000.0f;
             }
-            if (podHandlingData->turnResponse < 50.0)
+            if (podHandlingData->turnResponse < 50.0f)
             {
-                podHandlingData->turnResponse = 50.0;
+                podHandlingData->turnResponse = 50.0f;
                 return;
             }
         }
@@ -3817,67 +3812,67 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 2:
         if (upgradeLevel == 1)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.14 - -0.86) * podHandlingData->acceleration;
+            tmp = ((1.0f - upgradeHealth) * (float)0.13999999f - -(float)0.86f) * podHandlingData->acceleration;
             podHandlingData->acceleration = tmp;
-            if (5.0 < tmp)
+            if (5.0f < tmp)
             {
-                podHandlingData->acceleration = 5.0;
+                podHandlingData->acceleration = 5.0f;
             }
-            if (podHandlingData->acceleration < 0.1)
+            if (podHandlingData->acceleration < (float)0.1f)
             {
-                podHandlingData->acceleration = 0.1;
+                podHandlingData->acceleration = (float)0.1f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.28 - -0.72) * podHandlingData->acceleration;
+            tmp = ((1.0f - upgradeHealth) * (float)0.27999997f - -(float)0.72f) * podHandlingData->acceleration;
             podHandlingData->acceleration = tmp;
-            if (5.0 < tmp)
+            if (5.0f < tmp)
             {
-                podHandlingData->acceleration = 5.0;
+                podHandlingData->acceleration = 5.0f;
             }
-            if (podHandlingData->acceleration < 0.1)
+            if (podHandlingData->acceleration < (float)0.1f)
             {
-                podHandlingData->acceleration = 0.1;
+                podHandlingData->acceleration = (float)0.1f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.42 - -0.58) * podHandlingData->acceleration;
+            tmp = ((1.0f - upgradeHealth) * (float)0.42000002f - -(float)0.58f) * podHandlingData->acceleration;
             podHandlingData->acceleration = tmp;
-            if (5.0 < tmp)
+            if (5.0f < tmp)
             {
-                podHandlingData->acceleration = 5.0;
+                podHandlingData->acceleration = 5.0f;
             }
-            if (podHandlingData->acceleration < 0.1)
+            if (podHandlingData->acceleration < (float)0.1f)
             {
-                podHandlingData->acceleration = 0.1;
+                podHandlingData->acceleration = (float)0.1f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.56 - -0.44) * podHandlingData->acceleration;
+            tmp = ((1.0f - upgradeHealth) * (float)0.56f - -(float)0.44f) * podHandlingData->acceleration;
             podHandlingData->acceleration = tmp;
-            if (5.0 < tmp)
+            if (5.0f < tmp)
             {
-                podHandlingData->acceleration = 5.0;
+                podHandlingData->acceleration = 5.0f;
             }
-            if (podHandlingData->acceleration < 0.1)
+            if (podHandlingData->acceleration < (float)0.1f)
             {
-                podHandlingData->acceleration = 0.1;
+                podHandlingData->acceleration = (float)0.1f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.7 - -0.3) * podHandlingData->acceleration;
+            tmp = ((1.0f - upgradeHealth) * (float)0.7f - -(float)0.3f) * podHandlingData->acceleration;
             podHandlingData->acceleration = tmp;
-            if (5.0 < tmp)
+            if (5.0f < tmp)
             {
-                podHandlingData->acceleration = 5.0;
+                podHandlingData->acceleration = 5.0f;
             }
-            if (podHandlingData->acceleration < 0.1)
+            if (podHandlingData->acceleration < (float)0.1f)
             {
-                podHandlingData->acceleration = 0.1;
+                podHandlingData->acceleration = (float)0.1f;
                 return;
             }
         }
@@ -3885,67 +3880,67 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 3:
         if (upgradeLevel == 1)
         {
-            tmp = upgradeHealth * 40.0 + podHandlingData->maxSpeed;
+            tmp = upgradeHealth * 40.0f + podHandlingData->maxSpeed;
             podHandlingData->maxSpeed = tmp;
-            if (650.0 < tmp)
+            if (650.0f < tmp)
             {
-                podHandlingData->maxSpeed = 650.0;
+                podHandlingData->maxSpeed = 650.0f;
             }
-            if (podHandlingData->maxSpeed < 450.0)
+            if (podHandlingData->maxSpeed < 450.0f)
             {
-                podHandlingData->maxSpeed = 450.0;
+                podHandlingData->maxSpeed = 450.0f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = upgradeHealth * 80.0 + podHandlingData->maxSpeed;
+            tmp = upgradeHealth * 80.0f + podHandlingData->maxSpeed;
             podHandlingData->maxSpeed = tmp;
-            if (650.0 < tmp)
+            if (650.0f < tmp)
             {
-                podHandlingData->maxSpeed = 650.0;
+                podHandlingData->maxSpeed = 650.0f;
             }
-            if (podHandlingData->maxSpeed < 450.0)
+            if (podHandlingData->maxSpeed < 450.0f)
             {
-                podHandlingData->maxSpeed = 450.0;
+                podHandlingData->maxSpeed = 450.0f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = upgradeHealth * 120.0 + podHandlingData->maxSpeed;
+            tmp = upgradeHealth * 120.0f + podHandlingData->maxSpeed;
             podHandlingData->maxSpeed = tmp;
-            if (650.0 < tmp)
+            if (650.0f < tmp)
             {
-                podHandlingData->maxSpeed = 650.0;
+                podHandlingData->maxSpeed = 650.0f;
             }
-            if (podHandlingData->maxSpeed < 450.0)
+            if (podHandlingData->maxSpeed < 450.0f)
             {
-                podHandlingData->maxSpeed = 450.0;
+                podHandlingData->maxSpeed = 450.0f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = upgradeHealth * 160.0 + podHandlingData->maxSpeed;
+            tmp = upgradeHealth * 160.0f + podHandlingData->maxSpeed;
             podHandlingData->maxSpeed = tmp;
-            if (650.0 < tmp)
+            if (650.0f < tmp)
             {
-                podHandlingData->maxSpeed = 650.0;
+                podHandlingData->maxSpeed = 650.0f;
             }
-            if (podHandlingData->maxSpeed < 450.0)
+            if (podHandlingData->maxSpeed < 450.0f)
             {
-                podHandlingData->maxSpeed = 450.0;
+                podHandlingData->maxSpeed = 450.0f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = upgradeHealth * 200.0 + podHandlingData->maxSpeed;
+            tmp = upgradeHealth * 200.0f + podHandlingData->maxSpeed;
             podHandlingData->maxSpeed = tmp;
-            if (650.0 < tmp)
+            if (650.0f < tmp)
             {
-                podHandlingData->maxSpeed = 650.0;
+                podHandlingData->maxSpeed = 650.0f;
             }
-            if (podHandlingData->maxSpeed < 450.0)
+            if (podHandlingData->maxSpeed < 450.0f)
             {
-                podHandlingData->maxSpeed = 450.0;
+                podHandlingData->maxSpeed = 450.0f;
                 return;
             }
         }
@@ -3953,67 +3948,67 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 4:
         if (upgradeLevel == 1)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.07999998 - -0.92) * podHandlingData->airBrakeInv;
+            tmp = ((1.0f - upgradeHealth) * (float)0.07999998f - -(float)0.92f) * podHandlingData->airBrakeInv;
             podHandlingData->airBrakeInv = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->airBrakeInv = 1000.0;
+                podHandlingData->airBrakeInv = 1000.0f;
             }
-            if (podHandlingData->airBrakeInv < 1.0)
+            if (podHandlingData->airBrakeInv < 1.0f)
             {
-                podHandlingData->airBrakeInv = 1.0;
+                podHandlingData->airBrakeInv = 1.0f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.17 - -0.83) * podHandlingData->airBrakeInv;
+            tmp = ((1.0f - upgradeHealth) * (float)0.17000002f - -(float)0.83f) * podHandlingData->airBrakeInv;
             podHandlingData->airBrakeInv = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->airBrakeInv = 1000.0;
+                podHandlingData->airBrakeInv = 1000.0f;
             }
-            if (podHandlingData->airBrakeInv < 1.0)
+            if (podHandlingData->airBrakeInv < 1.0f)
             {
-                podHandlingData->airBrakeInv = 1.0;
+                podHandlingData->airBrakeInv = 1.0f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.26 - -0.74) * podHandlingData->airBrakeInv;
+            tmp = ((1.0f - upgradeHealth) * (float)0.26f - -(float)0.74f) * podHandlingData->airBrakeInv;
             podHandlingData->airBrakeInv = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->airBrakeInv = 1000.0;
+                podHandlingData->airBrakeInv = 1000.0f;
             }
-            if (podHandlingData->airBrakeInv < 1.0)
+            if (podHandlingData->airBrakeInv < 1.0f)
             {
-                podHandlingData->airBrakeInv = 1.0;
+                podHandlingData->airBrakeInv = 1.0f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.35 - -0.65) * podHandlingData->airBrakeInv;
+            tmp = ((1.0f - upgradeHealth) * (float)0.35000002f - -(float)0.65f) * podHandlingData->airBrakeInv;
             podHandlingData->airBrakeInv = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->airBrakeInv = 1000.0;
+                podHandlingData->airBrakeInv = 1000.0f;
             }
-            if (podHandlingData->airBrakeInv < 1.0)
+            if (podHandlingData->airBrakeInv < 1.0f)
             {
-                podHandlingData->airBrakeInv = 1.0;
+                podHandlingData->airBrakeInv = 1.0f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = ((1.0 - upgradeHealth) * 0.44 - -0.56) * podHandlingData->airBrakeInv;
+            tmp = ((1.0f - upgradeHealth) * (float)0.44f - -(float)0.56f) * podHandlingData->airBrakeInv;
             podHandlingData->airBrakeInv = tmp;
-            if (1000.0 < tmp)
+            if (1000.0f < tmp)
             {
-                podHandlingData->airBrakeInv = 1000.0;
+                podHandlingData->airBrakeInv = 1000.0f;
             }
-            if (podHandlingData->airBrakeInv < 1.0)
+            if (podHandlingData->airBrakeInv < 1.0f)
             {
-                podHandlingData->airBrakeInv = 1.0;
+                podHandlingData->airBrakeInv = 1.0f;
                 return;
             }
         }
@@ -4021,67 +4016,67 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 5:
         if (upgradeLevel == 1)
         {
-            tmp = upgradeHealth * 1.6 + podHandlingData->coolRate;
+            tmp = upgradeHealth * (float)1.6f + podHandlingData->coolRate;
             podHandlingData->coolRate = tmp;
-            if (20.0 < tmp)
+            if (20.0f < tmp)
             {
-                podHandlingData->coolRate = 20.0;
+                podHandlingData->coolRate = 20.0f;
             }
-            if (podHandlingData->coolRate < 1.0)
+            if (podHandlingData->coolRate < 1.0f)
             {
-                podHandlingData->coolRate = 1.0;
+                podHandlingData->coolRate = 1.0f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = upgradeHealth * 3.2 + podHandlingData->coolRate;
+            tmp = upgradeHealth * (float)3.2f + podHandlingData->coolRate;
             podHandlingData->coolRate = tmp;
-            if (20.0 < tmp)
+            if (20.0f < tmp)
             {
-                podHandlingData->coolRate = 20.0;
+                podHandlingData->coolRate = 20.0f;
             }
-            if (podHandlingData->coolRate < 1.0)
+            if (podHandlingData->coolRate < 1.0f)
             {
-                podHandlingData->coolRate = 1.0;
+                podHandlingData->coolRate = 1.0f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = upgradeHealth * 4.8 + podHandlingData->coolRate;
+            tmp = upgradeHealth * (float)4.8f + podHandlingData->coolRate;
             podHandlingData->coolRate = tmp;
-            if (20.0 < tmp)
+            if (20.0f < tmp)
             {
-                podHandlingData->coolRate = 20.0;
+                podHandlingData->coolRate = 20.0f;
             }
-            if (podHandlingData->coolRate < 1.0)
+            if (podHandlingData->coolRate < 1.0f)
             {
-                podHandlingData->coolRate = 1.0;
+                podHandlingData->coolRate = 1.0f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = upgradeHealth * 6.4 + podHandlingData->coolRate;
+            tmp = upgradeHealth * (float)6.4f + podHandlingData->coolRate;
             podHandlingData->coolRate = tmp;
-            if (20.0 < tmp)
+            if (20.0f < tmp)
             {
-                podHandlingData->coolRate = 20.0;
+                podHandlingData->coolRate = 20.0f;
             }
-            if (podHandlingData->coolRate < 1.0)
+            if (podHandlingData->coolRate < 1.0f)
             {
-                podHandlingData->coolRate = 1.0;
+                podHandlingData->coolRate = 1.0f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = upgradeHealth * 8.0 + podHandlingData->coolRate;
+            tmp = upgradeHealth * 8.0f + podHandlingData->coolRate;
             podHandlingData->coolRate = tmp;
-            if (20.0 < tmp)
+            if (20.0f < tmp)
             {
-                podHandlingData->coolRate = 20.0;
+                podHandlingData->coolRate = 20.0f;
             }
-            if (podHandlingData->coolRate < 1.0)
+            if (podHandlingData->coolRate < 1.0f)
             {
-                podHandlingData->coolRate = 1.0;
+                podHandlingData->coolRate = 1.0f;
                 return;
             }
         }
@@ -4089,122 +4084,126 @@ void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgrade
     case 6:
         if (upgradeLevel == 1)
         {
-            tmp = upgradeHealth * 0.1 + podHandlingData->repairRate;
+            tmp = upgradeHealth * (float)0.1f + podHandlingData->repairRate;
             podHandlingData->repairRate = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->repairRate = 1.0;
+                podHandlingData->repairRate = 1.0f;
             }
-            if (podHandlingData->repairRate < 0.0)
+            if (podHandlingData->repairRate < 0.0f)
             {
-                podHandlingData->repairRate = 0.0;
+                podHandlingData->repairRate = 0.0f;
             }
         }
         if (upgradeLevel == 2)
         {
-            tmp = upgradeHealth * 0.2 + podHandlingData->repairRate;
+            tmp = upgradeHealth * (float)0.2f + podHandlingData->repairRate;
             podHandlingData->repairRate = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->repairRate = 1.0;
+                podHandlingData->repairRate = 1.0f;
             }
-            if (podHandlingData->repairRate < 0.0)
+            if (podHandlingData->repairRate < 0.0f)
             {
-                podHandlingData->repairRate = 0.0;
+                podHandlingData->repairRate = 0.0f;
             }
         }
         if (upgradeLevel == 3)
         {
-            tmp = upgradeHealth * 0.3 + podHandlingData->repairRate;
+            tmp = upgradeHealth * (float)0.3f + podHandlingData->repairRate;
             podHandlingData->repairRate = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->repairRate = 1.0;
+                podHandlingData->repairRate = 1.0f;
             }
-            if (podHandlingData->repairRate < 0.0)
+            if (podHandlingData->repairRate < 0.0f)
             {
-                podHandlingData->repairRate = 0.0;
+                podHandlingData->repairRate = 0.0f;
             }
         }
         if (upgradeLevel == 4)
         {
-            tmp = upgradeHealth * 0.4 + podHandlingData->repairRate;
+            tmp = upgradeHealth * (float)0.4f + podHandlingData->repairRate;
             podHandlingData->repairRate = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->repairRate = 1.0;
+                podHandlingData->repairRate = 1.0f;
             }
-            if (podHandlingData->repairRate < 0.0)
+            if (podHandlingData->repairRate < 0.0f)
             {
-                podHandlingData->repairRate = 0.0;
+                podHandlingData->repairRate = 0.0f;
             }
         }
         if (upgradeLevel == 5)
         {
-            tmp = upgradeHealth * 0.45 + podHandlingData->repairRate;
+            tmp = upgradeHealth * (float)0.45f + podHandlingData->repairRate;
             podHandlingData->repairRate = tmp;
-            if (1.0 < tmp)
+            if (1.0f < tmp)
             {
-                podHandlingData->repairRate = 1.0;
+                podHandlingData->repairRate = 1.0f;
             }
-            if (podHandlingData->repairRate < 0.0)
+            if (podHandlingData->repairRate < 0.0f)
             {
-                podHandlingData->repairRate = 0.0;
+                podHandlingData->repairRate = 0.0f;
             }
         }
     }
 }
 
-// Eases a turn rate (*param_1) toward target param_3 at param_4/sec, then integrates it
-// (plus param_5/param_6) into a heading angle (*param_2) wrapped to [-180, 180] degrees.
+// Eases a turn rate (*turnRate) toward targetRate at rateAccel/sec, then integrates it
+// (plus steer and bias) into a heading angle (*heading) wrapped to [-180, 180] degrees.
+// Both clamps test the unrounded result before it is stored to float.
 // 0x0044ae40
-void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float param_4, float param_5, float param_6)
+RETAIL_FP void swrRace_UpdateTurn(float* turnRate, float* heading, float targetRate, float rateAccel, float steer, float bias)
 {
-    if (*param_1 <= param_3)
-    {
+    long double step = rateAccel;
+    long double next;
+
+    if (*turnRate <= targetRate) {
         // Accelerate the rate; 5x faster while still on the wrong side of zero.
-        if (*param_1 < 0.0f)
-            param_4 *= 5.0f;
-        *param_1 += param_4 * swrRace_deltaTimeSecs;
-        if (param_3 < *param_1)
-            *param_1 = param_3;
-    }
-    else
-    {
-        if (0.0f < *param_1)
-            param_4 *= 5.0f;
-        *param_1 -= param_4 * swrRace_deltaTimeSecs;
-        if (*param_1 < param_3)
-            *param_1 = param_3;
+        if (*turnRate < 0.0f)
+            step = rateAccel * 5.0f;
+        next = *turnRate + step * swrRace_deltaTimeSecs;
+        *turnRate = next;
+        if (targetRate < next)
+            *turnRate = targetRate;
+    } else {
+        if (0.0f < *turnRate)
+            step = rateAccel * 5.0f;
+        next = *turnRate - step * swrRace_deltaTimeSecs;
+        *turnRate = next;
+        if (next < targetRate)
+            *turnRate = targetRate;
     }
 
-    // Snap to zero when the steering input (param_5) opposes the current rate's sign.
-    if (0.0f < param_5 && *param_1 < 0.0f)
-        *param_1 = 0.0f;
-    if (param_5 < 0.0f && 0.0f < *param_1)
-        *param_1 = 0.0f;
+    // Snap to zero when the steering input opposes the current rate's sign.
+    if (0.0f < steer && *turnRate < 0.0f)
+        *turnRate = 0.0f;
+    if (steer < 0.0f && 0.0f < *turnRate)
+        *turnRate = 0.0f;
 
     // Integrate into the heading angle and wrap to [-180, 180].
-    *param_2 += (*param_1 + param_6 + param_5) * swrRace_deltaTimeSecs;
-    if (180.0f < *param_2)
-        *param_2 -= 360.0f;
-    if (*param_2 < -180.0f)
-        *param_2 += 360.0f;
+    next = *heading + ((*turnRate + bias) + steer) * swrRace_deltaTimeSecs;
+    *heading = next;
+    if (180.0f < next)
+        *heading = next - 360.0f;
+    if (*heading < -180.0f)
+        *heading += 360.0f;
 }
 
 // 0x0044af50
-void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle)
+RETAIL_FP void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle)
 {
-    float tilt;
+    long double tilt;
 
     tilt = -(cur_turnrate / max_turnrate) * max_angle;
-    if (80.0 < tilt)
+    if (80.0f < tilt)
     {
-        tilt = 80.0;
+        tilt = 80.0f;
     }
-    if (tilt < -80.0)
+    if (tilt < -80.0f)
     {
-        tilt = -80.0;
+        tilt = -80.0f;
     }
     *out_tilt = *out_tilt - (tilt - *out_tilt) * swrRace_deltaTimeSecs * -5.0;
 }
@@ -5264,15 +5263,16 @@ unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
 // shifts the result by -0.33 (left, parts 0..2) or +0.33 (right, parts 3..5), so a
 // lopsidedly damaged pod pulls to one side.
 // 0x0046a9f0
-float swrRace_GetEngineDamagePenalty(swrRace* player)
+RETAIL_FP float swrRace_GetEngineDamagePenalty(swrRace* player)
 {
-    float penalty = 0.0f;
+    // The health threshold is the double 0.8, so an engine at exactly 0.8f (just above it) counts.
+    long double penalty = 0.0f;
     for (int i = 0; i < 6; i++) {
-        if (0.8f < player->engineHealth[i]) {
+        if ((double)0.8 < player->engineHealth[i]) {
             if (i < 3) {
-                penalty -= 0.33f;
+                penalty -= (float)0.33f;
             } else {
-                penalty += 0.33f;
+                penalty += (float)0.33f;
             }
         }
     }
@@ -7239,26 +7239,26 @@ int swrRace_BoostCharge(int player)
 // forward/right basis relative to a reference (down) vector. Angles are in degrees
 // (stdMath_ArcCos). out->x is unused (0). Leaf used by swrRace_AlignToSurface.
 // 0x00476390
-void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out)
+RETAIL_FP void swrRace_ComputeTiltAngles(rdVector3* fwd, rdVector3* right, rdVector3* ref, rdVector3* out)
 {
     rdVector3 refCrossFwd;
     rdVector3 rightCross;
     float len;
+    float roll;
 
-    out->x = 0.0;
-    out->z = 0.0;
-    out->y = stdMath_ArcCos(fwd->x * ref->x + fwd->y * ref->y + fwd->z * ref->z) - 90.0f;
+    // Dot products sum as (y + z) + x, and ArcCos is used unrounded.
+    out->x = 0.0f;
+    out->z = 0.0f;
+    out->y = stdMath_ArcCosUnrounded((ref->y * fwd->y + ref->z * fwd->z) + fwd->x * ref->x) - 90.0f;
 
     rdVector_Cross3(&refCrossFwd, ref, fwd);
     rdVector_Cross3(&rightCross, right, &refCrossFwd);
     len = rdVector_Len3(&refCrossFwd);
-    if (len <= 0.01f)
+    if (len <= (float)0.01f)
         return;
 
-    float roll = stdMath_ArcCos((right->x * refCrossFwd.x + right->y * refCrossFwd.y +
-                                 right->z * refCrossFwd.z) /
-                                len);
-    if (0.0 < rightCross.x * fwd->x + rightCross.y * fwd->y + rightCross.z * fwd->z)
+    roll = stdMath_ArcCosUnrounded(((refCrossFwd.x * right->x + right->y * refCrossFwd.y) + right->z * refCrossFwd.z) / len);
+    if (0.0f < (rightCross.y * fwd->y + rightCross.z * fwd->z) + rightCross.x * fwd->x)
         out->z = -roll;
     else
         out->z = roll;
@@ -8123,7 +8123,7 @@ void swrRace_CalculateTiltFromTurn(int pEngine, rdVector4* pXformZ, float ZMotio
 // debug/zero-g) it takes a cheap yaw-only path. Re-normalizes the basis every 8 frames to fight drift.
 // NOTE: address corrected 0x00477c27 -> 0x00477c30 (the former was a bogus {return;} with no xrefs).
 // 0x00477c30
-void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
+RETAIL_FP void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
 {
     rdMatrix44 m;
     float vAx = player->transform.vA.x;
@@ -8136,13 +8136,13 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
     float vCy = player->transform.vC.y;
     float vCz = player->transform.vC.z;
 
-    if ((((float) player->lodDistance - 400.0f) * 0.0016666667f < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
+    if (((player->lodDistance - 400.0f) * (float)0.0016666667f < 1.0) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) ||
         ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         // full 3-axis update: build a horizontal axis (hx, hy) from vB (fall back to vC near-vertical)
         float hx = -vBx;
         float hy = vBy;
         float h = stdMath_Sqrt(hx * hx + vBy * vBy);
-        if (h < 0.1f) {
+        if (h < (float)0.1f) {
             hx = -vCx;
             hy = vCy;
             h = stdMath_Sqrt(hx * hx + vCy * vCy);
@@ -8152,47 +8152,48 @@ void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput)
 
         rdMatrix_BuildFromVectorAngle44(&m, turnInput->z, vBx, vBy, vBz);
 
-        // pitch rotation about the (hx, hy, 0) axis
+        // pitch rotation about the (hx, hy, 0) axis. Every product row sums as (x + y) + z;
+        // r00 and c1r stay at register width, the other coefficients are spilled to float.
         float ps, pc;
         stdMath_SinCos(turnInput->y, &ps, &pc);
         float hx2 = hx * hx;
-        float r00 = pc * hx2 + hy * hy;
-        float r11 = pc * hy * hy + hx2;
-        float r01 = (1.0f - pc) * hx * hy;
+        long double r00 = hy * hy + pc * hx2;
+        float r11 = pc * (hy * hy) + hx2;
+        float r01 = (hx * hy) * (1.0f - pc);
         float r02 = hy * ps;
         float r12 = -(hx * ps);
         float r20 = -r12;
         float r21 = -r02;
 
-        float a0 = m.vA.z * r20 + m.vA.y * r01 + m.vA.x * r00;
-        float a1 = m.vA.z * r21 + m.vA.y * r11 + m.vA.x * r01;
-        float a2 = pc * m.vA.z + m.vA.y * r02 + m.vA.x * r12;
-        float b0 = m.vB.z * r20 + m.vB.y * r01 + m.vB.x * r00;
-        float b1 = m.vB.z * r21 + m.vB.y * r11 + m.vB.x * r01;
-        float b2 = pc * m.vB.z + m.vB.y * r02 + m.vB.x * r12;
-        float c0 = m.vC.z * r20 + m.vC.y * r01 + m.vC.x * r00;
-        float c1 = m.vC.z * r21 + m.vC.y * r11 + m.vC.x * r01;
-        float c2 = pc * m.vC.z + m.vC.y * r02 + m.vC.x * r12;
+        float a0 = (m.vA.x * r00 + m.vA.y * r01) + m.vA.z * r20;
+        float a1 = (m.vA.x * r01 + m.vA.y * r11) + m.vA.z * r21;
+        float a2 = (m.vA.x * r12 + m.vA.y * r02) + pc * m.vA.z;
+        float b0 = (m.vB.x * r00 + m.vB.y * r01) + m.vB.z * r20;
+        float b1 = (m.vB.x * r01 + m.vB.y * r11) + m.vB.z * r21;
+        float b2 = (m.vB.x * r12 + m.vB.y * r02) + pc * m.vB.z;
+        float c0 = (m.vC.x * r00 + m.vC.y * r01) + m.vC.z * r20;
+        float c1 = (m.vC.x * r01 + m.vC.y * r11) + m.vC.z * r21;
+        float c2 = (m.vC.x * r12 + m.vC.y * r02) + pc * m.vC.z;
 
         // roll rotation about Z
         float rs, rc;
         stdMath_SinCos(turnInput->x, &rs, &rc);
         float a0r = rc * a0 - rs * a1;
-        float a1r = rs * a0 + rc * a1;
+        float a1r = rc * a1 + rs * a0;
         float b0r = rc * b0 - rs * b1;
-        float b1r = rs * b0 + rc * b1;
+        float b1r = rc * b1 + rs * b0;
         float c0r = rc * c0 - rs * c1;
-        float c1r = rs * c0 + rc * c1;
+        long double c1r = rc * c1 + rs * c0;
 
-        player->transform.vA.x = vAz * c0r + vAy * b0r + vAx * a0r;
-        player->transform.vA.y = vAz * c1r + vAy * b1r + vAx * a1r;
-        player->transform.vA.z = vAz * c2 + vAy * b2 + vAx * a2;
-        player->transform.vB.x = vBz * c0r + vBy * b0r + vBx * a0r;
-        player->transform.vB.y = vBz * c1r + vBy * b1r + vBx * a1r;
-        player->transform.vB.z = vBz * c2 + vBy * b2 + vBx * a2;
-        player->transform.vC.x = vCz * c0r + vCy * b0r + vCx * a0r;
-        player->transform.vC.y = vCz * c1r + vCy * b1r + vCx * a1r;
-        player->transform.vC.z = vCz * c2 + vCy * b2 + vCx * a2;
+        player->transform.vA.x = (vAx * a0r + vAy * b0r) + vAz * c0r;
+        player->transform.vA.y = (vAx * a1r + vAy * b1r) + vAz * c1r;
+        player->transform.vA.z = (vAx * a2 + vAy * b2) + vAz * c2;
+        player->transform.vB.x = (vBx * a0r + vBy * b0r) + vBz * c0r;
+        player->transform.vB.y = (vBx * a1r + vBy * b1r) + vBz * c1r;
+        player->transform.vB.z = (vBx * a2 + vBy * b2) + vBz * c2;
+        player->transform.vC.x = (vCx * a0r + vCy * b0r) + vCz * c0r;
+        player->transform.vC.y = (vCx * a1r + vCy * b1r) + vCz * c1r;
+        player->transform.vC.z = (vCx * a2 + vCy * b2) + vCz * c2;
     } else {
         // cheap yaw-only update (roll about Z by turnInput->x)
         float rs, rc;
@@ -9987,7 +9988,7 @@ void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float mirrorX, flo
 }
 
 // 0x00470510
-float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
+RETAIL_FP float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
 {
     float* value = &player->partOffset[part].y;
     float current = *value;

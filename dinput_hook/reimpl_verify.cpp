@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 extern "C" {
@@ -11,6 +12,8 @@ extern "C" {
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
+#include <Swr/swrModel.h>
+#include <Swr/swrRace.h>
 #include <globals.h>
 #include <hook_mode.h>
 }
@@ -1052,6 +1055,444 @@ namespace {
         return false;
     }
 
+    // Game logic reads globals (the frame delta) and racer state, so each case owns the globals
+    // it touches and restores them afterwards.
+
+    // Frame deltas the game produces: fixed 60/30 Hz steps, then the spread of a variable rate.
+    double sample_delta(int i) {
+        static const double fixed[] = {1.0 / 60.0, 1.0 / 30.0, 1.0 / 120.0, 0.0, 0.1};
+        if (i < (int) (sizeof(fixed) / sizeof(fixed[0])))
+            return fixed[i];
+        return next_float(0.001f, 0.1f);
+    }
+
+    struct DeltaGuard {
+        double saved;
+        DeltaGuard() : saved(swrRace_deltaTimeSecs) {}
+        ~DeltaGuard() {
+            swrRace_deltaTimeSecs = saved;
+        }
+    };
+
+    // Racer-state cases compare the whole swrRace, so a stray write anywhere in the struct is
+    // caught, not only the fields the function is documented to touch.
+    void record_racer(Stats &s, const swrRace &ours, const swrRace &retail,
+                      const char *input_desc) {
+        const uint8_t *a = (const uint8_t *) &ours;
+        const uint8_t *b = (const uint8_t *) &retail;
+        s.total++;
+        for (size_t off = 0; off + 4 <= sizeof(swrRace); off += 4) {
+            if (std::memcmp(a + off, b + off, 4) == 0)
+                continue;
+            s.mismatch++;
+            if (s.first_fail[0] == '\0') {
+                float fa, fb;
+                std::memcpy(&fa, a + off, 4);
+                std::memcpy(&fb, b + off, 4);
+                std::snprintf(s.first_fail, sizeof(s.first_fail),
+                              "%s -> swrRace+0x%04x ours=%.9g (0x%08x) retail=%.9g (0x%08x)",
+                              input_desc, (unsigned) off, fa, *(const uint32_t *) (a + off), fb,
+                              *(const uint32_t *) (b + off));
+            }
+            return;
+        }
+        s.exact++;
+    }
+
+    swrRace *racer_pair[2];
+
+    bool alloc_racers() {
+        racer_pair[0] = (swrRace *) std::calloc(1, sizeof(swrRace));
+        racer_pair[1] = (swrRace *) std::calloc(1, sizeof(swrRace));
+        return racer_pair[0] != nullptr && racer_pair[1] != nullptr;
+    }
+
+    void free_racers() {
+        std::free(racer_pair[0]);
+        std::free(racer_pair[1]);
+    }
+
+    // A random proper rotation: Gram-Schmidt on random vectors, then a cross product so the
+    // basis is right-handed like the pod transforms the game builds.
+    void random_rotation(rdMatrix44 &m, int i) {
+        rdVector3 a, b, c;
+        do {
+            a = random_vec3(i, -1.0f, 1.0f);
+        } while (a.x * a.x + a.y * a.y + a.z * a.z < 0.01f);
+        float l = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+        a.x /= l, a.y /= l, a.z /= l;
+        do {
+            b = random_vec3(i + 7, -1.0f, 1.0f);
+            const float d = a.x * b.x + a.y * b.y + a.z * b.z;
+            b.x -= d * a.x, b.y -= d * a.y, b.z -= d * a.z;
+        } while (b.x * b.x + b.y * b.y + b.z * b.z < 0.01f);
+        l = std::sqrt(b.x * b.x + b.y * b.y + b.z * b.z);
+        b.x /= l, b.y /= l, b.z /= l;
+        c.x = a.y * b.z - a.z * b.y;
+        c.y = a.z * b.x - a.x * b.z;
+        c.z = a.x * b.y - a.y * b.x;
+        std::memset(&m, 0, sizeof(m));
+        m.vA.x = a.x, m.vA.y = a.y, m.vA.z = a.z;
+        m.vB.x = b.x, m.vB.y = b.y, m.vB.z = b.z;
+        m.vC.x = c.x, m.vC.y = c.y, m.vC.z = c.z;
+        m.vD.x = next_float(-5000.0f, 5000.0f);
+        m.vD.y = next_float(-5000.0f, 5000.0f);
+        m.vD.z = next_float(-500.0f, 500.0f);
+        m.vD.w = 1.0f;
+    }
+
+    using F_step = float (*)(float, float, float, float, float, float);
+
+    void run_step_toward_clamped() {
+        const char *name = "swrMath_StepTowardClamped";
+        if (!testable(name, swrMath_StepTowardClamped_ADDR))
+            return;
+        const F_step retail = (F_step) hook_retail_ptr(swrMath_StepTowardClamped_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const float value = sample(i, -100.0f, 100.0f);
+            const float current = next_float(-100.0f, 100.0f);
+            float lo = next_float(-100.0f, 100.0f);
+            float hi = next_float(-100.0f, 100.0f);
+            if (hi < lo) {
+                const float t = lo;
+                lo = hi;
+                hi = t;
+            }
+            const float up = next_float(0.0f, 10.0f);
+            const float down = next_float(0.0f, 10.0f);
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "f(%.9g, %.9g, [%.9g, %.9g], %.9g, %.9g)", value,
+                          current, lo, hi, up, down);
+            record(s, swrMath_StepTowardClamped(value, current, lo, hi, up, down),
+                   retail(value, current, lo, hi, up, down), 0, desc);
+        }
+        report(s);
+    }
+
+    using V_tilt = void (*)(float *, float, void *, float, float);
+
+    void run_set_angle_from_turn_rate() {
+        const char *name = "swrRace_SetAngleFromTurnRate";
+        if (!testable(name, swrRace_SetAngleFromTurnRate_ADDR))
+            return;
+        const V_tilt retail = (V_tilt) hook_retail_ptr(swrRace_SetAngleFromTurnRate_ADDR);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            const float seed = next_float(-90.0f, 90.0f);
+            const float rate = sample(i, -200.0f, 200.0f);
+            const float max_rate = next_float(1.0f, 200.0f);
+            const float max_angle = next_float(0.0f, 120.0f);
+            float our_tilt = seed, ret_tilt = seed;
+            swrRace_SetAngleFromTurnRate(&our_tilt, rate, nullptr, max_rate, max_angle);
+            retail(&ret_tilt, rate, nullptr, max_rate, max_angle);
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "f(inout=%.9g, %.9g, %.9g, %.9g) dt=%.9g", seed, rate,
+                          max_rate, max_angle, swrRace_deltaTimeSecs);
+            record(s, our_tilt, ret_tilt, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_turn = void (*)(float *, float *, float, float, float, float);
+
+    void run_update_turn() {
+        const char *name = "swrRace_UpdateTurn";
+        if (!testable(name, swrRace_UpdateTurn_ADDR))
+            return;
+        const V_turn retail = (V_turn) hook_retail_ptr(swrRace_UpdateTurn_ADDR);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            const float rate = next_float(-200.0f, 200.0f);
+            const float heading = next_float(-180.0f, 180.0f);
+            const float target = sample(i, -200.0f, 200.0f);
+            const float accel = next_float(0.0f, 1000.0f);
+            const float steer = (i % 3 == 0) ? 0.0f : next_float(-100.0f, 100.0f);
+            const float extra = next_float(-50.0f, 50.0f);
+            float our_rate = rate, our_heading = heading;
+            float ret_rate = rate, ret_heading = heading;
+            swrRace_UpdateTurn(&our_rate, &our_heading, target, accel, steer, extra);
+            retail(&ret_rate, &ret_heading, target, accel, steer, extra);
+            char desc[200];
+            std::snprintf(desc, sizeof(desc), "f(%.9g, %.9g, %.9g, %.9g, %.9g, %.9g) dt=%.9g", rate,
+                          heading, target, accel, steer, extra, swrRace_deltaTimeSecs);
+            record(s, our_rate, ret_rate, 0, desc);
+            record(s, our_heading, ret_heading, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_tilt_angles = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    void run_compute_tilt_angles() {
+        const char *name = "swrRace_ComputeTiltAngles";
+        if (!testable(name, swrRace_ComputeTiltAngles_ADDR))
+            return;
+        const V_tilt_angles retail =
+            (V_tilt_angles) hook_retail_ptr(swrRace_ComputeTiltAngles_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdMatrix44 basis;
+            random_rotation(basis, i);
+            rdVector3 fwd = {basis.vB.x, basis.vB.y, basis.vB.z};
+            rdVector3 right = {basis.vA.x, basis.vA.y, basis.vA.z};
+            // The reference is the track normal: near the pod's up axis most of the time.
+            rdVector3 ref = random_vec3(i + 31, -0.4f, 0.4f);
+            ref.x += basis.vC.x, ref.y += basis.vC.y, ref.z += basis.vC.z;
+            rdVector_Normalize3Acc(&ref);
+            rdVector3 our_out = {-12345.0f, -12345.0f, -12345.0f};
+            rdVector3 ret_out = our_out;
+            swrRace_ComputeTiltAngles(&fwd, &right, &ref, &our_out);
+            retail(&fwd, &right, &ref, &ret_out);
+            char desc[200], sa[96], sb[96];
+            describe_vec3(sa, sizeof(sa), fwd);
+            describe_vec3(sb, sizeof(sb), ref);
+            std::snprintf(desc, sizeof(desc), "fwd=%s ref=%s", sa, sb);
+            record_vec3(s, our_out, ret_out, 0, desc);
+        }
+        report(s);
+    }
+
+    void random_handling(PodHandlingData &d) {
+        d.antiSkid = next_float(0.0f, 1.0f);
+        d.turnResponse = next_float(50.0f, 1000.0f);
+        d.maxTurnRate = next_float(50.0f, 200.0f);
+        d.acceleration = next_float(0.5f, 5.0f);
+        d.maxSpeed = next_float(400.0f, 700.0f);
+        d.airBrakeInv = next_float(1.0f, 100.0f);
+        d.deceleration_interval = next_float(0.0f, 1000.0f);
+        d.boost_thrust = next_float(0.0f, 1000.0f);
+        d.heatRate = next_float(0.0f, 50.0f);
+        d.coolRate = next_float(0.0f, 50.0f);
+        d.hoverHeight = next_float(0.0f, 10.0f);
+        d.repairRate = next_float(0.0f, 1.0f);
+        d.bumpMass = next_float(0.0f, 200.0f);
+        d.damageImmunity = next_float(0.0f, 2.0f);
+        d.intersectRadius = next_float(0.0f, 10.0f);
+    }
+
+    using V_upgrades = void (*)(PodHandlingData *, PodHandlingData *, char *, char *);
+
+    // Covers swrRace_CalculateUpgradedStat for every category and level, at every part health.
+    void run_apply_upgrades_to_stats() {
+        const char *name = "swrRace_ApplyUpgradesToStats";
+        if (!testable(name, swrRace_ApplyUpgradesToStats_ADDR))
+            return;
+        const V_upgrades retail = (V_upgrades) hook_retail_ptr(swrRace_ApplyUpgradesToStats_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            PodHandlingData base;
+            random_handling(base);
+            char levels[7], healths[7];
+            for (int k = 0; k < 7; k++) {
+                levels[k] = (char) (next_u32() % 7u);
+                healths[k] = (char) ((i % 4 == 0) ? 255 : next_u32() % 256u);
+            }
+            PodHandlingData our_out, ret_out;
+            std::memset(&our_out, 0xcd, sizeof(our_out));
+            std::memset(&ret_out, 0xcd, sizeof(ret_out));
+            swrRace_ApplyUpgradesToStats(&our_out, &base, levels, healths);
+            retail(&ret_out, &base, levels, healths);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "levels=%d%d%d%d%d%d%d health0=%u", levels[0],
+                          levels[1], levels[2], levels[3], levels[4], levels[5], levels[6],
+                          (unsigned) (uint8_t) healths[0]);
+            record_floats(s, &our_out.antiSkid, &ret_out.antiSkid, 15, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_stat_bars = void (*)(PodHandlingData *, PodHandlingData *);
+
+    void run_compute_stat_bars() {
+        const char *name = "swrRace_ComputeStatBars";
+        if (!testable(name, swrRace_ComputeStatBars_ADDR))
+            return;
+        const V_stat_bars retail = (V_stat_bars) hook_retail_ptr(swrRace_ComputeStatBars_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            PodHandlingData stats;
+            random_handling(stats);
+            PodHandlingData our_out, ret_out;
+            std::memset(&our_out, 0xcd, sizeof(our_out));
+            std::memset(&ret_out, 0xcd, sizeof(ret_out));
+            swrRace_ComputeStatBars(&our_out, &stats);
+            retail(&ret_out, &stats);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "accel=%.9g airBrake=%.9g", stats.acceleration,
+                          stats.airBrakeInv);
+            record_floats(s, &our_out.antiSkid, &ret_out.antiSkid, 15, 0, desc);
+        }
+        report(s);
+    }
+
+    using U_crc = unsigned int (*)(void *, int);
+
+    void run_crc32() {
+        const char *name = "swrRace_Crc32";
+        if (!testable(name, swrRace_Crc32_ADDR))
+            return;
+        const U_crc retail = (U_crc) hook_retail_ptr(swrRace_Crc32_ADDR);
+        Stats s;
+        stats_init(s, name);
+        uint8_t buf[512];
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            const int len = (int) (next_u32() % sizeof(buf));
+            for (int k = 0; k < len; k++)
+                buf[k] = (uint8_t) next_u32();
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "len=%d", len);
+            record_int(s, (int) swrRace_Crc32(buf, len), (int) retail(buf, len), desc);
+        }
+        report(s);
+    }
+
+    using F_racer = float (*)(swrRace *);
+
+    void run_engine_damage_penalty() {
+        const char *name = "swrRace_GetEngineDamagePenalty";
+        if (!testable(name, swrRace_GetEngineDamagePenalty_ADDR))
+            return;
+        const F_racer retail = (F_racer) hook_retail_ptr(swrRace_GetEngineDamagePenalty_ADDR);
+        Stats s;
+        stats_init(s, name);
+        swrRace *r = racer_pair[0];
+        std::memset(r, 0, sizeof(swrRace));
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            for (int k = 0; k < 6; k++)
+                r->engineHealth[k] = (next_u32() % 4u == 0) ? 0.8f : next_float(0.0f, 1.0f);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "health[0]=%.9g", r->engineHealth[0]);
+            record(s, swrRace_GetEngineDamagePenalty(r), retail(r), 0, desc);
+        }
+        report(s);
+    }
+
+    using F_exhaust = float (*)(swrRace *, int, float, float, float, float, float, float);
+
+    void run_smooth_engine_exhaust_size() {
+        const char *name = "swrRace_SmoothEngineExhaustSize";
+        if (!testable(name, swrRace_SmoothEngineExhaustSize_ADDR))
+            return;
+        const F_exhaust retail = (F_exhaust) hook_retail_ptr(swrRace_SmoothEngineExhaustSize_ADDR);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        static const uint32_t flag0[] = {0, swrObjTest_FLAG0_BOOSTING, swrObjTest_FLAG0_BRAKING,
+                                         swrObjTest_FLAG0_BOOSTING | swrObjTest_FLAG0_BRAKING};
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            std::memset(ours, 0, sizeof(swrRace));
+            const int part = (int) (next_u32() % 75u);
+            ours->partOffset[part].y = next_float(-10.0f, 10.0f);
+            ours->flags0 = (swrObjTest_FLAG0) flag0[i % 4];
+            ours->flags1 = (swrObjTest_FLAG1) ((i / 4) % 2 ? swrObjTest_FLAG1_FINISHED : 0);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            float lo = next_float(-10.0f, 10.0f), hi = next_float(-10.0f, 10.0f);
+            if (hi < lo) {
+                const float t = lo;
+                lo = hi;
+                hi = t;
+            }
+            const float target = next_float(-10.0f, 10.0f);
+            const float brake = next_float(-10.0f, 10.0f);
+            const float down = next_float(0.0f, 20.0f);
+            const float up = next_float(0.0f, 20.0f);
+            const float our_r =
+                swrRace_SmoothEngineExhaustSize(ours, part, target, brake, down, up, lo, hi);
+            const float ret_r = retail(ret, part, target, brake, down, up, lo, hi);
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "part=%d target=%.9g flags0=0x%x dt=%.9g", part,
+                          target, (unsigned) ours->flags0, swrRace_deltaTimeSecs);
+            record(s, our_r, ret_r, 0, desc);
+            record_racer(s, *ours, *ret, desc);
+        }
+        report(s);
+    }
+
+    using V_extrapolate = void (*)(swrRace *, rdMatrix44 *, rdMatrix44 *, float);
+
+    void run_extrapolate_transform() {
+        const char *name = "swrRace_ExtrapolateTransform";
+        if (!testable(name, swrRace_ExtrapolateTransform_ADDR))
+            return;
+        const V_extrapolate retail =
+            (V_extrapolate) hook_retail_ptr(swrRace_ExtrapolateTransform_ADDR);
+        Stats s;
+        stats_init(s, name);
+        swrRace *r = racer_pair[0];
+        std::memset(r, 0, sizeof(swrRace));
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdMatrix44 in;
+            random_rotation(in, i);
+            r->speedValue = next_float(0.0f, 1000.0f);
+            const float dt = next_float(0.0f, 0.1f);
+            rdMatrix44 our_out, ret_out;
+            std::memset(&our_out, 0xcd, sizeof(our_out));
+            std::memset(&ret_out, 0xcd, sizeof(ret_out));
+            swrRace_ExtrapolateTransform(r, &our_out, &in, dt);
+            retail(r, &ret_out, &in, dt);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "speed=%.9g dt=%.9g", r->speedValue, dt);
+            record_floats(s, &our_out.vA.x, &ret_out.vA.x, 16, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_turn2 = void (*)(swrRace *, rdVector3 *, rdVector3 *);
+
+    // The per-frame pod orientation update: both the full 3-axis path (local racer, near LOD,
+    // forced ground) and the yaw-only path for distant AI, plus the every-8-frames renormalize.
+    void run_update_turn2() {
+        const char *name = "swrRace_UpdateTurn2";
+        if (!testable(name, swrRace_UpdateTurn2_ADDR))
+            return;
+        const V_turn2 retail = (V_turn2) hook_retail_ptr(swrRace_UpdateTurn2_ADDR);
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            std::memset(ours, 0, sizeof(swrRace));
+            random_rotation(ours->transform, i);
+            switch (i % 4) {
+                case 0:
+                    ours->flags0 = swrObjTest_FLAG0_LOCAL;
+                    break;
+                case 1:
+                    ours->flags1 = swrObjTest_FLAG1_FORCE_GROUND;
+                    break;
+                default:
+                    ours->lodDistance = (int) (next_u32() % 2000u);
+                    break;
+            }
+            ours->orthoRenormCounter = (int) (next_u32() % 9u);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            rdVector3 pos = random_vec3(i, -5000.0f, 5000.0f);
+            rdVector3 turn = random_vec3(i + 5, -10.0f, 10.0f);
+            swrRace_UpdateTurn2(ours, &pos, &turn);
+            retail(ret, &pos, &turn);
+            char desc[160], st[96];
+            describe_vec3(st, sizeof(st), turn);
+            std::snprintf(desc, sizeof(desc), "turn=%s lod=%d flags0=0x%x renorm=%d", st,
+                          ret->lodDistance, (unsigned) ret->flags0, ours->orthoRenormCounter);
+            record_racer(s, *ours, *ret, desc);
+        }
+        report(s);
+    }
+
 }// namespace
 
 extern "C" void reimpl_verify_run(FILE *hook_log) {
@@ -1178,6 +1619,22 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
                    rdMatrix_ExtractAngles34, -1.0f, 1.0f, 0);
     run_v_m44iv("rdMatrix_SetColumn", rdMatrix_SetColumn_ADDR, rdMatrix_SetColumn, true, 0);
     run_v_m44iv("rdMatrix_GetColumn", rdMatrix_GetColumn_ADDR, rdMatrix_GetColumn, false, 0);
+
+    std::fprintf(verify_log, "\nswrRace\n");
+    run_step_toward_clamped();
+    run_set_angle_from_turn_rate();
+    run_update_turn();
+    run_compute_tilt_angles();
+    run_apply_upgrades_to_stats();
+    run_compute_stat_bars();
+    run_crc32();
+    if (alloc_racers()) {
+        run_engine_damage_penalty();
+        run_smooth_engine_exhaust_size();
+        run_extrapolate_transform();
+        run_update_turn2();
+    }
+    free_racers();
 
     std::fprintf(verify_log, "\n%d cases run, %d passed, %d failed, %d skipped\n", cases_run,
                  cases_passed, cases_run - cases_passed, cases_skipped);
