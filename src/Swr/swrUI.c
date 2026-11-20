@@ -24,6 +24,8 @@
 #include <Platform/wuRegistry.h>
 #include <Win95/stdComm.h>
 #include <Win95/stdConsole.h>
+#include <Dss/sithMessage.h>
+#include <Dss/sithMulti.h>
 
 #include <macros.h>
 #include <ctype.h>
@@ -4333,15 +4335,386 @@ int swrUI_Menu_MpCreateGame(swrUI_unk* self, unsigned int msg, void* param_3, sw
 }
 
 // 0x0041f330
-int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
 {
-    HANG("TODO");
+    // the EXE's buffers are 0x100 wchar_t, one short of the clamp's terminator
+    wchar_t playerName[0x101];
+    wchar_t password[0x101];
+    char sessionName[SWR_MP_SESSION_NAME_LEN];
+    StdCommSessionSettings settings;
+    swrUI_unk* list;
+    char* text;
+    unsigned int numSessions;
+    unsigned int i;
+    int changed;
+    int sel;
+    HRESULT hr;
+
+    switch (msg) {
+    case swrUI_MSG_SET_ACTIVE:
+        swrMultiplayer_Initialize();
+        swrMultiplayer_FillLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME));
+        if (param == NULL) {
+            swrUI_RemoveTimer(SWR_UI_TIMER_MP_JOIN_REFRESH);
+            return 0;
+        }
+        if (swrMultiplayer_bootedFromGame != 0) {
+            swrMultiplayer_bootedFromGame = 0;
+            swrUI_ShowConfirmDialog(self, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0405/The host has booted you from this game"), swrText_Translate("/MONDOTEXT_H_0406/OK"), NULL, NULL, 1);
+            swrMultiplayer_joinDialogReason = SWR_MP_JOIN_DIALOG_BOOTED;
+        }
+        swrUI_AddTimer(self, SWR_UI_TIMER_MP_JOIN_INTERVAL_MS, SWR_UI_TIMER_MP_JOIN_REFRESH);
+        return 0;
+
+    case swrUI_MSG_BACK:
+    case swrUI_MSG_PAGE_POPPED:
+        swrMultiplayer_Shutdown();
+        return 0;
+
+    case swrUI_MSG_DIALOG_RESULT:
+        swrMultiplayer_joinDialogReason = 0;
+        return 0;
+
+    case swrUI_MSG_TIMER:
+        if ((int)param != SWR_UI_TIMER_MP_JOIN_REFRESH)
+            return 0;
+        list = swrUI_GetById(self, SWR_UI_ID_MP_GAME_LIST);
+        memset(password, 0, 0x100 * sizeof(wchar_t));
+        text = swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
+        if (text != NULL)
+            swrUI_EntryTextToWchar(password, text);
+        stdComm_EnumSessions(1, password);
+
+        changed = 0;
+        numSessions = stdComm_GetNumSessionSettings();
+        if (numSessions == (unsigned int)swrUI_CountSelectableItems(list)) {
+            for (i = 0; i < numSessions; i++) {
+                if (stdComm_GetSessionSettingsByIndex(i, &settings) == 0) {
+                    stdString_WcharToChar(sessionName, settings.aSessionName, SWR_MP_SESSION_NAME_LEN);
+                    if (swrUI_FindChildByText(list, sessionName) != NULL)
+                        continue;
+                }
+                changed = 1;
+            }
+        } else {
+            changed = 1;
+        }
+        if (changed) {
+            swrUI_RefreshListSelection(list);
+            for (i = 0; i < numSessions; i++) {
+                if (stdComm_GetSessionSettingsByIndex(i, &settings) == 0) {
+                    stdString_WcharToChar(sessionName, settings.aSessionName, SWR_MP_SESSION_NAME_LEN);
+                    swrUI_AddListItem(list, sessionName, 0, i, 0);
+                }
+            }
+            swrUI_RestoreListSelection(list);
+        }
+        if (numSessions == 0)
+            break;
+        swrMultiplayer_sessionsFound = 1;
+        if (swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated == NULL)
+            break;
+        swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        return 0;
+
+    case swrUI_MSG_TEXT_ENTRY_CHANGED:
+        if (swrMultiplayer_sessionsFound == 0)
+            break;
+        if (swrMultiplayer_ValidateGameFields(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME, 0, 0) == 0)
+            break;
+        swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+        return 0;
+
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        if ((int)param == SWR_UI_ID_CANCEL_BUTTON) {
+            swrMultiplayer_Shutdown();
+            swrUI_PopMenuPage();
+            return 0;
+        }
+        if ((int)param != SWR_UI_ID_OK_BUTTON)
+            return 0;
+        multiplayer_track_change_permission = 0;
+        swrUI_EntryTextToWchar(playerName, swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated);
+        memset(password, 0, 0x100 * sizeof(wchar_t));
+        text = swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
+        if (text != NULL)
+            swrUI_EntryTextToWchar(password, text);
+        sel = swrUI_GetSelectedIndex(swrUI_GetById(self, SWR_UI_ID_MP_GAME_LIST));
+        swrMultiplayer_joinedSessionIndex = sel;
+        swrMultiplayer_ClearStateBuffer();
+        swrMultiplayer_maxPlayers = SWR_MAX_RACERS;
+        hr = sithMulti_JoinSessionAndCreatePlayer(sel, playerName, password);
+        if (hr == DP_OK) {
+            swrMultiplayer_ResetSession();
+            swrMultiplayer_ClearHostState();
+            swrMultiplayer_InitMessaging();
+            swrMultiplayer_SendPlayerJoin(sithMulti_g_serverId);
+            swrMultiplayer_SaveLastPlayerName(swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME));
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrUI_PushMenuPage(swrUI_WINDOW_MP_RACE_SETUP);
+        } else if (hr == DPERR_NONEWPLAYERS) {
+            swrUI_ShowConfirmDialog(self, -1, -1, swrText_Translate("/MONDOTEXT_H_0407/Error"), swrText_Translate("/MONDOTEXT_H_0408/Your join request has been denied."), swrText_Translate("/MONDOTEXT_H_0406/OK"), NULL, NULL, 1);
+            swrMultiplayer_joinDialogReason = DPERR_NONEWPLAYERS;
+        } else if (hr == DPERR_INVALIDPASSWORD) {
+            swrUI_ShowConfirmDialog(self, -1, -1, swrText_Translate("/MONDOTEXT_H_0407/Error"), swrText_Translate("/MONDOTEXT_H_0409/Your password is invalid."), swrText_Translate("/MONDOTEXT_H_0406/OK"), NULL, NULL, 1);
+            swrMultiplayer_joinDialogReason = DPERR_INVALIDPASSWORD;
+        } else {
+            swrUI_ShowConfirmDialog(self, -1, -1, swrText_Translate("/MONDOTEXT_H_0407/Error"), swrText_Translate("/MONDOTEXT_H_0410/An unknown network error has occurred."), swrText_Translate("/MONDOTEXT_H_0406/OK"), NULL, NULL, 1);
+            swrMultiplayer_joinDialogReason = SWR_MP_JOIN_DIALOG_ERROR;
+        }
+        return 0;
+
+    default:
+        return 0;
+    }
+
+    swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_OK_BUTTON));
+    return 0;
+}
+
+// Show the selected track's name in the race setup track label.
+static void swrUI_MpSetupShowTrack(swrUI_unk* self, char* buffer)
+{
+    swrUI_unk* label = swrUI_GetById(self, SWR_UI_ID_MP_TRACK_NAME);
+
+    if (label == NULL)
+        return;
+    swrUI_Front_LoadTrackFromId(swrRace_GetSelectedTrack(), buffer, 0x100);
+    swrUI_RunCallbacksScreenText(label, buffer, 0);
+}
+
+// Ask before leaving the session; returns the dialog's result.
+static int swrUI_MpSetupConfirmLeave(swrUI_unk* self)
+{
+    return swrUI_ShowConfirmDialog(self, -1, -1, swrText_Translate("/MONDOTEXT_H_0535/Are you sure?"), swrText_Translate("/MONDOTEXT_H_0536/That you want to leave this game"), swrText_Translate("/MONDOTEXT_H_0537/Yes"), swrText_Translate("/MONDOTEXT_H_0538/Cancel"), NULL, 1);
+}
+
+// Enable the host-only controls and mark ourselves ready.
+static void swrUI_MpSetupEnableHostControls(swrUI_unk* self)
+{
+    swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_MP_TRACKS));
+    swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_MP_LAPS));
+    swrUI_EnableElement(swrUI_GetById(self, SWR_UI_ID_MP_HOST_ONLY_8C));
 }
 
 // 0x0041fc70
-int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param_3, swrUI_unk* ui2)
+int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* ui2)
 {
-    HANG("TODO");
+    // the EXE uses one 0x114-byte frame buffer; names/chat use all of it, the track label its last 0x100 bytes
+    char buffer[0x114];
+    swrUI_unk* element;
+    wchar_t* name;
+    int dirty;
+    int value;
+    int i;
+
+    swrText_Translate("/MONDOTEXT_H_0422/(Error getting player name)"); // result unused
+
+    switch (msg) {
+    case swrUI_MSG_KEY_DOWN:
+        swrUI_Menu_MpForwardKeyToChat(self, (int)param);
+        return 0;
+
+    case swrUI_MSG_SET_ACTIVE:
+        if (param == NULL) {
+            swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
+            swrMultiplayer_SendMenuEvent(0);
+            multiplayer_race_button_toggle[playerNumber] = 0;
+            return 0;
+        }
+        swrMultiplayer_playerListDirty = 1;
+        swrUI_RunCallbacks2(swrUI_GetById(NULL, swrUI_WINDOW_MP_JOIN_GAME), 0);
+        swrControl_menuAcceptGuard = 0;
+        swrUI_RefreshListSelection(swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST));
+        swrObjHang_SetHangar2Splash();
+        element = swrUI_GetById(self, SWR_UI_ID_MP_SETUP_TAB);
+        sprintf(buffer, "~s%s", swrMultiplayer_GetSessionName());
+        // 0x40000 kept literal: the bit is unconfirmed on 3-patch boxes
+        swrUI_RunCallbacksScreenText(element, buffer, 0x40000);
+        swrMultiplayer_SetRacerListDisplay(0, 0, 0);
+        swrUI_RunCallbacksScreenText(swrUI_GetById(self, SWR_UI_ID_MP_CHAT_ENTRY), NULL, 0);
+        if (multiplayer_track_change_permission != 0)
+            stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 1);
+        swrUI_MpSetupShowTrack(self, buffer + 0x14);
+        if (multiplayer_track_change_permission == 0) {
+            swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_TRACKS));
+            swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_LAPS));
+            for (i = 0; i < SWR_MAX_RACERS; i++)
+                multiplayer_race_button_toggle[i] = 0;
+            swrMultiplayer_SendRacerSelection();
+        } else {
+            swrUI_MpSetupEnableHostControls(self);
+            swrMultiplayer_BroadcastRaceSettings();
+        }
+        swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+        swrUI_AddTimer(self, SWR_UI_TIMER_MP_SETUP_INTERVAL_MS, SWR_UI_TIMER_MP_SETUP_REFRESH);
+        swrMultiplayer_SendMenuEvent(1);
+        multiplayer_race_button_toggle[playerNumber] = 1;
+        return 0;
+
+    case swrUI_MSG_BACK:
+        if (swrUI_MpSetupConfirmLeave(self) == SWR_UI_DIALOG_RESULT_NO)
+            return 1;
+        sithMessage_CloseGame();
+        return 0;
+
+    case swrUI_MSG_TIMER:
+        if ((int)param != SWR_UI_TIMER_MP_SETUP_REFRESH)
+            return 0;
+        if (multiplayer_rejoinPending != 0 && multiplayer_isHost == 0)
+            swrMultiplayer_JoinGame(self);
+        element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
+        stdComm_UpdatePlayers(swrMultiplayer_joinedSessionIndex);
+        dirty = swrMultiplayer_playerListDirty;
+        if (stdComm_GetNumPlayers() == swrUI_CountSelectableItems(element)) {
+            for (i = 0; i < SWR_MAX_RACERS; i++) {
+                if (swrMultiplayer_IsPlayerActive(i) == 0)
+                    continue;
+                name = swrMultiplayer_GetPlayerName(i);
+                if (name != NULL) {
+                    stdString_WcharToChar(buffer, name, SWR_MP_LIST_NAME_LEN);
+                    if (swrUI_FindChildByText(element, buffer) != NULL)
+                        continue;
+                }
+                dirty = 1;
+            }
+        } else {
+            dirty = 1;
+        }
+        if (dirty != 0) {
+            swrMultiplayer_playerListDirty = 0;
+            swrUI_RefreshListSelection(element);
+            for (i = 0; i < SWR_MAX_RACERS; i++) {
+                if (swrMultiplayer_IsPlayerActive(i) == 0)
+                    continue;
+                name = swrMultiplayer_GetPlayerName(i);
+                if (name == NULL)
+                    continue;
+                stdString_WcharToChar(buffer, name, SWR_MP_LIST_NAME_LEN);
+                swrUI_AddListItem(element, buffer, 0, i, 0);
+            }
+            swrUI_RestoreListSelection(element);
+        }
+        if (multiplayer_track_change_permission != 0) {
+            multiplayer_numAiRacers = 0;
+            swrMultiplayer_BroadcastRaceSettings();
+        }
+        element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
+        if (element != NULL)
+            swrMultiplayer_UpdateRacerSelectUI(self, element);
+        swrMultiplayer_BroadcastMenuReset();
+        swrMultiplayer_UpdateStartButtonState(self);
+        return 0;
+
+    case swrUI_MSG_MP_UPDATE:
+        switch ((int)param) {
+        case swrMultiplayer_MSG_PLAYER_QUIT:
+            swrMultiplayer_bootedFromGame = 1;
+            swrUI_PopMenuPage();
+            return 0;
+        case swrMultiplayer_UIEVENT_PLAYER_LEFT:
+        case swrMultiplayer_UIEVENT_PLAYER_JOINED:
+            swrMultiplayer_playerListDirty = 1;
+            return 0;
+        case swrMultiplayer_UIEVENT_BECAME_HOST:
+            swrUI_MpSetupEnableHostControls(self);
+            swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+            swrMultiplayer_SendMenuEvent(1);
+            multiplayer_race_button_toggle[playerNumber] = 1;
+            return 0;
+        case swrMultiplayer_MSG_MENU_EVENT:
+            swrMultiplayer_SetRaceButtonToggle(self, (int*)ui2);
+            return 0;
+        case swrMultiplayer_MSG_RACER_PICK:
+            element = swrUI_GetById(self, SWR_UI_ID_MP_RACER_NAME);
+            if (element == NULL)
+                return 0;
+            swrText_FormatPodName(swrMultiplayer_GetRacerId(playerNumber), buffer + 0x14, 0x100);
+            swrUI_RunCallbacksScreenText(element, buffer + 0x14, 0);
+            return 0;
+        case swrMultiplayer_MSG_LOBBY_STATE:
+            swrUI_MpSetupShowTrack(self, buffer + 0x14);
+            element = swrUI_GetById(self, SWR_UI_ID_MP_LAPS);
+            if (element != NULL)
+                swrUI_SetNumberValue(element, multiplayer_laps);
+            element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
+            if (element != NULL)
+                swrMultiplayer_UpdateRacerSelectUI(self, element);
+            return 0;
+        }
+        return 0;
+
+    case swrUI_MSG_ELEMENT_ACTIVATED:
+        switch ((int)param) {
+        case SWR_UI_ID_MP_RETIRE:
+            if (swrUI_MpSetupConfirmLeave(self) == SWR_UI_DIALOG_RESULT_NO)
+                return 0;
+            swrMultiplayer_Shutdown();
+            stdComm_Shutdown();
+            swrMultiplayer_menuOverlayActive = 0;
+            swrObjHang_SetHangar2State(swrObjHang_STATE_SPLASH);
+            swrUI_RunCallbacks2(self, 0);
+            swrUI_ResetPageStack();
+            swrUI_PushMenuPage(swrUI_WINDOW_SPLASH);
+            return 0;
+        case swrUI_WINDOW_MP_RACE_BUTTON:
+            swrControl_menuAcceptGuard = 1;
+            swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
+            if (multiplayer_track_change_permission != 0)
+                stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 0);
+            swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
+            swrMultiplayer_BroadcastRaceReset();
+            swrObjHang_ReturnToMultiplayerLobby();
+            return 0;
+        case SWR_UI_ID_MP_TRACKS:
+            swrControl_menuAcceptGuard = 1;
+            swrMultiplayer_SetRacerListDisplay(1, 10, 0x78);
+            swrUI_PushMenuPage(swrUI_WINDOW_HANGAR_SELECT_PLANET);
+            return 0;
+        case SWR_UI_ID_MP_PODRACER:
+            swrControl_menuAcceptGuard = 1;
+            swrMultiplayer_SetRacerListDisplay(1, 10, 0x78);
+            swrUI_PushMenuPage(swrUI_WINDOW_HANGAR_SELECT_VEHICLE);
+            return 0;
+        case SWR_UI_ID_MP_BOOT:
+            value = swrUI_GetSelectedIndex(swrUI_GetById(NULL, SWR_UI_ID_MP_PLAYER_LIST));
+            if (value == -1 || value == playerNumber)
+                return 0;
+            swrMultiplayer_DropPlayer(value);
+            return 0;
+        }
+        return 0;
+
+    case swrUI_MSG_SLIDER_DECREASED:
+    case swrUI_MSG_SLIDER_INCREASED:
+        value = swrUI_GetNumberValue(ui2);
+        if ((int)param == SWR_UI_ID_MP_LAPS) {
+            if (msg == swrUI_MSG_SLIDER_DECREASED) {
+                if (value > SWR_MP_LAPS_MIN)
+                    value--;
+            } else if (value < SWR_MP_LAPS_MAX) {
+                value++;
+            }
+            swrUI_SetNumberValue(ui2, value);
+            multiplayer_laps = value;
+        }
+        swrMultiplayer_BroadcastRaceSettings();
+        return 0;
+
+    case swrUI_MSG_TEXT_ENTRY_COMMITTED:
+        if ((int)param != SWR_UI_ID_MP_CHAT_ENTRY || ui2 == NULL)
+            return 0;
+        sprintf(buffer, swrText_Translate("/MONDOTEXT_H_0393/%s says '%s'"), swrMultiplayer_GetPlayerNameAscii(playerNumber), (char*)ui2);
+        swrMultiplayer_PostChatMessage(buffer);
+        return 0;
+
+    case swrUI_MSG_LIST_SELECTION_CHANGED:
+        if (((swrUI_unk*)param)->id != SWR_UI_ID_MP_PLAYER_LIST)
+            return 0;
+        swrMultiplayer_UpdateRacerSelectUI(self, (swrUI_unk*)param);
+        return 0;
+    }
+    return 0;
 }
 
 // 0x004206b0

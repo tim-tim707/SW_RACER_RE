@@ -12439,7 +12439,7 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent(int trigger_index, 
 
     swrObjTrig* trigger = swrObjTrig_FindOrCreate(description);
     if (trigger != NULL)
-        swrRace_TriggerHandler((int)trigger, (int)player, 1);
+        swrRace_TriggerHandler(trigger, player, 1);
 }
 
 // 0x0047E830

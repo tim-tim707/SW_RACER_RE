@@ -232,8 +232,24 @@
 #define SWR_RACE_BUFFER_TALLY_SIZE (0x400000)
 // selectable pilots/pods: swrRacer_PodData[] / swrRacer_PodHandlingData[] entries
 #define SWR_PILOT_COUNT (23)
+#define SWR_PILOT_MARS_GUO (8) // replaced by Jinn Reeso (swrRace_ReplaceMarsGuoWithJinnReeso)
 #define SWR_PILOT_DUD_BOLT (10) // first-person camera pushed 3 units forward
 #define SWR_PILOT_NEVA_KEE (14) // fused engines; low first-person camera, no binder
+#define SWR_PILOT_BULLSEYE (22) // replaced by Cy Yunga (swrRace_ReplaceBullseyeWithCyYunga)
+
+// swrObjHang_cinematicFiles[] entries after the 8 planet intros
+#define SWR_CINEMATIC_GOLDIE (8)
+#define SWR_CINEMATIC_TEXT_CRAWL (9)
+#define SWR_CINEMATIC_INTRO_SCENE (10)
+
+// swrMain2_GuiAdvance (0x00423580): GUI camera FOV clamp (degrees) and the debug-HUD FPS resample period
+#define SWR_GUI_CAMERA_FOV_MIN (5.0f)
+#define SWR_GUI_CAMERA_FOV_MAX (179.0f)
+#define SWR_GUI_FPS_SAMPLE_MS (1000)
+
+// swrRace_TriggerHandler (0x0047ce60): re-fire cooldown for door/tusken triggers and the door animation speed
+#define SWR_TRIG_REARM_SECS (3.0f)
+#define SWR_TRIG_DOOR_ANIM_SPEED (20.0f)
 
 // swrRace_DrawScrollbar (0x0043fe90): arrow glow fade rate (alpha/sec) and its ceiling
 #define SWR_SCROLLBAR_ARROW_FADE_RATE (838.2f)
@@ -405,6 +421,17 @@
 #define SWR_MP_CHAT_INPUT_PREFIX_LEN (4) // "~F0]" font/colour prefix ahead of the typed text
 #define SWR_MP_CHAT_VISIBLE_LINES (6) // rows shown by the lobby chat list before it scrolls
 #define SWR_MP_CHAT_TEXT_MAX (0x80) // chat text length cap in swrMultiplayer_ApplyChat
+// swrUI_Menu_MpJoinGame / swrUI_Menu_MpRaceSetup refresh timers
+#define SWR_UI_TIMER_MP_JOIN_REFRESH (0x29a)
+#define SWR_UI_TIMER_MP_JOIN_INTERVAL_MS (1000)
+#define SWR_UI_TIMER_MP_SETUP_REFRESH (0x29b)
+#define SWR_UI_TIMER_MP_SETUP_INTERVAL_MS (500)
+#define SWR_MP_JOIN_DIALOG_BOOTED (0xe) // swrMultiplayer_joinDialogReason values
+#define SWR_MP_JOIN_DIALOG_ERROR (-1)
+#define SWR_MP_LAPS_MIN (1)
+#define SWR_MP_LAPS_MAX (5)
+#define SWR_MP_SESSION_NAME_LEN (0x80) // join page: chars of a session name matched against the list
+#define SWR_MP_LIST_NAME_LEN (0x14) // race setup: chars of a player name shown in the player list
 #define SWR_UI_ID_MP_CHAT_LIST (0x186b4) // lobby chat list widget
 // multiplayer menu elements (swrMultiplayer_Build*UI)
 #define SWR_UI_ID_MP_HOST_BUTTON (0x186a6)
@@ -424,6 +451,7 @@
 #define SWR_UI_ID_MP_PODRACER (0x7e)
 #define SWR_UI_ID_MP_BOOT (0x80)
 #define SWR_UI_ID_MP_LAPS (0x8b)
+#define SWR_UI_ID_MP_HOST_ONLY_8C (0x8c) // enabled for the host by race setup, but never built on PC
 #define SWR_UI_ID_MP_RESULTS_LIST (0x30d42) // racer-list page
 #define SWR_UI_ID_MP_SETUP_TAB (0x30d54) // race setup: 3-patch title tab
 #define SWR_UI_ID_OK_BUTTON (2) // swrUI_AddOkButton
@@ -433,6 +461,7 @@
 #define SWR_UI_BENCH_TICKS (30) // runs until more than this many timer ticks pass
 #define SWR_UI_BENCH_SCALE (0.0004f) // 0x004ac3d8
 #define SWR_UI_BENCH_MIN_SCORE (20.0f) // 0x004ac3dc
+#define SWR_UI_ID_CANCEL_BUTTON (3)
 #define SWR_UI_ID_BACK_BUTTON (4)
 // main menu (swrUI_Menu_Main)
 #define SWR_UI_ID_MAIN_FREEPLAY (0xc)
@@ -465,6 +494,7 @@
 #define SWR_CONTROL_AXIS_Z (2) // bit index in swrControl_{joystick,mouse}AxisMask: device has a Z axis
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
+#define SWR_UI_DIALOG_RESULT_NO (1) // second button
 #define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrRace_LoadSaveConfigMenu)
 // clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)

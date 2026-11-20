@@ -5161,6 +5161,15 @@ typedef enum swrMultiplayer_MSG
     swrMultiplayer_MSG_MENU_EVENT = 0x3d,
 } swrMultiplayer_MSG;
 
+// local-only swrUI_BroadcastToWindows codes (never sent on the wire)
+typedef enum swrMultiplayer_UIEVENT
+{
+    swrMultiplayer_UIEVENT_PLAYER_LEFT = 0x3e, // sithMulti_ProcessPlayerLost (host)
+    swrMultiplayer_UIEVENT_PLAYER_JOINED = 0x3f, // swrMultiplayer_OnPlayerJoined
+    swrMultiplayer_UIEVENT_BECAME_HOST = 0x40, // swrMultiplayer_BecomeHost
+    swrMultiplayer_UIEVENT_REJOIN = 0x41, // 'rejn' event
+} swrMultiplayer_UIEVENT;
+
 // sithMessage_SendMessage outstream bits, masked by sithMessage_g_outputstream
 typedef enum sithMessage_STREAM
 {

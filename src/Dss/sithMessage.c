@@ -111,7 +111,7 @@ void sithMulti_ProcessPlayerLost(DPID idPlayer)
         sprintf(text, swrText_Translate("/MONDOTEXT_H_0423/%s has left the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
         swrMultiplayer_PostChatMessage(text);
         swrMultiplayer_SendRejoin(playerNum);
-        swrUI_BroadcastToWindows(0x3e, playerNum);
+        swrUI_BroadcastToWindows(swrMultiplayer_UIEVENT_PLAYER_LEFT, playerNum);
     }
     swrMultiplayer_aRejoinRequested[playerNum] = 0;
 }

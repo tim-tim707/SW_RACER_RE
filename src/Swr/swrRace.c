@@ -4293,13 +4293,47 @@ void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos)
 // 0x0044B530
 void swrRace_ReplaceMarsGuoWithJinnReeso(void)
 {
-    // TODO easy
+    swrRacerData* pod = &swrRacer_PodData[SWR_PILOT_MARS_GUO];
+    swrRacerVisualData* vis = &swrRacer_PodVisualData[SWR_PILOT_MARS_GUO];
+
+    pod->pod_modelID = MODELID_jinn_reeso_pod;
+    pod->pod_alt_modelID = MODELID_alt_jinn_reeso_pod;
+    pod->pod_lod_modelID = MODELID_mid_jinn_reeso_part;
+    pod->name = "Jinn";
+    pod->lastname = "Reeso";
+    pod->puppet_modelId = MODELID_char_jinn_reeso_puppet;
+
+    vis->hoverPadOffsetB.x = 4.43f;
+    vis->sweepEngineOffset.x = 2.22f;
+    vis->sweepEngineOffset.y = 2.78f;
+    vis->sweepEngineOffset.z = 0.0f;
+    vis->cableCockpitAnchor.x = 1.26f;
+    vis->cableCockpitAnchor.y = 0.24f;
+    vis->cableCockpitAnchor.z = -0.46f;
+    vis->cableEngineAnchor.x = 0.26f;
+    vis->cableEngineAnchor.y = -3.64f;
+    vis->cableEngineAnchor.z = -0.31f;
 }
 
 // 0x0044B5E0
 void swrRace_ReplaceBullseyeWithCyYunga(void)
 {
-    // TODO easy
+    swrRacerData* pod = &swrRacer_PodData[SWR_PILOT_BULLSEYE];
+    swrRacerVisualData* vis = &swrRacer_PodVisualData[SWR_PILOT_BULLSEYE];
+
+    pod->pod_modelID = MODELID_cy_yunga_pod;
+    pod->pod_alt_modelID = MODELID_alt_cy_yunga_pod;
+    pod->pod_lod_modelID = MODELID_mid_cy_yunga_part;
+    pod->name = "Cy";
+    pod->lastname = "Yunga";
+    pod->puppet_modelId = MODELID_char_cy_yunga_puppet;
+
+    vis->sweepEngineOffset.x = 1.04f;
+    vis->sweepEngineOffset.y = 2.08f;
+    vis->sweepEngineOffset.z = -1.08f;
+    vis->cableEngineAnchor.x = -0.08f;
+    vis->cableEngineAnchor.y = -1.66f;
+    vis->cableEngineAnchor.z = 2.15f;
 }
 
 // Rebuild the save image from scratch. Record defaults are 3599.99s times, all-'A' holder names,
@@ -6652,7 +6686,7 @@ void swrRace_ActivateTriggersInRange(swrRace* a, swrModel_TriggerDescription* a2
             hit = ex * ex + ey * ey < halfWidth * halfWidth && pz < cz + halfHeight && cz - halfHeight < pz;
         }
         if (hit)
-            swrRace_TriggerHandler((int)trig, (int)a, 0);
+            swrRace_TriggerHandler(trig, a, 0);
     }
 }
 
@@ -8631,9 +8665,144 @@ void swrRace_DeathSpeed(swrRace* player, float a, float b)
 }
 
 // 0x0047ce60
-void swrRace_TriggerHandler(int player, int a, char b)
+void swrRace_TriggerHandler(swrObjTrig* trig, swrRace* player, char fromNetwork)
 {
-    // TODO
+    swrModel_TriggerDescription* desc;
+    swrModel_Animation* anim;
+    int shake[3];
+    char message[256];
+
+    if ((fromNetwork & 1) == 0)
+        swrObjTrig_SendMultiplayerTriggerEvent(trig->trigger_description, player);
+
+    desc = trig->trigger_description;
+    trig->unk14_ms = 0.0f;
+
+    switch (desc->type) {
+    case swrModel_TriggerType_BreakDestructable_100:
+    case swrModel_TriggerType_BreakDestructable_102:
+    case swrModel_TriggerType_BreakDestructable_201:
+    case swrModel_TriggerType_BreakDestructable_202:
+    case swrModel_TriggerType_BreakDestructable_212:
+        swrObjTrig_HandleCrashHitTrigger(trig, player);
+        return;
+
+    case swrModel_TriggerType_StartAnimDoor:
+        trig->flag |= swrObjTrig_FLAG_ACTIVE;
+        anim = trig->unk40_animation;
+        if (anim == NULL)
+            return;
+        anim->flags &= ~ANIMATION_LOOP;
+        if (trig->unk10_ms <= SWR_TRIG_REARM_SECS)
+            return;
+        trig->unk10_ms = 0.0f;
+        if (0.125 < anim->animation_speed)
+            swrModel_AnimationSetSpeed(anim, -SWR_TRIG_DOOR_ANIM_SPEED);
+        else
+            swrModel_AnimationSetSpeed(anim, SWR_TRIG_DOOR_ANIM_SPEED);
+        return;
+
+    case swrModel_TriggerType_RemoveTargetTent:
+        if (desc == NULL)
+            return;
+        if (desc->affected_node != NULL)
+            swrModel_NodeModifyFlags(desc->affected_node, 2, -4, 0x10, 3);
+        swrModel_NodeModifyFlags(trig->trigger_description->affected_node, 0, -3, 0x10, 3);
+        break;
+
+    case swrModel_TriggerType_KillPlayer:
+        if (0.5 <= (float)swrUtils_Rand() * SWR_CTL_RAND_NORM)
+            swrRace_Explode(player, 2);
+        else
+            swrRace_Explode(player, 1);
+        return;
+
+    case swrModel_TriggerType_CollapsingGlacier:
+    case swrModel_TriggerType_FallingPillar:
+        trig->flag |= swrObjTrig_FLAG_ACTIVE;
+        desc->flags |= swrModel_TRIGGERFLAG_DISABLED;
+        swrModel_NodeSetAnimationFlagsAndSpeed(trig->trigger_description->affected_node, 0, ANIMATION_ENABLED, 0.6f);
+        shake[0] = 'Shak';
+        ((float*)shake)[1] = 0.05f;
+        ((float*)shake)[2] = 4.0f;
+        swrEvent_CallF4('cMan', shake);
+        trig->unk10_ms = 0.0f;
+        return;
+
+    case swrModel_TriggerType_FallingAsteroids:
+        swrRace_UpdateFireEffects(player);
+        return;
+
+    case swrModel_TriggerType_SpawnFlag:
+        swrObjTrig_HandleTrigger108(trig, player);
+        return;
+
+    case swrModel_TriggerType_TuskenRaiders:
+        if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
+            trig->unk10_ms = 100.0f;
+        trig->flag |= swrObjTrig_FLAG_ACTIVE;
+        if (trig->unk10_ms <= SWR_TRIG_REARM_SECS)
+            return;
+        trig->unk10_ms = 0.0f;
+        playASound(0x30, 7, 0.25f, 1.0f, 0);
+        swrRace_UpdateFireEffects(player);
+        return;
+
+    case swrModel_TriggerType_EarthquakeShortcut:
+    case swrModel_TriggerType_Earthquake:
+        if (desc == NULL)
+            return;
+        desc->flags |= swrModel_TRIGGERFLAG_DISABLED;
+        shake[0] = 'Shak';
+        ((float*)shake)[1] = 0.25f;
+        ((float*)shake)[2] = 8.0f;
+        swrEvent_CallF4('cMan', shake);
+        trig->model_material = NULL;
+        trig->test_obj_transform_ptr = NULL;
+        trig->flag = (trig->flag & ~swrObjTrig_FLAG_FX_SPAWNED) | swrObjTrig_FLAG_ACTIVE;
+        trig->unk10_ms = 0.0f;
+        return;
+
+    case swrModel_TriggerType_StartTram:
+        if (trig->unk44_animation != NULL)
+            swrModel_AnimationSetSpeed(trig->unk44_animation, 1.0f);
+        if (trig->unk40_animation != NULL)
+            swrModel_AnimationSetSpeed(trig->unk40_animation, 1.0f);
+        break;
+
+    case swrModel_TriggerType_StartAnimDoor2:
+        trig->flag |= swrObjTrig_FLAG_ACTIVE;
+        if (desc->affected_node == NULL)
+            return;
+        if (trig->unk10_ms <= SWR_TRIG_REARM_SECS)
+            return;
+        trig->unk10_ms = 0.0f;
+        swrModel_NodeSetAnimationFlagsAndSpeed(desc->affected_node, ANIMATION_LOOP, 0, 1.0f);
+        return;
+
+    case swrModel_TriggerType_MethaneVapor:
+        swrObjTrig_Handle314Or501Trigger(trig, 0);
+        return;
+
+    case swrModel_TriggerType_LavaSplash:
+        swrObjTrig_Handle314Or501Trigger(trig, 5);
+        return;
+
+    case swrModel_TriggerType_TeleportToSpline:
+        // retail shows an uninitialized stack buffer here
+        message[0] = '\0';
+        swrText_ShowTimedMessage(message, 3.0f);
+        swrRace_ResetToSpline(player, 0.0f);
+        return;
+
+    default:
+        return;
+    }
+
+    // one-shot: disable the trigger and release its object
+    trig->trigger_description->flags |= swrModel_TRIGGERFLAG_DISABLED;
+    trig->flag &= ~swrObjTrig_FLAG_ACTIVE;
+    swrObj_Free(&trig->obj);
 }
 
 // 0x0047e450
