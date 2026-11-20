@@ -204,6 +204,8 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
         levels[i] = (char) ((level < 0) ? 0 : (level > 5) ? 5 : level);
         healths[i] = MP_UPGRADE_HEALTH;
     }
+    // Traction part health is player-set from the TFPS quick select.
+    healths[0] = (char) imgui_state.mp_traction_health;
 
     // score->podStats already holds the pod's raw base stats (the builder just copied them in), so
     // pass it as both the active and the base buffer: ApplyUpgradesToStats first copies base->active

@@ -18,7 +18,6 @@ extern "C" {
 
 bool swr_fixedTimestepSmoothing = true;
 float swr_fixedTimestepPrediction = 0.0f;
-int swr_fixedTimestep_smoothedNodes = 0;
 
 namespace {
     constexpr int kEventTest = 0x54657374;// 'Test': one swrRace per racer
@@ -613,7 +612,6 @@ namespace {
             if (smoothed_pose(s_nodes, node, tn->transform, display)) {
                 s_nodeRestores.push_back({tn, tn->transform});
                 write_xform(tn->transform, display);
-                swr_fixedTimestep_smoothedNodes++;
             }
         }
         if (node->type == NODE_MESH_GROUP) {
@@ -852,7 +850,6 @@ void smoothing_capture(int ticks) {
 
 void smoothing_apply(float alpha) {
     restore_poses();
-    swr_fixedTimestep_smoothedNodes = 0;
     s_frame++;
     s_frameReady = swr_fixedTimestepSmoothing;
     if (!s_frameReady)
@@ -868,7 +865,6 @@ void smoothing_apply(float alpha) {
             continue;
         s_matrixRestores.push_back({m, *m});
         write_xform(*m, display);
-        swr_fixedTimestep_smoothedNodes++;
     }
     apply_hud();
     const float hz = swr_fixedTimestepHz > 1.0f ? swr_fixedTimestepHz : 1.0f;
@@ -900,7 +896,6 @@ void smoothing_apply_cameras() {
         s_cameraRestores.push_back({vp, vp->unk_mat3, vp->model_matrix});
         // Through the game's setter so model_matrix (= unk_mat1 * unk_mat3) stays consistent.
         ((swrViewport_SetMat3_t) swrViewport_SetMat3_ADDR)(vp, &display);
-        swr_fixedTimestep_smoothedNodes++;
     }
 }
 
@@ -932,5 +927,4 @@ void smoothing_reset() {
     s_timeTick.clear();
     s_timePrev.clear();
     s_timeCurr.clear();
-    swr_fixedTimestep_smoothedNodes = 0;
 }
