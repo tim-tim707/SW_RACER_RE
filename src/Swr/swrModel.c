@@ -2994,19 +2994,22 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
 // 0x00442470
-long double IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
+RETAIL_FP long double IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
-    float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
-    if (denom >= -0.0001 && denom <= 0.0001)
+    long double denom = plane[0] * ray[3] + plane[2] * ray[5] + plane[1] * ray[4];
+    long double dot = plane[2] * ray[2] + plane[1] * ray[1] + plane[0] * ray[0];
+    if (denom >= (double)-0.0001 && denom <= (double)0.0001)
         return -1.0f;
-    float t = (plane[3] - (plane[0] * ray[0] + plane[1] * ray[1] + plane[2] * ray[2])) / denom;
-    if (t < 0.0f)
+    long double t = (plane[3] - dot) / denom;
+    if (t < 0.0f || ray[6] < t)
         return -1.0f;
-    if (ray[6] < t)
-        return -1.0f;
-    outPoint->x = ray[0] + t * ray[3];
-    outPoint->y = ray[1] + t * ray[4];
-    outPoint->z = ray[2] + t * ray[5];
+    // Retail stores each t * dir product into outPoint before adding the origin.
+    outPoint->x = t * ray[3];
+    outPoint->y = t * ray[4];
+    outPoint->z = t * ray[5];
+    outPoint->x = outPoint->x + ray[0];
+    outPoint->y = ray[1] + outPoint->y;
+    outPoint->z = ray[2] + outPoint->z;
     return t;
 }
 
@@ -3014,7 +3017,7 @@ long double IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 // records distance/point/node/normal into the swrModel_collision* result globals. Honours the
 // front/back accept flags (a back-face hit flips the recorded normal to oppose the ray).
 // 0x00442550
-void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
+RETAIL_FP void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
 {
     float facing = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
     int backFace;
@@ -3029,8 +3032,10 @@ void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, flo
     }
 
     rdVector3 hit;
-    float t = IntersectRayPlane(plane, ray, &hit);
-    if (t < 0.0f || swrModel_collisionResultDist <= t)
+    // The sign test uses the raw ST0 result; the distance test reads the float it spilled.
+    long double tRaw = IntersectRayPlane(plane, ray, &hit);
+    float t = tRaw;
+    if (tRaw < 0.0f || swrModel_collisionResultDist <= t)
         return;
 
     rdVector3 edgeAB, edgeBC, edgeCA;
@@ -3911,7 +3916,7 @@ void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform,
 }
 
 // 0x00482690
-void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+RETAIL_FP void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
 {
     for (int i = 0; i < (int)node->num_children; i++) {
         swrModel_Mesh* mesh = node->children.meshes[i];
@@ -3927,7 +3932,7 @@ void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int m
             local.y = (float)vertex->v.y;
             local.z = (float)vertex->v.z;
             rdMatrix_Transform3(&world, &local, transform);
-            float distSq = rdVector_DistSquared3(&world, queryPoint);
+            long double distSq = rdVector_DistSquared3(&world, queryPoint);
             if (distSq < *minDistSq) {
                 *outPoint = world;
                 *minDistSq = distSq;

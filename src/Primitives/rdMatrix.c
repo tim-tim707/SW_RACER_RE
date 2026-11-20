@@ -394,9 +394,10 @@ void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
     memcpy(&v, in, sizeof(rdVector3));
     memcpy(&m, mat, sizeof(rdMatrix44));
     // END DELTA
-    out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x;
-    out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y;
-    out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z;
+    // Retail sums (B*y + C*z) + A*x before adding the translation.
+    out->x = (m.vB).x * v.y + (m.vC).x * v.z + (m.vA).x * v.x + (m.vD).x;
+    out->y = (m.vB).y * v.y + (m.vC).y * v.z + (m.vA).y * v.x + (m.vD).y;
+    out->z = (m.vB).z * v.y + (m.vC).z * v.z + (m.vA).z * v.x + (m.vD).z;
     return;
 }
 

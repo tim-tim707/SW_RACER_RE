@@ -13345,14 +13345,14 @@ void swrObjHang_UpdateHoloCamera(swrObjHang* hang)
 // Advance `from` toward `target` this frame, ramping the carried speed down over the last stretch so
 // the camera eases in. Returns nonzero once it has arrived.
 // 0x0045c560
-int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed)
+RETAIL_FP int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed)
 {
     swrObjHang_STATE screen;
-    float dot;
+    long double dot;
     float step;
     float rate;
     float halfSpan;
-    float arriveRadius;
+    long double arriveRadius; // compared unrounded unless clamped to halfSpan
     float distToTarget;
     float carriedSpeed;
     float decelSpan;
@@ -13367,18 +13367,21 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
     decelSpan = 1600.0f;
     if (screen == swrObjHang_STATE_RESULTS_INTRO || screen == swrObjHang_STATE_VEHICLE_SELECT_INTRO || (screen == swrObjHang_STATE_LOOK_AT_VEHICLE && 5.0f <= swrObjHang_inspectCameraTimer) || (screen == swrObjHang_STATE_MAIN_MENU && swrObjHang_fadeState == 0)) {
         decelSpan = 320.0f;
-        rate = 0.2f;
+        rate = (float)0.2f;
     } else if (screen == swrObjHang_STATE_PLANET_SELECT_INTRO) {
         decelSpan = 80.0f;
-        rate = 0.05f;
+        rate = (float)0.05f;
     } else {
         rate = 1.0f;
     }
-    step = swrRace_fdeltaTimeSecs * 60000.0f * rate;
+    // Retail stores the base step, then the rate-scaled step, rounding each.
+    step = swrRace_fdeltaTimeSecs * 60000.0f;
+    step = step * rate;
 
     rdVector_Copy3(&start, from);
     swrObjHang_cameraStepScratch = 0;
     step = step * speed;
+    decelSpan = decelSpan * speed;
     rdVector_Sub3(&targetToTo, target, to);
     halfSpan = rdVector_Len3(&targetToTo) * 0.5f;
     rdVector_Sub3(&fromToTo, to, from);
@@ -13394,11 +13397,13 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
             if (swrObjHang_state2 != (swrObjHang_STATE)~swrObjHang_STATE_LEGAL && hang->menuScreen != swrObjHang_STATE_VEHICLE_SELECT_INTRO) {
                 return 1;
             }
-            carriedSpeed = stdMath_Sqrt(distToTarget / (decelSpan * speed)) * decelSpan * speed;
+            carriedSpeed = stdMath_Sqrt(distToTarget / decelSpan) * decelSpan;
         }
     } else {
-        carriedSpeed = carriedSpeed - speed * swrRace_fdeltaTimeSecs * -2000.0f;
-        if (step < carriedSpeed) {
+        // The cap test reads the sum before it is rounded into carriedSpeed.
+        long double accelerated = carriedSpeed - speed * swrRace_fdeltaTimeSecs * -2000.0f;
+        carriedSpeed = accelerated;
+        if (step < accelerated) {
             carriedSpeed = step;
         }
     }
