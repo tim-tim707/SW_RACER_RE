@@ -17,6 +17,7 @@ extern "C" {
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
+#include <Swr/swrEvent.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
@@ -2515,6 +2516,339 @@ namespace {
         report(s);
     }
 
+
+    void stub_dispatch_sub_events(void *obj, int *sub_events) {
+        log_word(0xb0000000u);
+        log_word(racer_offset(obj));
+        log_word((uint32_t) sub_events[0]), log_word((uint32_t) sub_events[1]);
+        log_word((uint32_t) sub_events[2]);
+    }
+
+    void stub_spawn_engine_fireball(swrRace *player, int slot, rdVector3 *pos, float scale) {
+        log_word(0xb1000000u | (uint32_t) slot);
+        log_word(racer_offset(player));
+        log_word(float_bits(pos->x)), log_word(float_bits(pos->y)), log_word(float_bits(pos->z));
+        log_word(float_bits(scale));
+    }
+
+    struct PhysicsPatches {
+        SideEffectPatches base;
+        EntryPatch p[4];
+
+        PhysicsPatches() {
+            patch_jmp(p[0], hook_retail_ptr(swrEvent_DispatchSubEvents_ADDR),
+                      (void *) stub_dispatch_sub_events);
+            patch_jmp(p[1], (void *) swrEvent_DispatchSubEvents, (void *) stub_dispatch_sub_events);
+            patch_jmp(p[2], hook_retail_ptr(swrRace_SpawnEngineFireball_ADDR),
+                      (void *) stub_spawn_engine_fireball);
+            patch_jmp(p[3], (void *) swrRace_SpawnEngineFireball,
+                      (void *) stub_spawn_engine_fireball);
+        }
+
+        ~PhysicsPatches() {
+            for (int k = 3; k >= 0; k--)
+                unpatch(p[k]);
+        }
+    };
+
+    void record_ld(Stats &s, long double ours, long double retail, const char *input_desc) {
+        s.total++;
+        if (std::memcmp(&ours, &retail, 10) == 0) {
+            s.exact++;
+            return;
+        }
+        s.mismatch++;
+        if (s.first_fail[0] == '\0') {
+            std::snprintf(s.first_fail, sizeof(s.first_fail), "%s -> ours=%.21Lg retail=%.21Lg",
+                          input_desc, ours, retail);
+        }
+    }
+
+    // Per-case outputs that live outside the racer (out-params, return value).
+    struct RacerOut {
+        float ret;
+        float extra[3];
+        long double ret_ld;
+    };
+
+    // Shared driver for racer-state functions: `fill` randomises a zeroed racer (and any
+    // per-case arguments it captures), `invoke` calls one side and writes its outputs.
+    template <typename Fn, typename Fill, typename Invoke>
+    void run_racer(const char *name, uint32_t retail_addr, Fn ours_fn, Fill fill, Invoke invoke) {
+        if (!testable(name, retail_addr))
+            return;
+        const Fn retail_fn = (Fn) hook_retail_ptr(retail_addr);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        swrScore score;
+        int pilot = 5;
+        std::memset(&score, 0, sizeof(score));
+        score.pilotId = &pilot;
+        PhysicsPatches patches;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            score.flag = (next_u32() % 4u == 0) ? 8 : 0;
+            std::memset(ours, 0, sizeof(swrRace));
+            ours->score_ptr = &score;
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "case %d dt=%.9g", i, swrRace_deltaTimeSecs);
+            fill(*ours, i, desc);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            const uint32_t seed = next_u32();
+
+            RacerOut our_out = {-12345.0f, {-12345.0f, -12345.0f, -12345.0f}, 0.0L};
+            RacerOut ret_out = our_out;
+            CallLog our_log, ret_log;
+            begin_log(our_log, ours, seed, 0);
+            invoke(ours_fn, ours, our_out);
+            begin_log(ret_log, ret, seed, 0);
+            invoke(retail_fn, ret, ret_out);
+            active_log = nullptr;
+
+            record(s, our_out.ret, ret_out.ret, 0, desc);
+            record_floats(s, our_out.extra, ret_out.extra, 3, 0, desc);
+            record_ld(s, our_out.ret_ld, ret_out.ret_ld, desc);
+            record_racer(s, *ours, *ret, desc);
+            record_calls(s, our_log, ret_log, desc);
+        }
+        report(s);
+    }
+
+    uint32_t random_bits(uint32_t mask) {
+        return next_u32() & mask;
+    }
+
+    void random_podstats(swrRace &r) {
+        r.podStats.acceleration = next_float(0.1f, 3.0f);
+        r.podStats.maxSpeed = next_float(300.0f, 650.0f);
+        r.podStats.airBrakeInv = next_float(1.0f, 100.0f);
+        r.podStats.deceleration_interval = next_float(1.0f, 100.0f);
+        r.podStats.boost_thrust = next_float(0.0f, 300.0f);
+        r.podStats.heatRate = next_float(0.0f, 50.0f);
+        r.podStats.coolRate = next_float(0.0f, 50.0f);
+        r.podStats.hoverHeight = next_float(1.0f, 10.0f);
+        r.podStats.intersectRadius = next_float(1.0f, 10.0f);
+    }
+
+    // An ST0 return that callers consume unrounded: all 80 bits must match, not just the
+    // float a caller would eventually store.
+    using LD_ff = long double (*)(float, float);
+
+
+    void run_ld_ff(const char *name, uint32_t retail_addr, LD_ff ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const LD_ff retail = (LD_ff) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const float a = sample(i, lo, hi);
+            const float b = sample(i + 7, lo, hi);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g)", a, b);
+            record_ld(s, ours(a, b), retail(a, b), desc);
+        }
+        report(s);
+    }
+
+    using F_racer_speed = float (*)(swrRace *);
+    using LD_racer = long double (*)(swrRace *);
+    using V_racer_only = void (*)(swrRace *);
+    using V_glide = void (*)(swrRace *, rdVector3 *, rdVector3 *, int);
+    using V_reset_input = void (*)(swrRace *, int);
+    using V_gravity = void (*)(swrRace *, float *, float);
+    using V_wall = void (*)(swrRace *, rdVector3 *, rdVector3 *);
+
+    void run_physics_suite() {
+        run_racer(
+            "swrRace_UpdateSpeed", swrRace_UpdateSpeed_ADDR, (F_racer_speed) swrRace_UpdateSpeed,
+            [](swrRace &r, int i, char *) {
+                random_podstats(r);
+                static const float throttles[] = {0.1f, -0.1f, 0.99f, -0.6f, 1.0f, -1.0f, 0.0f};
+                r.throttle = (i % 3 == 0) ? throttles[next_u32() % 7u] : next_float(-1.0f, 1.0f);
+                r.accelThrust = next_float(-3.0f, 12.0f);
+                r.speedMultiplier = next_float(0.5f, 1.5f);
+                r.groundToPodMeasure = next_u32() % 2u ? 15.0f : next_float(0.0f, 30.0f);
+                r.surfaceSpeedFactor = next_u32() % 2u ? 1.0f : next_float(0.3f, 1.2f);
+                r.surfaceSpeedBonus = next_u32() % 3u ? 0.0f : next_float(-50.0f, 50.0f);
+                r.pitch = next_u32() % 2u ? -1.0f : next_float(-1.0f, 1.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING | swrObjTest_FLAG0_BRAKING |
+                                                          swrObjTest_FLAG0_ZOFF | swrObjTest_FLAG0_AI);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_BOOST_START | swrObjTest_FLAG1_GROUNDED |
+                                                          swrObjTest_FLAG1_FINISHED);
+            },
+            [](F_racer_speed fn, swrRace *r, RacerOut &o) { o.ret = fn(r); });
+
+        run_racer(
+            "swrRace_ApplyBoost", swrRace_ApplyBoost_ADDR, (LD_racer) swrRace_ApplyBoost,
+            [](swrRace &r, int, char *) {
+                random_podstats(r);
+                r.boostValue = next_u32() % 4u ? next_float(0.0f, 3.0f) : next_float(0.0f, 0.002f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING | swrObjTest_FLAG0_BRAKING);
+            },
+            [](LD_racer fn, swrRace *r, RacerOut &o) { o.ret_ld = fn(r); });
+
+        run_racer(
+            "swrRace_ApplyEngineDamage", swrRace_ApplyEngineDamage_ADDR,
+            (V_racer_only) swrRace_ApplyEngineDamage,
+            [](swrRace &r, int, char *) {
+                r.podStats.damageImmunity = next_float(0.0f, 2.0f);
+                for (int k = 0; k < 6; k++) {
+                    r.engineStatus[k] = next_u32() % 3u == 0 ? random_bits(0x1f) : 0;
+                    r.engineHealth[k] = next_float(0.0f, 1.0f);
+                    r.engineHealthMin[k] = next_float(0.0f, 1.0f);
+                }
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                active_log->sfx_flags = (active_log->rng_state & 1) ? swrSound_SFXFLAG_ENGINE_FIRE : 0;
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        run_racer(
+            "swrRace_UpdateHeat", swrRace_UpdateHeat_ADDR, (V_racer_only) swrRace_UpdateHeat,
+            [](swrRace &r, int, char *) {
+                random_podstats(r);
+                r.engineTemp = next_u32() % 3u ? next_float(-1.0f, 2.0f) : next_float(0.0f, 101.0f);
+                r.tiltManualMult = next_float(-1.0f, 1.0f);
+                for (int k = 0; k < 6; k++)
+                    r.engineStatus[k] = random_bits(0x8);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_ON_LAVA);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        static float gravity_b;
+        run_racer(
+            "swrRace_ApplyGravity", swrRace_ApplyGravity_ADDR, (V_gravity) swrRace_ApplyGravity,
+            [](swrRace &r, int i, char *desc) {
+                random_podstats(r);
+                static const float heights[] = {12.0f, 30.0f, 99999.0f, 100000.0f, 0.0f};
+                gravity_b = (i % 3 == 0) ? heights[next_u32() % 5u] : next_float(-5.0f, 60.0f);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                r.up = random_vec3(i, -1.0f, 1.0f);
+                r.transform.vA.z = next_float(-1.0f, 1.0f);
+                r.collisionWidth = next_float(0.0f, 20.0f);
+                r.fallTimer = next_float(0.0f, 4.0f);
+                r.fallVelocity = next_float(-3.0f, 3.0f);
+                r.gravityScale = next_float(0.0f, 2.0f);
+                r.speedValue = next_float(-100.0f, 600.0f);
+                r.pitch = next_float(-1.0f, 1.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_HIT_BOTTOM);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_MAGNET | swrObjTest_FLAG1_AIRBORNE);
+                std::snprintf(desc + std::strlen(desc), 40, " b=%.9g", gravity_b);
+            },
+            [](V_gravity fn, swrRace *r, RacerOut &o) {
+                o.extra[0] = 1.0f, o.extra[1] = -2.0f, o.extra[2] = 3.0f;
+                fn(r, o.extra, gravity_b);
+                o.ret = 0.0f;
+            });
+
+        static rdVector3 wall_normal, wall_dir;
+        run_racer(
+            "swrRace_ApplyWallCollision", swrRace_ApplyWallCollision_ADDR,
+            (V_wall) swrRace_ApplyWallCollision,
+            [](swrRace &r, int i, char *) {
+                random_rotation(r.transform, i);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                wall_normal = random_vec3(i, -1.0f, 1.0f);
+                wall_dir = random_vec3(i + 5, -1.0f, 1.0f);
+                if (i % 4 == 0)
+                    wall_dir = rdVector3{r.transform.vB.x, r.transform.vB.y, r.transform.vB.z};
+                r.speedValue = next_float(0.0f, 600.0f);
+                r.accelThrust = next_float(0.0f, 10.0f);
+                r.velocityCollision = random_vec3(i + 9, -50.0f, 50.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_RESPAWN |
+                                                          swrObjTest_FLAG0_DEAD);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_MAGNET);
+            },
+            [](V_wall fn, swrRace *r, RacerOut &o) {
+                rdVector3 n = wall_normal, d = wall_dir;
+                fn(r, &n, &d);
+                o.extra[0] = n.x, o.extra[1] = n.y, o.extra[2] = n.z;
+                o.ret = 0.0f;
+            });
+
+        static rdVector3 spline_pos;
+        static int use_clearance;
+        run_racer(
+            "swrRace_UpdateAIGlidePitch", swrRace_UpdateAIGlidePitch_ADDR,
+            (V_glide) swrRace_UpdateAIGlidePitch,
+            [](swrRace &r, int i, char *) {
+                r.transform.vD.z = next_float(-100.0f, 100.0f);
+                spline_pos = random_vec3(i, -100.0f, 100.0f);
+                if (i % 5 == 0)
+                    spline_pos.z = r.transform.vD.z;
+                use_clearance = (int) (next_u32() % 2u);
+                static const float clearances[] = {400.0f, 400.00003f, 399.99997f, 0.0f};
+                r.groundToPodMeasure = next_u32() % 2u ? clearances[next_u32() % 4u] : next_float(0.0f, 800.0f);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_AIRBORNE);
+            },
+            [](V_glide fn, swrRace *r, RacerOut &o) {
+                rdVector3 look = {0.0f, 0.0f, 0.0f}, sp = spline_pos;
+                fn(r, &look, &sp, use_clearance);
+                o.ret = 0.0f;
+            });
+
+        static swrModel_Node *fake_nodes[6];
+        run_racer(
+            "swrRace_ApplyPartSinkOffset", swrRace_ApplyPartSinkOffset_ADDR,
+            (V_racer_only) swrRace_ApplyPartSinkOffset,
+            [](swrRace &r, int, char *) {
+                r.unk11_1 = next_float(-5.0f, 5.0f);
+                for (int k = 0; k < 6; k++)
+                    fake_nodes[k] = next_u32() % 3u ? (swrModel_Node *) &fake_nodes : nullptr;
+                r.partNodes = next_u32() % 6u ? fake_nodes : nullptr;
+                r.engineXfR.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfL.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfR2.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfL2.vD.z = next_float(-50.0f, 50.0f);
+                r.cockpitXf.vD.z = next_float(-50.0f, 50.0f);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        static int reset_index;
+        const int saved_inputs[4] = {inRaceLocalPlayerInputBitset3[0], inRaceLocalPlayerInputBitset3[1],
+                                     inRaceLocalPlayerInputBitset3[2], inRaceLocalPlayerInputBitset3[3]};
+        run_racer(
+            "swrRace_CheckResetInput", swrRace_CheckResetInput_ADDR,
+            (V_reset_input) swrRace_CheckResetInput,
+            [](swrRace &r, int, char *) {
+                reset_index = (int) (next_u32() % 4u);
+                for (int k = 0; k < 4; k++)
+                    inRaceLocalPlayerInputBitset3[k] = (int) next_u32();
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_LOCAL);
+            },
+            [](V_reset_input fn, swrRace *r, RacerOut &o) {
+                fn(r, reset_index);
+                o.ret = 0.0f;
+            });
+        for (int k = 0; k < 4; k++)
+            inRaceLocalPlayerInputBitset3[k] = saved_inputs[k];
+
+        run_racer(
+            "swrRace_ResetGravityDown", swrRace_ResetGravityDown_ADDR,
+            (V_racer_only) swrRace_ResetGravityDown,
+            [](swrRace &r, int i, char *) {
+                r.gravityScale = next_float(0.0f, 5.0f);
+                r.world_gravity = random_vec3(i, -1.0f, 1.0f);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+    }
+
 }// namespace
 
 extern "C" void reimpl_verify_run(FILE *hook_log) {
@@ -2543,8 +2877,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
             2000.0f, 0);
     run_f_f("stdMath_NormalizeAngleAcute", stdMath_NormalizeAngleAcute_ADDR,
             stdMath_NormalizeAngleAcute, -2000.0f, 2000.0f, 0);
-    run_f_ff("stdMath_Decelerator", stdMath_Decelerator_ADDR, stdMath_Decelerator, -100.0f, 100.0f,
-             0);
+    run_ld_ff("stdMath_Decelerator", stdMath_Decelerator_ADDR, stdMath_Decelerator, -100.0f, 100.0f);
     run_f_fi("stdMath_FlexPower", stdMath_FlexPower_ADDR, stdMath_FlexPower, -10.0f, 10.0f, 8, 0);
     run_v_pffff("stdMath_MultiplyAddClamped", stdMath_MultiplyAddClamped_ADDR,
                 stdMath_MultiplyAddClamped, -1000.0f, 1000.0f, 0);
@@ -2708,6 +3041,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
         run_boost_bar_color();
         run_repair();
         run_boost_charge();
+        run_physics_suite();
     }
     free_racers();
 

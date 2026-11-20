@@ -398,7 +398,7 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput);
 
 float swrRace_UpdateSpeed(swrRace* player);
-float swrRace_ApplyBoost(swrRace* player);
+long double swrRace_ApplyBoost(swrRace* player);
 void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
 void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d);
