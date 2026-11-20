@@ -81,6 +81,10 @@ static void draw_multiplayer_window();
 // hold whether or not the overlay window is open.
 static void apply_cheats();
 
+// Death-speed override persistence ([physics] in SW_RACER_RE.ini). Defined beside apply_cheats.
+static void load_death_speed_settings();
+static void save_death_speed_settings();
+
 // Pinned top-right FPS overlay; drawn every frame from imgui_Update, independent of
 // the F5 debug menu. Defined below alongside the panel bodies.
 static void draw_fps_overlay();
@@ -377,6 +381,8 @@ void read_settings_ini() {
         imgui_state.mp_upgrade_levels[i] = (level < 0) ? 0 : (level > 5) ? 5 : level;
     }
 
+    load_death_speed_settings();
+
     g_window_mode = config::get_int("settings", "window_mode", WINDOW_MODE_WINDOWED);
     if (g_window_mode < WINDOW_MODE_WINDOWED || g_window_mode > WINDOW_MODE_FULLSCREEN)
         g_window_mode = WINDOW_MODE_WINDOWED;
@@ -471,6 +477,7 @@ void save_settings_ini() {
     config::set_int("settings", "window_mode", g_window_mode);
     config::set_bool("settings", "enable_rumble", imgui_state.enable_rumble);
     config::set_int("settings", "rumble_intensity", (int) (imgui_state.rumble_intensity * 100.0f));
+    save_death_speed_settings();
     config::save();
 }
 
@@ -2368,6 +2375,21 @@ static float g_death_speed_min_default = 325.0f;
 static float g_death_speed_drop_default = 140.0f;
 static bool g_death_defaults_captured = false;
 
+// [physics] death_speed_override / death_speed_min / death_speed_drop. External tools (launchers)
+// set these instead of poking the globals; the override applies from the ini alone, every frame,
+// without the overlay or the cheats master switch.
+static void load_death_speed_settings() {
+    g_cheat_death_override = config::get_int("physics", "death_speed_override", 0) != 0;
+    g_death_speed_min = config::get_float("physics", "death_speed_min", g_death_speed_min);
+    g_death_speed_drop = config::get_float("physics", "death_speed_drop", g_death_speed_drop);
+}
+
+static void save_death_speed_settings() {
+    config::set_bool("physics", "death_speed_override", g_cheat_death_override);
+    config::set_float("physics", "death_speed_min", g_death_speed_min);
+    config::set_float("physics", "death_speed_drop", g_death_speed_drop);
+}
+
 // Overwrite `n` code bytes at `addr` with `want`, but only when they differ (i.e. on a
 // toggle edge, not every frame). .text is execute-only, so flip it writable first.
 static void patch_code(void *addr, const unsigned char *want, size_t n) {
@@ -2402,7 +2424,8 @@ static void apply_cheats() {
 
     // Master arm switch. Rather than early-return when disarmed, fold `on` into every cheat's
     // condition so each one's own restore path runs (e.g. the uncapped-speed .rdata patch reverts
-    // to 650, the death-speed globals restore, the fly bit clears) instead of being left applied.
+    // to 650, the fly bit clears) instead of being left applied. The death-speed override is not
+    // a cheat and is not gated by it (see load_death_speed_settings).
     const bool on = imgui_state.cheats_enabled;
 
     swrRace_IsInvincible = (on && g_cheat_god) ? 1 : 0;
@@ -2428,7 +2451,7 @@ static void apply_cheats() {
 
     // Death-speed thresholds are live globals read by the stock swrRace_DeathSpeed each
     // frame. Push the slider values while overriding; restore the defaults once on untoggle.
-    const bool death_override = on && g_cheat_death_override;
+    const bool death_override = g_cheat_death_override;
     if (death_override) {
         swrRace_DeathSpeedMin = g_death_speed_min;
         swrRace_DeathSpeedDrop = g_death_speed_drop;
@@ -2534,19 +2557,6 @@ static void panel_cheats() {
         ImGui::TextDisabled("Pod cheats take effect once you're in a race.");
 
     ImGui::Separator();
-    ImGui::Checkbox("Override death-speed thresholds", &g_cheat_death_override);
-    ImGui::BeginDisabled(!g_cheat_death_override);
-    // Min = impact speed the pod must be doing to die; Drop = speed lost in the hit.
-    // Both must be exceeded to crash (see swrRace_DeathSpeed). Higher = harder to die.
-    ImGui::SliderFloat("Death speed min", &g_death_speed_min, 0.0f, 1000.0f, "%.0f");
-    ImGui::SliderFloat("Death speed drop", &g_death_speed_drop, 0.0f, 500.0f, "%.0f");
-    if (ImGui::Button("Reset to default")) {
-        g_death_speed_min = g_death_speed_min_default;
-        g_death_speed_drop = g_death_speed_drop_default;
-    }
-    ImGui::EndDisabled();
-
-    ImGui::Separator();
     ImGui::TextDisabled("Flamejet (Sebulba's taunt flame attack, for any pod)");
     ImGui::Checkbox("Flamejet on taunt (you)", &g_cheat_flamejet_local);
     if (ImGui::IsItemHovered())
@@ -2594,6 +2604,27 @@ static void panel_cheats() {
         ImGui::TextDisabled("Win race needs an active race.");
 
     ImGui::EndDisabled();
+
+    ImGui::SeparatorText("Death-speed thresholds");
+    ImGui::TextDisabled("Not gated by the master switch; saved to [physics] in SW_RACER_RE.ini.");
+    bool dirty = ImGui::Checkbox("Override death-speed thresholds", &g_cheat_death_override);
+    ImGui::BeginDisabled(!g_cheat_death_override);
+    // Min = impact speed the pod must be doing to die; Drop = speed lost in the hit.
+    // Both must be exceeded to crash (see swrRace_DeathSpeed). Higher = harder to die.
+    ImGui::SliderFloat("Death speed min", &g_death_speed_min, 0.0f, 1000.0f, "%.0f");
+    dirty |= ImGui::IsItemDeactivatedAfterEdit();
+    ImGui::SliderFloat("Death speed drop", &g_death_speed_drop, 0.0f, 500.0f, "%.0f");
+    dirty |= ImGui::IsItemDeactivatedAfterEdit();
+    if (ImGui::Button("Reset to default")) {
+        g_death_speed_min = g_death_speed_min_default;
+        g_death_speed_drop = g_death_speed_drop_default;
+        dirty = true;
+    }
+    ImGui::EndDisabled();
+    if (dirty) {
+        save_death_speed_settings();
+        config::save();
+    }
 }
 
 // Live tail of the mod's hook.log in its own floating window (toggled from the
