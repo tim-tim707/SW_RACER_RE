@@ -2936,6 +2936,10 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) 0x00447420);
     hook_replace(swrModel_InitializeTextureBuffer, swrModel_InitializeTextureBuffer_delta);
 
+    hook_function("swrModel_DoConvertTextureDataToRdMaterial",
+                  (uint32_t) swrModel_DoConvertTextureDataToRdMaterial_ADDR,
+                  (uint8_t *) swrModel_DoConvertTextureDataToRdMaterial_delta);
+
     // Window
     hook_function("Window_SetActivated", (uint32_t) Window_SetActivated_ADDR,
                   (uint8_t *) Window_SetActivated_delta);

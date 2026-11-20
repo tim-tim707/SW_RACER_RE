@@ -343,6 +343,25 @@ void swrModel_InitializeTextureBuffer_delta() {
     swrLoader_CloseBlock(swrLoader_TYPE_TEXTURE_BLOCK);
 }
 
+typedef void(__cdecl *swrModel_DoConvertTextureDataToRdMaterialFn)(swrMaterial **, uint8_t **);
+
+// 0x00446C20
+void swrModel_DoConvertTextureDataToRdMaterial_delta(swrMaterial **texture_data_ptr,
+                                                     uint8_t **palette_data_ptr) {
+    if (*texture_data_ptr == nullptr) {
+        // The material stays NULL, so the renderer draws it with the default white texture.
+        fprintf(hook_log,
+                "[swrModel_DoConvertTextureDataToRdMaterial_delta] texture data at %p failed to "
+                "load (asset buffer overflow %d, %d bytes left), skipping\n",
+                (void *) texture_data_ptr, assetBufferOverflow, swrAssetBuffer_RemainingSize());
+        fflush(hook_log);
+        return;
+    }
+    hook_call_original(
+        (swrModel_DoConvertTextureDataToRdMaterialFn) swrModel_DoConvertTextureDataToRdMaterial_ADDR,
+        texture_data_ptr, palette_data_ptr);
+}
+
 // Menu-text scope: ui_menu_text_depth (shared, in ui_transform) is held > 0 while a swrUI / front-end
 // text path runs, so swrText_CreateTextEntry1_delta uses the widget (640) scale for menu text and the
 // HUD (320) scale for direct/in-race callers. Caller-based, not game-state-based: the pause menu
