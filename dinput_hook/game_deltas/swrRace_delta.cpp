@@ -22,6 +22,10 @@ extern FILE* hook_log;
 #include "../imgui_utils.h"// imgui_state: mp_disable_collision + "Game" panel cutscene toggles
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 #include "pod_fx.h"        // pod_fx_on_ground_dust
+#include "pod_edits.h"     // pod_edits_extra_cable_values, pod_edits_fx_points
+#include "../node_utils.h"  // find_asset_offset (display pod's pilot from its model)
+#include <array>
+#include <cstring>
 
 // The pod's cockpit->engine cables (partNodes[10] and [11]) are bent into a curve each
 // frame by swrRace's connection-mesh deformer (FUN_00481c30 @ 0x481c30). That deformation is
@@ -35,6 +39,20 @@ extern FILE* hook_log;
 // stays put while the game is paused (entity updates stop but the scene keeps rendering) and the
 // cables keep their curve. Cleared on track load (swrRace_ClearCableBends) to drop freed nodes.
 static std::unordered_map<const swrModel_Node*, float> cable_bend_by_node;
+// node -> (racer, engine part) for the renderer's cable clearance.
+struct CableOwner {
+    const swrRace* racer;
+    int engine_part;// 1..4
+    int index;      // 0..3 = part slots 10..13
+};
+static std::unordered_map<const swrModel_Node*, CableOwner> cable_owner_by_node;
+struct DisplayCable {
+    const swrModel_Node* cockpit;
+    const swrModel_Node* engine;
+    int pilot;
+    int index;
+};
+static std::unordered_map<const swrModel_Node*, DisplayCable> display_cable_by_node;
 
 // Amplitude A = (1 - (dist/50)^2) * bend, replicating FUN_00481c30:
 //   dist = lodDistance (camera distance); the cable is only curved when 1-(dist/50)^2 >= 0.1,
@@ -52,22 +70,122 @@ static float compute_cable_amplitude(const swrRace* player, float k) {
     return falloff * bend;
 }
 
-void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
-    hook_call_original(swrRace_PoddAnimateVariousThings, player);
+// Extra cable pair (pod editor "cables extra"): a 2-engine pod whose model has cable nodes in the
+// 4-engine pods' cable slots 12 / 13. The game would stretch those to the second engine pair
+// (engineXfR2 / L2, never set on a 2-engine pod; the hangar / racer-select display pod even
+// dereferences the missing engine nodes 3 / 4), so they are placed here instead: the game's own
+// cable builder (swrRace_BuildStretchedQuad, 0x46f0e0), aimed at the right / left engines with the
+// extra pair's values swapped into the pilot's swrRacer_PodVisualData row for the call.
+typedef void(__cdecl* BuildStretchedQuad_t)(const rdMatrix44* cockpit, const rdMatrix44* engine, float mirror_x,
+                                            float mirror_pair, int pilot, rdMatrix44* out);
+typedef void(__cdecl* NodeSetTransform_t)(swrModel_Node* node, const rdMatrix44* m);
+typedef void(__cdecl* NodeGetTransform_t)(const swrModel_Node* node, rdMatrix44* out);
 
+static bool has_extra_cables(swrModel_Node** nodes) {
+    return nodes && (nodes[12] || nodes[13]) && !nodes[3] && !nodes[4];
+}
+
+static void place_extra_cables(swrModel_Node** nodes, int pilot, const rdMatrix44& cockpit, const rdMatrix44& engine_r,
+                               const rdMatrix44& engine_l) {
+    if (pilot < 0 || pilot >= 23)
+        return;
+    float c[3], e[3];
+    pod_edits_extra_cable_values(pilot, c, e);
+    float* row = (float*) &swrRacer_PodVisualData[pilot];
+    float saved[6];
+    for (int j = 0; j < 6; j++)
+        saved[j] = row[9 + j];// cable cockpit end (9..11), engine end (12..14)
+    for (int j = 0; j < 3; j++) {
+        row[9 + j] = c[j];
+        row[12 + j] = e[j];
+    }
+    const auto build = (BuildStretchedQuad_t) swrRace_BuildStretchedQuad_ADDR;
+    const auto set = (NodeSetTransform_t) swrModel_NodeSetTransform_ADDR;
+    rdMatrix44 m;
+    if (nodes[12]) {
+        build(&cockpit, &engine_r, 1.0f, 1.0f, pilot, &m);// right: like cable 10
+        set(nodes[12], &m);
+    }
+    if (nodes[13]) {
+        build(&cockpit, &engine_l, -1.0f, 1.0f, pilot, &m);// left: like cable 11
+        set(nodes[13], &m);
+    }
+    for (int j = 0; j < 6; j++)
+        row[9 + j] = saved[j];
+}
+
+// Cables with their own ends (the pod editor's "cable<N> cockpit / engine" lines): rebuilt with the
+// game's cable builder from those values (unmirrored), replacing the shared, mirrored ones for that
+// cable only. `engines` = the matrices of the engine each cable runs to (cables 10..13).
+static void place_own_cables(swrModel_Node** nodes, int pilot, const rdMatrix44& cockpit, const rdMatrix44* engines[4]) {
+    if (pilot < 0 || pilot >= 23)
+        return;
+    float* row = (float*) &swrRacer_PodVisualData[pilot];
+    float saved[6];
+    for (int j = 0; j < 6; j++)
+        saved[j] = row[9 + j];
+    const auto build = (BuildStretchedQuad_t) swrRace_BuildStretchedQuad_ADDR;
+    const auto set = (NodeSetTransform_t) swrModel_NodeSetTransform_ADDR;
+    for (int i = 0; i < 4; i++) {
+        if (nodes[10 + i] == nullptr || engines[i] == nullptr)
+            continue;
+        float c[3], e[3];
+        const bool own_c = pod_edits_cable_end(pilot, i, 0, c), own_e = pod_edits_cable_end(pilot, i, 1, e);
+        if (!own_c && !own_e)
+            continue;
+        // The shared values for whichever end isn't its own, mirrored as the game would for it.
+        const float mx = (i % 2 == 0) ? 1.0f : -1.0f;
+        const float pair = (i < 2 || !(nodes[3] && nodes[4])) ? 1.0f : -1.0f;
+        if (!own_c)
+            c[0] = saved[0] * mx, c[1] = saved[1], c[2] = saved[2];
+        if (!own_e)
+            e[0] = saved[3] * mx, e[1] = saved[4], e[2] = saved[5] * pair;
+        for (int j = 0; j < 3; j++) {
+            row[9 + j] = c[j];
+            row[12 + j] = e[j];
+        }
+        rdMatrix44 m;
+        build(&cockpit, engines[i], 1.0f, 1.0f, pilot, &m);
+        set(nodes[10 + i], &m);
+    }
+    for (int j = 0; j < 6; j++)
+        row[9 + j] = saved[j];
+}
+
+void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
     swrModel_Node** nodes = player->partNodes;
+    const bool extra = has_extra_cables(nodes);
+    if (extra) {
+        // The game builds cables 12 / 13 towards the second engine pair: keep that finite.
+        player->engineXfR2 = player->engineXfR;
+        player->engineXfL2 = player->engineXfL;
+    }
+    hook_call_original(swrRace_PoddAnimateVariousThings, player);
     if (!nodes)
         return;
+    if (extra && player->lodDistance <= 75 && player->score_ptr && player->score_ptr->pilotId)
+        place_extra_cables(nodes, *player->score_ptr->pilotId, player->cockpitXf, player->engineXfR, player->engineXfL);
+    if (player->lodDistance <= 75 && player->score_ptr && player->score_ptr->pilotId) {
+        const bool four = nodes[3] && nodes[4];
+        const rdMatrix44* engines[4] = {&player->engineXfR, &player->engineXfL, four ? &player->engineXfR2 : &player->engineXfR,
+                                        four ? &player->engineXfL2 : &player->engineXfL};
+        place_own_cables(nodes, *player->score_ptr->pilotId, player->cockpitXf, engines);
+    }
+    pod_edits_place_trails(player);// extra exhaust trails, right after the game placed the stock ones
 
     // The game only runs its cable deformer on cables 10/11, but 4-engine pods (e.g. Ben
     // Quadinaros) also have cables 12/13 to the extra engines. Register all four so they render
     // as the same rebuilt tube and stay visually consistent; the extra pair is null on 2-engine
     // pods so they're skipped. k sign mirrors the front pair (right -0.03 / left +0.03).
     const float k[4] = {-0.03f, 0.03f, -0.03f, 0.03f};
+    const bool four = nodes[3] && nodes[4];
     for (int i = 0; i < 4; i++) {
         swrModel_Node* node = nodes[10 + i];
         if (!node)
             continue;
+        // The engine this cable runs to: 10 / 11 right / left, 12 / 13 the second pair (or, on a
+        // 2-engine pod with the pod editor's extra cables, right / left again).
+        cable_owner_by_node[node] = {player, i == 0 ? 1 : i == 1 ? 2 : (four ? i + 1 : i - 1), i};
         const float a = compute_cable_amplitude(player, k[i]);
         if (a >= 0.0f)
             cable_bend_by_node[node] = a;// curved this frame
@@ -88,17 +206,102 @@ typedef void(__cdecl* swrRace_AnimateDisplayPod_t)(swrModel_Node** nodes, void* 
                                                    float a4, float a5, float a6, float a7,
                                                    int animated, float a9, float a10);
 
+// The display pod's pilot: the display code keeps it in node slot 60; if that isn't a pilot
+// index, find the pilot whose pod model the cockpit / cable nodes come from.
+static int display_pod_pilot(swrModel_Node** nodes) {
+    const int p = (int) (intptr_t) nodes[60];
+    if (p >= 0 && p < 23)
+        return p;
+    for (int slot: {10, 11, 5, 1}) {
+        MODELID id;
+        uint32_t off;
+        if (nodes[slot] == nullptr || !find_asset_offset(nodes[slot], &id, &off))
+            continue;
+        for (int pilot = 0; pilot < 23; pilot++)
+            if (swrRacer_PodData[pilot].pod_modelID == id || swrRacer_PodData[pilot].pod_alt_modelID == id)
+                return pilot;
+    }
+    return -1;
+}
+
 void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transform, int a3,
                                              float a4, float a5, float a6, float a7, int animated,
                                              float a9, float a10) {
+    // An extra cable pair on a 2-engine pod: the display code would read engine nodes 3 / 4 for
+    // cables 12 / 13 (null here), so hide them from it and place them ourselves afterwards.
+    const bool extra = has_extra_cables(nodes);
+    swrModel_Node* saved12 = extra ? nodes[12] : nullptr;
+    swrModel_Node* saved13 = extra ? nodes[13] : nullptr;
+    if (extra)
+        nodes[12] = nodes[13] = nullptr;
     hook_call_original((swrRace_AnimateDisplayPod_t) swrRace_AnimateDisplayPod_ADDR, nodes,
                        transform, a3, a4, a5, a6, a7, animated, a9, a10);
     if (!nodes)
         return;
+    // The display code sizes its cables for the display (thicker than the racing builder's); note
+    // the stock cable's thickness so the cables we rebuild below match it.
+    float thick_x = 0.0f, thick_z = 0.0f;
+    if (nodes[10]) {
+        rdMatrix44 m;
+        ((NodeGetTransform_t) swrModel_NodeGetTransform_ADDR)(nodes[10], &m);
+        thick_x = std::sqrt(m.vA.x * m.vA.x + m.vA.y * m.vA.y + m.vA.z * m.vA.z);
+        thick_z = std::sqrt(m.vC.x * m.vC.x + m.vC.y * m.vC.y + m.vC.z * m.vC.z);
+    }
+    if (extra) {
+        nodes[12] = saved12;
+        nodes[13] = saved13;
+        if (nodes[5] && nodes[1] && nodes[2]) {
+            // The display code works in the nodes' own transforms (cockpit / engines / cables are
+            // siblings), with the pilot id in node slot 60.
+            const auto get = (NodeGetTransform_t) swrModel_NodeGetTransform_ADDR;
+            rdMatrix44 cockpit, engine_r, engine_l;
+            get(nodes[5], &cockpit);
+            get(nodes[1], &engine_r);
+            get(nodes[2], &engine_l);
+            place_extra_cables(nodes, display_pod_pilot(nodes), cockpit, engine_r, engine_l);
+        }
+        // Shown / hidden with the stock cable on the same side (the display code only manages 10 / 11).
+        for (int k = 0; k < 2; k++)
+            if (nodes[12 + k] && nodes[10 + k])
+                nodes[12 + k]->flags_1 = (nodes[12 + k]->flags_1 & ~0x2u) | (nodes[10 + k]->flags_1 & 0x2u);
+    }
+    if (nodes[5] && nodes[1] && nodes[2]) {
+        // Cables with their own ends, in the display pod's node transforms.
+        const auto get = (NodeGetTransform_t) swrModel_NodeGetTransform_ADDR;
+        rdMatrix44 cockpit, eng[4];
+        get(nodes[5], &cockpit);
+        for (int k = 0; k < 4; k++)
+            if (nodes[1 + k])
+                get(nodes[1 + k], &eng[k]);
+        const bool four = nodes[3] && nodes[4];
+        const rdMatrix44* engines[4] = {&eng[0], &eng[1], four ? &eng[2] : &eng[0], four ? &eng[3] : &eng[1]};
+        place_own_cables(nodes, display_pod_pilot(nodes), cockpit, engines);
+    }
+    if (thick_x > 1e-6f && thick_z > 1e-6f)
+        for (int i = 10; i <= 13; i++) {
+            if (nodes[i] == nullptr)
+                continue;
+            rdMatrix44 m;
+            ((NodeGetTransform_t) swrModel_NodeGetTransform_ADDR)(nodes[i], &m);
+            const float lx = std::sqrt(m.vA.x * m.vA.x + m.vA.y * m.vA.y + m.vA.z * m.vA.z);
+            const float lz = std::sqrt(m.vC.x * m.vC.x + m.vC.y * m.vC.y + m.vC.z * m.vC.z);
+            if (lx < 1e-6f || lz < 1e-6f || (std::fabs(lx - thick_x) < 1e-4f * thick_x && std::fabs(lz - thick_z) < 1e-4f * thick_z))
+                continue;
+            const float sx = thick_x / lx, sz = thick_z / lz;
+            m.vA = {m.vA.x * sx, m.vA.y * sx, m.vA.z * sx, m.vA.w};
+            m.vC = {m.vC.x * sz, m.vC.y * sz, m.vC.z * sz, m.vC.w};
+            ((NodeSetTransform_t) swrModel_NodeSetTransform_ADDR)(nodes[i], &m);
+        }
     const float amplitude = (animated != 0) ? 1.3f : 0.5f;
+    const int pilot = display_pod_pilot(nodes);
+    const bool four = nodes[3] && nodes[4];
     for (int i = 10; i <= 13; i++)
-        if (nodes[i])
+        if (nodes[i]) {
             cable_bend_by_node[nodes[i]] = amplitude;
+            const int k = i - 10, engine_slot = (k < 2 || !four) ? 1 + (k % 2) : 3 + (k % 2);
+            if (nodes[5] && nodes[engine_slot])
+                display_cable_by_node[nodes[i]] = {nodes[5], nodes[engine_slot], pilot, k};
+        }
 }
 
 // Multiplayer "no collision" / ghost mode. swrRace_ResolvePodCollision (called each physics step
@@ -174,11 +377,72 @@ void __cdecl playASound_delta(int sound_id, short priority, float volume, float 
 typedef void(__cdecl* swrRace_SpawnGroundDustKick_t)(swrRace*, float*, float, float, float,
                                                            float, int);
 
+static void spawn_ground_dust_kick(swrRace* player, float* transform, float sx, float sy, float sz,
+                                   float param_6, int param_7);
+
+// A direction turned by Euler angles (degrees, about the frame's x, then y, then z axes).
+static rdVector3 turn_in_frame(const rdMatrix44& f, rdVector3 d, float rx, float ry, float rz) {
+    rdVector3 ax[3] = {{f.vA.x, f.vA.y, f.vA.z}, {f.vB.x, f.vB.y, f.vB.z}, {f.vC.x, f.vC.y, f.vC.z}};
+    for (rdVector3& a: ax) {
+        const float l = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+        if (l > 1e-6f)
+            a = {a.x / l, a.y / l, a.z / l};
+    }
+    float l[3] = {d.x * ax[0].x + d.y * ax[0].y + d.z * ax[0].z, d.x * ax[1].x + d.y * ax[1].y + d.z * ax[1].z,
+                  d.x * ax[2].x + d.y * ax[2].y + d.z * ax[2].z};
+    const float deg = 3.14159265f / 180.0f;
+    auto rot = [&](int i, int j, float a) {// rotate the (i, j) plane
+        const float c = std::cos(a * deg), s = std::sin(a * deg), u = l[i], v = l[j];
+        l[i] = u * c - v * s;
+        l[j] = u * s + v * c;
+    };
+    rot(1, 2, rx);// about x
+    rot(2, 0, ry);// about y
+    rot(0, 1, rz);// about z
+    return {l[0] * ax[0].x + l[1] * ax[1].x + l[2] * ax[2].x, l[0] * ax[0].y + l[1] * ax[1].y + l[2] * ax[2].y,
+            l[0] * ax[0].z + l[1] * ax[1].z + l[2] * ax[2].z};
+}
+
+// An engine side's frame applied to a point of the pod editor's (that engine's own frame).
+static rdVector3 engine_point(const swrRace* player, int side, const std::array<float, 4>& p) {
+    const rdMatrix44& e = side == 0 ? player->engineXfR : player->engineXfL;
+    return {e.vD.x + e.vA.x * p[0] + e.vB.x * p[1] + e.vC.x * p[2], e.vD.y + e.vA.y * p[0] + e.vB.y * p[1] + e.vC.y * p[2],
+            e.vD.z + e.vA.z * p[0] + e.vB.z * p[1] + e.vC.z * p[2]};
+}
+static int pilot_of(const swrRace* player) {
+    return (player && player->score_ptr && player->score_ptr->pilotId) ? *player->score_ptr->pilotId : -1;
+}
+
 void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx,
                                                      float sy, float sz, float param_6,
                                                      int param_7) {
     // Pod FX dust clouds key off the same ground contact (before any pool-reserve early-out).
     pod_fx_on_ground_dust(player, transform);
+    // The pod editor's dust spots: the game kicks dust once per engine, from that engine's shadow
+    // (shadowXf1 = right, shadowXf2 = left); spawn it at each of that engine's spots instead, on the
+    // same ground height.
+    const int side = player == nullptr ? -1
+                     : transform == (float*) &player->shadowXf1 ? 0
+                     : transform == (float*) &player->shadowXf2 ? 1
+                                                                 : -1;
+    if (side >= 0) {
+        if (const auto* spots = pod_edits_fx_points(pilot_of(player), 2, side)) {
+            for (const auto& p: *spots) {
+                rdMatrix44 m;
+                memcpy(&m, transform, sizeof(m));
+                const rdVector3 w = engine_point(player, side, p);
+                m.vD.x = w.x;
+                m.vD.y = w.y;
+                spawn_ground_dust_kick(player, &m.vA.x, sx, sy, sz, param_6, param_7);
+            }
+            return;
+        }
+    }
+    spawn_ground_dust_kick(player, transform, sx, sy, sz, param_6, param_7);
+}
+
+static void spawn_ground_dust_kick(swrRace* player, float* transform, float sx, float sy, float sz,
+                                   float param_6, int param_7) {
     const bool is_local = player != nullptr && (player->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
 
     if (!is_local) {
@@ -196,6 +460,87 @@ void __cdecl swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform
 
     hook_call_original((swrRace_SpawnGroundDustKick_t) swrRace_SpawnGroundDustKick_ADDR,
                        player, transform, sx, sy, sz, param_6, param_7);
+}
+
+// --- The game's engine damage smoke / fire at the pod editor's fire spots ---------------------------
+// swrRace_UpdateEngineDamageFX (0x46f9a0) keeps one swrObjSmok (type 6) per burning engine,
+// engineDamageSmoke[0] = left, [1] = right, 2 units behind that engine's origin and drifting back
+// (velocity -20 x its forward row), its lifetime topped up to 5 s each frame. With the pod's
+// "firespot" edits the first spot of each engine carries that emitter, and every further spot gets
+// one of ours, kept alive and placed the same way while that engine burns.
+typedef void(__cdecl* swrRace_UpdateEngineDamageFX_t)(swrRace*);
+typedef swrObjSmok*(__cdecl* SmokSpawn_t)(int type, int flags, float lifetime, rdVector3* pos, float scale);
+typedef void(__cdecl* SmokSetVec_t)(swrObjSmok*, rdVector3*);
+typedef void(__cdecl* SmokSetLifetime_t)(swrObjSmok*, float);
+typedef void(__cdecl* SmokSetOwner_t)(swrObjSmok*, swrObjSmok**);
+
+namespace {
+    constexpr int kMaxExtraFire = 8;
+    struct ExtraFire {
+        swrObjSmok* smoke[2][kMaxExtraFire] = {};// [game slot][spot - 1]; nulled by the game when they die
+    };
+    // Node-based: the addresses handed to swrObjSmok_SetOwnerHandle stay valid (never erased).
+    std::unordered_map<const swrRace*, ExtraFire> g_extra_fire;
+}// namespace
+
+void __cdecl swrRace_UpdateEngineDamageFX_delta(swrRace* player) {
+    hook_call_original((swrRace_UpdateEngineDamageFX_t) swrRace_UpdateEngineDamageFX_ADDR, player);
+    if (player == nullptr || player->partNodes == nullptr)
+        return;
+    const int pilot = pilot_of(player);
+    const auto spawn = (SmokSpawn_t) swrObjSmok_Spawn_ADDR;
+    const auto set_pos = (SmokSetVec_t) swrObjSmok_SetPosition_ADDR;
+    const auto set_vel = (SmokSetVec_t) swrObjSmok_SetVelocity_ADDR;
+    const auto set_life = (SmokSetLifetime_t) swrObjSmok_SetLifetime_ADDR;
+    const auto set_owner = (SmokSetOwner_t) swrObjSmok_SetOwnerHandle_ADDR;
+    for (int slot = 0; slot < 2; slot++) {
+        const int side = slot == 0 ? 1 : 0;// edits: 0 = right engine
+        // The pod editor's "gamefire" points (else the stock spot) and "gamefirestreak".
+        const auto* spots = pod_edits_fx_points(pilot, 3, side);
+        float streak[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+        const bool has_streak = pod_edits_gamefire_streak(pilot, streak);
+        if (spots == nullptr && !has_streak)
+            continue;
+        const rdMatrix44& e = side == 0 ? player->engineXfR : player->engineXfL;
+        rdVector3 vel = {-20.0f * e.vB.x, -20.0f * e.vB.y, -20.0f * e.vB.z};
+        if (has_streak) {
+            const float mirror = side == 1 ? -1.0f : 1.0f;// the left engine's turns mirrored
+            vel = turn_in_frame(e, vel, streak[1], streak[2] * mirror, streak[3] * mirror);
+            vel = {vel.x * streak[0], vel.y * streak[0], vel.z * streak[0]};
+        }
+        swrObjSmok* game = player->engineDamageSmoke[slot];
+        if (game != nullptr) {
+            if (spots != nullptr && !spots->empty()) {
+                rdVector3 p = engine_point(player, side, (*spots)[0]);
+                set_pos(game, &p);
+            }
+            set_vel(game, &vel);
+        }
+        if (spots == nullptr)
+            continue;
+        ExtraFire& ex = g_extra_fire[player];
+        for (int i = 0; i < kMaxExtraFire; i++) {
+            swrObjSmok*& h = ex.smoke[slot][i];
+            const bool want = game != nullptr && (size_t) i + 1 < spots->size();
+            if (!want) {
+                if (h != nullptr)
+                    set_life(h, 0.5f);// let it burn out (the game nulls h when it dies)
+                continue;
+            }
+            rdVector3 p = engine_point(player, side, (*spots)[(size_t) i + 1]);
+            if (h == nullptr) {
+                h = spawn(6, 0, 1000.0f, &p, 1.0f);
+                if (h != nullptr)
+                    set_owner(h, &h);
+            } else {
+                set_life(h, 5.0f);
+            }
+            if (h != nullptr) {
+                set_pos(h, &p);
+                set_vel(h, &vel);
+            }
+        }
+    }
 }
 
 // Enlarged dust-kick pool. The stock swrObjToss_AddDustKickModelsToScene builds a 16-slot Toss pool
@@ -369,6 +714,17 @@ void __cdecl swrRace_ApplyTraction_delta(swrRace* player, float b, rdVector3* c,
     }
 }
 
+bool swrRace_GetCableOwner(const swrModel_Node* node, const swrRace** racer, int* engine_part, int* index) {
+    const auto it = cable_owner_by_node.find(node);
+    if (it == cable_owner_by_node.end())
+        return false;
+    *racer = it->second.racer;
+    *engine_part = it->second.engine_part;
+    if (index != nullptr)
+        *index = it->second.index;
+    return true;
+}
+
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {
     if (!node)
         return -1.0f;
@@ -376,13 +732,36 @@ float swrRace_GetCableBendAmplitude(const swrModel_Node* node) {
     return it == cable_bend_by_node.end() ? -1.0f : it->second;
 }
 
+bool swrRace_GetDisplayCable(const swrModel_Node* node, int* pilot, int* index, rdMatrix44* cable,
+                             rdMatrix44* cockpit, rdMatrix44* engine) {
+    const auto it = display_cable_by_node.find(node);
+    if (node == nullptr || it == display_cable_by_node.end() || it->second.pilot < 0)
+        return false;
+    const auto get = (NodeGetTransform_t) swrModel_NodeGetTransform_ADDR;
+    *pilot = it->second.pilot;
+    *index = it->second.index;
+    get(const_cast<swrModel_Node*>(node), cable);
+    get(const_cast<swrModel_Node*>(it->second.cockpit), cockpit);
+    get(const_cast<swrModel_Node*>(it->second.engine), engine);
+    return true;
+}
+
 void swrRace_ClearCableBends() {
     cable_bend_by_node.clear();
+    cable_owner_by_node.clear();
+    display_cable_by_node.clear();
 }
 
 void swrRace_DropCableBendsFrom(const char* begin) {
     std::erase_if(cable_bend_by_node, [&](const auto& elem) {
         return (const char*) elem.first >= begin;
+    });
+    std::erase_if(cable_owner_by_node, [&](const auto& elem) {
+        return (const char*) elem.first >= begin;
+    });
+    std::erase_if(display_cable_by_node, [&](const auto& elem) {
+        return (const char*) elem.first >= begin || (const char*) elem.second.cockpit >= begin ||
+               (const char*) elem.second.engine >= begin;
     });
 }
 

@@ -53,9 +53,22 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out);
 // Quadinaros's two binders each get their own.
 
 // a / b = the ends of the mesh's long axis (world space); r, g, b = its colour (0..1).
-void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl);
+// card = the game's own flat binder glow card (texture #1411): laid exactly along the beam, so its
+// long axis places the glow; its colour is ignored.
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl,
+                          bool card);
 // Skip the game's own binder glow card (texture #1411); Pod FX draws its own glow instead.
 bool pod_fx_hide_stock_binder_glow();
 
 // Loads [pod_fx] from SW_RACER_RE.ini and registers the "Mods/Pod FX" panel.
 void pod_fx_register_panel();
+
+// The automatic engine effect points of a pod side (0 = right engine, 1 = left), in that engine's
+// own frame: exhaust nozzles {x, y, z, radius}, damage-fire spots and the ground-dust spot. For the
+// pod editor's export (its defaults before the pod's edits move them).
+#ifdef __cplusplus
+#include <array>
+#include <vector>
+void pod_fx_auto_points(const swrRace* racer, int side, std::vector<std::array<float, 4>>& nozzles,
+                        std::vector<std::array<float, 4>>& fire, std::vector<std::array<float, 4>>& dust);
+#endif

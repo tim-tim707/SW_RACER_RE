@@ -48,6 +48,7 @@ extern "C" {
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/pod_motion.h"
 #include "./game_deltas/pod_fx.h"
+#include "./game_deltas/pod_edits.h"
 #include "shadows.h"
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
@@ -372,6 +373,7 @@ static void stream_ring_end_frame() {
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+static const swrModel_Node *g_active_cable_node = nullptr;// the cable node being drawn (for clearance)
 
 // Reflective materials (issue #206). The PC port stripped the G_TEXTURE_GEN bit and left no
 // reliable per-mesh material trace -- reflective meshes span several combiner/render-mode configs,
@@ -423,7 +425,294 @@ static const NozzleNodeTag *find_nozzle_tag(const swrModel_Node *node) {
     return (it != g_pod_nozzle_nodes.end() && it->node == node) ? &*it : nullptr;
 }
 
+// Cable clearance: each racing pod's engines and cockpit (partNodes[1..5]) as boxes, one per mesh,
+// each in its part's own frame (unk350_mat[part]), collected while the renderer draws them. A
+// cable's tube is pushed out of them (generate_cable_tube) so it never runs through the pod.
+struct BodyNodeTag {
+    const swrModel_Node *node;
+    const swrRace *racer;
+    int part;
+    bool operator<(const BodyNodeTag &o) const { return node < o.node; }
+};
+static std::vector<BodyNodeTag> g_pod_body_nodes;
+static const BodyNodeTag *g_active_body = nullptr;
+static const BodyNodeTag *find_body_tag(const swrModel_Node *node) {
+    const BodyNodeTag key{node, nullptr, 0};
+    auto it = std::lower_bound(g_pod_body_nodes.begin(), g_pod_body_nodes.end(), key);
+    return (it != g_pod_body_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+struct CableObstacle {
+    const swrModel_Mesh *mesh;
+    int part;
+    float lo[3], hi[3];
+};
+// Collected this traversal / used by the cables (the last complete set per racer).
+static std::unordered_map<const swrRace *, std::vector<CableObstacle>> g_cable_obstacles_cur, g_cable_obstacles;
+
+static const rdMatrix44 &part_frame(const swrRace *r, int part) {
+    return (&r->unk350_mat)[part];
+}
+// Inverse of an affine row-vector matrix (rotation * scale + translation); false if singular.
+static bool invert_affine(const rdMatrix44 &m, rdMatrix44 &out) {
+    const float a = m.vA.x, b = m.vA.y, c = m.vA.z, d = m.vB.x, e = m.vB.y, f = m.vB.z, g = m.vC.x, h = m.vC.y,
+                i = m.vC.z;
+    const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (std::fabs(det) < 1e-12f)
+        return false;
+    const float k = 1.0f / det;
+    out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
+    out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
+    out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
+    const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
+    out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
+              -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
+    return true;
+}
+static rdVector3 xf_point(const rdMatrix44 &m, const rdVector3 &p) {
+    return {p.x * m.vA.x + p.y * m.vB.x + p.z * m.vC.x + m.vD.x, p.x * m.vA.y + p.y * m.vB.y + p.z * m.vC.y + m.vD.y,
+            p.x * m.vA.z + p.y * m.vB.z + p.z * m.vC.z + m.vD.z};
+}
+static void record_cable_obstacle(const swrRace *racer, int part, const swrModel_Mesh *mesh,
+                                  const rdMatrix44 &model_matrix) {
+    std::vector<CableObstacle> &list = g_cable_obstacles_cur[racer];
+    for (const CableObstacle &o: list)
+        if (o.mesh == mesh && o.part == part)
+            return;
+    rdMatrix44 inv;
+    if (!invert_affine(part_frame(racer, part), inv))
+        return;
+    const float *bb = mesh->aabb;
+    CableObstacle o{mesh, part, {1e9f, 1e9f, 1e9f}, {-1e9f, -1e9f, -1e9f}};
+    for (int k = 0; k < 8; k++) {
+        const rdVector3 corner = {bb[(k & 1) ? 3 : 0], bb[(k & 2) ? 4 : 1], bb[(k & 4) ? 5 : 2]};
+        const rdVector3 l = xf_point(inv, xf_point(model_matrix, corner));
+        const float v[3] = {l.x, l.y, l.z};
+        for (int j = 0; j < 3; j++) {
+            o.lo[j] = std::min(o.lo[j], v[j]);
+            o.hi[j] = std::max(o.hi[j], v[j]);
+        }
+    }
+    // Skip what can't be part of the body (parked far-away parts, degenerate boxes).
+    for (int j = 0; j < 3; j++)
+        if (!(o.hi[j] >= o.lo[j]) || o.hi[j] - o.lo[j] > 30.0f || std::fabs(o.lo[j] + o.hi[j]) * 0.5f > 30.0f)
+            return;
+    list.push_back(o);
+}
+
+// Stiff cable: the ring centres moved onto a cubic curve that leaves each end straight out from the
+// part it plugs into (cockpit centre -> cockpit end, engine centre -> engine end) for `k` x the
+// cable's length; the game's own bend (centres - straight) rides on top. Returns false if not shaped.
+// a then b (row vectors).
+static rdMatrix44 mat_then(const rdMatrix44 &a, const rdMatrix44 &b) {
+    rdMatrix44 o;
+    const rdVector4 *ra[4] = {&a.vA, &a.vB, &a.vC, &a.vD};
+    rdVector4 *ro[4] = {&o.vA, &o.vB, &o.vC, &o.vD};
+    for (int i = 0; i < 4; i++) {
+        const rdVector4 &r = *ra[i];
+        *ro[i] = {r.x * b.vA.x + r.y * b.vB.x + r.z * b.vC.x + r.w * b.vD.x,
+                  r.x * b.vA.y + r.y * b.vB.y + r.z * b.vC.y + r.w * b.vD.y,
+                  r.x * b.vA.z + r.y * b.vB.z + r.z * b.vC.z + r.w * b.vD.z,
+                  r.x * b.vA.w + r.y * b.vB.w + r.z * b.vC.w + r.w * b.vD.w};
+    }
+    return o;
+}
+
+static bool cable_stiff_shape_in(int pilot, int index, const rdMatrix44 &fcock, const rdMatrix44 &feng,
+                                 const std::vector<rdVector3> &straight, const std::vector<float> &along,
+                                 std::vector<rdVector3> &centres);
+
+// A racing pod's cable (its parts' frames from the racer), or the character-select display pod's
+// (its cockpit / engine frames rebuilt from the node transforms, in the cable mesh's space).
+static bool cable_stiff_shape(const swrModel_Node *cable, const rdMatrix44 &model_matrix,
+                              const std::vector<rdVector3> &straight, const std::vector<float> &along,
+                              std::vector<rdVector3> &centres) {
+    if (cable == nullptr)
+        return false;
+    const swrRace *racer = nullptr;
+    int engine = 0, index = 0;
+    if (swrRace_GetCableOwner(cable, &racer, &engine, &index)) {
+        const int pilot = (racer->score_ptr && racer->score_ptr->pilotId) ? *racer->score_ptr->pilotId : -1;
+        return cable_stiff_shape_in(pilot, index, part_frame(racer, 5), part_frame(racer, engine), straight, along, centres);
+    }
+    int pilot = -1;
+    rdMatrix44 lc, lk, le, inv;
+    if (!swrRace_GetDisplayCable(cable, &pilot, &index, &lc, &lk, &le) || !invert_affine(lc, inv))
+        return false;
+    const rdMatrix44 parent = mat_then(inv, model_matrix);
+    return cable_stiff_shape_in(pilot, index, mat_then(lk, parent), mat_then(le, parent), straight, along, centres);
+}
+
+static bool cable_stiff_shape_in(int pilot, int index, const rdMatrix44 &fcock, const rdMatrix44 &feng,
+                                 const std::vector<rdVector3> &straight, const std::vector<float> &along,
+                                 std::vector<rdVector3> &centres) {
+    const float k = pod_edits_cable_stiffness(pilot);
+    if (k <= 0.0f || straight.size() < 2)
+        return false;
+    const rdVector3 p0 = straight.front(), p3 = straight.back();
+    const rdVector4 *cock = &fcock.vD, *eng = &feng.vD;
+    auto dist2 = [](rdVector3 p, const rdVector4 *c) {
+        return (p.x - c->x) * (p.x - c->x) + (p.y - c->y) * (p.y - c->y) + (p.z - c->z) * (p.z - c->z);
+    };
+    if (dist2(p0, cock) > dist2(p0, eng))// the tube may run engine -> cockpit
+        std::swap(cock, eng);
+    const rdVector4 &c0 = *cock, &c3 = *eng;
+    // The pod editor's "cableout": each end's direction tilted along that part's up axis.
+    float tilt[2];
+    pod_edits_cable_out(pilot, tilt);
+    const bool swapped = cock != &fcock.vD;
+    const rdVector4 &up_cock = fcock.vC, &up_eng = feng.vC;
+    auto out_dir = [](rdVector3 p, const rdVector4 &c, const rdVector4 &up, float z) {
+        rdVector3 d = {p.x - c.x, p.y - c.y, p.z - c.z};
+        float l = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+        if (l < 1e-5f)
+            return rdVector3{0.0f, 0.0f, 0.0f};
+        d = {d.x / l, d.y / l, d.z / l};
+        const float ul = std::sqrt(up.x * up.x + up.y * up.y + up.z * up.z);
+        if (z != 0.0f && ul > 1e-6f) {
+            d = {d.x + up.x / ul * z, d.y + up.y / ul * z, d.z + up.z / ul * z};
+            l = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
+            if (l > 1e-5f)
+                d = {d.x / l, d.y / l, d.z / l};
+        }
+        return d;
+    };
+    rdVector3 t0 = out_dir(p0, c0, swapped ? up_eng : up_cock, swapped ? tilt[1] : tilt[0]);
+    rdVector3 t3 = out_dir(p3, c3, swapped ? up_cock : up_eng, swapped ? tilt[0] : tilt[1]);
+    // The pod editor's "cablerot": each end's exit turned about its part's axes (left cables mirrored).
+    float rot[6];
+    // This cable's own turns (unmirrored), else the shared ones (mirrored for the left cables).
+    const bool own_rot = pod_edits_cable_own_rot(pilot, index, rot);
+    if (own_rot || pod_edits_cable_rot(pilot, rot)) {
+        const float m = (!own_rot && (index % 2) == 1) ? -1.0f : 1.0f;
+        auto turn = [](const rdMatrix44 &f, rdVector3 d, float rx, float ry, float rz) {
+            rdVector3 ax[3] = {{f.vA.x, f.vA.y, f.vA.z}, {f.vB.x, f.vB.y, f.vB.z}, {f.vC.x, f.vC.y, f.vC.z}};
+            for (rdVector3 &a: ax) {
+                const float l = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+                if (l > 1e-6f)
+                    a = {a.x / l, a.y / l, a.z / l};
+            }
+            float l[3] = {d.x * ax[0].x + d.y * ax[0].y + d.z * ax[0].z, d.x * ax[1].x + d.y * ax[1].y + d.z * ax[1].z,
+                          d.x * ax[2].x + d.y * ax[2].y + d.z * ax[2].z};
+            const float deg = 3.14159265f / 180.0f;
+            auto r2 = [&](int i, int j, float a) {
+                const float c = std::cos(a * deg), s = std::sin(a * deg), u = l[i], v = l[j];
+                l[i] = u * c - v * s;
+                l[j] = u * s + v * c;
+            };
+            r2(1, 2, rx);
+            r2(2, 0, ry);
+            r2(0, 1, rz);
+            return rdVector3{l[0] * ax[0].x + l[1] * ax[1].x + l[2] * ax[2].x, l[0] * ax[0].y + l[1] * ax[1].y + l[2] * ax[2].y,
+                             l[0] * ax[0].z + l[1] * ax[1].z + l[2] * ax[2].z};
+        };
+        const rdMatrix44 &fc = fcock, &fe = feng;
+        const rdVector3 tc = turn(fc, swapped ? t3 : t0, rot[0], rot[1] * m, rot[2] * m);
+        const rdVector3 te = turn(fe, swapped ? t0 : t3, rot[3], rot[4] * m, rot[5] * m);
+        t0 = swapped ? te : tc;
+        t3 = swapped ? tc : te;
+    }
+    const float len = std::sqrt((p3.x - p0.x) * (p3.x - p0.x) + (p3.y - p0.y) * (p3.y - p0.y) + (p3.z - p0.z) * (p3.z - p0.z));
+    const rdVector3 p1 = {p0.x + t0.x * len * k, p0.y + t0.y * len * k, p0.z + t0.z * len * k};
+    const rdVector3 p2 = {p3.x + t3.x * len * k, p3.y + t3.y * len * k, p3.z + t3.z * len * k};
+    for (size_t r = 0; r < centres.size(); r++) {
+        const float t = along[r], u = 1.0f - t;
+        const float b0 = u * u * u, b1 = 3 * u * u * t, b2 = 3 * u * t * t, b3 = t * t * t;
+        const rdVector3 bend = {centres[r].x - straight[r].x, centres[r].y - straight[r].y, centres[r].z - straight[r].z};
+        centres[r] = {b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x + bend.x, b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y + bend.y,
+                      b0 * p0.z + b1 * p1.z + b2 * p2.z + b3 * p3.z + bend.z};
+    }
+    return true;
+}
+
+// Push a cable's ring centres (world) out of its engine's and the cockpit's boxes, smoothing the
+// pushes along the cable; both ends stay put (they plug into the pod). Returns false if nothing to do.
+static bool cable_clearance(const swrModel_Node *cable, const std::vector<rdVector3> &centres,
+                            std::vector<rdVector3> &push) {
+    const float margin = pod_edits_cable_clearance();
+    const swrRace *racer = nullptr;
+    int engine = 0;
+    if (margin < 0.0f || cable == nullptr || !swrRace_GetCableOwner(cable, &racer, &engine))
+        return false;
+    auto it = g_cable_obstacles.find(racer);
+    if (it == g_cable_obstacles.end() || it->second.empty())
+        return false;
+    struct Frame {
+        int part;
+        rdMatrix44 m, inv;
+        float scale;
+    };
+    Frame frames[2];
+    int nf = 0;
+    for (int part: {engine, 5}) {
+        Frame &f = frames[nf];
+        f.part = part;
+        f.m = part_frame(racer, part);
+        f.scale = std::sqrt(f.m.vA.x * f.m.vA.x + f.m.vA.y * f.m.vA.y + f.m.vA.z * f.m.vA.z);
+        if (f.scale > 1e-6f && invert_affine(f.m, f.inv))
+            nf++;
+    }
+    const size_t n = centres.size();
+    push.assign(n, {0.0f, 0.0f, 0.0f});
+    bool any = false;
+    for (int pass = 0; pass < 4; pass++) {
+        for (size_t r = 1; r + 1 < n; r++) {
+            rdVector3 q = {centres[r].x + push[r].x, centres[r].y + push[r].y, centres[r].z + push[r].z};
+            for (int fi = 0; fi < nf; fi++) {
+                const Frame &f = frames[fi];
+                const float m = margin / f.scale;
+                for (const CableObstacle &o: it->second) {
+                    if (o.part != f.part)
+                        continue;
+                    const rdVector3 l = xf_point(f.inv, q);
+                    const float v[3] = {l.x, l.y, l.z};
+                    float best = 1e9f;
+                    int axis = -1;
+                    float dir = 0.0f;
+                    bool inside = true;
+                    for (int j = 0; j < 3 && inside; j++) {
+                        const float lo = o.lo[j] - m, hi = o.hi[j] + m;
+                        if (v[j] <= lo || v[j] >= hi) {
+                            inside = false;
+                            break;
+                        }
+                        if (v[j] - lo < best)
+                            best = v[j] - lo, axis = j, dir = -1.0f;
+                        if (hi - v[j] < best)
+                            best = hi - v[j], axis = j, dir = 1.0f;
+                    }
+                    if (!inside || axis < 0)
+                        continue;
+                    // Out through the nearest face, in world units.
+                    const rdVector4 &row = axis == 0 ? f.m.vA : axis == 1 ? f.m.vB : f.m.vC;
+                    const rdVector3 d = {row.x * best * dir, row.y * best * dir, row.z * best * dir};
+                    push[r] = {push[r].x + d.x, push[r].y + d.y, push[r].z + d.z};
+                    q = {q.x + d.x, q.y + d.y, q.z + d.z};
+                    any = true;
+                }
+            }
+        }
+        if (!any)
+            return false;
+        // Smooth along the cable so it bends round the body instead of kinking.
+        std::vector<rdVector3> s = push;
+        for (size_t r = 1; r + 1 < n; r++)
+            s[r] = {0.25f * push[r - 1].x + 0.5f * push[r].x + 0.25f * push[r + 1].x,
+                    0.25f * push[r - 1].y + 0.5f * push[r].y + 0.25f * push[r + 1].y,
+                    0.25f * push[r - 1].z + 0.5f * push[r].z + 0.25f * push[r + 1].z};
+        if (pass < 3)
+            push = s;
+    }
+    return true;
+}
+
 static void rebuild_pod_shadow_nodes() {
+    // The obstacles collected over the last traversal become the cables' (per racer, only when that
+    // traversal drew its body: mirrors / shadow passes may not).
+    for (auto &[racer, list]: g_cable_obstacles_cur)
+        if (!list.empty())
+            g_cable_obstacles[racer] = std::move(list);
+    g_cable_obstacles_cur.clear();
+    g_pod_body_nodes.clear();
     g_pod_shadow_nodes.clear();
     g_pod_nozzle_nodes.clear();
     g_debug_part_nodes.clear();
@@ -436,6 +725,9 @@ static void rebuild_pod_shadow_nodes() {
             if (entity->partNodes[part] != nullptr)
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }
+        for (int part = 1; part <= 5; part++)// engines + cockpit: the cables' obstacles
+            if (entity->partNodes[part] != nullptr)
+                g_pod_body_nodes.push_back({entity->partNodes[part], entity, part});
         // kind 0/1: the generic per-engine exhaust / glow (on the engine centre line);
         // kind 2: per-nozzle star-glow quads (left engine part 0x1c, right 0x2a);
         // kind 3: per-nozzle exhaust discs (left 0x1d, right 0x2b). Side 0 = right, 1 = left.
@@ -453,13 +745,14 @@ static void rebuild_pod_shadow_nodes() {
             if (entity->partNodes[np.part] != nullptr)
                 g_pod_nozzle_nodes.push_back({entity->partNodes[np.part], entity, np.side, np.kind});
         }
-        if (debug_parts && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        if ((debug_parts || pod_edits_export_armed()) && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
             for (int part = 0; part <= 0x46; part++)
                 if (entity->partNodes[part] != nullptr)
                     g_debug_part_nodes.push_back({entity->partNodes[part], entity, part, 0});
         }
     }
     std::sort(g_debug_part_nodes.begin(), g_debug_part_nodes.end());
+    std::sort(g_pod_body_nodes.begin(), g_pod_body_nodes.end());
     std::sort(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end());// is_pod_shadow_node bsearches
     std::sort(g_pod_nozzle_nodes.begin(), g_pod_nozzle_nodes.end());
 }
@@ -526,13 +819,23 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
         {0.0f, 0.0f, 0.0f, 1.0f},
     };
 
-    Vertex ring[9][3];
-    for (int r = 0; r <= 8; r++) {
-        const float s = cable_ease_ring_param(r * (1.0f / 8.0f));
+    // 16 segments (the game's 8, halved) so a cable pushed round the pod (cable clearance) bends
+    // smoothly; the bend itself is the game's.
+    constexpr int kSegs = 16;
+    Vertex ring[kSegs + 1][3];
+    std::vector<rdVector3> centres(kSegs + 1), straight(kSegs + 1), push;
+    std::vector<float> along(kSegs + 1);
+    for (int r = 0; r <= kSegs; r++) {
+        const float s = cable_ease_ring_param(r * (1.0f / kSegs));
         const float y = truncf(-100.0f * s);
-        const float z_bend = (r >= 1 && r <= 7)
+        const float z_bend = (r >= 1 && r < kSegs)
                                  ? truncf(-100.0f * amplitude * sinf(s * 6.28318530717958647692f))
                                  : 0.0f;
+        along[r] = -y / 100.0f;
+        centres[r] = {0.0f, y, z_bend - 13.333f};// the prism's centre line
+        rdMatrix_Transform3(&centres[r], &centres[r], &model_matrix);
+        straight[r] = {0.0f, y, -13.333f};
+        rdMatrix_Transform3(&straight[r], &straight[r], &model_matrix);
         for (int c = 0; c < 3; c++) {
             Vertex &v = ring[r][c];
             v = Vertex{};
@@ -543,10 +846,22 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
             v.color = cs_color[c];
         }
     }
+    // Stiff cable shape, then (optionally) clearance; each ring moves with its centre.
+    std::vector<rdVector3> shaped = centres;
+    const bool stiff = cable_stiff_shape(g_active_cable_node, model_matrix, straight, along, shaped);
+    if (cable_clearance(g_active_cable_node, shaped, push))
+        for (int r = 0; r <= kSegs; r++)
+            shaped[r] = {shaped[r].x + push[r].x, shaped[r].y + push[r].y, shaped[r].z + push[r].z};
+    if (stiff || !push.empty())
+        for (int r = 0; r <= kSegs; r++) {
+            const rdVector3 d = {shaped[r].x - centres[r].x, shaped[r].y - centres[r].y, shaped[r].z - centres[r].z};
+            for (int c = 0; c < 3; c++)
+                ring[r][c].pos = {ring[r][c].pos.x + d.x, ring[r][c].pos.y + d.y, ring[r][c].pos.z + d.z};
+        }
 
-    // 8 segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
+    // Segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
     // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < kSegs; r++) {
         for (int c = 0; c < 3; c++) {
             const int c1 = (c + 1) % 3;
             triangles.push_back(ring[r][c]);
@@ -779,6 +1094,94 @@ static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, 
 // Run the display-list parse a drawn mesh would have run, without drawing, so the N64 shared-vertex
 // staging a later skinned mesh consumes stays identical to the drawn path. Returns the parsed
 // vertices, or nullptr when the drawn path would have hit the geometry cache instead.
+// Pod editor edits for the mesh being drawn (see game_deltas/pod_edits.h): spin groups rotate their
+// triangles about a pivot/axis given in the mesh's own frame; hidden triangles collapse to a point.
+static const PodMeshEdit *g_active_mesh_edit = nullptr;
+static rdMatrix44 g_active_mesh_edit_matrix;
+static bool g_active_mesh_edit_normals = false;
+static void apply_pod_mesh_edit(std::vector<Vertex> &tris) {
+    const PodMeshEdit *e = g_active_mesh_edit;
+    if (e == nullptr)
+        return;
+    const size_t ntri = tris.size() / 3;
+    const rdMatrix44 &M = g_active_mesh_edit_matrix;
+    const float t = pod_edits_time();
+    for (const PodEditSpin &sp: e->spins) {
+        const rdVector3 c = {sp.pivot[0] * M.vA.x + sp.pivot[1] * M.vB.x + sp.pivot[2] * M.vC.x + M.vD.x,
+                             sp.pivot[0] * M.vA.y + sp.pivot[1] * M.vB.y + sp.pivot[2] * M.vC.y + M.vD.y,
+                             sp.pivot[0] * M.vA.z + sp.pivot[1] * M.vB.z + sp.pivot[2] * M.vC.z + M.vD.z};
+        rdVector3 a = {sp.axis[0] * M.vA.x + sp.axis[1] * M.vB.x + sp.axis[2] * M.vC.x,
+                       sp.axis[0] * M.vA.y + sp.axis[1] * M.vB.y + sp.axis[2] * M.vC.y,
+                       sp.axis[0] * M.vA.z + sp.axis[1] * M.vB.z + sp.axis[2] * M.vC.z};
+        const float al = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+        if (al < 1e-8f)
+            continue;
+        a = {a.x / al, a.y / al, a.z / al};
+        // Move after spinning: the offset is a direction in the mesh's frame.
+        const rdVector3 off = {sp.offset[0] * M.vA.x + sp.offset[1] * M.vB.x + sp.offset[2] * M.vC.x,
+                               sp.offset[0] * M.vA.y + sp.offset[1] * M.vB.y + sp.offset[2] * M.vC.y,
+                               sp.offset[0] * M.vA.z + sp.offset[1] * M.vB.z + sp.offset[2] * M.vC.z};
+        const float ang = std::fmod(t * sp.rpm / 60.0f, 1.0f) * 6.2831853f;
+        const float cs = std::cos(ang), sn = std::sin(ang);
+        // Rodrigues: v' = v cos + (a x v) sin + a (a.v)(1 - cos)
+        auto rot = [&](rdVector3 &v) {
+            const float d = a.x * v.x + a.y * v.y + a.z * v.z;
+            const rdVector3 cr = {a.y * v.z - a.z * v.y, a.z * v.x - a.x * v.z, a.x * v.y - a.y * v.x};
+            v = {v.x * cs + cr.x * sn + a.x * d * (1.0f - cs), v.y * cs + cr.y * sn + a.y * d * (1.0f - cs),
+                 v.z * cs + cr.z * sn + a.z * d * (1.0f - cs)};
+        };
+        for (const PodEditRange &r: sp.tris)
+            for (uint32_t tri = r.first; tri < r.first + r.count && tri < ntri; tri++)
+                for (int k = 0; k < 3; k++) {
+                    Vertex &v = tris[tri * 3 + k];
+                    rdVector3 rel = {(v.pos.x - c.x) * sp.scale, (v.pos.y - c.y) * sp.scale, (v.pos.z - c.z) * sp.scale};
+                    rot(rel);
+                    v.pos = {c.x + rel.x + off.x, c.y + rel.y + off.y, c.z + rel.z + off.z};
+                    if (g_active_mesh_edit_normals)
+                        rot(v.normal);
+                }
+    }
+    for (const PodEditRange &r: e->hidden)
+        for (uint32_t tri = r.first; tri < r.first + r.count && tri < ntri; tri++)
+            tris[tri * 3 + 1].pos = tris[tri * 3 + 2].pos = tris[tri * 3].pos;
+}
+
+// Pod editor export: the mesh's triangles (world space), its final texture coordinates and texture,
+// computed the same way the draw path does (uv = tu / (uvScale * 4096) + uvOffset).
+static void export_pod_mesh(const swrRace *racer, int part, const swrModel_Mesh *mesh,
+                            const rdMatrix44 &model_matrix) {
+    float su = 1.0f, sv = 1.0f, ou = 0.0f, ov = 0.0f;
+    GLuint tex = 0;
+    const swrModel_MaterialTexture *mt = mesh->mesh_material ? mesh->mesh_material->material_texture : nullptr;
+    if (mt && mt->loaded_material) {
+        tex = GLuint(mt->loaded_material->aTextures->pD3DSrcTexture);
+        const swrModel_MaterialTextureChild *spec0 = material_texture_spec(mt, 0);
+        if (spec0) {
+            su = spec0->flags & 0x10'00'00'00 ? 2.0f : 1.0f;
+            sv = spec0->flags & 0x01'00'00'00 ? 2.0f : 1.0f;
+            if (spec0->flags & 0x20'00'00'00)
+                ou -= 1;
+            if (spec0->flags & 0x02'00'00'00)
+                ov -= 1;
+        }
+        ou += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) mt->res[0];
+        ov += 1 - (float) mesh->mesh_material->texture_offset[1] / (float) mt->res[1];
+    }
+    static std::vector<Vertex> tmp;
+    parse_display_list_commands(model_matrix, mesh, tmp);
+    std::vector<float> pos, uv;
+    pos.reserve(tmp.size() * 3);
+    uv.reserve(tmp.size() * 2);
+    for (const Vertex &v: tmp) {
+        pos.push_back(v.pos.x);
+        pos.push_back(v.pos.y);
+        pos.push_back(v.pos.z);
+        uv.push_back((float) (int16_t) v.tu / (su * 4096.0f) + ou);
+        uv.push_back((float) (int16_t) v.tv / (sv * 4096.0f) + ov);
+    }
+    pod_edits_export_mesh(racer, part, mesh, model_matrix, pos, uv, tex, tex != 0);
+}
+
 static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
                                                              const rdMatrix44 &model_matrix) {
     bool would_parse = true;
@@ -791,15 +1194,18 @@ static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh
         return nullptr;
     static std::vector<Vertex> parse_only_scratch;
     parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+    apply_pod_mesh_edit(parse_only_scratch);
     return &parse_only_scratch;
 }
 
 static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
                                 std::vector<Vertex> &out) {
-    if (g_preparsed_vertices)
+    if (g_preparsed_vertices) {
         out.assign(g_preparsed_vertices, g_preparsed_vertices + g_preparsed_count);
-    else
+    } else {
         parse_display_list_commands(model_matrix, mesh, out);
+        apply_pod_mesh_edit(out);
+    }
 }
 
 // Average colour of a texture, weighted by how bright and opaque each texel is (cached per handle).
@@ -847,6 +1253,18 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!mesh->vertices)
         return;
 
+    // Pod editor: this mesh's edits (applied wherever it is parsed below) and the pod export.
+    g_active_mesh_edit = pod_edits_find(mesh);
+    if (g_active_mesh_edit != nullptr) {
+        g_active_mesh_edit_matrix = model_matrix;
+        g_active_mesh_edit_normals = (mesh->mesh_material->type & 0x11) != 0;
+    }
+    if (pod_edits_export_armed() && g_active_debug_part != nullptr && !g_preparsed_vertices)
+        export_pod_mesh(g_active_debug_part->racer, g_active_debug_part->side, mesh, model_matrix);
+    // Cable clearance: the pod's engines and cockpit, as the cables' obstacles.
+    if (g_active_body != nullptr && !g_preparsed_vertices && pod_edits_cable_clearance() >= 0.0f)
+        record_cable_obstacle(g_active_body->racer, g_active_body->part, mesh, model_matrix);
+
     // Energy binder meshes (kind 4): report the beam's box to Pod FX (its glow + omni light), and
     // skip the game's own flat glow card (texture #1411), which that glow replaces. Done on the
     // first (traversal) visit, before the mesh could be deferred, so the card is never drawn.
@@ -854,19 +1272,65 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         mesh->mesh_material != nullptr) {
         const float *bb = mesh->aabb;
         const rdMatrix44 &m = model_matrix;
-        // The beam runs along the box's longest axis, through its centre (taking two far corners
-        // instead gave a diagonal that flipped between frames).
-        const float ext[3] = {bb[3] - bb[0], bb[4] - bb[1], bb[5] - bb[2]};
-        const int ax = ext[0] >= ext[1] && ext[0] >= ext[2] ? 0 : (ext[1] >= ext[2] ? 1 : 2);
-        float pa[3] = {(bb[0] + bb[3]) * 0.5f, (bb[1] + bb[4]) * 0.5f, (bb[2] + bb[5]) * 0.5f};
-        float pb[3] = {pa[0], pa[1], pa[2]};
-        pa[ax] = bb[ax];
-        pb[ax] = bb[ax + 3];
-        auto xf = [&](const float *p) {
-            return rdVector3{p[0] * m.vA.x + p[1] * m.vB.x + p[2] * m.vC.x + m.vD.x,
-                             p[0] * m.vA.y + p[1] * m.vB.y + p[2] * m.vC.y + m.vD.y,
-                             p[0] * m.vA.z + p[1] * m.vB.z + p[2] * m.vC.z + m.vD.z};
-        };
+        (void) bb;
+        // The beam's ends: from the mesh's own world-space vertices, along the direction they spread
+        // out most (principal axis). Bounding boxes don't work here -- the game scales and turns
+        // the binder, so the box's long side isn't the beam.
+        static std::vector<Vertex> tris;
+        parse_display_list_commands(m, mesh, tris);
+        // Unique corners only: the triangle list repeats shared corners (a quad's diagonal twice),
+        // which pulled the average off the real centre and shifted the glow off the beam.
+        static std::vector<Vertex> verts;
+        verts.clear();
+        for (const Vertex &v: tris) {
+            bool dup = false;
+            for (const Vertex &u: verts)
+                if (std::fabs(u.pos.x - v.pos.x) < 1e-3f && std::fabs(u.pos.y - v.pos.y) < 1e-3f &&
+                    std::fabs(u.pos.z - v.pos.z) < 1e-3f) {
+                    dup = true;
+                    break;
+                }
+            if (!dup && verts.size() < 512)
+                verts.push_back(v);
+        }
+        rdVector3 ends[2] = {{m.vD.x, m.vD.y, m.vD.z}, {m.vD.x, m.vD.y, m.vD.z}};
+        if (!verts.empty()) {
+            double c[3] = {0, 0, 0};
+            for (const Vertex &v: verts)
+                c[0] += v.pos.x, c[1] += v.pos.y, c[2] += v.pos.z;
+            for (double &x: c)
+                x /= (double) verts.size();
+            double cov[3][3] = {};
+            for (const Vertex &v: verts) {
+                const double d[3] = {v.pos.x - c[0], v.pos.y - c[1], v.pos.z - c[2]};
+                for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 3; j++)
+                        cov[i][j] += d[i] * d[j];
+            }
+            // Power iteration for the largest eigenvector.
+            double dir[3] = {1, 0.3, 0.1};
+            for (int it = 0; it < 24; it++) {
+                double n[3] = {0, 0, 0};
+                for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 3; j++)
+                        n[i] += cov[i][j] * dir[j];
+                const double l = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+                if (l < 1e-12)
+                    break;
+                for (int i = 0; i < 3; i++)
+                    dir[i] = n[i] / l;
+            }
+            double lo = 1e30, hi = -1e30;
+            for (const Vertex &v: verts) {
+                const double t = (v.pos.x - c[0]) * dir[0] + (v.pos.y - c[1]) * dir[1] + (v.pos.z - c[2]) * dir[2];
+                lo = std::min(lo, t);
+                hi = std::max(hi, t);
+            }
+            for (int k = 0; k < 2; k++) {
+                const double t = k ? hi : lo;
+                ends[k] = {(float) (c[0] + dir[0] * t), (float) (c[1] + dir[1] * t), (float) (c[2] + dir[2] * t)};
+            }
+        }
         // Colour: the material colour tinted by the texture's average colour (the beam's own pink /
         // orange / blue lives in its texture; the material colour is usually plain white).
         const swrModel_MaterialTexture *mt = mesh->mesh_material->material_texture;
@@ -876,9 +1340,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         if (tex != 0 && !stock_glow)
             texture_average_colour(tex, col);
         const auto &pc = mesh->mesh_material->material->primitive_color;
-        if (!stock_glow)// the glow card is a generic white gradient: no colour of its own
-            pod_fx_report_binder(g_active_nozzle_tag->racer, xf(pa), xf(pb), col[0] * pc[0] / 255.0f,
-                                 col[1] * pc[1] / 255.0f, col[2] * pc[2] / 255.0f);
+        // The glow card is reported too (it is laid exactly along the beam, so it places the glow),
+        // even though it isn't drawn; it has no colour of its own.
+        pod_fx_report_binder(g_active_nozzle_tag->racer, ends[0], ends[1], col[0] * pc[0] / 255.0f,
+                             col[1] * pc[1] / 255.0f, col[2] * pc[2] / 255.0f, stock_glow);
         if (stock_glow && pod_fx_hide_stock_binder_glow())
             return;
     }
@@ -1275,7 +1740,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
     // would freeze the sway.
-    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f && g_active_mesh_edit == nullptr;
     const bool can_stream = imgui_state.stream_dynamic_meshes && stream_ring_available();
     if (cacheable) {
         CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
@@ -1562,9 +2027,15 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
     // below so sibling/parent geometry is unaffected.
     const float prev_cable_amplitude = g_active_cable_amplitude;
+    const swrModel_Node *prev_cable_node = g_active_cable_node;
     const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
-    if (node_cable_amplitude >= 0.0f)
+    if (node_cable_amplitude >= 0.0f) {
         g_active_cable_amplitude = node_cable_amplitude;
+        g_active_cable_node = node;
+    }
+    const BodyNodeTag *prev_body = g_active_body;
+    if (const BodyNodeTag *bt = find_body_tag(node))
+        g_active_body = bt;
 
     // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
     // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
@@ -1665,6 +2136,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
+    g_active_cable_node = prev_cable_node;
+    g_active_body = prev_body;
     g_weather_terrain_depth = prev_terrain_depth;
     g_pod_shadow_depth = prev_shadow_depth;
     g_active_nozzle_tag = prev_nozzle_tag;
@@ -2062,6 +2535,9 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
+    // Baked spinning parts (pod model animations) run only during races.
+    pod_edits_animations_frame(currentPlayer_Test != nullptr);
+    pod_edits_layout_frame();
     if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
         rebuild_pod_shadow_nodes();
@@ -2081,6 +2557,7 @@ void swrViewport_Render_Hook(int x) {
                       proj_mat, view_mat_corrected, model_mat);
     g_defer_translucent = false;
     flush_deferred_translucent(g_deferred_translucent, g_deferred_after_shadows.empty());
+    pod_edits_export_end_frame((uint32_t) root_node == (uint32_t) &someRootNode);
     PopDebugGroup();
 
     debugEnvInfos(envInfos, proj_mat, view_mat);
@@ -3312,6 +3789,10 @@ extern "C" void init_renderer_hooks() {
                   (uint32_t) swrRace_PoddAnimateVariousThings,
                   (uint8_t *) swrRace_PoddAnimateVariousThings_ADDR);
     hook_replace(swrRace_PoddAnimateVariousThings, swrRace_PoddAnimateVariousThings_delta);
+
+    // Engine damage smoke / fire: placed at the pod editor's fire spots (and added at extra ones).
+    hook_function("swrRace_UpdateEngineDamageFX", (uint32_t) swrRace_UpdateEngineDamageFX_ADDR,
+                  (uint8_t *) swrRace_UpdateEngineDamageFX_delta);
 
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,

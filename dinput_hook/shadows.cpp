@@ -333,7 +333,8 @@ void main() {
         float spot = 1.0;
         if (dot(lightDir[i].xyz, lightDir[i].xyz) > 0.0)
             spot = smoothstep(lightDir[i].w, lightCol[i].w, dot(-l, lightDir[i].xyz));
-        float ndl = max(dot(n, l), 0.0) * 0.8 + 0.2;
+        // Normal from depth derivatives is noisy on curved meshes (stripes / grain): lean on it lightly.
+        float ndl = max(dot(n, l), 0.0) * 0.35 + 0.65;
         sum += lightCol[i].rgb * att * spot * ndl;
     }
     vec2 m = texture(podMask, uv).rg;

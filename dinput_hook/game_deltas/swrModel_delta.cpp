@@ -213,6 +213,8 @@ void swrText_InitFonts_delta(void) {
 }
 
 // We don't have the original function decompiled properly yet
+#include "pod_edits.h"// baked pod animations (run only in races)
+
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     const MODELID requested_id = id;
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
@@ -241,6 +243,9 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
     swrRace_DropCableBendsFrom(model_asset_pointer_begin);
+    pod_edits_drop_models_from(model_asset_pointer_begin);
+    pod_edits_note_model(header, model_asset_pointer_begin, model_asset_pointer_end,
+                         (int) (is_loose_model ? requested_id : id));
 
     if (!header) {
         // Usually the asset buffer is exhausted, which a large custom track makes easy. Register
@@ -253,10 +258,15 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     } else {
         // A loose model loaded through a single-entry block came back as id 0; register
         // the originally-requested id so the renderer associates it with the real model.
+        // The header points just past the model's 4-byte type tag, the start of its file data.
+        char *data_begin = (char *) header - 4;
+        if (data_begin < model_asset_pointer_begin || data_begin >= model_asset_pointer_end)
+            data_begin = nullptr;
         asset_pointer_to_model.emplace_back() = {
             model_asset_pointer_begin,
             model_asset_pointer_end,
             is_loose_model ? requested_id : id,
+            data_begin,
         };
     }
 

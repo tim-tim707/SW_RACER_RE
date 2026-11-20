@@ -1,0 +1,2038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pod Editor</title>
+<!--
+  SW_RACER_RE pod editor.
+
+  1. In game: F5 > Mods > Pod Editor > "Export my pod" during a race.
+     Writes <game>/assets/pod_edits/export/<Pod>_pod.json (the pod's meshes, UVs and textures).
+  2. Open that JSON here (button or drag & drop). Optionally open an existing <Pod>_pod.txt to keep editing.
+  3. Select faces (e.g. an intake turbine with "Connected"), then split them off:
+       "New spin group"  -> separate part that spins in game (pivot / axis / RPM editable), and can be
+                            moved first (Offset, or drag the gizmo) and shrunk / grown about its
+                            pivot (Scale, e.g. to fit an intake frame); RPM 0 = just move / scale it.
+                            "Cut to ellipse" splits the faces along an ellipse around the pivot: only
+                            the inside spins, the rim outside stays put (bake only: bake_pod_edits.py)
+       "New hide group"  -> faces hidden in game
+  4b. "Engine effects": the mod's exhaust flame cones (nozzles), the damage fire / smoke spots and
+     the ground dust spots -- each a list of points on the right / left engine: move, add, mirror.
+  4. "Pod layout": move where the cables meet the cockpit and the engines, and the energy binder's
+     ends (drag the handles, or type the numbers). Needs an export from the current mod.
+     "Extra cable pair" (2-engine pods) adds a second pair of cables, baked into the model.
+  5. "Build & install" (Chrome / Edge): pick the folder "SWEP1R Pod Editor" on the Desktop once
+     (the mod makes it; browsers can't write into Program Files); writes the baked model
+     (replacement_models/<id>.bin, the spin groups) and the in-game edits (pod_edits/<Pod>.txt:
+     hides, cables, binder) there. Restart the race to load the new model.
+     Or "Save edits" to download the .txt (source of everything; bake it with bake_pod_edits.py).
+
+  Coordinates are the pod's own frame: x right, y forward, z up (game units).
+-->
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f25; --panel2: #23272f; --line: #2f343d; --text: #dde1e7; --dim: #8b93a1;
+    --accent: #f0a030; --accent2: #3fa7ff; --danger: #e05555;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #app { display: flex; height: 100vh; }
+  #side { width: 340px; min-width: 300px; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 10px 12px 40px; }
+  #view { flex: 1; position: relative; overflow: hidden; }
+  #view canvas { display: block; }
+  h1 { font-size: 15px; margin: 2px 0 8px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 16px 0 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+  button, select, input { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 4px 8px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent2); }
+  button.primary { background: #2b4a6b; border-color: #3a6390; }
+  button.danger:hover { border-color: var(--danger); }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=number] { width: 70px; }
+  input[type=text] { width: 120px; }
+  label.small, .dim { color: var(--dim); font-size: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; background: transparent; }
+  .seg button.on { background: #2b4a6b; }
+  .group { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0; background: var(--panel2); }
+  .group.active { border-color: var(--accent); }
+  .group .title { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: #333a45; color: var(--dim); }
+  .tag.spin { background: #2d3f2a; color: #9fdc8c; }
+  .tag.hide { background: #432b2b; color: #e6a0a0; }
+  .vec { display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 4px; align-items: center; margin: 3px 0; }
+  .vec input { width: 100%; }
+  #status { position: absolute; left: 10px; bottom: 8px; color: var(--dim); font-size: 12px; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #hint { position: absolute; right: 10px; top: 8px; color: var(--dim); font-size: 12px; text-align: right; pointer-events: none; text-shadow: 0 1px 2px #000; }
+  #drop { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dim); font-size: 15px; text-align: center; padding: 20px; }
+  #drop.over { background: rgba(63,167,255,.08); outline: 2px dashed var(--accent2); outline-offset: -12px; }
+  #box { position: absolute; border: 1px solid var(--accent); background: rgba(240,160,48,.12); pointer-events: none; display: none; }
+  .parts { max-height: 180px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+  .parts label { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+  @media (max-width: 760px) { #app { flex-direction: column-reverse; } #side { width: 100%; height: 50vh; } #view { height: 50vh; } }
+</style>
+<script src="bake.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <div id="side">
+    <h1>Pod Editor</h1>
+    <div class="row">
+      <button class="primary" id="btnOpen">Open pod export…</button>
+      <button id="btnOpenEdits" disabled>Open edits…</button>
+    </div>
+    <input type="file" id="fileExport" accept=".json" hidden>
+    <input type="file" id="fileEdits" accept=".txt" hidden>
+    <div class="dim" id="podInfo">No pod loaded. In game: F5 › Mods › Pod Editor › “Export my pod” during a race, then open
+      <code>assets/pod_edits/export/&lt;Pod&gt;_pod.json</code> from the game folder.</div>
+
+    <h2>Select faces</h2>
+    <div class="row">
+      <div class="seg" id="modeSeg">
+        <button data-mode="tri" class="on" title="Click a face">Face</button>
+        <button data-mode="connected" title="Click: all faces connected to it (same mesh)">Connected</button>
+        <button data-mode="mesh" title="Click: the whole mesh">Mesh</button>
+        <button data-mode="box" title="Drag a rectangle (right-drag rotates)">Box</button>
+      </div>
+    </div>
+    <div class="row dim">Click replaces · Shift adds · Ctrl removes</div>
+    <div class="row">
+      <label class="small"><input type="checkbox" id="frontOnly" checked> Box: skip edge-on faces</label>
+    </div>
+    <div class="row">
+      <button id="btnGrow" title="Add the faces touching the selection">Grow</button>
+      <button id="btnClear">Clear</button>
+      <span class="dim" id="selInfo">0 faces</span>
+    </div>
+
+    <h2>Separate</h2>
+    <div class="row">
+      <button id="btnSpin" disabled title="Split the selected faces into a part that spins in game">New spin group</button>
+      <button id="btnHide" disabled title="Hide the selected faces in game">New hide group</button>
+    </div>
+    <div id="groups"></div>
+
+    <h2>Pod layout</h2>
+    <div id="layout" class="dim">Open a pod export.</div>
+
+    <h2>Engine effects</h2>
+    <div id="fxbox" class="dim">Open a pod export.</div>
+
+    <h2>View</h2>
+    <div class="row">
+      <label class="small"><input type="checkbox" id="animate" checked> Animate spins</label>
+      <label class="small"><input type="checkbox" id="wire"> Wireframe</label>
+      <label class="small"><input type="checkbox" id="showHidden"> Show hidden</label>
+    </div>
+    <div class="row">
+      <label class="small" id="farLabel" style="display:none"><input type="checkbox" id="showFar"> Show far-away meshes</label>
+    </div>
+    <div class="parts" id="parts"></div>
+
+    <h2>Save</h2>
+    <div class="row">
+      <button class="primary" id="btnBuild" disabled title="Bake the spin groups into the game's model format and install it, with the in-game edits, into Desktop\SWEP1R Pod Editor">Build &amp; install…</button>
+      <span class="dim" id="gameDir"></span>
+    </div>
+    <div id="buildResult" style="display:none; border-radius:6px; padding:6px 8px; margin:4px 0; font-size:12px; white-space:pre-wrap"></div>
+    <div class="row">
+      <button id="btnSave" disabled>Save edits (.txt)</button>
+      <button id="btnCopy" disabled>Copy</button>
+    </div>
+    <input type="file" id="fileBlock" accept=".bin" hidden>
+    <div class="dim">Build &amp; install asks once for the folder <b>SWEP1R Pod Editor</b> on your Desktop (the mod
+      makes it; browsers can't write into Program Files) and writes <code>replacement_models/&lt;id&gt;.bin</code> and
+      <code>pod_edits/&lt;Pod&gt;.txt</code> there (the full edits go to <code>pod_edits/source/</code>).
+      The mod uses them before the game folder's. In game: Mods › Pod Editor › “Reload edits”, and restart the race for a new model.</div>
+  </div>
+
+  <div id="view">
+    <div id="drop">Drop a pod export (.json) here<br>or an edits file (.txt) after it</div>
+    <div id="box"></div>
+    <div id="hint">Left-drag rotate · Right-drag pan · Wheel zoom</div>
+    <div id="status"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+// The bake (bake.js) is a plain script next to this page (module imports don't work from file://).
+const { bakePod } = window.PodBake || {};
+
+// ---------------------------------------------------------------------------------------------
+// Row-vector affine matrices, game layout: m = [Ax,Ay,Az,Aw, Bx,..., Cx,..., Dx,Dy,Dz,Dw];
+// p' = p.x*A + p.y*B + p.z*C + D.
+const xfPoint = (m, p) => [p[0]*m[0]+p[1]*m[4]+p[2]*m[8]+m[12], p[0]*m[1]+p[1]*m[5]+p[2]*m[9]+m[13], p[0]*m[2]+p[1]*m[6]+p[2]*m[10]+m[14]];
+const xfDir = (m, p) => [p[0]*m[0]+p[1]*m[4]+p[2]*m[8], p[0]*m[1]+p[1]*m[5]+p[2]*m[9], p[0]*m[2]+p[1]*m[6]+p[2]*m[10]];
+function invAffine(m) {
+  const [a,b,c,,d,e,f,,g,h,i] = m;
+  const det = a*(e*i-f*h) - b*(d*i-f*g) + c*(d*h-e*g);
+  if (Math.abs(det) < 1e-12) return null;
+  const k = 1/det;
+  const o = [(e*i-f*h)*k,(c*h-b*i)*k,(b*f-c*e)*k,0, (f*g-d*i)*k,(a*i-c*g)*k,(c*d-a*f)*k,0, (d*h-e*g)*k,(b*g-a*h)*k,(a*e-b*d)*k,0, 0,0,0,1];
+  const t = [m[12],m[13],m[14]];
+  o[12] = -(t[0]*o[0]+t[1]*o[4]+t[2]*o[8]); o[13] = -(t[0]*o[1]+t[1]*o[5]+t[2]*o[9]); o[14] = -(t[0]*o[2]+t[1]*o[6]+t[2]*o[10]);
+  return o;
+}
+// -1 when a mesh's frame is mirrored relative to the pod (its matrix's determinant is negative;
+// about half of every pod's meshes hang under a mirroring node): a turn about an axis in that frame
+// goes the other way in the pod.
+const meshSense = m => {
+  const a = m.localToPod;
+  const d = a[0] * (a[5] * a[10] - a[6] * a[9]) - a[1] * (a[4] * a[10] - a[6] * a[8]) + a[2] * (a[4] * a[9] - a[5] * a[8]);
+  return d < 0 ? -1 : 1;
+};
+// A direction turned by Euler angles (degrees; about a frame's x, then y, then z), the way the mod
+// turns cable ends ("cablerot") and the overheat fire's drift ("gamefirestreak").
+function turnInFrame(f, d, rx, ry, rz) {
+  const ax = [nrm([f[0], f[1], f[2]]), nrm([f[4], f[5], f[6]]), nrm([f[8], f[9], f[10]])];
+  const l = [dot(d, ax[0]), dot(d, ax[1]), dot(d, ax[2])], deg = Math.PI / 180;
+  const r2 = (i, j, a) => { const c = Math.cos(a * deg), s = Math.sin(a * deg), u = l[i], v = l[j]; l[i] = u * c - v * s; l[j] = u * s + v * c; };
+  r2(1, 2, rx); r2(2, 0, ry); r2(0, 1, rz);
+  return add(add(scl(ax[0], l[0]), scl(ax[1], l[1])), scl(ax[2], l[2]));
+}
+// a then b (row vectors: p * a * b), 4x4.
+const mulRow = (a, b) => { const o = new Array(16); for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) o[r*4+c] = a[r*4]*b[c] + a[r*4+1]*b[4+c] + a[r*4+2]*b[8+c] + a[r*4+3]*b[12+c]; return o; };
+const sub = (a,b) => [a[0]-b[0],a[1]-b[1],a[2]-b[2]];
+const add = (a,b) => [a[0]+b[0],a[1]+b[1],a[2]+b[2]];
+const scl = (a,k) => [a[0]*k,a[1]*k,a[2]*k];
+const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+const cross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+const len = a => Math.hypot(a[0],a[1],a[2]);
+const nrm = a => { const l = len(a); return l > 1e-9 ? scl(a, 1/l) : [0,0,1]; };
+const fmt = v => (Math.round(v*1e4)/1e4).toString();
+
+const PART_NAMES = { 0:'root', 1:'engine R', 2:'engine L', 3:'engine R2', 4:'engine L2', 5:'cockpit',
+  6:'binder', 7:'binder', 8:'binder', 9:'binder', 0x1c:'nozzle glows L', 0x1d:'nozzle discs L', 0x2a:'nozzle glows R',
+  0x2b:'nozzle discs R', 0x3d:'shadow', 0x3e:'shadow', 0x3f:'shadow', 0x40:'shadow', 0x41:'scrape sparks',
+  0x42:'scrape sparks', 0x43:'exhaust R', 0x44:'exhaust L', 0x45:'glow R', 0x46:'glow L' };
+
+// ---------------------------------------------------------------------------------------------
+const state = {
+  pod: null,            // export JSON
+  meshes: [],           // { key, part, base:Float32Array (pod frame), tris, obj, overlay, grp, localToPod, podToLocal, visible, adj }
+  sel: new Map(),       // mesh index -> Set(tri)
+  groups: [],           // { id, type:'spin'|'hide', name, tris: Map(meshIdx -> Set), pivot, axis, rpm }
+  active: -1,
+  mode: 'tri',
+  nextId: 1,
+};
+
+// ---------------------------------------------------------------------------------------------
+// three.js scene
+const view = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x1b1e24);
+view.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 5000);
+camera.up.set(0, 0, 1);
+camera.position.set(-8, -14, 7);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2); sun.position.set(5, -8, 12); scene.add(sun);
+const grid = new THREE.GridHelper(40, 40, 0x3a404a, 0x2a2f37); grid.rotation.x = Math.PI / 2; scene.add(grid);
+scene.add(new THREE.AxesHelper(2));
+const podRoot = new THREE.Group(); scene.add(podRoot);
+// Mirrored / repeated copies of a mesh (export "instances"): objects sharing the source object's
+// geometry + material under the copy's matrix, so selections, spins, hides and cuts show on both.
+const mirrors = [];// { src, obj, pickable }
+function mirrorObject(src, rec, pickable) {
+  for (const inst of rec.instances || []) {
+    const obj = new THREE.Mesh(src.geometry, src.material);
+    obj.matrixAutoUpdate = false; obj.matrix.copy(inst.matrix);
+    obj.userData.meshIndex = src.userData.meshIndex;
+    if (!pickable) obj.raycast = () => {};
+    obj.renderOrder = src.renderOrder;
+    podRoot.add(obj);
+    mirrors.push({ src, obj, pickable });
+  }
+}
+function unmirrorObject(src) {
+  for (let i = mirrors.length - 1; i >= 0; i--) if (mirrors[i].src === src) { podRoot.remove(mirrors[i].obj); mirrors.splice(i, 1); }
+}
+function syncMirrors() {
+  for (const mr of mirrors) { mr.obj.visible = mr.src.visible; mr.obj.geometry = mr.src.geometry; mr.obj.material = mr.src.material; }
+}
+const gizmo = new THREE.Group(); scene.add(gizmo);
+const pivotDot = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 12), new THREE.MeshBasicMaterial({ color: 0xf0a030, depthTest: false }));
+pivotDot.renderOrder = 10;
+const axisArrow = new THREE.ArrowHelper(new THREE.Vector3(0,0,1), new THREE.Vector3(), 1, 0xf0a030, 0.25, 0.15);
+axisArrow.traverse(o => { if (o.material) o.material.depthTest = false; o.renderOrder = 10; });
+gizmo.add(pivotDot, axisArrow); gizmo.visible = false;
+// Ellipse cut outline (active spin group), drawn in the faces' original place.
+const cutLine = new THREE.LineLoop(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x40d0ff, depthTest: false }));
+cutLine.renderOrder = 10; cutLine.visible = false; scene.add(cutLine);
+
+// Drag gizmo for the active spin group's offset (moves the part before it spins).
+const moveProxy = new THREE.Object3D(); scene.add(moveProxy);
+const mover = new TransformControls(camera, renderer.domElement);
+mover.setMode('translate');
+mover.attach(moveProxy);
+mover.visible = false; mover.enabled = false;
+scene.add(mover);
+let moverDragging = false, moverUsed = false;
+mover.addEventListener('dragging-changed', e => { moverDragging = e.value; controls.enabled = !e.value; if (e.value) moverUsed = true; });
+mover.addEventListener('objectChange', () => {
+  const g = state.groups[state.active]; if (!g || g.type !== 'spin') return;
+  g.offset = [moveProxy.position.x - g.pivot[0], moveProxy.position.y - g.pivot[1], moveProxy.position.z - g.pivot[2]];
+  for (const mi of g.tris.keys()) refreshMesh(mi);
+  syncOffsetInputs(g); markDirty();
+});
+
+// ---------------------------------------------------------------------------------------------
+// Pod layout: cable ends (cockpit / engine) and energy binder ends. They are values of the game's
+// per-pilot pod table (swrRacer_PodVisualData), offsets in the cockpit / engine frames, mirrored
+// per side exactly as the game does it (swrRace cable builder 0x46f0e0, binder in 0x471760):
+//   cable i:  cockpit * (cx*mx, cy, cz)  ->  engine_i * (ex*mx, ey, ez*pair)
+//   binder:   right engines * (-bx, by, bz)  <->  left engines * (bx, by, bz)
+const LAYOUT = {
+  cockpit:  { field: 9,  label: 'Cable, cockpit', color: 0xffd040 },
+  engine:   { field: 12, label: 'Cable, engine',  color: 0x60e070 },
+  binder:   { field: 15, label: 'Binder end',       color: 0xff60d0 },
+  // The stock exhaust trail's anchor (fields 21..23): right engine * (x, y, z), left * (-x, y, z).
+  exhaust:  { field: 21, label: 'Dust trail start', color: 0xc0c8d0 },
+  // Extra cable pair (baked "cables extra", placed by the mod from the "cable2" lines): to the
+  // right / left engines like the stock pair, with its own ends.
+  cockpit2: { field: null, label: 'Extra, cockpit', color: 0xffa040, extra: true },
+  engine2:  { field: null, label: 'Extra, engine',  color: 0x40c0a0, extra: true },
+};
+const BASE_KINDS = ['cockpit', 'engine', 'binder', 'exhaust'], EXTRA_KINDS = ['cockpit2', 'engine2'];
+// The stock trail meshes of each side: the exhaust node (0x43 / 0x44) and the trail under it (0x45 / 0x46).
+const TRAIL_PARTS = { R: [0x43, 0x45], L: [0x44, 0x46] };
+// The stock trail's anchor, pod frame, for a side and anchor value (layout units).
+const trailAnchor = (side, v) => {
+  const F = state.layout?.frames; if (!F) return null;
+  return side === 'R' ? xfPoint(F.engineR, v) : xfPoint(F.engineL, [-v[0], v[1], v[2]]);
+};
+// Pod-frame matrix that takes a stock trail mesh from its anchor at export (`from`) to `to`, scaled
+// along its engine's axes (x width, y length, z height) about the anchor.
+function trailMatrix(side, from, to, sc) {
+  const f = state.layout.frames[side === 'R' ? 'engineR' : 'engineL'];
+  const ax = [nrm(f.slice(0, 3)), nrm(f.slice(4, 7)), nrm(f.slice(8, 11))];
+  const r = new THREE.Matrix4().set(ax[0][0], ax[1][0], ax[2][0], 0, ax[0][1], ax[1][1], ax[2][1], 0, ax[0][2], ax[1][2], ax[2][2], 0, 0, 0, 0, 1);
+  return new THREE.Matrix4().makeTranslation(to[0], to[1], to[2]).multiply(r)
+    .multiply(new THREE.Matrix4().makeScale(sc[0] || 1e-3, sc[1] || 1e-3, sc[2] || 1e-3))
+    .multiply(r.clone().transpose()).multiply(new THREE.Matrix4().makeTranslation(-from[0], -from[1], -from[2]));
+}
+const layoutKinds = () => state.layout && state.layout.extra ? [...BASE_KINDS, ...EXTRA_KINDS] : BASE_KINDS;
+// The extra pair starts at the stock cockpit end and the stock engine end mirrored vertically
+// (a lower pair) -- the mod's defaults too.
+const extraDefaults = v => ({ cockpit2: v.cockpit.slice(), engine2: [v.engine[0], v.engine[1], -v.engine[2]] });
+const canHaveExtraCables = () => state.pod && !state.pod.fourEngines && state.layout && state.layout.pilot !== NEVA_KEE;
+const ENGINE_FRAMES = ['engineR', 'engineL', 'engineR2', 'engineL2'];
+const CABLE_STIFF_DEFAULT = 0.3;// the mod's default (Mods > Pod Editor > Stiff cables)
+const CABLE_MX = [1, -1, 1, -1], CABLE_PAIR = [1, 1, -1, -1];
+const NEVA_KEE = 14;// fused engines: no cables, no binder
+const layoutRoot = new THREE.Group(); layoutRoot.renderOrder = 9; scene.add(layoutRoot);
+const layoutProxy = new THREE.Object3D(); scene.add(layoutProxy);
+const layoutMover = new TransformControls(camera, renderer.domElement);
+layoutMover.setMode('translate'); layoutMover.setSize(0.7);
+layoutMover.attach(layoutProxy); layoutMover.visible = false; layoutMover.enabled = false;
+scene.add(layoutMover);
+let layoutDragging = false;
+layoutMover.addEventListener('dragging-changed', e => { layoutDragging = e.value; controls.enabled = !e.value; if (e.value) moverUsed = true; });
+
+// The cable / binder ends in the pod frame for the current values.
+function layoutPoints() {
+  const L = state.layout; if (!L || !L.frames) return null;
+  const F = L.frames, c = L.cur.cockpit, e = L.cur.engine, b = L.cur.binder;
+  const n = state.pod.fourEngines ? 4 : 2;
+  const cables = [];
+  for (let i = 0; i < n; i++) {
+    const fe = F[ENGINE_FRAMES[i]]; if (!fe) continue;
+    cables.push([xfPoint(F.cockpit, [c[0] * CABLE_MX[i], c[1], c[2]]), xfPoint(fe, [e[0] * CABLE_MX[i], e[1], e[2] * CABLE_PAIR[i]])]);
+  }
+  const right = f => xfPoint(F[f], [-b[0], b[1], b[2]]), left = f => xfPoint(F[f], [b[0], b[1], b[2]]);
+  const binders = n === 4 ? [[right('engineR'), left('engineL2')], [right('engineR2'), left('engineL')]]
+                          : [[right('engineR'), left('engineL')]];
+  const extra = [];
+  if (L.extra) {
+    const c2 = L.cur.cockpit2, e2 = L.cur.engine2;
+    for (const [i, fe] of [[0, 'engineR'], [1, 'engineL']])
+      extra.push([xfPoint(F.cockpit, [c2[0] * CABLE_MX[i], c2[1], c2[2]]), xfPoint(F[fe], [e2[0] * CABLE_MX[i], e2[1], e2[2]])]);
+  }
+  // Cables with their own ends (pod editor "cable<N>" lines): those values, unmirrored.
+  for (const s of cableSlots()) {
+    const own = L.own?.[s.i]; if (!own) continue;
+    const pair = [xfPoint(F.cockpit, own.c), xfPoint(s.frame, own.e)];
+    if (s.extra) extra[s.i - 2] = pair; else cables[s.i] = pair;
+  }
+  const exhaust = [trailAnchor('R', L.cur.exhaust), trailAnchor('L', L.cur.exhaust)];
+  return { cables, binders, extra, exhaust };
+}
+// The left cable of a pair from the right one: x mirrored at both ends (both sides' frames face the
+// same way), and the turns about y / z flipped.
+const mirrorCable = o => ({ c: [-o.c[0], o.c[1], o.c[2]], e: [-o.e[0], o.e[1], o.e[2]],
+                           rot: [o.rot[0], -o.rot[1], -o.rot[2], o.rot[3], -o.rot[4], -o.rot[5]] });
+// The pod's cables (part slots 10..13): index, engine frame, side, label, and their shared ends /
+// turns as plain (unmirrored) values -- what a cable starts from when it gets its own settings.
+function cableSlots() {
+  const L = state.layout, F = L.frames; if (!F) return [];
+  const n = state.pod.fourEngines ? 4 : 2, out = [];
+  const c = L.cur.cockpit, e = L.cur.engine, rot = L.cableRot || [0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < 4; i++) {
+    const extra = i >= n;
+    if (extra && !(n === 2 && L.extra)) continue;
+    const mx = CABLE_MX[i], left = i % 2 === 1;
+    const frame = extra ? F[i === 2 ? 'engineR' : 'engineL'] : F[ENGINE_FRAMES[i]];
+    if (!frame) continue;
+    const cc = extra ? L.cur.cockpit2 : c, ee = extra ? L.cur.engine2 : e;
+    const m = left ? -1 : 1;
+    out.push({ i, extra, frame, left,
+      label: extra ? (left ? 'Extra left' : 'Extra right') : ['Right', 'Left', 'Right 2', 'Left 2'][i],
+      shared: { c: [cc[0] * mx, cc[1], cc[2]], e: [ee[0] * mx, ee[1], extra ? ee[2] : ee[2] * CABLE_PAIR[i]],
+                rot: [rot[0], rot[1] * m, rot[2] * m, rot[3], rot[4] * m, rot[5] * m] } });
+  }
+  return out;
+}
+// The handle the mover drags for a field (cable 0 / the right binder end), and its inverse.
+function layoutHandle(kind) {
+  const P = layoutPoints(); if (!P) return null;
+  if (kind.startsWith('own:')) {// a cable's own end: "own:<index>:<0 cockpit | 1 engine>"
+    const [, i, end] = kind.split(':').map(Number);
+    const s = cableSlots().find(s => s.i === i); if (!s) return null;
+    return (s.extra ? P.extra[i - 2] : P.cables[i])[end];
+  }
+  return kind === 'cockpit' ? P.cables[0][0] : kind === 'engine' ? P.cables[0][1]
+       : kind === 'cockpit2' ? P.extra[0][0] : kind === 'engine2' ? P.extra[0][1]
+       : kind === 'exhaust' ? P.exhaust[0] : P.binders[0][0];
+}
+function layoutFromHandle(kind, podPos) {
+  const F = state.layout.frames;
+  if (kind.startsWith('own:')) {
+    const [, i, end] = kind.split(':').map(Number);
+    const s = cableSlots().find(s => s.i === i);
+    return xfPoint(invAffine(end === 0 ? F.cockpit : s.frame), podPos);
+  }
+  const frame = kind === 'cockpit' || kind === 'cockpit2' ? F.cockpit : F.engineR;
+  const l = xfPoint(invAffine(frame), podPos);
+  return kind === 'binder' ? [-l[0], l[1], l[2]] : l;// cable 0: mx = pair = +1; binder right end: x mirrored
+}
+function drawLayout() {
+  for (const o of layoutRoot.children) { o.geometry.dispose(); o.material.dispose(); }
+  layoutRoot.clear();
+  const P = layoutPoints();
+  const show = !!P && document.getElementById('showLayout')?.checked;
+  layoutRoot.visible = show;
+  if (!show) { layoutMover.visible = layoutMover.enabled = false; return; }
+  const size = Math.max(0.04, camera.position.distanceTo(controls.target) * 0.006);
+  const dotAt = (p, color) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(size, 12, 8), new THREE.MeshBasicMaterial({ color, depthTest: false }));
+    m.position.set(...p); m.renderOrder = 11; layoutRoot.add(m);
+  };
+  const lineOf = (a, b, color) => {
+    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]);
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.8 }));
+    l.renderOrder = 10; layoutRoot.add(l);
+  };
+  // Cables as the mod draws them with stiff cables on: straight out of the cockpit / engine (from
+  // that part's centre outwards) for k x the cable's length, then a curve (cubic) to the other end.
+  const F = state.layout.frames, kStiff = state.layout.stiff ?? CABLE_STIFF_DEFAULT;
+  const curveOf = (a, b, engineFrame, color, left, ownRot) => {
+    // Out of each part from its centre, tilted along that part's up axis by the pod's "cableout".
+    const tilt = state.layout.cableOut || [0, 0];
+    const len3 = len(sub(b, a)), out = (p, f, z) => {
+      const d = nrm(sub(p, [f[12], f[13], f[14]]));
+      return z ? nrm(add(d, scl(nrm([f[8], f[9], f[10]]), z))) : d;
+    };
+    const rot = ownRot || state.layout.cableRot || [0, 0, 0, 0, 0, 0], m = left && !ownRot ? -1 : 1;
+    const t0 = turnInFrame(F.cockpit, out(a, F.cockpit, tilt[0]), rot[0], rot[1] * m, rot[2] * m);
+    const t3 = turnInFrame(engineFrame, out(b, engineFrame, tilt[1]), rot[3], rot[4] * m, rot[5] * m);
+    const p1 = add(a, scl(t0, len3 * kStiff)), p2 = add(b, scl(t3, len3 * kStiff));
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const t = i / 24, u = 1 - t;
+      pts.push(new THREE.Vector3(...add(add(scl(a, u * u * u), scl(p1, 3 * u * u * t)), add(scl(p2, 3 * u * t * t), scl(b, t * t * t)))));
+    }
+    const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.85 }));
+    l.renderOrder = 10; layoutRoot.add(l);
+  };
+  P.cables.forEach(([a, b], i) => { curveOf(a, b, F[ENGINE_FRAMES[i]], 0x60c0ff, i % 2 === 1, state.layout.own?.[i]?.rot); dotAt(a, LAYOUT.cockpit.color); dotAt(b, LAYOUT.engine.color); });
+  for (const [a, b] of P.binders) { lineOf(a, b, LAYOUT.binder.color); dotAt(a, LAYOUT.binder.color); dotAt(b, LAYOUT.binder.color); }
+  P.extra.forEach(([a, b], i) => { curveOf(a, b, F[i === 0 ? 'engineR' : 'engineL'], 0x40e0c0, i === 1, state.layout.own?.[2 + i]?.rot); dotAt(a, LAYOUT.cockpit2.color); dotAt(b, LAYOUT.engine2.color); });
+  for (const a of P.exhaust) dotAt(a, LAYOUT.exhaust.color);
+  // The stock trail meshes follow their anchor (and scale) in the preview.
+  const L = state.layout;
+  for (const side of ['R', 'L']) {
+    const M = trailMatrix(side, trailAnchor(side, L.atExport.exhaust), trailAnchor(side, L.cur.exhaust), L.exScale);
+    for (const m of state.meshes) if (TRAIL_PARTS[side].includes(m.part))
+      for (const o of [m.obj, m.overlay, m.grp]) { o.matrixAutoUpdate = false; o.matrix.copy(M); o.matrixWorldNeedsUpdate = true; }
+  }
+  const k = state.layout.moving;
+  layoutMover.visible = layoutMover.enabled = !!k;
+  if (k && !layoutDragging) layoutProxy.position.set(...layoutHandle(k));
+}
+layoutMover.addEventListener('objectChange', () => {
+  const k = state.layout?.moving; if (!k) return;
+  const v = layoutFromHandle(k, [layoutProxy.position.x, layoutProxy.position.y, layoutProxy.position.z]);
+  if (k.startsWith('own:')) {
+    const [, i, end] = k.split(':').map(Number), L = state.layout;
+    L.own[i][end === 0 ? 'c' : 'e'] = v;
+    // A mirrored pair: the left cable follows the right one.
+    if (i % 2 === 0 && L.pairMirror?.[i >> 1] && L.own[i + 1]) L.own[i + 1] = mirrorCable(L.own[i]);
+  }
+  else state.layout.cur[k] = v;
+  syncLayoutInputs(); drawLayout(); markDirty();
+});
+function layoutChanged(k) { const L = state.layout; return L.cur[k].some((v, j) => Math.abs(v - L.stock[k][j]) > 1e-4); }
+function syncLayoutInputs() {
+  for (const k of layoutKinds()) {
+    const row = document.getElementById('lay_' + k); if (!row) continue;
+    row.querySelectorAll('input').forEach((inp, j) => { if (document.activeElement !== inp) inp.value = fmt(state.layout.cur[k][j]); });
+    row.querySelector('.dot').style.opacity = LAYOUT[k].extra || layoutChanged(k) ? 1 : 0.35;
+  }
+}
+function renderLayout() {
+  const box = document.getElementById('layout'), L = state.layout;
+  if (!state.pod) { box.className = 'dim'; box.textContent = 'Open a pod export.'; return; }
+  if (L.pilot === NEVA_KEE) { box.className = 'dim'; box.textContent = 'This pod has fused engines: no cables or binder to move.'; return; }
+  box.className = ''; box.innerHTML = '';
+  if (!L.frames) {
+    box.innerHTML = '<div class="dim">This export has no cockpit / engine frames: export the pod again with the current mod to move the cables and binder here.' +
+      (L.fromText ? ' Cable / binder lines from the opened edits are kept when saving.' : '') + '</div>';
+    return;
+  }
+  const head = document.createElement('div'); head.className = 'row';
+  head.innerHTML = `<label class="small"><input type="checkbox" id="showLayout" checked> Show cables &amp; binder</label>
+    <button id="layReset" title="Put every cable / binder end back where the game has it">Reset all</button>`;
+  box.appendChild(head);
+  if (canHaveExtraCables()) {
+    const ex = document.createElement('div'); ex.className = 'row';
+    ex.innerHTML = `<label class="small" title="A second pair of cockpit-to-engine cables (copies of the pod's cables), baked into the model by Build &amp; install"><input type="checkbox" id="layExtra" ${L.extra ? 'checked' : ''}> Extra cable pair</label>`;
+    ex.querySelector('input').onchange = e => {
+      L.extra = e.target.checked;
+      if (L.extra && !L.cur.cockpit2) Object.assign(L.cur, extraDefaults(L.cur));
+      if (!L.extra && EXTRA_KINDS.includes(L.moving)) L.moving = null;
+      renderLayout(); drawLayout(); markDirty();
+    };
+    box.appendChild(ex);
+  }
+  head.querySelector('#showLayout').onchange = () => { if (!head.querySelector('#showLayout').checked) L.moving = null; renderLayout(); drawLayout(); };
+  head.querySelector('#layReset').onclick = () => {
+    for (const k of BASE_KINDS) L.cur[k] = L.stock[k].slice();
+    L.exScale = [1, 1, 1];
+    Object.assign(L.cur, extraDefaults(L.cur)); L.moving = null; renderLayout(); drawLayout(); markDirty();
+  };
+  for (const k of layoutKinds()) {
+    const info = LAYOUT[k];
+    const row = document.createElement('div'); row.className = 'vec'; row.id = 'lay_' + k;
+    row.style.gridTemplateColumns = '10px 84px repeat(3, minmax(0, 1fr)) auto';
+    row.innerHTML = `<span class="dot" style="width:10px;height:10px;border-radius:50%;background:#${info.color.toString(16).padStart(6, '0')}"></span>
+      <span class="dim">${info.label}</span>`;
+    L.cur[k].forEach((v, j) => {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.05'; inp.value = fmt(v);
+      inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+      inp.onchange = () => { L.cur[k][j] = parseFloat(inp.value) || 0; syncLayoutInputs(); drawLayout(); markDirty(); };
+      row.appendChild(inp);
+    });
+    const b = document.createElement('button'); b.textContent = L.moving === k ? '✓' : '✥'; b.style.padding = '2px 7px';
+    b.title = 'Drag this end in the view (the other side follows, mirrored)';
+    b.onclick = () => { L.moving = L.moving === k ? null : k; renderLayout(); drawLayout(); };
+    row.appendChild(b);
+    box.appendChild(row);
+  }
+  {
+    // The stock trails' scale, along the engine's x (width), y (length), z (height), about the anchor.
+    const row = document.createElement('div'); row.className = 'vec';
+    row.style.gridTemplateColumns = '10px 84px repeat(3, minmax(0, 1fr)) auto';
+    row.title = 'Scale the dust / exhaust trails of the engines (the long grey streaks behind them): x width, y length, z height, about where they start; both sides.';
+    row.innerHTML = `<span></span><span class="dim">Dust trail size</span>`;
+    L.exScale.forEach((v, j) => {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.1'; inp.value = fmt(v);
+      inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+      inp.onchange = () => { L.exScale[j] = parseFloat(inp.value) || 0; drawLayout(); markDirty(); };
+      row.appendChild(inp);
+    });
+    const r1 = document.createElement('button'); r1.textContent = '1'; r1.style.padding = '2px 7px'; r1.title = 'Back to scale 1';
+    r1.onclick = () => { L.exScale = [1, 1, 1]; renderLayout(); drawLayout(); markDirty(); };
+    row.appendChild(r1);
+    box.appendChild(row);
+  }
+  {
+    // Stiff cables: how far each cable runs straight out of the cockpit / engine before curving.
+    const row = document.createElement('div'); row.className = 'vec';
+    row.style.gridTemplateColumns = '10px 84px minmax(0, 1fr) auto';
+    row.title = 'Stiff cables (Mods > Pod Editor > Stiff cables): each cable leaves its ends straight out from the cockpit / engine for this share of its length, then curves. Unset = the mod’s setting (0.3 by default); 0 = straight.';
+    row.innerHTML = `<span></span><span class="dim">Cable stiffness</span>`;
+    const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.05'; inp.min = '0'; inp.max = '1';
+    inp.value = fmt(L.stiff ?? CABLE_STIFF_DEFAULT);
+    inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+    if (L.stiff === undefined || L.stiff === null) inp.style.opacity = '0.55';
+    inp.onchange = () => { L.stiff = Math.max(0, parseFloat(inp.value) || 0); inp.style.opacity = '1'; drawLayout(); markDirty(); };
+    const r = document.createElement('button'); r.textContent = '↺'; r.style.padding = '2px 7px'; r.title = 'Use the mod’s setting';
+    r.onclick = () => { L.stiff = null; renderLayout(); drawLayout(); markDirty(); };
+    row.append(inp, r);
+    box.appendChild(row);
+  }
+  // Which way the cables leave the cockpit and the engines: the automatic direction (out from that
+  // part's centre) turned about the part's x, y, z (degrees; the left cables mirrored).
+  if (!L.cableRot) L.cableRot = [0, 0, 0, 0, 0, 0];
+  for (const [end, at, tip] of [[0, 'Cable turn, cockpit', 'where the cables leave the cockpit'], [1, 'Cable turn, engine', 'where the cables leave the engines']]) {
+    const row = document.createElement('div'); row.className = 'vec';
+    row.style.gridTemplateColumns = '10px 84px repeat(3, minmax(0, 1fr)) auto';
+    row.title = `Turn the direction ${tip}: degrees about x (tilt up / down), y (roll round the pod's length), z (swing left / right); the left side mirrored.`;
+    row.innerHTML = `<span></span><span class="dim">${at}</span>`;
+    for (let j = 0; j < 3; j++) {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = '5'; inp.value = fmt(L.cableRot[end * 3 + j]);
+      inp.title = ['x: up / down', 'y: around', 'z: left / right'][j] + ' (degrees)';
+      inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+      inp.onchange = () => { L.cableRot[end * 3 + j] = parseFloat(inp.value) || 0; drawLayout(); markDirty(); };
+      row.appendChild(inp);
+    }
+    const r0 = document.createElement('button'); r0.textContent = '0'; r0.style.padding = '2px 7px'; r0.title = 'Back to the automatic direction';
+    r0.onclick = () => { for (let j = 0; j < 3; j++) L.cableRot[end * 3 + j] = 0; renderLayout(); drawLayout(); markDirty(); };
+    row.appendChild(r0);
+    box.appendChild(row);
+  }
+  // Each cable pair on its own: its ends and turns, replacing the shared values above. The left
+  // cable mirrors the right one (unless the pair's Mirror is off).
+  if (!L.own) L.own = [null, null, null, null];
+  if (!L.pairMirror) L.pairMirror = [true, true];
+  const slots = cableSlots();
+  if (slots.length) {
+    const head = document.createElement('div'); head.className = 'dim'; head.style.marginTop = '6px';
+    head.textContent = 'Each cable pair (tick Own to move / turn that pair by itself; the left cable mirrors the right):';
+    box.appendChild(head);
+  }
+  const numRow = (label, vals, step, title, onChange, extraBtn) => {
+    const row = document.createElement('div'); row.className = 'vec';
+    row.style.gridTemplateColumns = '10px 84px repeat(3, minmax(0, 1fr)) auto'; row.title = title;
+    row.innerHTML = `<span></span><span class="dim">${label}</span>`;
+    vals.forEach((v, j) => {
+      const inp = document.createElement('input'); inp.type = 'number'; inp.step = step; inp.value = fmt(v);
+      inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+      inp.onchange = () => { onChange(j, parseFloat(inp.value) || 0); drawLayout(); markDirty(); };
+      row.appendChild(inp);
+    });
+    row.appendChild(extraBtn || document.createElement('span'));
+    return row;
+  };
+  const cableRows = (sec, s, own, onEdit) => {
+    for (const [end, lab] of [[0, 'Cockpit end'], [1, 'Engine end']]) {
+      const kind = `own:${s.i}:${end}`, b = document.createElement('button');
+      b.textContent = L.moving === kind ? '✓' : '✥'; b.style.padding = '2px 7px'; b.title = 'Drag this end in the view';
+      b.onclick = () => { L.moving = L.moving === kind ? null : kind; renderLayout(); drawLayout(); };
+      sec.appendChild(numRow(lab, end === 0 ? own.c : own.e, '0.05', `${s.label} cable: ${lab.toLowerCase()} (${end === 0 ? 'cockpit' : 'engine'} frame, game units)`,
+        (j, v) => { (end === 0 ? own.c : own.e)[j] = v; onEdit(); }, b));
+    }
+    for (const [end, lab] of [[0, 'Turn, cockpit'], [1, 'Turn, engine']])
+      sec.appendChild(numRow(lab, own.rot.slice(end * 3, end * 3 + 3), '5', 'Degrees about x (up / down), y (around), z (left / right)',
+        (j, v) => { own.rot[end * 3 + j] = v; onEdit(); }));
+  };
+  for (const p of [0, 1]) {
+    const right = slots.find(s => s.i === 2 * p), left = slots.find(s => s.i === 2 * p + 1);
+    if (!right && !left) continue;
+    const own = (right && L.own[right.i]) || (left && L.own[left.i]);
+    const mirror = L.pairMirror[p] && right && left && L.own[right.i];
+    const sec = document.createElement('div'); sec.className = 'group'; sec.style.padding = '4px 6px';
+    const name = p === 0 ? 'Cables 1 + 2' : (right?.extra || left?.extra ? 'Extra cables 3 + 4' : 'Cables 3 + 4 (second pair)');
+    sec.innerHTML = `<div class="title"><span class="small">${name}</span><span>
+      ${own && right && left ? `<label class="small" title="The left cable mirrors the right one"><input type="checkbox" data-m ${mirror ? 'checked' : ''}> Mirror</label>` : ''}
+      <label class="small" title="Give this pair its own ends and turns"><input type="checkbox" data-o ${own ? 'checked' : ''}> Own</label></span></div>`;
+    sec.querySelector('[data-o]').onchange = e => {
+      for (const s of [right, left]) if (s) L.own[s.i] = e.target.checked ? { c: s.shared.c.slice(), e: s.shared.e.slice(), rot: s.shared.rot.slice() } : null;
+      if (e.target.checked && mirror) L.own[left.i] = mirrorCable(L.own[right.i]);
+      if (!e.target.checked && /^own:/.test(L.moving || '')) L.moving = null;
+      renderLayout(); drawLayout(); markDirty();
+    };
+    const mBox = sec.querySelector('[data-m]');
+    if (mBox) mBox.onchange = e => {
+      L.pairMirror[p] = e.target.checked;
+      if (e.target.checked) { L.own[left.i] = mirrorCable(L.own[right.i]); if (L.moving?.startsWith(`own:${left.i}:`)) L.moving = null; }
+      renderLayout(); drawLayout(); markDirty();
+    };
+    if (own) {
+      if (mirror) cableRows(sec, right, L.own[right.i], () => { L.own[left.i] = mirrorCable(L.own[right.i]); });
+      else for (const s of [right, left]) if (s && L.own[s.i]) {
+        sec.appendChild(Object.assign(document.createElement('div'), { className: 'dim', textContent: `${s.label}:` }));
+        cableRows(sec, s, L.own[s.i], () => {});
+      }
+    }
+    box.appendChild(sec);
+  }
+  const note = document.createElement('div'); note.className = 'dim';
+  note.textContent = 'x right, y forward, z up in the cockpit / engine frames (game units); the other side is mirrored. Applied in game from the .txt.';
+  box.appendChild(note);
+  syncLayoutInputs();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Engine effects: points on each engine (its own frame, like the mod's engineXfR / engineXfL),
+//   nozzle R|L x y z r   the mod's exhaust flame cones / glow / embers / smoke trails
+//   firespot R|L x y z   damage fire, sparks and smoke (the mod's, and the game's smoke emitters)
+//   dustspot R|L x y z   ground dust (dropped to the ground under that engine)
+// A kind left on "automatic" writes no lines (the mod keeps finding its own points).
+const FX_KINDS = {
+  nozzle:   { label: 'Flame cones (nozzles)', color: 0xffa040, radius: true,
+              tip: 'The mod\'s exhaust glow, flame cone, embers and smoke trail come out of each nozzle.' },
+  firespot: { label: 'Damage fire (mod)',     color: 0xff4030,
+              tip: 'Where the mod draws fire, sparks and smoke on a damaged engine.' },
+  gamefire: { label: 'Engine fire (overheat)', color: 0xff6a00,
+              tip: 'The game\'s own engine fire when an engine overheats and catches fire (the long flame streaks): where it comes out. The first point moves the stock fire; more points add more. Its drift: Engine fire streak below.' },
+  dustspot: { label: 'Ground dust',           color: 0xd8b878,
+              tip: 'Where the dust is kicked up, dropped to the ground under that engine (the mod\'s dust and the game\'s dust kicks).' },
+  trail:    { label: 'Extra dust trails',  color: 0xa8b4c0, additive: true, scale: true,
+              tip: 'More of the dust / exhaust trails of the engines (the long grey streaks behind them), each starting at its point, with its own size. Baked into the pod model by Build & install.' },
+};
+const trailRoot = new THREE.Group(); scene.add(trailRoot);// previews of the extra trails (shared geometry)
+const FX_SIDES = [['R', 'engineR'], ['L', 'engineL']];
+const fxRoot = new THREE.Group(); scene.add(fxRoot);
+const fxProxy = new THREE.Object3D(); scene.add(fxProxy);
+const fxMover = new TransformControls(camera, renderer.domElement);
+fxMover.setMode('translate'); fxMover.setSize(0.7);
+fxMover.attach(fxProxy); fxMover.visible = false; fxMover.enabled = false;
+scene.add(fxMover);
+let fxDragging = false;
+fxMover.addEventListener('dragging-changed', e => { fxDragging = e.value; controls.enabled = !e.value; if (e.value) moverUsed = true; });
+const fxFrame = side => state.layout?.frames?.[side === 'R' ? 'engineR' : 'engineL'];
+const fxToPod = (side, p) => xfPoint(fxFrame(side), p);
+const fxFromPod = (side, w) => xfPoint(invAffine(fxFrame(side)), w);
+fxMover.addEventListener('objectChange', () => {
+  const m = state.fx?.moving; if (!m) return;
+  const pt = state.fx.pts[m.kind][m.side][m.i]; if (!pt) return;
+  const l = fxFromPod(m.side, [fxProxy.position.x, fxProxy.position.y, fxProxy.position.z]);
+  pt[0] = l[0]; pt[1] = l[1]; pt[2] = l[2];
+  syncFxInputs(); drawFx(); markDirty();
+});
+function fxInit(json) {
+  const auto = json.fxAuto || null;
+  const copy = k => ({ R: (auto?.R?.[k] || []).map(p => p.slice()), L: (auto?.L?.[k] || []).map(p => p.slice()) });
+  state.fx = { auto, set: { trail: true }, moving: null, pts: Object.fromEntries(Object.keys(FX_KINDS).map(k => [k, copy(k)])),
+               light: { set: false, v: [0.7, 1, 1, 1] },// exhaust light: aim, reach, width, strength
+               streak: { set: false, v: [1, 0, 0, 0] } };// overheat fire drift: length, turn x y z
+  // Exports from before the game fire was exported: its stock spot, 2 units behind the engine.
+  for (const side of ['R', 'L']) if (!state.fx.pts.gamefire[side].length) state.fx.pts.gamefire[side] = [[0, -2, 0, 0]];
+  if (state.fx.auto) for (const side of ['R', 'L']) if (state.fx.auto[side] && !state.fx.auto[side].gamefire) state.fx.auto[side].gamefire = [[0, -2, 0, 0]];
+}
+// The exhaust light's preview: from each nozzle, the cone's centre line down to where it lands, and
+// the patch it lights (the mod's pod_fx_gather_lights, at full throttle).
+function drawExhaustLight(F) {
+  const Fr = state.layout.frames, lt = F.light.v;
+  const mid = scl(add([Fr.engineR[12], Fr.engineR[13], Fr.engineR[14]], [Fr.engineL[12], Fr.engineL[13], Fr.engineL[14]]), 0.5);
+  const Lp = len(sub([Fr.cockpit[12], Fr.cockpit[13], Fr.cockpit[14]], mid)) || 10;// the mod's pod length
+  for (const [side] of FX_SIDES) {
+    const f = fxFrame(side), back = nrm([-f[4], -f[5], -f[6]]);
+    const dust = (F.auto?.[side]?.dustspot || [])[0];
+    const ground = dust ? fxToPod(side, dust)[2] : f[14] - 1;
+    let noz = (F.set.nozzle ? F.pts.nozzle[side] : F.auto?.[side]?.nozzle) || [];
+    for (const p of noz) {
+      const n = fxToPod(side, p), flat = nrm([back[0], back[1], 0]);
+      const target = [n[0] + flat[0] * Lp * lt[0], n[1] + flat[1] * Lp * lt[0], ground];
+      const reach = Lp * 2.8 * Math.max(lt[1], 0.05);// full-throttle range
+      const half = Math.min(0.66 * Math.max(lt[2], 0.1), 1.55);// outer cone angle
+      const d = len(sub(target, n)), spot = Math.min(d, reach) * Math.tan(half);
+      const geoL = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...n), new THREE.Vector3(...target)]);
+      const line = new THREE.Line(geoL, new THREE.LineBasicMaterial({ color: 0xff8030, depthTest: false, transparent: true, opacity: 0.8 }));
+      line.renderOrder = 10; fxRoot.add(line);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(Math.max(spot, 0.05), 32),
+        new THREE.MeshBasicMaterial({ color: 0xff7020, transparent: true, opacity: 0.25 * Math.min(Math.max(lt[3], 0), 2), depthWrite: false, side: THREE.DoubleSide }));
+      disc.position.set(target[0], target[1], ground + 0.02); disc.scale.set(1, 1.8, 1);// stretched back along the track
+      disc.rotation.z = Math.atan2(flat[0], flat[1]) * -1;
+      disc.renderOrder = 9; fxRoot.add(disc);
+    }
+  }
+}
+function drawFx() {
+  for (const o of fxRoot.children) { o.geometry.dispose(); o.material.dispose(); }
+  fxRoot.clear();
+  const F = state.fx, show = F && state.layout?.frames && document.getElementById('showFx')?.checked;
+  fxRoot.visible = !!show;
+  trailRoot.clear();
+  if (!show) { fxMover.visible = fxMover.enabled = false; return; }
+  // Extra trails: the stock trail meshes again, moved from the stock anchor to each point.
+  for (const [side] of FX_SIDES) {
+    const stock = trailAnchor(side, state.layout.cur.exhaust); if (!stock) continue;
+    const from = trailAnchor(side, state.layout.atExport.exhaust);
+    for (const p of F.pts.trail[side]) {
+      const M = trailMatrix(side, from, fxToPod(side, p), [p[4] ?? 1, p[5] ?? 1, p[6] ?? 1]);
+      for (const m of state.meshes) if (TRAIL_PARTS[side].includes(m.part) && m.obj.visible) {
+        const o = new THREE.Mesh(m.obj.geometry, m.obj.material); o.raycast = () => {};
+        o.matrixAutoUpdate = false; o.matrix.copy(M); trailRoot.add(o);
+      }
+    }
+  }
+  const size = Math.max(0.04, camera.position.distanceTo(controls.target) * 0.006);
+  for (const [k, info] of Object.entries(FX_KINDS)) {
+    if (!F.set[k] && !F.showAuto) continue;
+    for (const [side] of FX_SIDES) for (const p of F.pts[k][side]) {
+      const r = info.radius ? Math.max(size, len(xfDir(fxFrame(side), [p[3], 0, 0]))) : size;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8),
+        new THREE.MeshBasicMaterial({ color: info.color, depthTest: false, transparent: true, opacity: F.set[k] ? 0.9 : 0.35 }));
+      m.position.set(...fxToPod(side, p)); m.renderOrder = 11; fxRoot.add(m);
+    }
+  }
+  if (F.light.set || F.showAuto) drawExhaustLight(F);
+  // The overheat fire's drift: an arrow from each fire point along where its flames fly.
+  if (F.set.gamefire || F.streak.set || F.showAuto) {
+    const [ln, rx, ry, rz] = F.streak.set ? F.streak.v : [1, 0, 0, 0];
+    for (const [side] of FX_SIDES) {
+      const f = fxFrame(side), m = side === 'L' ? -1 : 1;
+      const dir = turnInFrame(f, nrm([-f[4], -f[5], -f[6]]), rx, ry * m, rz * m);
+      for (const p of F.pts.gamefire[side]) {
+        const a = fxToPod(side, p), b = add(a, scl(dir, 2.5 * ln));
+        const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a), new THREE.Vector3(...b)]);
+        const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xff6a00, depthTest: false, transparent: true, opacity: 0.9 }));
+        l.renderOrder = 10; fxRoot.add(l);
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(size * 1.6, size * 5, 10), new THREE.MeshBasicMaterial({ color: 0xff6a00, depthTest: false }));
+        tip.position.set(...b); tip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(...dir));
+        tip.renderOrder = 11; fxRoot.add(tip);
+      }
+    }
+  }
+  const mv = F.moving;
+  fxMover.visible = fxMover.enabled = !!mv;
+  if (mv && !fxDragging) fxProxy.position.set(...fxToPod(mv.side, F.pts[mv.kind][mv.side][mv.i]));
+}
+function syncFxInputs() {
+  document.querySelectorAll('#fxbox [data-fx]').forEach(inp => {
+    const [k, side, i, j] = inp.dataset.fx.split(':');
+    const v = state.fx.pts[k][side][+i]?.[+j];
+    if (v !== undefined && document.activeElement !== inp) inp.value = fmt(v);
+  });
+}
+function renderFx() {
+  const box = document.getElementById('fxbox'), F = state.fx;
+  if (!state.pod) { box.className = 'dim'; box.textContent = 'Open a pod export.'; return; }
+  if (!state.layout?.frames || !F.auto) {
+    box.className = 'dim';
+    box.textContent = 'This export has no engine effect data: export the pod again with the current mod to edit the flame cones, fire and dust.' +
+      (Object.values(F.set).some(Boolean) ? ' The engine effect lines from the opened edits are kept when saving.' : '');
+    return;
+  }
+  box.className = ''; box.innerHTML = '';
+  const head = document.createElement('div'); head.className = 'row';
+  head.innerHTML = `<label class="small"><input type="checkbox" id="showFx" checked> Show points</label>
+    <label class="small" title="Also show the automatic points of the kinds left on automatic"><input type="checkbox" id="showFxAuto" ${F.showAuto ? 'checked' : ''}> Show automatic ones</label>`;
+  head.querySelector('#showFx').onchange = () => { if (!head.querySelector('#showFx').checked) F.moving = null; drawFx(); };
+  head.querySelector('#showFxAuto').onchange = e => { F.showAuto = e.target.checked; drawFx(); };
+  box.appendChild(head);
+  for (const [k, info] of Object.entries(FX_KINDS)) {
+    const sec = document.createElement('div'); sec.className = 'group';
+    const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#${info.color.toString(16).padStart(6, '0')}"></span>`;
+    sec.innerHTML = `<div class="title"><span>${dot} ${info.label}</span>` + (info.additive ? '</div>' :
+      `<label class="small" title="Use your own points instead of the automatic ones"><input type="checkbox" ${F.set[k] ? 'checked' : ''}> Custom</label></div>`);
+    sec.title = info.tip;
+    if (!info.additive) sec.querySelector('input').onchange = e => {
+      F.set[k] = e.target.checked;
+      if (!F.set[k] && F.moving?.kind === k) F.moving = null;
+      renderFx(); drawFx(); markDirty();
+    };
+    if (F.set[k]) {
+      for (const [side] of FX_SIDES) {
+        F.pts[k][side].forEach((p, i) => {
+          const row = document.createElement('div'); row.className = 'vec';
+          const idx = info.radius ? [0, 1, 2, 3] : info.scale ? [0, 1, 2, 4, 5, 6] : [0, 1, 2];
+          row.style.gridTemplateColumns = `26px repeat(${idx.length}, minmax(0, 1fr)) auto auto`;
+          row.innerHTML = `<span class="dim">${side}${i + 1}</span>`;
+          if (info.scale) for (const j of [4, 5, 6]) if (p[j] === undefined) p[j] = 1;
+          for (const j of idx) {
+            const inp = document.createElement('input'); inp.type = 'number'; inp.step = 'any';
+            inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+            inp.dataset.fx = `${k}:${side}:${i}:${j}`; inp.value = fmt(p[j]);
+            inp.title = j === 3 ? 'radius' : j >= 4 ? 'scale ' + ['x (width)', 'y (length)', 'z (height)'][j - 4] : 'xyz'[j] + ' (engine frame)';
+            if (j >= 4) inp.style.background = '#2a2f3a';
+            inp.onchange = () => { p[j] = parseFloat(inp.value) || 0; drawFx(); markDirty(); };
+            row.appendChild(inp);
+          }
+          const mv = document.createElement('button');
+          const moving = F.moving && F.moving.kind === k && F.moving.side === side && F.moving.i === i;
+          mv.textContent = moving ? '✓' : '✥'; mv.style.padding = '2px 7px'; mv.title = 'Drag this point in the view';
+          mv.onclick = () => { F.moving = moving ? null : { kind: k, side, i }; renderFx(); drawFx(); };
+          const del = document.createElement('button'); del.textContent = '✕'; del.style.padding = '2px 7px'; del.title = 'Remove this point';
+          del.onclick = () => { F.pts[k][side].splice(i, 1); F.moving = null; renderFx(); drawFx(); markDirty(); };
+          row.append(mv, del); sec.appendChild(row);
+        });
+      }
+      const tools = document.createElement('div'); tools.className = 'row';
+      tools.innerHTML = `<button data-a="addR">+ R</button><button data-a="addL">+ L</button>
+        <button data-a="mirror" title="Replace the left engine's points with the right engine's, mirrored">Mirror R → L</button>
+        <button data-a="auto" title="${info.additive ? 'Remove them all' : 'Start again from the automatic points'}">${info.additive ? 'Clear' : 'Reset'}</button>`;
+      tools.onclick = e => {
+        const a = e.target.dataset.a; if (!a) return;
+        if (a === 'addR' || a === 'addL') {
+          const side = a.slice(3), list = F.pts[k][side];
+          // Extra trails start beside the stock trail's anchor; other kinds behind the last point.
+          const anchor = k === 'trail' ? fxFromPod(side, trailAnchor(side, state.layout.cur.exhaust)) : null;
+          const from = list[list.length - 1] || anchor || F.auto?.[side]?.[k]?.[0] || [0, 0, 0, info.radius ? 10 : 0];
+          const w = fxToPod(side, from);
+          const l = fxFromPod(side, k === 'trail' ? [w[0] + (side === 'R' ? 0.4 : -0.4), w[1], w[2]] : [w[0], w[1] - 0.3, w[2]]);
+          const np = [l[0], l[1], l[2], from[3] ?? 0, from[4] ?? 1, from[5] ?? 1, from[6] ?? 1];
+          list.push(np); F.moving = { kind: k, side, i: list.length - 1 };
+        } else if (a === 'mirror') {
+          // Mirrored the way the game mirrors its own engine offsets: in the engine's frame, x
+          // negated (both engines' frames face the same way). Mirroring through the pod frame instead
+          // would copy the engines' momentary height / wobble difference from the export.
+          F.pts[k].L = F.pts[k].R.map(p => [-p[0], p[1], p[2], p[3] ?? 0, p[4] ?? 1, p[5] ?? 1, p[6] ?? 1]);
+          F.moving = null;
+        } else if (a === 'auto') {
+          for (const [side] of FX_SIDES) F.pts[k][side] = info.additive ? [] : (F.auto?.[side]?.[k] || []).map(p => p.slice());
+          F.moving = null;
+        }
+        renderFx(); drawFx(); markDirty();
+      };
+      sec.appendChild(tools);
+      if (!F.pts[k].R.length && !F.pts[k].L.length)
+        sec.appendChild(Object.assign(document.createElement('div'), { className: 'dim',
+          textContent: info.additive ? 'None yet: + R / + L adds one.' : 'No points: saved as automatic.' }));
+    }
+    box.appendChild(sec);
+  }
+  {
+    // The game's overheat fire drift: length and direction of the flame streaks.
+    const sec = document.createElement('div'); sec.className = 'group';
+    sec.title = 'The flame streaks of an overheated engine fly back from the fire points: make them longer / shorter and turn their direction (degrees about the engine\'s x, y, z; the left side mirrored).';
+    sec.innerHTML = `<div class="title"><span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff6a00"></span> Engine fire streak</span>
+      <label class="small"><input type="checkbox" ${F.streak.set ? 'checked' : ''}> Custom</label></div>`;
+    sec.querySelector('input').onchange = e => { F.streak.set = e.target.checked; renderFx(); drawFx(); markDirty(); };
+    if (F.streak.set) {
+      const rows = [['Length', 'How far the flames fly (x stock)', [0]], ['Turn', 'Degrees about x (up / down), y (around), z (left / right)', [1, 2, 3]]];
+      for (const [lab, tip, idx] of rows) {
+        const row = document.createElement('div'); row.className = 'vec';
+        row.style.gridTemplateColumns = `60px repeat(${idx.length}, minmax(0, 1fr))`; row.title = tip;
+        row.innerHTML = `<span class="dim">${lab}</span>`;
+        for (const j of idx) {
+          const inp = document.createElement('input'); inp.type = 'number'; inp.step = j === 0 ? '0.1' : '5';
+          inp.value = fmt(F.streak.v[j]); inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
+          inp.onchange = () => { F.streak.v[j] = j === 0 ? Math.max(0, parseFloat(inp.value) || 0) : parseFloat(inp.value) || 0; drawFx(); markDirty(); };
+          row.appendChild(inp);
+        }
+        sec.appendChild(row);
+      }
+    }
+    box.appendChild(sec);
+  }
+  {
+    // The exhaust light: the warm spotlight each nozzle throws onto the ground (the orange streak).
+    const sec = document.createElement('div'); sec.className = 'group';
+    sec.title = 'The orange streak on the track behind the engines: a warm light each nozzle shines down and back onto the ground (brighter while boosting). It starts at the nozzles (move them above); here: where it lands and how big / bright it is.';
+    sec.innerHTML = `<div class="title"><span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff7020"></span> Exhaust light (orange floor trail)</span>
+      <label class="small"><input type="checkbox" ${F.light.set ? 'checked' : ''}> Custom</label></div>`;
+    sec.querySelector('input').onchange = e => { F.light.set = e.target.checked; renderFx(); drawFx(); markDirty(); };
+    if (F.light.set) {
+      const labels = [['Lands', 'How far behind the nozzle it lands (pod lengths; stock 0.7)'], ['Reach', 'How far it reaches (x stock)'],
+                      ['Width', 'Cone width (x stock)'], ['Bright', 'Brightness (x stock; 0 = off)']];
+      labels.forEach(([lab, tip], j) => {
+        const row = document.createElement('div'); row.className = 'vec';
+        row.style.gridTemplateColumns = '60px minmax(0, 1fr)'; row.title = tip;
+        row.innerHTML = `<span class="dim">${lab}</span>`;
+        const inp = document.createElement('input'); inp.type = 'number'; inp.step = j === 0 ? '0.05' : '0.1'; inp.min = '0';
+        inp.value = fmt(F.light.v[j]); inp.style.padding = '3px 2px'; inp.style.fontSize = '12px';
+        inp.onchange = () => { F.light.v[j] = Math.max(0, parseFloat(inp.value) || 0); drawFx(); markDirty(); };
+        row.appendChild(inp); sec.appendChild(row);
+      });
+    }
+    box.appendChild(sec);
+  }
+  const note = document.createElement('div'); note.className = 'dim';
+  note.textContent = 'Points are in each engine\'s own frame (game units). Applied in game from the .txt (Reload edits).';
+  box.appendChild(note);
+}
+function fxLines() {
+  const F = state.fx; if (!F) return [];
+  const out = [];
+  for (const k of Object.keys(FX_KINDS)) {
+    if (!F.set[k]) continue;
+    const lines = [];
+    for (const [side] of FX_SIDES)
+      for (const p of F.pts[k][side]) lines.push(`${k} ${side} ${p.slice(0, 3).map(fmt).join(' ')}` +
+        (FX_KINDS[k].radius ? ' ' + fmt(p[3] ?? 0) : '') + (FX_KINDS[k].scale ? ' ' + [p[4] ?? 1, p[5] ?? 1, p[6] ?? 1].map(fmt).join(' ') : ''));
+    if (lines.length) out.push(`# engine effects: ${FX_KINDS[k].label}`, ...lines);
+  }
+  if (F.light.set) out.push('# engine effects: exhaust light (lands, reach, width, brightness)', `exhaustlight ${F.light.v.map(fmt).join(' ')}`);
+  if (F.streak.set) out.push('# engine effects: overheat fire streak (length, turn x y z)', `gamefirestreak ${F.streak.v.map(fmt).join(' ')}`);
+  return out;
+}
+
+const selMat = new THREE.MeshBasicMaterial({ color: 0xf0a030, transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+  polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 });
+const grpMat = new THREE.MeshBasicMaterial({ color: 0x3fa7ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+  polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  renderer.setSize(w, h); camera.aspect = w / Math.max(h, 1); camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(view);
+resize();
+
+// ---------------------------------------------------------------------------------------------
+// Loading
+function b64ToBytes(b64) {
+  const s = atob(b64); const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+
+function loadExport(json) {
+  if (json.format !== 'swr-pod-export-1') throw new Error('Not a pod export (format ' + json.format + ')');
+  for (const m of state.meshes) { m.obj.geometry.dispose(); m.overlay.geometry.dispose(); m.grp.geometry.dispose(); }
+  for (const key of [...cutPieces.keys()]) dropPieces(key);
+  podRoot.clear(); mirrors.length = 0;
+  state.pod = json; state.meshes = []; state.sel.clear(); state.groups = []; state.active = -1;
+  {
+    // Pod layout: the game's values at export time (current = maybe already edited, stock = the game's own).
+    const pick = (row, k) => row ? row.slice(LAYOUT[k].field, LAYOUT[k].field + 3) : [0, 0, 0];
+    const cur = json.visual, stock = json.visualStock || json.visual;
+    state.layout = { pilot: json.pilot ?? -1, frames: json.frames && cur ? json.frames : null, moving: null, fromText: false,
+      extra: false,
+      stock: Object.fromEntries(BASE_KINDS.map(k => [k, pick(stock, k)])),
+      cur: Object.fromEntries(BASE_KINDS.map(k => [k, pick(cur, k)])), set: {} };
+    Object.assign(state.layout.stock, extraDefaults(state.layout.stock));
+    Object.assign(state.layout.cur, extraDefaults(state.layout.cur));
+    state.layout.atExport = { exhaust: state.layout.cur.exhaust.slice() };// where the exported trail meshes sit
+    state.layout.exScale = [1, 1, 1];
+  }
+
+  const textures = {};
+  for (const [id, t] of Object.entries(json.textures || {})) {
+    const tex = new THREE.DataTexture(b64ToBytes(t.rgba), t.w, t.h, THREE.RGBAFormat);
+    tex.wrapS = t.clampS ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+    tex.wrapT = t.clampT ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
+    tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter;
+    tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
+    textures[id] = tex;
+  }
+  const matCache = {};
+  const matFor = id => {
+    if (matCache[id]) return matCache[id];
+    const tex = textures[id];
+    return (matCache[id] = tex
+      ? new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: 0.25 })
+      : new THREE.MeshLambertMaterial({ color: 0x9aa3ad, side: THREE.DoubleSide }));
+  };
+
+  // Exports made before the mod recorded mesh copies ("instances") hold one engine only (the
+  // other draws the same meshes mirrored): show the right side's meshes mirrored across the pod's
+  // centre line, moved onto the left engine, unless the export already has their left twin.
+  json.guessedMirrors = 0;
+  if (!json.meshes.some(m => m.instances) && json.engineR && json.engineL) {
+    const info = json.meshes.map(m => {
+      const p = m.pos, n = p.length / 3 || 1; let x = 0, y = 0, z = 0;
+      for (let i = 0; i < p.length; i += 3) { x += p[i]; y += p[i + 1]; z += p[i + 2]; }
+      return { c: [x / n, y / n, z / n], n: p.length };
+    });
+    const t = [json.engineL[0] + json.engineR[0], json.engineL[1] - json.engineR[1], json.engineL[2] - json.engineR[2]];
+    const mirror = [-1,0,0,0, 0,1,0,0, 0,0,1,0, t[0],t[1],t[2],1];
+    json.meshes.forEach((m, i) => {
+      const a = info[i]; if (a.c[0] <= 0.5) return;
+      const want = [-a.c[0] + t[0], a.c[1] + t[1], a.c[2] + t[2]];
+      const twin = info.some((b, j) => j !== i && b.n === a.n && len(sub(b.c, want)) < 0.6);
+      if (twin) return;
+      m.instances = [{ part: m.part, localToPod: mulRow(m.localToPod, mirror) }];
+      json.guessedMirrors++;
+    });
+  }
+
+  json.meshes.forEach((m, idx) => {
+    const base = new Float32Array(m.pos);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
+    if (m.uv && m.uv.length) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(m.uv), 2));
+    geo.computeVertexNormals();
+    const obj = new THREE.Mesh(geo, matFor(m.texture));
+    obj.userData.meshIndex = idx;
+    const overlay = new THREE.Mesh(new THREE.BufferGeometry(), selMat);
+    const grp = new THREE.Mesh(new THREE.BufferGeometry(), grpMat);
+    overlay.raycast = () => {}; grp.raycast = () => {};
+    podRoot.add(obj, overlay, grp);
+    let cx = 0, cy = 0, cz = 0; const nv = base.length / 3;
+    for (let i = 0; i < base.length; i += 3) { cx += base[i]; cy += base[i + 1]; cz += base[i + 2]; }
+    // A part the game has squashed flat this frame (an idle trail ribbon) has no inverse: no
+    // mirrored copies for it, and its spins / moves fall back to the pod frame.
+    const podToLocal = invAffine(m.localToPod);
+    // Other places the game draws this same mesh (e.g. the left engine = the right engine's meshes
+    // mirrored): pod-frame -> pod-frame matrices from this copy to each other one.
+    const instances = (podToLocal ? m.instances || [] : []).map(i => ({ part: i.part, matrix: new THREE.Matrix4().fromArray(mulRow(podToLocal, i.localToPod)) }));
+    const rec = { key: m.key, part: m.part, base, tris: base.length / 9, obj, overlay, grp, instances,
+      localToPod: m.localToPod, podToLocal, visible: true, far: false, adj: null,
+      centre: [cx / nv, cy / nv, cz / nv] };
+    state.meshes.push(rec);
+    for (const o of [obj, overlay, grp]) mirrorObject(o, rec, o === obj);
+  });
+
+  // Some pods have a part parked far away (the game keeps it off to the side until it's needed):
+  // frame the camera on the meshes that sit together, and hide the stragglers by default.
+  const med = k => { const v = state.meshes.map(m => m.centre[k]).sort((a, b) => a - b); return v[v.length >> 1] || 0; };
+  const mid = [med(0), med(1), med(2)];
+  const dists = state.meshes.map(m => len(sub(m.centre, mid))).sort((a, b) => a - b);
+  const spread = Math.max(dists[dists.length >> 1] || 1, 1e-3);// typical distance from the middle (median)
+  let nFar = 0;
+  for (const m of state.meshes) if (len(sub(m.centre, mid)) > spread * 15) { m.far = true; nFar++; }
+  document.getElementById('farLabel').style.display = nFar ? '' : 'none';
+  document.getElementById('farLabel').lastChild.textContent = ` Show far-away meshes (${nFar})`;
+  document.getElementById('showFar').checked = false;
+
+  const box = new THREE.Box3();
+  for (const m of state.meshes) if (!m.far) { m.obj.geometry.computeBoundingBox(); box.union(m.obj.geometry.boundingBox); }
+  if (box.isEmpty()) box.setFromObject(podRoot);
+  const c = box.getCenter(new THREE.Vector3()), r = box.getSize(new THREE.Vector3()).length() * 0.6 || 10;
+  controls.target.copy(c);
+  camera.position.copy(c).add(new THREE.Vector3(-0.5, -1.0, 0.45).normalize().multiplyScalar(r * 2.2));
+  camera.near = r / 200; camera.far = r * 50; camera.updateProjectionMatrix();
+  grid.position.set(c.x, c.y, box.min.z);
+
+  document.getElementById('drop').style.display = 'none';
+  document.getElementById('podInfo').innerHTML =
+    `<b>${json.model}</b>: ${json.meshes.length} meshes, ${state.meshes.reduce((a, m) => a + m.tris, 0)} faces` +
+    (json.fourEngines ? ' · four engines' : '') + (nFar ? ` · ${nFar} far-away mesh${nFar > 1 ? 'es' : ''} hidden` : '') +
+    (json.guessedMirrors ? ` · left side mirrored from the right (approximate: export again with the current mod for the exact copies)` : '');
+  document.getElementById('btnOpenEdits').disabled = false;
+  buildPartsList();
+  fxInit(json);
+  renderLayout(); renderFx();
+  refreshAll(); markDirty(false);
+  setStatus('Loaded ' + json.model);
+}
+
+function buildPartsList() {
+  const box = document.getElementById('parts'); box.innerHTML = '';
+  const parts = [...new Set(state.meshes.map(m => m.part))].sort((a, b) => a - b);
+  for (const p of parts) {
+    const n = state.meshes.filter(m => m.part === p).length;
+    const l = document.createElement('label');
+    l.innerHTML = `<input type="checkbox" checked> 0x${p.toString(16).padStart(2, '0')} ${PART_NAMES[p] || ''} <span class="dim">(${n} meshes)</span>`;
+    l.querySelector('input').onchange = e => {
+      for (const m of state.meshes) if (m.part === p) m.visible = e.target.checked;
+      refreshAll();
+    };
+    box.appendChild(l);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Display geometry: base positions + spins (animated) + hides.
+let animT = 0;
+// Ellipse cut basis: u across the axis (pod x, or y when the axis is near x), turned by the angle.
+function cutBasis(g) {
+  const a = nrm(g.axis);
+  let ref = Math.abs(a[0]) > 0.9 ? [0, 1, 0] : [1, 0, 0];
+  let u0 = nrm(sub(ref, scl(a, dot(ref, a)))), v0 = cross(a, u0);
+  const t = (g.cut.angle || 0) * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t);
+  const u = add(scl(u0, cs), scl(v0, sn)), v = cross(a, u);
+  return { a, u, v };
+}
+// Split triangles exactly along the 48-gon inscribed in the ellipse (a prism along the axis), like
+// bake_pod_edits.py: each corner is [x, y, z, u, v, ...]; returns { inside, outside } triangle lists.
+function clipToEllipse(tris, centre, u, v, rx, ry, sides = 48) {
+  const lim = Math.cos(Math.PI / sides);
+  const ab = p => { const d = [p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]]; return [dot(d, u) / rx, dot(d, v) / ry]; };
+  const clip = (poly, dist, keepInside) => {
+    const out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length], dp = dist(p), dq = dist(q);
+      const pin = (dp <= 0) === keepInside, qin = (dq <= 0) === keepInside;
+      if (pin) out.push(p);
+      if (pin !== qin) { const t = dp / (dp - dq); out.push(p.map((x, j) => x + (q[j] - x) * t)); }
+    }
+    return out;
+  };
+  const fan = (poly, out) => { for (let i = 1; i < poly.length - 1; i++) out.push([poly[0], poly[i], poly[i + 1]]); };
+  const inside = [], outside = [];
+  for (const tri of tris) {
+    let poly = tri;
+    for (let k = 0; k < sides && poly.length >= 3; k++) {
+      const th = 2 * Math.PI * (k + 0.5) / sides, cs = Math.cos(th), sn = Math.sin(th);
+      const dist = p => { const [a, b] = ab(p); return a * cs + b * sn - lim; };
+      const piece = clip(poly, dist, false);
+      if (piece.length >= 3) fan(piece, outside);
+      poly = clip(poly, dist, true);
+    }
+    if (poly.length >= 3) fan(poly, inside);
+  }
+  return { inside, outside };
+}
+
+// Preview of a cut group: its faces in a mesh are replaced by the split pieces -- the inside spins
+// with the group, the outside stays put. Cached per group + mesh until the cut changes.
+const cutPieces = new Map();// `${group id}:${mesh index}` -> { sig, inPos, outPos, inObj, outObj }
+function cutPiecesFor(g, mi) {
+  const key = g.id + ':' + mi, set = g.tris.get(mi);
+  const sig = JSON.stringify([g.cut, g.pivot, g.axis, set ? [...set] : []]);
+  let cp = cutPieces.get(key);
+  if (cp && cp.sig === sig) return cp;
+  if (cp) dropPieces(key);
+  const m = state.meshes[mi], b = m.base, uvAttr = m.obj.geometry.getAttribute('uv');
+  const tris = [];
+  for (const t of set) {
+    const tri = [];
+    for (let k = 0; k < 3; k++) {
+      const c = t * 3 + k;
+      tri.push([b[c*3], b[c*3+1], b[c*3+2], uvAttr ? uvAttr.array[c*2] : 0, uvAttr ? uvAttr.array[c*2+1] : 0]);
+    }
+    tris.push(tri);
+  }
+  const { u, v } = cutBasis(g);
+  const { inside, outside } = clipToEllipse(tris, g.pivot, u, v, g.cut.rx, g.cut.ry);
+  const make = list => {
+    const pos = new Float32Array(list.length * 9), uv = new Float32Array(list.length * 6);
+    list.forEach((tri, i) => tri.forEach((p, k) => { pos.set(p.slice(0, 3), i*9 + k*3); uv.set(p.slice(3, 5), i*6 + k*2); }));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos.slice(), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    geo.computeVertexNormals(); geo.computeBoundingSphere();
+    const obj = new THREE.Mesh(geo, m.obj.material); obj.raycast = () => {};
+    podRoot.add(obj);
+    mirrorObject(obj, m, false);
+    return { pos, obj };
+  };
+  const a = make(inside), o = make(outside);
+  cp = { sig, inPos: a.pos, inObj: a.obj, outObj: o.obj, nIn: inside.length, nOut: outside.length };
+  cutPieces.set(key, cp);
+  return cp;
+}
+function dropPieces(key) {
+  const cp = cutPieces.get(key); if (!cp) return;
+  for (const o of [cp.inObj, cp.outObj]) { unmirrorObject(o); podRoot.remove(o); o.geometry.dispose(); }
+  cutPieces.delete(key);
+}
+// Spin about the pivot (if animating), scaled about it first, then moved by the offset.
+function spinPoints(g, arr) {
+  const off = g.offset || [0, 0, 0], sc = g.scale ?? 1;
+  const spin = document.getElementById('animate').checked && g.rpm;
+  const a = nrm(g.axis), ang = spin ? ((animT * g.rpm / 60) % 1) * Math.PI * 2 : 0, cs = Math.cos(ang), sn = Math.sin(ang);
+  for (let o = 0; o < arr.length; o += 3) {
+    const v = [(arr[o] - g.pivot[0]) * sc, (arr[o+1] - g.pivot[1]) * sc, (arr[o+2] - g.pivot[2]) * sc];
+    const d = dot(a, v), cr = cross(a, v);
+    arr[o]   = g.pivot[0] + v[0]*cs + cr[0]*sn + a[0]*d*(1-cs) + off[0];
+    arr[o+1] = g.pivot[1] + v[1]*cs + cr[1]*sn + a[1]*d*(1-cs) + off[1];
+    arr[o+2] = g.pivot[2] + v[2]*cs + cr[2]*sn + a[2]*d*(1-cs) + off[2];
+  }
+}
+function updateCutPieces(mi, shown) {
+  const live = new Set();
+  for (const g of state.groups) {
+    if (g.type !== 'spin' || !g.cut || !g.tris.get(mi)?.size) continue;
+    const cp = cutPiecesFor(g, mi); live.add(g.id + ':' + mi);
+    const attr = cp.inObj.geometry.getAttribute('position');
+    attr.array.set(cp.inPos); spinPoints(g, attr.array); attr.needsUpdate = true;
+    cp.inObj.geometry.computeVertexNormals(); cp.inObj.geometry.computeBoundingSphere();
+    cp.inObj.visible = cp.outObj.visible = shown;
+    cp.inObj.material = cp.outObj.material = state.meshes[mi].obj.material;
+  }
+  for (const key of [...cutPieces.keys()]) if (key.endsWith(':' + mi) && !live.has(key)) dropPieces(key);
+}
+// Default ellipse: 80% of the faces' extent across the axis.
+function defaultCut(g) {
+  g.cut = { rx: 1, ry: 1, angle: 0 };
+  const { u, v } = cutBasis(g); let mu = 0, mv = 0;
+  for (const [mi, set] of g.tris) {
+    const b = state.meshes[mi].base;
+    for (const t of set) for (let k = 0; k < 3; k++) {
+      const o = t * 9 + k * 3, d = sub([b[o], b[o+1], b[o+2]], g.pivot);
+      mu = Math.max(mu, Math.abs(dot(d, u))); mv = Math.max(mv, Math.abs(dot(d, v)));
+    }
+  }
+  g.cut.rx = +(Math.max(mu, 0.01) * 0.8).toFixed(3); g.cut.ry = +(Math.max(mv, 0.01) * 0.8).toFixed(3);
+}
+function displayPositions(mi, out) {
+  out.set(state.meshes[mi].base);
+  const anim = document.getElementById('animate').checked;
+  const showHidden = document.getElementById('showHidden').checked;
+  for (const g of state.groups) {
+    let set = g.tris.get(mi); if (!set || set.size === 0) continue;
+    if (g.type === 'spin' && g.cut) {// drawn as exact split pieces (updateCutPieces)
+      for (const t of set) { const o = t * 9; for (let k = 3; k < 9; k += 3) { out[o+k] = out[o]; out[o+k+1] = out[o+1]; out[o+k+2] = out[o+2]; } }
+    } else if (g.type === 'spin') {
+      // Spin about the pivot (if animating and RPM != 0), then move by the offset.
+      const off = g.offset || [0, 0, 0];
+      const sc = g.scale ?? 1;// shrink / grow about the pivot, before spinning
+      const spin = anim && g.rpm;
+      const a = nrm(g.axis), ang = spin ? ((animT * g.rpm / 60) % 1) * Math.PI * 2 : 0, cs = Math.cos(ang), sn = Math.sin(ang);
+      for (const t of set) for (let k = 0; k < 3; k++) {
+        const o = (t * 3 + k) * 3;
+        const v = [(out[o] - g.pivot[0]) * sc, (out[o+1] - g.pivot[1]) * sc, (out[o+2] - g.pivot[2]) * sc];
+        const d = dot(a, v), cr = cross(a, v);
+        out[o]   = g.pivot[0] + v[0]*cs + cr[0]*sn + a[0]*d*(1-cs) + off[0];
+        out[o+1] = g.pivot[1] + v[1]*cs + cr[1]*sn + a[1]*d*(1-cs) + off[1];
+        out[o+2] = g.pivot[2] + v[2]*cs + cr[2]*sn + a[2]*d*(1-cs) + off[2];
+      }
+    } else if (g.type === 'hide' && !showHidden) {
+      for (const t of set) { const o = t * 9; for (let k = 3; k < 9; k += 3) { out[o+k] = out[o]; out[o+k+1] = out[o+1]; out[o+k+2] = out[o+2]; } }
+    }
+  }
+}
+
+function triGeometry(set, pos, geo) {
+  const arr = new Float32Array(set.size * 9); let j = 0;
+  for (const t of set) { arr.set(pos.subarray(t * 9, t * 9 + 9), j); j += 9; }
+  geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+  geo.computeBoundingSphere();
+}
+
+function refreshMesh(mi) {
+  const m = state.meshes[mi];
+  const posAttr = m.obj.geometry.getAttribute('position');
+  displayPositions(mi, posAttr.array);
+  posAttr.needsUpdate = true;
+  m.obj.geometry.computeVertexNormals();
+  m.obj.geometry.computeBoundingSphere();
+  const shown = m.visible && (!m.far || document.getElementById('showFar').checked);
+  m.obj.visible = shown; m.obj.material.wireframe = document.getElementById('wire').checked;
+  updateCutPieces(mi, shown);
+  const sel = state.sel.get(mi);
+  if (sel && sel.size && shown) { triGeometry(sel, posAttr.array, m.overlay.geometry); m.overlay.visible = true; }
+  else m.overlay.visible = false;
+  const g = state.groups[state.active];
+  const gs = g && g.tris.get(mi);
+  if (gs && gs.size && shown) { triGeometry(gs, posAttr.array, m.grp.geometry); m.grp.visible = true; }
+  else m.grp.visible = false;
+}
+
+function animatedMeshes() {
+  const s = new Set();
+  if (!document.getElementById('animate').checked) return s;
+  for (const g of state.groups) if (g.type === 'spin' && g.rpm) for (const mi of g.tris.keys()) s.add(mi);
+  return s;
+}
+
+function refreshAll() {
+  state.meshes.forEach((_, i) => refreshMesh(i));
+  updateSelInfo(); renderGroups(); updateGizmo();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Selection
+function selCount() { let n = 0; for (const s of state.sel.values()) n += s.size; return n; }
+function updateSelInfo() {
+  const n = selCount();
+  const meshes = [...state.sel.values()].filter(s => s.size).length;
+  document.getElementById('selInfo').textContent = `${n} face${n === 1 ? '' : 's'}` + (meshes > 1 ? ` in ${meshes} meshes` : '');
+  document.getElementById('btnSpin').disabled = n === 0;
+  document.getElementById('btnHide').disabled = n === 0;
+}
+function applySel(mi, tris, op) {
+  if (op === 'replace') state.sel.clear();
+  let s = state.sel.get(mi); if (!s) state.sel.set(mi, s = new Set());
+  for (const t of tris) op === 'remove' ? s.delete(t) : s.add(t);
+}
+const opFromEvent = e => e.shiftKey ? 'add' : (e.ctrlKey || e.metaKey) ? 'remove' : 'replace';
+
+// Faces sharing a corner position (quantised), per mesh.
+function adjacency(mi) {
+  const m = state.meshes[mi]; if (m.adj) return m.adj;
+  const q = v => Math.round(v * 2000);
+  const byVert = new Map(); const triVerts = [];
+  for (let t = 0; t < m.tris; t++) {
+    const keys = [];
+    for (let k = 0; k < 3; k++) {
+      const o = (t * 3 + k) * 3; const key = q(m.base[o]) + ',' + q(m.base[o+1]) + ',' + q(m.base[o+2]);
+      keys.push(key); (byVert.get(key) || byVert.set(key, []).get(key)).push(t);
+    }
+    triVerts.push(keys);
+  }
+  m.adj = { byVert, triVerts };
+  return m.adj;
+}
+function connected(mi, start) {
+  const { byVert, triVerts } = adjacency(mi);
+  const seen = new Set([start]); const stack = [start];
+  while (stack.length) { const t = stack.pop(); for (const k of triVerts[t]) for (const n of byVert.get(k)) if (!seen.has(n)) { seen.add(n); stack.push(n); } }
+  return seen;
+}
+function grow() {
+  for (const [mi, s] of state.sel) {
+    const { byVert, triVerts } = adjacency(mi); const more = [];
+    for (const t of s) for (const k of triVerts[t]) for (const n of byVert.get(k)) more.push(n);
+    for (const t of more) s.add(t);
+  }
+  refreshAll();
+}
+
+const raycaster = new THREE.Raycaster();
+function pick(clientX, clientY) {
+  const r = renderer.domElement.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const targets = state.meshes.filter(m => m.obj.visible).map(m => m.obj);
+  for (const mr of mirrors) if (mr.pickable && mr.src.visible) targets.push(mr.obj);// the mirrored copies pick the same faces
+  const hit = raycaster.intersectObjects(targets, false)[0];
+  return hit ? { mi: hit.object.userData.meshIndex, tri: hit.faceIndex } : null;
+}
+
+function boxSelect(x0, y0, x1, y1, op) {
+  const r = renderer.domElement.getBoundingClientRect();
+  const [ax, bx] = [Math.min(x0, x1) - r.left, Math.max(x0, x1) - r.left];
+  const [ay, by] = [Math.min(y0, y1) - r.top, Math.max(y0, y1) - r.top];
+  const frontOnly = document.getElementById('frontOnly').checked;
+  if (op === 'replace') state.sel.clear();
+  const v = new THREE.Vector3(), camPos = camera.position;
+  state.meshes.forEach((m, mi) => {
+    if (!m.obj.visible) return;
+    const pos = m.obj.geometry.getAttribute('position').array; const hits = new Set();
+    // This copy and every mirrored copy: a face counts if any of its copies is in the box.
+    for (const mat of [null, ...m.instances.map(i => i.matrix)]) {
+      const cam = mat ? camPos.clone().applyMatrix4(mat.clone().invert()) : camPos;
+      for (let t = 0; t < m.tris; t++) {
+        if (hits.has(t)) continue;
+        const o = t * 9;
+        const c = [(pos[o]+pos[o+3]+pos[o+6])/3, (pos[o+1]+pos[o+4]+pos[o+7])/3, (pos[o+2]+pos[o+5]+pos[o+8])/3];
+        if (frontOnly) {
+          const n = cross(sub([pos[o+3],pos[o+4],pos[o+5]], [pos[o],pos[o+1],pos[o+2]]), sub([pos[o+6],pos[o+7],pos[o+8]], [pos[o],pos[o+1],pos[o+2]]));
+          if (Math.abs(dot(nrm(n), nrm(sub([cam.x, cam.y, cam.z], c)))) < 0.05) continue;
+        }
+        v.set(c[0], c[1], c[2]);
+        if (mat) v.applyMatrix4(mat);
+        v.project(camera);
+        if (v.z > 1) continue;
+        const sx = (v.x + 1) / 2 * r.width, sy = (1 - v.y) / 2 * r.height;
+        if (sx >= ax && sx <= bx && sy >= ay && sy <= by) hits.add(t);
+      }
+    }
+    if (hits.size) applySel(mi, [...hits], op === 'replace' ? 'add' : op);
+  });
+  refreshAll();
+}
+
+// Pointer handling: click picks (no drag); Box mode: left-drag draws the rectangle.
+const boxEl = document.getElementById('box');
+let down = null;
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  down = { x: e.clientX, y: e.clientY, e };
+  if (state.mode === 'box') renderer.domElement.setPointerCapture(e.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!down || state.mode !== 'box') return;
+  const r = view.getBoundingClientRect();
+  boxEl.style.display = 'block';
+  boxEl.style.left = Math.min(down.x, e.clientX) - r.left + 'px'; boxEl.style.top = Math.min(down.y, e.clientY) - r.top + 'px';
+  boxEl.style.width = Math.abs(e.clientX - down.x) + 'px'; boxEl.style.height = Math.abs(e.clientY - down.y) + 'px';
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || e.button !== 0 || !state.pod) { down = null; return; }
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+  const op = opFromEvent(down.e);
+  if (moverUsed || mover.axis || layoutMover.axis || fxMover.axis) { moverUsed = false; down = null; return; }// that click was on a move gizmo
+  if (state.mode === 'box') {
+    boxEl.style.display = 'none';
+    if (moved > 4) boxSelect(down.x, down.y, e.clientX, e.clientY, op);
+  } else if (moved < 4) {
+    const h = pick(e.clientX, e.clientY);
+    if (h) {
+      let tris = [h.tri];
+      if (state.mode === 'connected') tris = connected(h.mi, h.tri);
+      else if (state.mode === 'mesh') tris = [...Array(state.meshes[h.mi].tris).keys()];
+      applySel(h.mi, tris, op);
+      const m = state.meshes[h.mi];
+      setStatus(`mesh ${m.key} · part 0x${m.part.toString(16)} ${PART_NAMES[m.part] || ''} · face ${h.tri}`);
+    } else if (op === 'replace') state.sel.clear();
+    refreshAll();
+  }
+  down = null;
+});
+document.getElementById('modeSeg').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  state.mode = b.dataset.mode;
+  for (const x of document.querySelectorAll('#modeSeg button')) x.classList.toggle('on', x === b);
+  controls.mouseButtons.LEFT = state.mode === 'box' ? null : THREE.MOUSE.ROTATE;
+  controls.mouseButtons.RIGHT = state.mode === 'box' ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+  document.getElementById('hint').textContent = state.mode === 'box'
+    ? 'Left-drag box · Right-drag rotate · Wheel zoom' : 'Left-drag rotate · Right-drag pan · Wheel zoom';
+};
+document.getElementById('btnGrow').onclick = grow;
+document.getElementById('btnClear').onclick = () => { state.sel.clear(); refreshAll(); };
+
+// ---------------------------------------------------------------------------------------------
+// Groups
+function selectionStats(trisMap) {
+  // Centre of the selected corners, area-weighted face normal (pod frame, base geometry).
+  let c = [0,0,0], n = 0, nn = [0,0,0];
+  for (const [mi, s] of trisMap) {
+    const b = state.meshes[mi].base;
+    for (const t of s) {
+      const o = t * 9; const p0 = [b[o],b[o+1],b[o+2]], p1 = [b[o+3],b[o+4],b[o+5]], p2 = [b[o+6],b[o+7],b[o+8]];
+      c = add(c, add(p0, add(p1, p2))); n += 3;
+      let fn = cross(sub(p1, p0), sub(p2, p0));
+      if (len(nn) > 0 && dot(fn, nn) < 0) fn = scl(fn, -1);// double-sided meshes wind both ways
+      nn = add(nn, fn);
+    }
+  }
+  return { centre: n ? scl(c, 1 / n) : [0,0,0], normal: nrm(nn) };
+}
+function cloneSel() { const m = new Map(); for (const [k, s] of state.sel) if (s.size) m.set(k, new Set(s)); return m; }
+function newGroup(type) {
+  const tris = cloneSel(); if (!tris.size) return;
+  const st = selectionStats(tris);
+  state.groups.push({ id: state.nextId++, type, name: (type === 'spin' ? 'Spin ' : 'Hide ') + (state.groups.length + 1), tris,
+    pivot: st.centre, axis: st.normal, rpm: 240, offset: [0, 0, 0], scale: 1 });
+  state.active = state.groups.length - 1;
+  state.sel.clear();
+  refreshAll(); markDirty();
+}
+document.getElementById('btnSpin').onclick = () => newGroup('spin');
+document.getElementById('btnHide').onclick = () => newGroup('hide');
+
+function vecRow(label, v, onChange) {
+  const row = document.createElement('div'); row.className = 'vec';
+  row.innerHTML = `<span class="dim">${label}</span>`;
+  v.forEach((x, i) => {
+    const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.01'; inp.value = fmt(x);
+    inp.onchange = () => { v[i] = parseFloat(inp.value) || 0; onChange(); };
+    row.appendChild(inp);
+  });
+  return row;
+}
+function renderGroups() {
+  const box = document.getElementById('groups'); box.innerHTML = '';
+  if (!state.groups.length) { box.innerHTML = '<div class="dim">Select faces (e.g. an intake turbine with Connected), then split them into a group.</div>'; return; }
+  state.groups.forEach((g, gi) => {
+    const el = document.createElement('div'); el.className = 'group' + (gi === state.active ? ' active' : '');
+    const nt = [...g.tris.values()].reduce((a, s) => a + s.size, 0);
+    el.innerHTML = `<div class="title"><span><span class="tag ${g.type}">${g.type}</span> <input type="text" value="${g.name.replace(/"/g, '&quot;')}"></span>
+      <span class="dim">${nt} faces</span></div>`;
+    el.querySelector('input').onchange = e => { g.name = e.target.value; markDirty(); };
+    el.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; state.active = gi; refreshAll(); };
+    if (gi === state.active) {
+      if (g.type === 'spin') {
+        el.appendChild(vecRow('Pivot', g.pivot, () => { updateGizmo(); markDirty(); }));
+        el.appendChild(vecRow('Axis', g.axis, () => { updateGizmo(); markDirty(); }));
+        if (!g.offset) g.offset = [0, 0, 0];
+        const offRow = vecRow('Offset', g.offset, () => { for (const mi of g.tris.keys()) refreshMesh(mi); updateGizmo(); markDirty(); });
+        offRow.id = 'offsetRow';
+        offRow.title = 'Move the part (pod frame: x right, y forward, z up) before it spins. Or drag the arrows in the view.';
+        el.appendChild(offRow);
+        const r = document.createElement('div'); r.className = 'row';
+        r.innerHTML = `<label class="small" style="width:52px">RPM</label><input type="number" step="10" value="${g.rpm}">
+          <button title="Flip spin direction">⇄</button><button data-r="off" title="Put the part back where it was">Reset move</button>`;
+        const rs = document.createElement('div'); rs.className = 'row';
+        rs.innerHTML = `<label class="small" style="width:52px">Scale</label>
+          <input type="range" min="0.3" max="1.5" step="0.01" value="${g.scale ?? 1}" style="flex:1">
+          <input type="number" min="0.05" max="5" step="0.01" value="${fmt(g.scale ?? 1)}">`;
+        rs.title = 'Shrink or grow the part about its pivot (e.g. so a spinning intake face fits inside its frame).';
+        const [sRange, sNum] = rs.querySelectorAll('input');
+        const setScale = v => {
+          g.scale = Math.min(5, Math.max(0.05, v || 1)); sRange.value = g.scale; sNum.value = fmt(g.scale);
+          for (const mi of g.tris.keys()) refreshMesh(mi); markDirty();
+        };
+        sRange.oninput = () => setScale(parseFloat(sRange.value));
+        sNum.onchange = () => setScale(parseFloat(sNum.value));
+        r.querySelector('input').onchange = e => { g.rpm = parseFloat(e.target.value) || 0; markDirty(); };
+        r.querySelector('button').onclick = () => { g.rpm = -g.rpm; renderGroups(); markDirty(); };
+        r.querySelector('[data-r=off]').onclick = () => { g.offset = [0, 0, 0]; refreshAll(); markDirty(); };
+        el.appendChild(r);
+        el.appendChild(rs);
+        const rc = document.createElement('div'); rc.className = 'row';
+        rc.innerHTML = `<label class="small" title="Split the faces along an ellipse around the pivot: only the inside spins, the rim stays put. Applied when baking (bake_pod_edits.py); plain in-game edit files spin the whole faces."><input type="checkbox" ${g.cut ? 'checked' : ''}> Cut to ellipse</label>`;
+        el.appendChild(rc);
+        if (g.cut) {
+          const rr = document.createElement('div'); rr.className = 'vec';
+          rr.innerHTML = `<span class="dim" title="Radii across the axis (pod units) and the ellipse's turn about the axis (degrees)">A / B / °</span>`;
+          for (const k of ['rx', 'ry', 'angle']) {
+            const inp = document.createElement('input'); inp.type = 'number'; inp.step = k === 'angle' ? '5' : '0.1'; inp.value = fmt(g.cut[k]);
+            inp.onchange = () => { const x = parseFloat(inp.value) || 0; g.cut[k] = k === 'angle' ? x : Math.max(0.01, x); for (const mi of g.tris.keys()) refreshMesh(mi); updateGizmo(); markDirty(); };
+            rr.appendChild(inp);
+          }
+          el.appendChild(rr);
+        }
+        rc.querySelector('input').onchange = e => {
+          if (e.target.checked) defaultCut(g); else g.cut = null;
+          refreshAll(); markDirty();
+        };
+        const r2 = document.createElement('div'); r2.className = 'row';
+        r2.innerHTML = `<button data-a="centre">Pivot = centre</button><button data-a="normal">Axis = face normal</button>
+          <button data-a="fwd">Axis = forward</button>`;
+        r2.onclick = e => {
+          const a = e.target.dataset.a; if (!a) return;
+          const st = selectionStats(g.tris);
+          if (a === 'centre') g.pivot = st.centre;
+          if (a === 'normal') g.axis = st.normal;
+          if (a === 'fwd') g.axis = [0, 1, 0];
+          refreshAll(); markDirty();
+        };
+        el.appendChild(r2);
+      }
+      const r3 = document.createElement('div'); r3.className = 'row';
+      r3.innerHTML = `<button data-a="sel">Select its faces</button><button data-a="addsel">Add selection</button>
+        <button data-a="del" class="danger">Delete</button>`;
+      r3.onclick = e => {
+        const a = e.target.dataset.a; if (!a) return;
+        if (a === 'sel') state.sel = new Map([...g.tris].map(([k, s]) => [k, new Set(s)]));
+        if (a === 'addsel') { for (const [k, s] of state.sel) { let t = g.tris.get(k); if (!t) g.tris.set(k, t = new Set()); for (const x of s) t.add(x); } state.sel.clear(); markDirty(); }
+        if (a === 'del') { state.groups.splice(gi, 1); state.active = Math.min(state.active, state.groups.length - 1); markDirty(); }
+        refreshAll();
+      };
+      el.appendChild(r3);
+    }
+    box.appendChild(el);
+  });
+}
+function syncOffsetInputs(g) {
+  const row = document.getElementById('offsetRow'); if (!row) return;
+  row.querySelectorAll('input').forEach((inp, i) => { inp.value = fmt(g.offset[i]); });
+}
+function updateGizmo() {
+  const g = state.groups[state.active];
+  gizmo.visible = !!(g && g.type === 'spin');
+  mover.visible = mover.enabled = gizmo.visible;
+  cutLine.visible = !!(gizmo.visible && g.cut);
+  if (cutLine.visible) {
+    const { u, v } = cutBasis(g), pts = [];
+    for (let i = 0; i < 64; i++) {
+      const t = i / 64 * Math.PI * 2;
+      pts.push(...add(g.pivot, add(scl(u, Math.cos(t) * g.cut.rx), scl(v, Math.sin(t) * g.cut.ry))));
+    }
+    cutLine.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    cutLine.geometry.computeBoundingSphere();
+  }
+  if (!gizmo.visible) return;
+  const off = g.offset || [0, 0, 0];
+  const p = new THREE.Vector3(g.pivot[0] + off[0], g.pivot[1] + off[1], g.pivot[2] + off[2]), a = new THREE.Vector3(...nrm(g.axis));
+  if (!moverDragging) moveProxy.position.copy(p);
+  const L = Math.max(0.6, camera.position.distanceTo(controls.target) * 0.08);
+  pivotDot.position.copy(p);
+  axisArrow.position.copy(p); axisArrow.setDirection(a); axisArrow.setLength(L, L * 0.25, L * 0.15);
+  pivotDot.scale.setScalar(L * 0.1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Edits file
+function ranges(set) {
+  const a = [...set].sort((x, y) => x - y); const out = [];
+  for (let i = 0; i < a.length; ) { let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; out.push(a[i] === a[j] ? `${a[i]}` : `${a[i]}-${a[j]}`); i = j + 1; }
+  return out.join(',');
+}
+function buildEditsText() {
+  const p = state.pod; const L = [];
+  L.push(`# SW_RACER_RE pod edits for ${p.model} (made with tools/pod_editor/pod_editor.html)`);
+  L.push(`# Put this file in <game>/assets/pod_edits/${p.model}.txt`);
+  L.push(`# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)`);
+  for (const g of state.groups) {
+    L.push(`# ${g.type}: ${g.name}`);
+    for (const [mi, set] of g.tris) {
+      if (!set.size) continue;
+      const m = state.meshes[mi];
+      if (g.type === 'spin' && !m.podToLocal) continue;
+      if (g.type === 'spin') {
+        // Pivot / axis stored in the mesh's own frame so they follow the part in game.
+        const pv = xfPoint(m.podToLocal, g.pivot), ax = nrm(xfDir(m.podToLocal, g.axis));
+        const off = g.offset || [0, 0, 0];
+        const ofl = xfDir(m.podToLocal, off);// a move, in the mesh's own frame
+        const sc = g.scale ?? 1;
+        // Optional trailing fields: offset (mesh frame), then scale (needs the offset before it).
+        let tail = (off[0] || off[1] || off[2] || sc !== 1) ? ` ${ofl.map(fmt).join(' ')}` + (sc !== 1 ? ` ${fmt(sc)}` : '') : '';
+        if (g.cut) {
+          // "ellipse ux uy uz rx ry" (mesh frame) after the full offset + scale fields.
+          const { u, v } = cutBasis(g);
+          const ul = xfDir(m.podToLocal, u), vl = xfDir(m.podToLocal, v);
+          tail = ` ${ofl.map(fmt).join(' ')} ${fmt(sc)} ellipse ${nrm(ul).map(fmt).join(' ')} ${fmt(g.cut.rx * len(ul))} ${fmt(g.cut.ry * len(vl))}`;
+        }
+        // The rpm turns about the axis in the mesh's own frame: a mirrored mesh frame turns the
+        // other way in the pod, so its rpm is written negated (what spins one way here spins the
+        // same way in game).
+        L.push(`spin ${m.key} ${fmt(g.rpm * meshSense(m))} ${pv.map(fmt).join(' ')} ${ax.map(fmt).join(' ')} ${ranges(set)}${tail}`);
+      } else L.push(`hide ${m.key} ${ranges(set)}`);
+    }
+  }
+  L.push(...layoutLines());
+  L.push(...fxLines());
+  return L.join('\n') + '\n';
+}
+// "cable cockpit / cable engine / binder" lines for the ends moved away from the game's values.
+function layoutLines() {
+  const S = state.layout; if (!S) return [];
+  const out = [];
+  for (const k of BASE_KINDS) {
+    if (!(S.frames ? layoutChanged(k) : S.set[k])) continue;
+    if (!out.length) out.push('# pod layout (swrRacer_PodVisualData): cable / binder ends');
+    out.push(`${k === 'binder' || k === 'exhaust' ? k : 'cable ' + k} ${S.cur[k].map(fmt).join(' ')}`);
+  }
+  if (S.exScale && S.exScale.some(v => Math.abs(v - 1) > 1e-4)) {
+    if (!out.length) out.push('# pod layout (swrRacer_PodVisualData): cable / binder ends');
+    out.push(`exhaustscale ${S.exScale.map(fmt).join(' ')}`);
+  }
+  if (S.stiff !== undefined && S.stiff !== null) out.push(`cablestiff ${fmt(S.stiff)}`);
+  if (S.cableOut && (S.cableOut[0] || S.cableOut[1])) out.push(`cableout ${S.cableOut.map(fmt).join(' ')}`);
+  if (S.cableRot && S.cableRot.some(Boolean)) out.push(`cablerot ${S.cableRot.map(fmt).join(' ')}`);
+  (S.own || []).forEach((o, i) => {
+    if (!o) return;
+    out.push(`owncable${i + 1} cockpit ${o.c.map(fmt).join(' ')}`, `owncable${i + 1} engine ${o.e.map(fmt).join(' ')}`,
+             `owncable${i + 1} rot ${o.rot.map(fmt).join(' ')}`);
+  });
+  if (S.extra) {
+    out.push('# extra cable pair: baked into the model ("cables extra"), placed in game from the cable2 lines');
+    out.push('cables extra');
+    out.push(`cable2 cockpit ${S.cur.cockpit2.map(fmt).join(' ')}`);
+    out.push(`cable2 engine ${S.cur.engine2.map(fmt).join(' ')}`);
+  }
+  return out;
+}
+function parseRanges(s) { const out = new Set(); for (const r of s.split(',')) { if (!r) continue; const [a, b] = r.split('-').map(Number); for (let t = a; t <= (isNaN(b) ? a : b); t++) out.add(t); } return out; }
+function loadEdits(text) {
+  if (!state.pod) throw new Error('Open a pod export first');
+  const byKey = new Map(state.meshes.map((m, i) => [m.key.toLowerCase(), i]));
+  // Files from before the "rpm-sense" line wrote the editor's (pod-frame) rpm as it was.
+  const rpmFix = /^#\s*rpm-sense:\s*mesh/m.test(text);
+  // Older edits use plain keys (in-memory offsets); a current export uses "<model>:<file offset>",
+  // a few bytes off per model (alignment). Match each old key to the export's meshes through the
+  // per-model shift that explains the most of the file's old keys.
+  {
+    const oldKeys = [...new Set(text.split(/\r?\n/).map(l => l.trim().split(/\s+/))
+      .filter(t => (t[0] === 'spin' || t[0] === 'hide') && t[1] && !t[1].includes(':')).map(t => t[1].toLowerCase()))];
+    const byOff = new Map();// file offset -> [mesh index] (a pod's two models can share offsets)
+    state.meshes.forEach((m, i) => {
+      const c = m.key.indexOf(':'); if (c < 0) return;
+      const off = parseInt(m.key.slice(c + 1), 16);
+      if (!byOff.has(off)) byOff.set(off, []);
+      byOff.get(off).push({ i, model: m.key.slice(0, c) });
+    });
+    const support = new Map(), cands = k => {
+      const out = [];
+      for (let sh = -16; sh <= 32; sh += 4) for (const h of byOff.get(parseInt(k, 16) - sh) || []) out.push({ ...h, sh, id: h.model + '/' + sh });
+      return out;
+    };
+    for (const k of oldKeys) for (const c of cands(k)) support.set(c.id, (support.get(c.id) || 0) + 1);
+    for (const k of oldKeys) {
+      if (byKey.has(k)) continue;
+      const best = cands(k).sort((a, b) => support.get(b.id) - support.get(a.id))[0];
+      if (best) byKey.set(k, best.i);
+    }
+  }
+  state.groups = [];
+  state.layout.cur = Object.fromEntries(BASE_KINDS.map(k => [k, state.layout.stock[k].slice()]));
+  Object.assign(state.layout.cur, extraDefaults(state.layout.cur));
+  state.layout.set = {}; state.layout.moving = null; state.layout.extra = false;
+  state.layout.exScale = [1, 1, 1];
+  state.layout.stiff = null;
+  state.layout.cableOut = [0, 0];
+  state.layout.cableRot = [0, 0, 0, 0, 0, 0];
+  state.layout.own = [null, null, null, null];
+  state.layout.pairMirror = [true, true];
+  fxInit(state.pod);
+  const fxSeen = {};
+  let name = null, missing = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith('#')) { const m = line.match(/^#\s*(spin|hide):\s*(.*)$/); if (m) name = m[2]; continue; }
+    const t = line.split(/\s+/); if (!t[0]) continue;
+    if (t[0] === 'cables' && t[1] === 'extra') { state.layout.extra = true; state.layout.fromText = true; continue; }
+    if (t[0] === 'exhaustscale') {
+      const v = t.slice(1, 4).map(Number);
+      if (v.length === 3 && v.every(Number.isFinite)) state.layout.exScale = v;
+      continue;
+    }
+    if (t[0] === 'cablestiff') { const v = +t[1]; if (Number.isFinite(v)) state.layout.stiff = v; continue; }
+    if (t[0] === 'cableout') {
+      const v = t.slice(1, 3).map(Number);
+      if (v.length === 2 && v.every(Number.isFinite)) state.layout.cableOut = v;
+      continue;
+    }
+    if (t[0] === 'gamefirestreak') {
+      const v = t.slice(1, 5).map(Number);
+      if (v.length === 4 && v.every(Number.isFinite)) state.fx.streak = { set: true, v };
+      continue;
+    }
+    // One cable's own ends / turns: "owncable<N>" (older files: "cable<N>", except that
+    // "cable2 cockpit / engine" always means the extra pair, below).
+    if (/^(own)?cable[1-4]$/.test(t[0]) && !(t[0] === 'cable2' && (t[1] === 'cockpit' || t[1] === 'engine'))) {
+      const i = +t[0].slice(-1) - 1, v = t.slice(2).map(Number);
+      const o = state.layout.own[i] || (state.layout.own[i] = { c: [0, 0, 0], e: [0, 0, 0], rot: [0, 0, 0, 0, 0, 0] });
+      if (t[1] === 'cockpit' && v.length >= 3) o.c = v.slice(0, 3);
+      else if (t[1] === 'engine' && v.length >= 3) o.e = v.slice(0, 3);
+      else if (t[1] === 'rot' && v.length >= 6) o.rot = v.slice(0, 6);
+      continue;
+    }
+    if (t[0] === 'cablerot') {
+      const v = t.slice(1, 7).map(Number);
+      if (v.length === 6 && v.every(Number.isFinite)) state.layout.cableRot = v;
+      continue;
+    }
+    if (t[0] === 'exhaustlight') {
+      const v = t.slice(1, 5).map(Number);
+      if (v.length === 4 && v.every(Number.isFinite)) state.fx.light = { set: true, v };
+      continue;
+    }
+    if (FX_KINDS[t[0]] && (t[1] === 'R' || t[1] === 'L')) {
+      const info = FX_KINDS[t[0]];
+      const v = t.slice(2, info.radius ? 6 : info.scale ? 8 : 5).map(Number);
+      if (v.every(Number.isFinite) && v.length >= 3) {
+        if (!fxSeen[t[0]]) { fxSeen[t[0]] = true; state.fx.set[t[0]] = true; state.fx.pts[t[0]] = { R: [], L: [] }; }
+        state.fx.pts[t[0]][t[1]].push(info.scale ? [v[0], v[1], v[2], 0, v[3] ?? 1, v[4] ?? 1, v[5] ?? 1] : [v[0], v[1], v[2], v[3] ?? 0]);
+      }
+      continue;
+    }
+    if (t[0] === 'cable2' && (t[1] === 'cockpit' || t[1] === 'engine')) {
+      const v = t.slice(2, 5).map(Number);
+      if (v.length === 3 && v.every(Number.isFinite)) state.layout.cur[t[1] + '2'] = v;
+      continue;
+    }
+    if (t[0] === 'cable' || t[0] === 'binder' || t[0] === 'exhaust') {
+      const k = t[0] === 'cable' ? t[1] : t[0], v = (t[0] === 'cable' ? t.slice(2, 5) : t.slice(1, 4)).map(Number);
+      if (LAYOUT[k] && v.length === 3 && v.every(Number.isFinite)) { state.layout.cur[k] = v; state.layout.set[k] = true; state.layout.fromText = true; }
+      continue;
+    }
+    const mi = byKey.get((t[1] || '').toLowerCase());
+    if (mi === undefined) { missing++; continue; }
+    const m = state.meshes[mi];
+    if (t[0] === 'spin') {
+      const pv = xfPoint(m.localToPod, [+t[3], +t[4], +t[5]]), ax = nrm(xfDir(m.localToPod, [+t[6], +t[7], +t[8]]));
+      const off = t.length >= 13 ? xfDir(m.localToPod, [+t[10], +t[11], +t[12]]) : [0, 0, 0];
+      const ei = t.indexOf('ellipse');
+      const sc = t.length >= 14 && ei !== 13 ? +t[13] : 1;
+      let cut = null;
+      if (ei >= 0) {
+        const ul = [+t[ei + 1], +t[ei + 2], +t[ei + 3]], up = xfDir(m.localToPod, ul);
+        const k = len(up) || 1;// mesh-frame radii -> pod units
+        cut = { rx: +t[ei + 4] * k, ry: +t[ei + 5] * k, angle: 0, u: nrm(up) };
+      }
+      // Lines written from one group share pivot / axis / rpm / offset: merge them back.
+      // The file's rpm is in the mesh's frame (see buildEditsText); the editor's in the pod's.
+      const rpm = rpmFix ? +t[2] * meshSense(m) : +t[2];
+      let g = state.groups.find(g => g.type === 'spin' && g.name === name && g.rpm === rpm && len(sub(g.pivot, pv)) < 1e-3 &&
+                                     len(sub(g.offset || [0, 0, 0], off)) < 1e-3 && (g.scale ?? 1) === sc &&
+                                     !g.cut === !cut && (!cut || (Math.abs(g.cut.rx - cut.rx) < 1e-3 && Math.abs(g.cut.ry - cut.ry) < 1e-3)));
+      if (!g) {
+        state.groups.push(g = { id: state.nextId++, type: 'spin', name: name || 'Spin ' + (state.groups.length + 1), tris: new Map(), pivot: pv, axis: ax, rpm, offset: off, scale: sc, cut: null });
+        if (cut) {
+          // Recover the angle of the saved u direction against this axis's default basis.
+          g.cut = { rx: cut.rx, ry: cut.ry, angle: 0 };
+          const { u, v } = cutBasis(g);
+          g.cut.angle = +(Math.atan2(dot(cut.u, v), dot(cut.u, u)) * 180 / Math.PI).toFixed(2);
+        }
+      }
+      g.tris.set(mi, parseRanges(t[9]));
+    } else if (t[0] === 'hide') {
+      let g = state.groups.find(g => g.type === 'hide' && g.name === name);
+      if (!g) state.groups.push(g = { id: state.nextId++, type: 'hide', name: name || 'Hide ' + (state.groups.length + 1), tris: new Map(), pivot: [0,0,0], axis: [0,0,1], rpm: 0 });
+      g.tris.set(mi, parseRanges(t[2]));
+    }
+  }
+  state.active = state.groups.length ? 0 : -1;
+  // A pair saved with mirrored values stays mirrored; one that isn't, isn't.
+  for (const p of [0, 1]) {
+    const r = state.layout.own[2 * p], l = state.layout.own[2 * p + 1];
+    if (r && l) {
+      const m = mirrorCable(r), same = (a, b) => a.every((v, j) => Math.abs(v - b[j]) < 1e-3);
+      state.layout.pairMirror[p] = same(m.c, l.c) && same(m.e, l.e) && same(m.rot, l.rot);
+    }
+  }
+  renderLayout(); drawLayout(); renderFx(); drawFx();
+  refreshAll(); markDirty(false);
+  setStatus(`Loaded edits: ${state.groups.length} groups` + (missing ? ` · ${missing} lines for meshes not in this export were skipped` : ''));
+}
+
+let dirty = false;
+function markDirty(v = true) {
+  dirty = v;
+  document.getElementById('btnSave').disabled = !state.pod;
+  document.getElementById('btnCopy').disabled = !state.pod;
+  document.getElementById('btnBuild').disabled = !state.pod;
+}
+document.getElementById('btnSave').onclick = () => {
+  const blob = new Blob([buildEditsText()], { type: 'text/plain' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = state.pod.model + '.txt'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  dirty = false; setStatus('Saved ' + state.pod.model + '.txt: copy it to <game>/assets/pod_edits/');
+};
+document.getElementById('btnCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(buildEditsText()); setStatus('Edits copied to the clipboard'); }
+  catch { setStatus('Clipboard not available; use Save'); }
+};
+addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+// Build & install: bake the spin groups (bake.js) and write them, with the in-game edits, into the
+// game folder (File System Access API; the folder handle is remembered). Without that API (e.g.
+// Firefox) it asks for data/lev01/out_modelblock.bin and downloads the two files instead.
+const idb = (mode, fn) => new Promise((res, rej) => {
+  const rq = indexedDB.open('pod-editor', 1);
+  rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+  rq.onerror = () => rej(rq.error);
+  rq.onsuccess = () => { const tx = rq.result.transaction('kv', mode), r = fn(tx.objectStore('kv')); tx.oncomplete = () => res(r && r.result); tx.onerror = () => rej(tx.error); };
+});
+async function savedGameDir() { try { return await idb('readonly', s => s.get('workspace')); } catch { return null; } }
+async function subDir(dir, path, create) { for (const p of path) dir = await dir.getDirectoryHandle(p, { create }); return dir; }
+// Where the model block is and where the outputs go: the mod's workspace (Desktop\SWEP1R Pod
+// Editor: out_modelblock.bin at the top, replacement_models\, pod_edits\) or a game folder outside
+// Program Files (data\lev01\out_modelblock.bin, assets\...). Browsers refuse Program Files.
+async function folderLayout(dir) {
+  try { return { block: await dir.getFileHandle('out_modelblock.bin'), out: [], kind: 'workspace' }; } catch { /* not the workspace */ }
+  try { return { block: await (await subDir(dir, ['data', 'lev01'], false)).getFileHandle('out_modelblock.bin'), out: ['assets'], kind: 'game' }; } catch { /* nor the game */ }
+  return null;
+}
+async function gameDirHandle(forcePick) {
+  let dir = forcePick ? null : await savedGameDir();
+  if (dir && (await dir.queryPermission({ mode: 'readwrite' })) !== 'granted' &&
+      (await dir.requestPermission({ mode: 'readwrite' })) !== 'granted') dir = null;
+  let layout = dir && await folderLayout(dir);
+  if (!layout) {
+    buildReport('info', 'Pick the folder "SWEP1R Pod Editor" on your Desktop (the mod creates it when the game starts).');
+    dir = await showDirectoryPicker({ id: 'swr-pod-workspace', mode: 'readwrite', startIn: 'desktop' });
+    layout = await folderLayout(dir);
+    if (!layout) throw new Error(`"${dir.name}" is not the pod editor folder (Desktop\\SWEP1R Pod Editor, made by the mod when the game starts: update the mod and start the game once).`);
+    try { await idb('readwrite', s => s.put(dir, 'workspace')); } catch { /* not remembered */ }
+  }
+  document.getElementById('gameDir').textContent = 'Folder: ' + dir.name;
+  return { dir, layout };
+}
+async function writeFile(dir, path, data) {
+  const d = await subDir(dir, path.slice(0, -1), true);
+  const w = await (await d.getFileHandle(path[path.length - 1], { create: true })).createWritable();
+  await w.write(data); await w.close();
+}
+// What the mod applies in game: hides as "<model>:<offset>" keys (so they reach the right one of
+// the pod's two models), moved / renumbered for any model the bake rewrote, plus the cable / binder
+// lines. Spin lines are left out when they are baked (`baked`), kept otherwise.
+function runtimeEditsText(block, baked) {
+  const exportKeys = state.meshes.map(m => m.key);
+  const lines = buildEditsText().split('\n');
+  const keys = lines.map(l => l.trim().split(/\s+/)).filter(t => t[0] === 'hide' || t[0] === 'spin').map(t => t[1].toLowerCase());
+  const resolved = window.PodBake.resolveKeys(block, keys, exportKeys);
+  const out = [`# SW_RACER_RE in-game pod edits for ${state.pod.model} (written by Build & install)`,
+               baked ? `# The spin groups are baked into replacement_models; the full edits are in pod_edits/source/.`
+                     : `# The full edits are in pod_edits/source/.`];
+  const byModel = new Map((baked ? baked.models : []).map(r => [r.modelId, r]));
+  // Spinning parts baked into an alt model: the game runs no animations there, the mod turns them.
+  for (const r of baked ? baked.models : [])
+    for (const tn of r.trailNodes || []) {
+      if (!out.some(l => l.startsWith('# extra exhaust trails'))) out.push('# extra exhaust trails (placed by the mod): node, engine, point');
+      out.push(`trailnode ${r.modelId}:${tn.node.toString(16)} ${tn.side} ${[...tn.pos, ...(tn.scale || [1, 1, 1])].map(fmt).join(' ')}`);
+    }
+  for (const r of baked ? baked.models : [])
+    for (const sn of r.spinNodes || []) {
+      if (!out.some(l => l.startsWith('# spinning parts of the alt model'))) out.push('# spinning parts of the alt model (turned by the mod): node, rpm, axis');
+      out.push(`spinnode ${r.modelId}:${sn.node.toString(16)} ${fmt(sn.rpm)} ${sn.axis.map(fmt).join(' ')}`);
+    }
+  for (const line of lines) {
+    const t = line.trim().split(/\s+/);
+    if (t[0] === 'hide' || (t[0] === 'spin' && !baked)) {
+      const r = resolved.get(t[1].toLowerCase());
+      if (!r) { out.push(line); continue; }// not in this game data: left as it was
+      const bm = byModel.get(r.model);
+      let off = r.off, rest = t.slice(2).join(' ');
+      if (bm && t[0] === 'hide') {
+        // A mesh the bake split (spinning faces moved out): its remaining faces were renumbered.
+        const remap = bm.triRemap[r.off];
+        let tris = parseRanges(t[2]);
+        if (remap) tris = new Set([...tris].map(i => remap[i]).filter(i => i !== undefined && i >= 0));
+        if (!tris.size) continue;
+        off += bm.keyShift; rest = ranges(tris);
+      }
+      out.push(`${t[0]} ${r.model}:${off.toString(16)} ${rest}`);
+    }
+    else if (['cable', 'cable2', 'cables', 'binder', 'exhaust', 'exhaustscale', 'cablestiff', 'cableout', 'cablerot', 'exhaustlight', 'gamefirestreak', 'nozzle', 'firespot', 'dustspot', 'gamefire'].includes(t[0]) || /^(own)?cable[1-4]$/.test(t[0]) ||
+             /^#\s*(hide|spin|pod layout|extra cable|engine effects)/.test(line)) out.push(line);
+  }
+  return out.join('\n') + '\n';
+}
+function download(name, data) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([data])); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+// The build's outcome, in a box under the button (the status line is easy to miss).
+function buildReport(kind, text, details) {
+  const box = document.getElementById('buildResult');
+  const colors = { ok: ['#1f3a26', '#9fdc8c'], error: ['#45262a', '#f0a0a0'], info: ['#23303f', '#9cc6f0'] }[kind];
+  box.style.display = ''; box.style.background = colors[0]; box.style.color = colors[1];
+  box.textContent = text + (details && details.length ? '\n\n' + details.join('\n') : '');
+  setStatus(text);
+}
+async function buildAndInstall(e) {
+  if (!bakePod) { buildReport('error', 'Build needs bake.js next to pod_editor.html (tools/pod_editor/bake.js).'); return; }
+  const btn = document.getElementById('btnBuild'); btn.disabled = true;
+  try {
+    const fsApi = typeof showDirectoryPicker === 'function';
+    let dir = null, block, out = [];
+    if (fsApi) {
+      const picked = await gameDirHandle(e && e.shiftKey);
+      dir = picked.dir; out = picked.layout.out;
+      buildReport('info', 'Reading the game models…');
+      block = new Uint8Array(await (await picked.layout.block.getFile()).arrayBuffer());
+    } else {
+      buildReport('info', 'Pick out_modelblock.bin (Desktop\\SWEP1R Pod Editor, or the game\'s data\\lev01).');
+      const inp = document.getElementById('fileBlock');
+      const file = await new Promise(res => { inp.onchange = () => res(inp.files[0]); inp.click(); });
+      inp.value = ''; if (!file) throw new Error('no model file picked');
+      block = new Uint8Array(await file.arrayBuffer());
+    }
+    const full = buildEditsText(), model = state.pod.model;
+    const hasSpins = state.groups.some(g => g.type === 'spin' && [...g.tris.values()].some(s => s.size));
+    const extraCables = !!(state.layout && state.layout.extra) ||
+      !!(state.fx && (state.fx.pts.trail.R.length || state.fx.pts.trail.L.length));// extra cables or trails
+    let baked = null, note = '';
+    buildReport('info', 'Building…');
+    if (hasSpins || extraCables) baked = bakePod(block, full, state.meshes.map(m => m.key));
+    else {
+      const { ids } = window.PodBake.podModels(block, state.meshes.map(m => m.key));
+      note = `No spin groups or extra cables, so there is no model to bake.` +
+             (ids.length ? ` If replacement_models/ holds ${ids.map(i => i + '.bin').join(' or ')} from an earlier bake of this pod, delete it.` : '');
+    }
+    const runtime = runtimeEditsText(block, baked);
+    const written = [];
+    const put = async (path, data) => { await writeFile(dir, [...out, ...path], data); written.push([...out, ...path].join('/')); };
+    if (dir) {
+      for (const r of baked ? baked.models : []) await put(['replacement_models', r.modelId + '.bin'], r.bytes);
+      await put(['pod_edits', 'source', model + '.txt'], full);
+      await put(['pod_edits', model + '.txt'], runtime);
+    } else {
+      for (const r of baked ? baked.models : []) download(r.modelId + '.bin', r.bytes);
+      download(model + '.txt', runtime);
+    }
+    dirty = false;
+    const head = dir ? `Installed in ${dir.name}:\n  ${written.join('\n  ')}` :
+      'Downloaded: put the .bin in Desktop\\SWEP1R Pod Editor\\replacement_models and the .txt in its pod_edits folder.';
+    buildReport('ok', head + (baked ? '\nIn game: Mods › Pod Editor › “Reload edits”, then restart the race to load the new model.'
+                                    : '\nIn game: Mods › Pod Editor › “Reload edits”.') + (note ? '\n' + note : ''),
+                baked ? baked.log : []);
+  } catch (err) {
+    if (err.name === 'AbortError') buildReport('info', 'Build cancelled.');
+    else { buildReport('error', 'Build failed: ' + err.message); console.error(err); }
+  } finally { btn.disabled = !state.pod; }
+}
+document.getElementById('btnBuild').onclick = buildAndInstall;
+document.getElementById('btnBuild').title += ' (Shift-click: pick a different folder)';
+savedGameDir().then(d => { if (d) document.getElementById('gameDir').textContent = 'Game folder: ' + d.name; });
+
+// ---------------------------------------------------------------------------------------------
+// Files
+function setStatus(s) { document.getElementById('status').textContent = s; }
+async function openFile(file) {
+  try {
+    const text = await file.text();
+    if (file.name.toLowerCase().endsWith('.txt')) loadEdits(text); else loadExport(JSON.parse(text));
+  } catch (err) { setStatus('Could not open ' + file.name + ': ' + err.message); console.error(err); }
+}
+document.getElementById('btnOpen').onclick = () => document.getElementById('fileExport').click();
+document.getElementById('btnOpenEdits').onclick = () => document.getElementById('fileEdits').click();
+document.getElementById('fileExport').onchange = e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ''; };
+document.getElementById('fileEdits').onchange = e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ''; };
+const drop = document.getElementById('drop');
+view.addEventListener('dragover', e => { e.preventDefault(); drop.style.display = 'flex'; drop.classList.add('over'); });
+view.addEventListener('dragleave', () => { drop.classList.remove('over'); if (state.pod) drop.style.display = 'none'; });
+view.addEventListener('drop', async e => {
+  e.preventDefault(); drop.classList.remove('over'); if (state.pod) drop.style.display = 'none';
+  const files = [...e.dataTransfer.files].sort((a, b) => (a.name.endsWith('.json') ? -1 : 1) - (b.name.endsWith('.json') ? -1 : 1));
+  for (const f of files) await openFile(f);
+});
+for (const id of ['wire', 'showHidden', 'animate', 'showFar']) document.getElementById(id).onchange = refreshAll;
+
+// ---------------------------------------------------------------------------------------------
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  animT += clock.getDelta();
+  for (const mi of animatedMeshes()) refreshMesh(mi);
+  controls.update();
+  syncMirrors();
+  updateGizmo();
+  if (state.layout && state.layout.frames && layoutRoot.visible !== false) drawLayout();
+  if (state.fx && fxRoot.visible !== false) drawFx();
+  renderer.render(scene, camera);
+});
+window.podEditor = { state, loadExport, loadEdits, buildEditsText, camera, controls, cutPieces, layoutPoints, runtimeEditsText, bakePod, fxToPod };
+</script>
+</body>
+</html>

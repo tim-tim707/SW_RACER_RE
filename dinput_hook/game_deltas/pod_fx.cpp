@@ -29,6 +29,7 @@ extern FILE* hook_log;
 #include "../config.h"
 #include "../debug_ui.h"
 #include "../shadows.h"// SceneLight
+#include "pod_edits.h"// pod_edits_fx_points (the pod editor's effect points)
 
 // Drawing follows swrWeather_delta.cpp: particles live in world space (z up), are projected
 // through the scene view/projection handed in by the renderer, and are emitted as screen-space
@@ -268,9 +269,25 @@ namespace {
         return node == nullptr || (node->flags_1 & 0x2) != 0;
     }
 
+    int pilot_of(const swrRace* r) {
+        return (r->score_ptr && r->score_ptr->pilotId) ? *r->score_ptr->pilotId : -1;
+    }
+    // A pod's edited effect points (kind: 0 nozzle, 1 fire, 2 dust) for one side, or nullptr.
+    const std::vector<std::array<float, 4>>* edited_points(const swrRace* r, int kind, int side) {
+        return pod_edits_fx_points(pilot_of(r), kind, side);
+    }
+
     // World positions + radii of a pod side's nozzles this frame (empty if none captured yet).
+    // The pod editor's nozzles, when the pod's edits set them, replace the detected ones.
     void nozzles_world(const swrRace* r, int side, std::vector<std::pair<rdVector3, float>>& out) {
         out.clear();
+        if (const auto* ed = edited_points(r, 0, side)) {
+            const rdMatrix44& e = engine_of(r, side);
+            const float scale = len(v3(e.vA));
+            for (const auto& p: *ed)
+                out.push_back({to_world(e, {p[0], p[1], p[2]}), p[3] * scale});
+            return;
+        }
         auto it = g_nozzles.find(r);
         if (it == g_nozzles.end())
             return;
@@ -572,11 +589,23 @@ namespace {
                 fx.acc[i][0] += dt * s.sparks * 70.0f * std::pow(shown, 1.5f);
                 fx.acc[i][1] += dt * s.flames * 55.0f * flame_t * (0.6f + 0.8f * frand());// uneven bursts
                 fx.acc[i][2] += dt * s.smoke * moving * (8.0f + 30.0f * shown);
+                // The pod editor's fire spots (this side's engine frame), when set, replace the spots
+                // on the engine bodies.
+                const auto* edited = edited_points(r, 1, left ? 1 : 0);
                 auto spot = [&]() {
+                    if (edited && !edited->empty()) {
+                        const auto& p = (*edited)[(size_t) (frand() * edited->size()) % edited->size()];
+                        return add(to_world(e, {p[0], p[1], p[2]}),
+                                   add(mul(e_fwd, frand_sym() * radius * 0.5f), mul(e_up, frand_sym() * radius * 0.35f)));
+                    }
                     const rdVector3 c = centres[(size_t) (frand() * centres.size()) % centres.size()];
                     return add(add(c, mul(seg_dir, radius)),
                                add(mul(e_fwd, L * (frand() * 0.4f - 0.25f)), mul(e_up, frand_sym() * radius * 0.35f)));
                 };
+                if (edited && edited->empty()) {// edits with no fire spot on this side: none here
+                    fx.acc[i][0] = fx.acc[i][1] = fx.acc[i][2] = 0.0f;
+                    continue;
+                }
                 for (; fx.acc[i][0] >= 1.0f; fx.acc[i][0] -= 1.0f)
                     spawn_spark(spot(), fx.vel, seg_dir, e_up, L, gz);
                 for (; fx.acc[i][1] >= 1.0f; fx.acc[i][1] -= 1.0f)
@@ -598,9 +627,23 @@ namespace {
 
         // -- ground dust: billows wherever the game is kicking up its own dust trail --
         if (s.dust && ground_recent && !dead) {
+            // The pod editor's dust spots (engine frames, dropped to the ground under that
+            // engine), when set, replace the single point the game kicks its dust from.
+            static std::vector<rdVector3> dust_pts;
+            dust_pts.clear();
+            const bool dust_edited = edited_points(r, 2, 0) != nullptr;
+            for (int side = 0; side < 2 && dust_edited; side++)
+                for (const auto& p: *edited_points(r, 2, side)) {
+                    rdVector3 w = to_world(engine_of(r, side), {p[0], p[1], p[2]});
+                    w.z = fx.ground_pos.z;
+                    dust_pts.push_back(w);
+                }
+            if (!dust_edited)
+                dust_pts.push_back(fx.ground_pos);
             fx.dust_acc += dt * s.dust_amount * (8.0f + 50.0f * clampf(speed, 0.0f, 1.0f));
-            for (; fx.dust_acc >= 1.0f; fx.dust_acc -= 1.0f)
-                spawn_dust(fx.ground_pos, fx.vel, mul(norm(add(v3(r->engineXfR.vB), v3(r->engineXfL.vB))), -1.0f), L);
+            for (; fx.dust_acc >= 1.0f && !dust_pts.empty(); fx.dust_acc -= 1.0f)
+                spawn_dust(dust_pts[(size_t) (frand() * dust_pts.size()) % dust_pts.size()], fx.vel,
+                           mul(norm(add(v3(r->engineXfR.vB), v3(r->engineXfL.vB))), -1.0f), L);
         } else {
             fx.dust_acc = 0.0f;
         }
@@ -794,7 +837,8 @@ namespace {
         glBindTexture(GL_TEXTURE_2D, tex);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, N, N, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glGenerateMipmap(GL_TEXTURE_2D);// small, distant sprites stay smooth instead of sparkling
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -817,7 +861,7 @@ namespace {
     }
 
     GLuint soft_texture() {
-        static GLuint tex = make_texture(32, [](float nx, float ny, int, int) {
+        static GLuint tex = make_texture(128, [](float nx, float ny, int, int) {
             const float a = clampf((1.0f - std::sqrt(nx * nx + ny * ny)) * 1.4f, 0.0f, 1.0f);
             return a * a;
         });
@@ -826,9 +870,9 @@ namespace {
 
     // Lumpy, wispy puff for smoke and dust.
     GLuint puff_texture() {
-        static GLuint tex = make_texture(64, [](float nx, float ny, int x, int y) {
+        static GLuint tex = make_texture(128, [](float nx, float ny, int x, int y) {
             const float r = std::sqrt(nx * nx + ny * ny);
-            float n = 0.0f, amp = 0.5f, f = 4.0f / 64.0f;
+            float n = 0.0f, amp = 0.5f, f = 4.0f / 128.0f;// same lumps as before at the new size
             for (int o = 0; o < 4; o++, amp *= 0.5f, f *= 2.0f)
                 n += amp * vnoise(x * f * 1.0f, y * f * 1.0f);
             const float fall = clampf(1.0f - r, 0.0f, 1.0f);
@@ -870,6 +914,18 @@ namespace {
             quad(pts, uvs, c, c, wz);
         }
         // Screen-space streak from (hx,hy) to (tx,ty), `half` wide.
+        // The round texture stretched into an ellipse: centre (cx, cy), half-length vector (ux, uy)
+        // along its long axis, `half_w` across it.
+        void ellipse(float cx, float cy, float ux, float uy, float half_w, D3DCOLOR c, float wz) {
+            const float l = std::sqrt(ux * ux + uy * uy);
+            if (l < 0.5f)
+                return;
+            const float nx = -uy / l * half_w, ny = ux / l * half_w;
+            const float pts[4][2] = {{cx - ux - nx, cy - uy - ny}, {cx + ux - nx, cy + uy - ny},
+                                     {cx + ux + nx, cy + uy + ny}, {cx - ux + nx, cy - uy + ny}};
+            const float uvs[4][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
+            quad(pts, uvs, c, c, wz);
+        }
         bool streak(float hx, float hy, float tx, float ty, float half, D3DCOLOR head, D3DCOLOR tail, float wz) {
             const float dx = hx - tx, dy = hy - ty;
             const float l = std::sqrt(dx * dx + dy * dy);
@@ -892,7 +948,9 @@ namespace {
             if (additive)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE);
             std3D_DrawRenderList_delta((LPDIRECT3DTEXTURE2) (uintptr_t) tex,
-                                       (Std3DRenderState) (STD3D_RS_BLEND_MODULATEALPHA | STD3D_RS_ZWRITE_DISABLED),
+                                       (Std3DRenderState) (STD3D_RS_BLEND_MODULATEALPHA | STD3D_RS_ZWRITE_DISABLED |
+                                                           STD3D_RS_TEX_MAGFILTER_LINEAR | STD3D_RS_TEX_CLAMP_U |
+                                                           STD3D_RS_TEX_CLAMP_V),
                                        v.data(), (int) v.size(), i.data(), (int) i.size());
             if (additive)
                 glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -915,6 +973,7 @@ namespace {
         const swrRace* racer;
         rdVector3 a, b;
         float r, g, bl;
+        bool card;// the game's glow card: placement only
     };
     std::vector<BinderPiece> g_binder_pieces;// cleared after the frame is drawn
     // One beam per binder: pieces whose ends touch are merged, and the beam spans their ends
@@ -924,6 +983,7 @@ namespace {
         rdVector3 a, b;
         float r, g, bl;
         float L;
+        float share = 1.0f;// brightness share: pods with two binders (Ben Quadinaros) split it
     };
     std::vector<BinderBeam> g_binder_beams;
     bool g_binder_beams_built = false;
@@ -933,60 +993,81 @@ namespace {
             return g_binder_beams;
         g_binder_beams_built = true;
         g_binder_beams.clear();
-        const size_t n = g_binder_pieces.size();
-        std::vector<int> parent(n);
-        for (size_t i = 0; i < n; i++)
-            parent[i] = (int) i;
-        auto find = [&](int i) {
-            while (parent[i] != i)
-                i = parent[i] = parent[parent[i]];
-            return i;
-        };
-        for (size_t i = 0; i < n; i++)
-            for (size_t j = i + 1; j < n; j++) {
-                const BinderPiece &p = g_binder_pieces[i], &q = g_binder_pieces[j];
-                if (p.racer != q.racer)
-                    continue;
-                const float touch = pod_length(p.racer) * 0.15f;
-                const float best = std::min(std::min(len(sub(p.a, q.a)), len(sub(p.a, q.b))),
-                                            std::min(len(sub(p.b, q.a)), len(sub(p.b, q.b))));
-                if (best < touch)
-                    parent[find((int) i)] = find((int) j);
-            }
-        for (size_t root = 0; root < n; root++) {
-            if (find((int) root) != (int) root)
+        // A binder always spans the gap between a pod's left and right engines, so the beam runs
+        // along that engine line (the binder meshes' own shapes don't say which way the beam goes).
+        // A pod's pieces are grouped by height: same height = same binder (Ben Quadinaros's two
+        // binders sit at different heights), and each group's beam runs between the engine pair
+        // nearest its height.
+        // Pods with the game's glow card: that card is laid exactly along the beam (in this very
+        // frame), so each card is one beam; colour from the pod's other binder pieces.
+        std::vector<bool> used(g_binder_pieces.size(), false);
+        for (size_t i = 0; i < g_binder_pieces.size(); i++) {
+            const BinderPiece& card = g_binder_pieces[i];
+            if (!card.card)
                 continue;
-            // Common direction (pieces' axes flipped to agree), then the extreme ends along it.
-            const BinderPiece& first = g_binder_pieces[root];
-            rdVector3 dir = {0, 0, 0}, centre = {0, 0, 0};
-            float r = 0, g = 0, b = 0;
+            float cr = 0, cg = 0, cb = 0;
             int cnt = 0;
-            for (size_t i = 0; i < n; i++)
-                if (find((int) i) == (int) root) {
-                    const BinderPiece& p = g_binder_pieces[i];
-                    rdVector3 d = sub(p.b, p.a);
-                    if (dot(d, sub(first.b, first.a)) < 0.0f)
-                        d = mul(d, -1.0f);
-                    dir = add(dir, d);
-                    centre = add(centre, add(p.a, p.b));
-                    r += p.r, g += p.g, b += p.bl;
-                    cnt++;
-                }
-            dir = norm(dir);
-            centre = mul(centre, 0.5f / (float) cnt);
-            float lo = 1e30f, hi = -1e30f;
-            for (size_t i = 0; i < n; i++)
-                if (find((int) i) == (int) root)
-                    for (const rdVector3& e: {g_binder_pieces[i].a, g_binder_pieces[i].b}) {
-                        const float t = dot(sub(e, centre), dir);
-                        lo = std::min(lo, t);
-                        hi = std::max(hi, t);
-                    }
-            BinderBeam beam{first.racer, add(centre, mul(dir, lo)), add(centre, mul(dir, hi)), r / cnt, g / cnt,
-                            b / cnt, pod_length(first.racer)};
-            const float farthest = hi - lo;
-            if (farthest > beam.L * 0.05f && farthest < beam.L * 3.0f)
-                g_binder_beams.push_back(beam);
+            for (const BinderPiece& p: g_binder_pieces)
+                if (!p.card && p.racer == card.racer)
+                    cr += p.r, cg += p.g, cb += p.bl, cnt++;
+            if (cnt == 0)
+                cr = 0.6f, cg = 0.55f, cb = 1.0f, cnt = 1;
+            const float L = pod_length(card.racer);
+            if (len(sub(card.b, card.a)) > L * 0.05f)
+                g_binder_beams.push_back({card.racer, card.a, card.b, cr / cnt, cg / cnt, cb / cnt, L});
+            for (size_t j = 0; j < g_binder_pieces.size(); j++)
+                if (g_binder_pieces[j].racer == card.racer)
+                    used[j] = true;
+        }
+        for (size_t i = 0; i < g_binder_pieces.size(); i++) {
+            if (used[i] || g_binder_pieces[i].card)
+                continue;
+            const swrRace* r = g_binder_pieces[i].racer;
+            const float L = pod_length(r);
+            const rdVector3 up = norm(v3(r->transform.vC));
+            auto height = [&](const BinderPiece& p) { return dot(mul(add(p.a, p.b), 0.5f), up); };
+            const float h0 = height(g_binder_pieces[i]);
+            rdVector3 centre = {0, 0, 0};
+            float cr = 0, cg = 0, cb = 0, hsum = 0;
+            int cnt = 0;
+            for (size_t j = i; j < g_binder_pieces.size(); j++) {
+                const BinderPiece& p = g_binder_pieces[j];
+                if (used[j] || p.racer != r || std::fabs(height(p) - h0) > L * 0.2f)
+                    continue;
+                used[j] = true;
+                centre = add(centre, mul(add(p.a, p.b), 0.5f));
+                cr += p.r, cg += p.g, cb += p.bl, hsum += height(p);
+                cnt++;
+            }
+            centre = mul(centre, 1.0f / (float) cnt);
+            const float h = hsum / (float) cnt;
+            // Engine pair nearest this binder's height (Ben's second pair: engineXfR2 / L2).
+            rdVector3 eR = v3(r->engineXfR.vD), eL = v3(r->engineXfL.vD);
+            if (r->partNodes != nullptr && r->partNodes[3] && r->partNodes[4]) {
+                const rdVector3 eR2 = v3(r->engineXfR2.vD), eL2 = v3(r->engineXfL2.vD);
+                const float h1 = 0.5f * (dot(eR, up) + dot(eL, up)), h2 = 0.5f * (dot(eR2, up) + dot(eL2, up));
+                if (std::fabs(h2 - h) < std::fabs(h1 - h))
+                    eR = eR2, eL = eL2;
+            }
+            const rdVector3 dir = norm(sub(eL, eR));
+            const float gap = dot(sub(eL, eR), dir);
+            if (!(gap > L * 0.1f && gap < L * 4.0f))
+                continue;
+            // Through the pieces' centre along the engine line, stopping short of each engine's
+            // centre (the beam meets the engines' inner faces).
+            const rdVector3 mid = mul(add(eR, eL), 0.5f);
+            const float off = dot(sub(centre, mid), dir);// centre's offset along the line
+            const rdVector3 axis_centre = sub(centre, mul(dir, off));
+            const float half = 0.5f * gap * 0.8f;
+            BinderBeam beam{r, sub(axis_centre, mul(dir, half)), add(axis_centre, mul(dir, half)), cr / cnt, cg / cnt,
+                            cb / cnt, L};
+            g_binder_beams.push_back(beam);
+        }
+        for (BinderBeam& bm: g_binder_beams) {
+            int count = 0;
+            for (const BinderBeam& o: g_binder_beams)
+                count += o.racer == bm.racer;
+            bm.share = 1.0f / std::pow((float) std::max(count, 1), 0.75f);
         }
         return g_binder_beams;
     }
@@ -1082,20 +1163,23 @@ namespace {
             if (!project(bm.a, &ax, &ay, &awz, &avw) || !project(bm.b, &bx, &by, &bwz, &bvw) ||
                 !project(mid, &mx, &my, &mwz, &mvw))
                 continue;
-            const float fl = binder_flicker(bm, 6.0f) * s.binder_light;
-            const float halo = clampf(bm.L * 0.16f * focal / mvw, 2.0f, 260.0f);
+            const float fl = binder_flicker(bm, 6.0f) * s.binder_light * bm.share;
+            const float halo = clampf(bm.L * 0.16f * focal / mvw, 2.0f, 260.0f);// thickness across the beam
             const float core = clampf(bm.L * 0.045f * focal / mvw, 1.0f, 80.0f);
             const float wz = std::min(mwz, std::min(awz, bwz));
             const D3DCOLOR c_halo = argb(clampf(0.26f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl);
             const D3DCOLOR c_core = argb(clampf(0.5f * fl, 0.0f, 1.0f), 0.55f + 0.45f * bm.r, 0.55f + 0.45f * bm.g,
                                          0.55f + 0.45f * bm.bl);
-            const D3DCOLOR c_end = argb(0.0f, bm.r, bm.g, bm.bl);
-            for (int side = 0; side < 2; side++) {
-                const float ex = side ? bx : ax, ey = side ? by : ay;
-                g_add_soft.streak(mx, my, ex, ey, halo, c_halo, c_end, wz);
-                g_add_soft.streak(mx, my, ex, ey, core, c_core, c_end, wz);
-            }
-            g_add_soft.sprite(mx, my, halo * 1.6f, argb(clampf(0.3f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl), mwz);
+            (void) c_halo;
+            (void) c_core;
+            // Oval glow along the beam: each layer is one ellipse stretched from end to end (the round
+            // soft texture squashed), reaching a little past the beam's ends onto the engines.
+            const float hx = (bx - ax) * 0.5f, hy = (by - ay) * 0.5f;// centre -> end, screen space
+            g_add_soft.ellipse(mx, my, hx * 1.25f, hy * 1.25f, halo,
+                               argb(clampf(0.3f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl), wz);
+            g_add_soft.ellipse(mx, my, hx * 1.05f, hy * 1.05f, core * 1.6f,
+                               argb(clampf(0.45f * fl, 0.0f, 1.0f), 0.55f + 0.45f * bm.r, 0.55f + 0.45f * bm.g,
+                                    0.55f + 0.45f * bm.bl), wz);
         }
 
         // Exhaust: wide orange halo, white-hot core, and a flame streaking back from the nozzle.
@@ -1456,7 +1540,8 @@ bool pod_fx_hide_stock_binder_glow() {
     return s.enabled && s.hide_stock_binder_glow;
 }
 
-void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl) {
+void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVector3& b, float r, float g, float bl,
+                          bool card) {
     if (!s.enabled || s.binder_light <= 0.0f || racer == nullptr || g_binder_pieces.size() > 256)
         return;
     if ((racer->flags0 & swrObjTest_FLAG0_DEAD) != 0)
@@ -1470,7 +1555,7 @@ void pod_fx_report_binder(const swrRace* racer, const rdVector3& a, const rdVect
         r = 0.6f, g = 0.55f, bl = 1.0f;
     else
         r /= mx, g /= mx, bl /= mx;
-    g_binder_pieces.push_back({racer, a, b, r, g, bl});
+    g_binder_pieces.push_back({racer, a, b, r, g, bl, card});
     g_binder_beams_built = false;
 }
 
@@ -1491,8 +1576,8 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
             l.r = bm.r, l.g = bm.g, l.b = bm.bl;
             // Strongest in the middle of the beam, weaker toward the engines.
             const float centre = 1.0f - std::fabs(t - 0.5f) * 1.4f;
-            l.intensity = 1.1f * s.binder_light * fl * centre / std::sqrt((float) count);
-            l.radius = bm.L * 0.75f;
+            l.intensity = 1.1f * s.binder_light * fl * centre * bm.share / std::sqrt((float) count);
+            l.radius = bm.L * 0.9f;
             l.cos_inner = l.cos_outer = 0.0f;
             out.push_back(l);
         }
@@ -1511,8 +1596,11 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
             continue;
         const float L = pod_length(r);
 
-        // Exhaust: a warm spotlight aimed backward from every nozzle while moving.
-        const float ex = fx.throttle * fx.accel * s.exhaust_light;
+        // Exhaust: a warm spotlight aimed backward from every nozzle while moving. The pod editor's
+        // "exhaustlight" edit sets where it lands (aim, pod lengths) and scales its reach / cone / power.
+        float xl[4] = {0.7f, 1.0f, 1.0f, 1.0f};
+        pod_edits_exhaust_light(pilot_of(r), xl);
+        const float ex = fx.throttle * fx.accel * s.exhaust_light * std::max(xl[3], 0.0f);
         if (s.exhaust && ex > 0.01f) {
             const bool boosting = (r->flags0 & swrObjTest_FLAG0_BOOSTING) != 0;
             for (int side = 0; side < 2; side++) {
@@ -1525,18 +1613,31 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
                     noz.push_back({sub(v3(e.vD), mul(norm(v3(e.vB)), L * 0.15f)), L * 0.05f});
                 const float share = 1.0f / std::sqrt((float) noz.size());
                 const float flick = 0.9f + 0.1f * std::sin(g_time * 31.0f + side * 2.0f);
+                // Ground under this engine (the game lays each engine's shadow flat on it).
+                const float ground = side == 0 ? r->shadowXf1.vD.z : r->shadowXf2.vD.z;
                 for (const auto& nz: noz) {
                     SceneLight l{};
                     l.pos = add(nz.first, mul(back, -L * 0.12f));// starts inside the nozzle so the lit cone begins at the engine
                     l.dir = back;
+                    // Tilt the cone down onto the floor just behind the nozzle, so the pool of light
+                    // on the ground sits at the engine instead of far behind it.
+                    const float h = l.pos.z - ground;
+                    if (h > 0.0f && h < L * 2.0f) {
+                        rdVector3 flat = {back.x, back.y, 0.0f};
+                        flat = len(flat) > 1e-3f ? norm(flat) : back;
+                        const rdVector3 target = {nz.first.x + flat.x * L * xl[0], nz.first.y + flat.y * L * xl[0], ground};
+                        l.dir = norm(add(mul(back, 0.35f), mul(norm(sub(target, l.pos)), 0.65f)));
+                    }
                     l.r = 1.0f, l.g = boosting ? 0.6f : 0.45f, l.b = boosting ? 0.3f : 0.15f;
                     // A cone thrown out the back of the nozzle: full inside ~20 deg, gone by ~38 deg,
                     // reaching further with throttle -- lights a streak behind the engine rather
                     // than a flat patch around it.
                     l.intensity = 1.4f * ex * share * flick;
-                    l.radius = L * (1.8f + 1.0f * clampf(fx.throttle, 0.0f, 1.6f));
-                    l.cos_inner = 0.94f;// ~20 deg full
-                    l.cos_outer = 0.79f;// fades out by ~38 deg
+                    l.radius = L * (1.8f + 1.0f * clampf(fx.throttle, 0.0f, 1.6f)) * std::max(xl[1], 0.05f);
+                    // Full inside ~20 deg, gone by ~38 deg (x the edit's width).
+                    const float w = clampf(xl[2], 0.1f, 3.0f);
+                    l.cos_inner = std::cos(std::min(0.35f * w, 1.5f));
+                    l.cos_outer = std::cos(std::min(0.66f * w, 1.55f));
                     out.push_back(l);
                 }
             }
@@ -1570,6 +1671,38 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
             }
         }
     }
+}
+
+void pod_fx_auto_points(const swrRace* racer, int side, std::vector<std::array<float, 4>>& nozzles,
+                        std::vector<std::array<float, 4>>& fire, std::vector<std::array<float, 4>>& dust) {
+    nozzles.clear();
+    fire.clear();
+    dust.clear();
+    if (racer == nullptr)
+        return;
+    const rdMatrix44& e = engine_of(racer, side);
+    // Engine matrices are rotation * scale + translation: local = (world - D) * (rows / scale^2).
+    const rdVector3 d = v3(e.vD), a = v3(e.vA), b = v3(e.vB), c = v3(e.vC);
+    auto local = [&](rdVector3 w) {
+        const rdVector3 q = sub(w, d);
+        return std::array<float, 4>{dot(q, a) / dot(a, a), dot(q, b) / dot(b, b), dot(q, c) / dot(c, c), 0.0f};
+    };
+    const float scale = len(a);
+    auto it = g_nozzles.find(racer);
+    if (it != g_nozzles.end())
+        for (const Nozzle& n: it->second.side[side])
+            nozzles.push_back({n.local.x, n.local.y, n.local.z, n.radius});
+    if (nozzles.empty()) {// nothing captured yet: just behind the engine centre, like the fallback
+        auto p = local(sub(d, mul(norm(b), pod_length(racer) * 0.15f)));
+        p[3] = pod_length(racer) * 0.05f / (scale > 0 ? scale : 1.0f);
+        nozzles.push_back(p);
+    }
+    std::vector<rdVector3> centres;
+    engine_centres(racer, side, pod_length(racer), centres);
+    for (const rdVector3& w: centres)
+        fire.push_back(local(w));
+    const rdMatrix44& sh = side == 0 ? racer->shadowXf1 : racer->shadowXf2;
+    dust.push_back(local(v3(sh.vD)));
 }
 
 bool pod_fx_hide_stock_dust() {

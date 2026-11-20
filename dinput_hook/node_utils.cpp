@@ -123,6 +123,24 @@ static const AssetPointerToModel *find_asset_range_for_node(const swrModel_Node 
     return &*it;
 }
 
+bool find_asset_offset(const void *ptr, MODELID *id, uint32_t *offset) {
+    const AssetPointerToModel *r = find_asset_range_for_node((const swrModel_Node *) ptr);
+    if (r == nullptr)
+        return false;
+    *id = r->id;
+    *offset = (uint32_t) ((const char *) ptr - r->asset_pointer_begin);
+    return true;
+}
+
+bool find_model_offset(const void *ptr, MODELID *id, uint32_t *offset) {
+    const AssetPointerToModel *r = find_asset_range_for_node((const swrModel_Node *) ptr);
+    if (r == nullptr || r->data_begin == nullptr || (const char *) ptr < r->data_begin)
+        return false;
+    *id = r->id;
+    *offset = (uint32_t) ((const char *) ptr - r->data_begin);
+    return true;
+}
+
 // Walks a node subtree to find the first descendant that lives in an asset buffer range. Used to map
 // a racer's pod wrapper node (a static-pool node, not in any range) down to its pod model, which is.
 // The pod root is the wrapper's direct child, so this resolves at depth 1 in practice; the bounded

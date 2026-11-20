@@ -18,6 +18,9 @@ void swrRace_ResolvePodCollision_delta(swrRace* player);
 // - swrRace_SpawnGroundDustKick_delta: for non-local pods, reserve Toss-pool headroom (so AI
 //   dust never starves the player's trail) and suppress the splash sound.
 // - playASound_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
+// The game's engine damage smoke / fire moved to (and added at) the pod editor's fire spots.
+void swrRace_UpdateEngineDamageFX_delta(swrRace* player);
+
 void swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx, float sy,
                                              float sz, float param_6, int param_7);
 void playASound_delta(int sound_id, short priority, float volume, float pitch, int flags);
@@ -53,6 +56,15 @@ void swrRace_Tilt_delta(swrRace* player, float b);
 // Cable-curve amplitude for a curently-curved cable node (-1.0 = not a curved cable). Consumed by
 // the renderer to bend the cable mesh in the GL path.
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node);
+
+// The racer and engine (part index 1..4) a racing pod's cable node runs to; false for other nodes
+// (and for display pods). For the renderer's cable clearance.
+bool swrRace_GetCableOwner(const swrModel_Node* node, const swrRace** racer, int* engine_part, int* index = nullptr);
+
+// A cable of the character-select display pod: its pilot, index (0..3 = slots 10..13) and the
+// local transforms of the cable, cockpit and engine nodes it joins (siblings under one parent).
+bool swrRace_GetDisplayCable(const swrModel_Node* node, int* pilot, int* index, rdMatrix44* cable,
+                             rdMatrix44* cockpit, rdMatrix44* engine);
 
 // Drop all recorded cable nodes (call on track load so freed node pointers aren't reused).
 void swrRace_ClearCableBends();

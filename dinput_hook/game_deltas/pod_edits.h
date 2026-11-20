@@ -1,0 +1,154 @@
+#pragma once
+
+// Pod edits: per-pod changes made in the HTML pod editor (tools/pod_editor/pod_editor.html),
+// applied on top of the game's own pod models -- so shadows, Pod FX, cables, binders and flames keep
+// working.
+//
+// Workflow:
+//   1. Mods > Pod Editor > "Export my pod": the next race frame records every mesh of your pod
+//      (part, triangles, UVs, textures) into assets/pod_edits/export/<Pod>_pod.json.
+//   2. Open that file in the HTML editor: select faces (e.g. an intake turbine), split them into a
+//      spin group (animated in game) or a hide group. Save as assets/pod_edits/<Pod>_pod.txt.
+//   3. "Reload edits" (or restart): the mod applies them to every pod using that model.
+//
+// Edit file (text, one entry per line, '#' comments):
+//   spin <mesh> <rpm> <px> <py> <pz> <ax> <ay> <az> <tris> [<ox> <oy> <oz> [<scale>]]
+//                           spin triangles of one mesh about a pivot/axis given in that mesh's
+//                           local frame (scaled about the pivot first by the optional scale),
+//                           then move them by the optional offset (same frame);
+//                           rpm 0 = just move; <mesh> = the mesh's byte offset in the pod model (hex)
+//   hide <mesh> <tris>      hide triangles
+//   <tris> = triangle index ranges in draw order, e.g. 0-11,20-23
+
+#include <cstdint>
+#include <vector>
+
+#include "types.h"
+
+struct PodEditRange {
+    uint32_t first, count;
+};
+struct PodEditSpin {
+    std::vector<PodEditRange> tris;
+    float pivot[3];
+    float axis[3];
+    float rpm;
+    float offset[3];// move after spinning (mesh frame)
+    float scale = 1.0f;// about the pivot, before spinning
+};
+struct PodMeshEdit {
+    std::vector<PodEditSpin> spins;
+    std::vector<PodEditRange> hidden;
+};
+
+// Edits for a mesh about to be drawn, or nullptr.
+const PodMeshEdit* pod_edits_find(const swrModel_Mesh* mesh);
+// Seconds, for the spin angle.
+float pod_edits_time();
+
+// Export of the local pod (see above). While armed, the renderer reports every mesh it draws for
+// the local pod, then calls pod_edits_export_end_frame() once the scene traversal is done.
+bool pod_edits_export_armed();
+void pod_edits_export_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh, const rdMatrix44& model_matrix,
+                           const std::vector<float>& world_pos, const std::vector<float>& uv, unsigned texture,
+                           bool textured);
+void pod_edits_export_end_frame(bool in_race);
+
+void pod_edits_register_panel();
+
+// Cable clearance: the margin (game units) cables keep from the pod's engines and cockpit, which
+// the renderer pushes them out of; < 0 when switched off.
+float pod_edits_cable_clearance();
+
+// Stiff cables: each cable leaves its attach point straight out from the part it plugs into (the
+// cockpit's / its engine's centre outwards) for this share of its length, then curves to the other
+// end. The pod's "cablestiff <k>" line, else the global setting; < 0 when off (the game's shape).
+float pod_edits_cable_stiffness(int pilot);
+
+// The game's overheat fire streak: "gamefirestreak <length> <rx> <ry> <rz>" -- the flames' drift
+// (stock: straight back at 20 x the engine's forward axis) scaled by length and turned by the angles
+// (degrees, about the engine's x, y, z in that order; mirrored on the left). False when not set.
+bool pod_edits_gamefire_streak(int pilot, float out[4]);
+
+// Cable ends turned: "cablerot <cockpit rx ry rz> <engine rx ry rz>" (degrees, about that part's x,
+// y, z, in that order; mirrored for the left cables) applied to the stiff cables' exit directions.
+// False (out = 0) when not set.
+bool pod_edits_cable_rot(int pilot, float out[6]);
+
+// One cable's own settings (index 0..3 = part slots 10..13: right, left, second right, second left),
+// overriding the shared ones for that cable only, with no mirroring:
+//   owncable<N> cockpit <x y z>   its cockpit end, in the cockpit's frame        (N = index + 1)
+//   owncable<N> engine <x y z>    its engine end, in its engine's frame
+//   owncable<N> rot <cockpit rx ry rz> <engine rx ry rz>   its ends' turns (degrees)
+// Each returns false when that cable has no such line.
+bool pod_edits_cable_end(int pilot, int index, int end, float out[3]);// end: 0 = cockpit, 1 = engine
+bool pod_edits_cable_own_rot(int pilot, int index, float out[6]);
+
+// Stiff cables' exit direction, tilted along the part's up axis: "cableout <cockpit z> <engine z>"
+// (added to the up part of the automatic direction out of the cockpit / engine, then normalised;
+// +1 = steeply up, -1 = steeply down). out = {0, 0} when the pod's edits don't set it.
+void pod_edits_cable_out(int pilot, float out[2]);
+
+// The exhaust light (the warm spotlight each nozzle throws onto the ground behind the engine, the
+// orange streak on the track): "exhaustlight <aim> <reach> <width> <strength>" -- aim = how far behind
+// the nozzle it lands (pod lengths, stock 0.7), reach / width / strength = multipliers of its range,
+// cone angle and brightness. False (out untouched) when the pod's edits don't set it.
+bool pod_edits_exhaust_light(int pilot, float out[4]);
+
+// The pod editor's workspace: Desktop\SWEP1R Pod Editor. Browsers won't write into Program Files,
+// so tools/pod_editor/pod_editor.html builds into this folder, and the mod reads from it too:
+//   out_modelblock.bin      copy of the game's data/lev01/out_modelblock.bin (input of the bake)
+//   replacement_models\     baked models (<id>.bin), used before assets/replacement_models
+//   pod_edits\              in-game edits (<Pod>.txt), used before assets/pod_edits
+//   export\                 "Export my pod" JSONs (also written to assets/pod_edits/export)
+// Empty path if the Desktop can't be found or the folder created.
+#ifdef __cplusplus
+#include <filesystem>
+const std::filesystem::path& pod_workspace();
+#endif
+
+// Spinning parts baked into a pod model (tools/pod_editor/bake_pod_edits.py) are model animations.
+// The racer-select preview registers a pod's animations, a race doesn't keep them -- so the mod
+// tracks the animations of every loaded pod model and runs them only during races. Like the stock
+// fans (e.g. Ratts Tyrell's), they turn slowly while the pod idles and speed up with the pod: the
+// baked RPM is the top-speed rate.
+void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end, int model_id);// after a model loads
+void pod_edits_drop_models_from(const char* asset_begin);                     // buffer rewound
+void pod_edits_animations_frame(bool in_race);                                 // once per frame
+
+// Pod layout edits (cable / binder lines of an edit file) are values of the game's per-pilot pod
+// table swrRacer_PodVisualData, which the game reads every frame to place the cables and the
+// energy binder. Written in (and the stock values put back when the edits go away) once per frame.
+//   cable cockpit <x> <y> <z>   cable end on the cockpit (cockpit frame; x mirrored per side)
+//   cable engine <x> <y> <z>    cable end on each engine (engine frame; x / z mirrored per side)
+//   binder <x> <y> <z>          energy binder end on each engine (engine frame; z mirrored per side)
+//   cables extra                (bake only) a second cable pair for a 2-engine pod, see below
+//   cable2 cockpit|engine <x y z> where that second pair meets the cockpit / the engines
+void pod_edits_layout_frame();
+
+// Extra exhaust trails baked into the pod model (the editor's "trail R|L x y z", installed as
+// "trailnode <model>:<offset> R|L x y z"): placed for this racer right after the game placed its stock
+// exhaust (call after swrRace_PoddAnimateVariousThings). The stock trail's own position is the
+// layout line "exhaust <x> <y> <z>" (swrRacer_PodVisualData fields 21..23; z mirrored on the left).
+void pod_edits_place_trails(swrRace* player);
+
+// A 2-engine pod baked with "cables extra" has cable nodes in part slots 12 / 13 (the 4-engine
+// pods' second pair). The mod places them on the right / left engines with these values (same
+// frames and mirroring as the stock cable values); without cable2 lines: the stock cockpit end and
+// the stock engine end mirrored vertically (a lower pair).
+void pod_edits_extra_cable_values(int pilot, float cockpit[3], float engine[3]);
+
+// Engine effect points of a pilot's pod, each in its engine's own frame (engineXfR / engineXfL):
+//   nozzle R|L <x> <y> <z> <radius>   exhaust nozzles (the mod's flame cones, glow, embers, trails)
+//   firespot R|L <x> <y> <z>          damage fire / smoke spots (the mod's and the game's)
+//   dustspot R|L <x> <y> <z>          ground dust spots (dropped to the ground under that engine)
+//   gamefire R|L <x> <y> <z>          the game's overheat engine fire (its fire / smoke emitter,
+//                                     swrObjSmok type 6): the first moves the stock one, more add more
+// kind: 0 = nozzle, 1 = fire spot, 2 = dust spot, 3 = game fire; side: 0 = right engine, 1 = left. nullptr when the
+// pod's edits don't set that kind (the effect keeps its automatic points); otherwise the side's list
+// (possibly empty). Points are {x, y, z, radius (nozzles; 0 otherwise)}.
+#ifdef __cplusplus
+#include <array>
+#include <vector>
+const std::vector<std::array<float, 4>>* pod_edits_fx_points(int pilot, int kind, int side);
+#endif

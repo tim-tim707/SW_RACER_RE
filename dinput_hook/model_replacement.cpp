@@ -1,11 +1,13 @@
 #include "model_replacement.h"
 
 #include "custom_tracks.h"// SWR_MODELBLOCK_PATH_PTR
+#include "game_deltas/pod_edits.h"// pod_workspace (the pod editor's baked models)
 
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <regex>
+#include <windows.h>// MoveFileExW
 #include <string>
 #include <vector>
 
@@ -27,30 +29,49 @@ static bool loaded_replacement_models_at_least_once = false;
 static const char *saved_modelblock_path = nullptr;
 static std::string temp_block_path_storage;// keeps the swapped-in path alive
 
+// The folders holding replacement models: the game's, then the pod editor's workspace
+// (Desktop/SWEP1R Pod Editor/replacement_models, written by its Build & install), which wins.
+static std::vector<fs::path> replacement_dirs() {
+    std::vector<fs::path> dirs = {"./assets/replacement_models/"};
+    if (!pod_workspace().empty())
+        dirs.push_back(pod_workspace() / L"replacement_models");
+    return dirs;
+}
+
+// Folder change stamps at the last scan: a model built while the game runs is picked up at the
+// next model load (adding / replacing a file changes its folder's write time).
+static std::vector<fs::file_time_type> scanned_stamps;
+static std::vector<fs::file_time_type> folder_stamps() {
+    std::vector<fs::file_time_type> out;
+    for (const fs::path &d: replacement_dirs()) {
+        std::error_code ec;
+        out.push_back(fs::last_write_time(d, ec));
+    }
+    return out;
+}
+
 void refresh_replacement_models() {
     loaded_replacement_models_at_least_once = true;
     replacement_models.clear();
+    scanned_stamps = folder_stamps();
 
     const static std::regex file_regex("([0-9]+)\\.bin");
-    const char *dir = "./assets/replacement_models/";
-    if (!fs::is_directory(dir)) {
-        fprintf(hook_log, "[model_replacement] folder %s does not exist, no model replacements.\n",
-                dir);
-        fflush(hook_log);
-        return;
-    }
-
-    for (const auto &entry: fs::recursive_directory_iterator(dir)) {
-        if (!entry.is_regular_file())
+    for (const fs::path &dir: replacement_dirs()) {
+        std::error_code ec;
+        if (!fs::is_directory(dir, ec))
             continue;
+        for (const auto &entry: fs::recursive_directory_iterator(dir, ec)) {
+            if (!entry.is_regular_file())
+                continue;
 
-        const std::string filename = entry.path().filename().generic_string();
-        std::smatch match;
-        if (std::regex_match(filename, match, file_regex)) {
-            const int id = std::stoi(match.str(1));
-            replacement_models[id] = entry.path();
-            fprintf(hook_log, "[model_replacement] found replacement for model %d: %s\n", id,
-                    entry.path().generic_string().c_str());
+            const std::string filename = entry.path().filename().generic_string();
+            std::smatch match;
+            if (std::regex_match(filename, match, file_regex)) {
+                const int id = std::stoi(match.str(1));
+                replacement_models[id] = entry.path();
+                fprintf(hook_log, "[model_replacement] found replacement for model %d: %ls\n", id,
+                        entry.path().c_str());
+            }
         }
     }
     fflush(hook_log);
@@ -60,7 +81,7 @@ bool try_prepare_loose_model(MODELID *model_id) {
     if (!enable_model_replacement)
         return false;
 
-    if (!loaded_replacement_models_at_least_once)
+    if (!loaded_replacement_models_at_least_once || folder_stamps() != scanned_stamps)
         refresh_replacement_models();
 
     // only stock model ids; the custom-track id range is handled separately.
@@ -73,8 +94,8 @@ bool try_prepare_loose_model(MODELID *model_id) {
 
     const std::string src = it->second.generic_string();
 
-    // read the raw chunk file
-    FILE *f = fopen(src.c_str(), "rb");
+    // read the raw chunk file (wide path: the workspace is on the user's Desktop)
+    FILE *f = _wfopen(it->second.c_str(), L"rb");
     if (!f) {
         fprintf(hook_log, "[model_replacement] could not open %s\n", src.c_str());
         fflush(hook_log);
@@ -152,4 +173,144 @@ void finalize_loose_model() {
         *SWR_MODELBLOCK_PATH_PTR = saved_modelblock_path;
         saved_modelblock_path = nullptr;
     }
+}
+
+// ---- writing the replacements into the game's model block -----------------------------------
+// out_modelblock.bin: [u32 count][count x (u32 mask offset, u32 model offset)][u32 end], all
+// big-endian, then each entry's mask + model data back to back (4-byte aligned).
+namespace {
+    uint32_t be32(const uint8_t *p) {
+        return ((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16) | ((uint32_t) p[2] << 8) | p[3];
+    }
+    void put_be32(std::vector<uint8_t> &v, size_t at, uint32_t x) {
+        v[at] = (uint8_t) (x >> 24);
+        v[at + 1] = (uint8_t) (x >> 16);
+        v[at + 2] = (uint8_t) (x >> 8);
+        v[at + 3] = (uint8_t) x;
+    }
+    bool read_file(const fs::path &p, std::vector<uint8_t> &out) {
+        FILE *f = _wfopen(p.c_str(), L"rb");
+        if (!f)
+            return false;
+        fseek(f, 0, SEEK_END);
+        const long n = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        out.resize(n > 0 ? (size_t) n : 0);
+        const bool ok = n >= 0 && fread(out.data(), 1, out.size(), f) == out.size();
+        fclose(f);
+        return ok;
+    }
+    // Replace `target` with `data` through a temp file (the game opens the block on each load).
+    bool write_file_replacing(const fs::path &target, const std::vector<uint8_t> &data, std::string &msg) {
+        const fs::path tmp = fs::path(target).concat(L".tmp");
+        FILE *f = _wfopen(tmp.c_str(), L"wb");
+        if (!f) {
+            msg = "Cannot write " + tmp.string() + " (is the game folder read-only?)";
+            return false;
+        }
+        const bool ok = fwrite(data.data(), 1, data.size(), f) == data.size();
+        fclose(f);
+        if (!ok || !MoveFileExW(tmp.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            std::error_code ec;
+            fs::remove(tmp, ec);
+            msg = "Cannot replace " + target.string() + " (in use?)";
+            return false;
+        }
+        return true;
+    }
+}// namespace
+
+const std::map<int, fs::path> &current_replacement_models() {
+    if (!loaded_replacement_models_at_least_once || folder_stamps() != scanned_stamps)
+        refresh_replacement_models();
+    return replacement_models;
+}
+
+bool write_replacements_into_modelblock(std::string &msg) {
+    std::error_code ec;
+    // The stock block: the backup if one was kept, else the game's file (which becomes the backup).
+    const bool have_backup = fs::exists(MODELBLOCK_ORIGINAL_PATH, ec);
+    std::vector<uint8_t> stock;
+    if (!read_file(have_backup ? MODELBLOCK_ORIGINAL_PATH : MODELBLOCK_PATH, stock) || stock.size() < 8) {
+        msg = "Cannot read the model block.";
+        return false;
+    }
+    const uint32_t count = be32(stock.data());
+    const size_t header = 4 + 4 * (2 * (size_t) count + 1);
+    if (count == 0 || count > 10000 || header > stock.size() || be32(&stock[4 + 8 * count]) != stock.size()) {
+        msg = "The model block's header doesn't look right; nothing written.";
+        return false;
+    }
+    const auto &repl = current_replacement_models();
+    std::vector<uint8_t> out(header, 0);
+    put_be32(out, 0, count);
+    int replaced = 0;
+    std::string ids;
+    for (uint32_t i = 0; i < count; i++) {
+        const uint32_t mask_off = be32(&stock[4 + 8 * i]), model_off = be32(&stock[8 + 8 * i]);
+        const uint32_t end = be32(&stock[12 + 8 * i]);
+        const uint8_t *mask = &stock[mask_off], *model = &stock[model_off];
+        size_t mask_size = model_off - mask_off, model_size = end - model_off;
+        std::vector<uint8_t> rawm;// a replacement: its mask + model instead of the stock ones
+        auto it = repl.find((int) i);
+        if (it != repl.end() && read_file(it->second, rawm) && rawm.size() >= 12 && memcmp(rawm.data(), "RAWM", 4) == 0) {
+            uint32_t ms, mm;
+            memcpy(&ms, &rawm[4], 4);
+            memcpy(&mm, &rawm[8], 4);
+            if (12 + (size_t) ms + mm == rawm.size() && ms % 4 == 0 && mm % 4 == 0) {
+                mask = &rawm[12];
+                model = &rawm[12 + ms];
+                mask_size = ms;
+                model_size = mm;
+                replaced++;
+                ids += (ids.empty() ? "" : ", ") + std::to_string(i);
+            } else {
+                fprintf(hook_log, "[model_replacement] %ls is not a valid RAWM file, kept the stock model %u\n",
+                        it->second.c_str(), i);
+            }
+        }
+        put_be32(out, 4 + 8 * i, (uint32_t) out.size());
+        out.insert(out.end(), mask, mask + mask_size);
+        put_be32(out, 8 + 8 * i, (uint32_t) out.size());
+        out.insert(out.end(), model, model + model_size);
+    }
+    put_be32(out, 4 + 8 * count, (uint32_t) out.size());
+    if (replaced == 0) {
+        msg = "No replacement models to write (build one in the pod editor first).";
+        return false;
+    }
+    if (!have_backup) {
+        fs::copy_file(MODELBLOCK_PATH, MODELBLOCK_ORIGINAL_PATH, ec);
+        if (ec) {
+            msg = "Cannot keep the stock block as out_modelblock.original.bin: " + ec.message();
+            return false;
+        }
+    }
+    if (!write_file_replacing(MODELBLOCK_PATH, out, msg))
+        return false;
+    msg = "Wrote " + std::to_string(replaced) + " model(s) into out_modelblock.bin (" + ids +
+          "). The stock block is kept as out_modelblock.original.bin. Restart the race to load them.";
+    fprintf(hook_log, "[model_replacement] %s\n", msg.c_str());
+    fflush(hook_log);
+    return true;
+}
+
+bool restore_original_modelblock(std::string &msg) {
+    std::error_code ec;
+    if (!fs::exists(MODELBLOCK_ORIGINAL_PATH, ec)) {
+        msg = "No out_modelblock.original.bin: the block is already the stock one.";
+        return false;
+    }
+    std::vector<uint8_t> stock;
+    if (!read_file(MODELBLOCK_ORIGINAL_PATH, stock)) {
+        msg = "Cannot read out_modelblock.original.bin.";
+        return false;
+    }
+    if (!write_file_replacing(MODELBLOCK_PATH, stock, msg))
+        return false;
+    fs::remove(MODELBLOCK_ORIGINAL_PATH, ec);
+    msg = "Restored the stock out_modelblock.bin. Restart the race to load it.";
+    fprintf(hook_log, "[model_replacement] %s\n", msg.c_str());
+    fflush(hook_log);
+    return true;
 }
