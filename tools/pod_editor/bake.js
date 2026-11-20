@@ -28,7 +28,6 @@ const NODE_TRANSFORMED_WITH_PIVOT = 0xD065;
 const NODE_HAS_CHILDREN = 0x4000;
 const ANIM_TYPE_AXIS_ANGLE = 0x8;
 const ANIMATION_LOOP = 0x10;
-const ANIMATION_ENABLED = 0x10000000;// plays as soon as the game loads the pod (no mod needed)
 const ANIM_SIZE = 300;
 const PIVOT_NODE_SIZE = 88;
 const MESH_SIZE = 64;
@@ -722,7 +721,7 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
     }
     const anim = m.append(ANIM_SIZE), b = anim + 220;
     m.putf(b + 24, period); m.putf(b + 28, period); m.putf(b + 32, period);
-    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED);
+    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP);// switched on by the mod in races only
     m.put32(b + 40, nk);
     m.putf(b + 44, period); m.putf(b + 48, period); m.putf(b + 52, 1);
     m.setPtr(b + 64, times); m.setPtr(b + 68, values); m.setPtr(b + 72, node);
@@ -740,7 +739,7 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
     }
     const anim = m.append(ANIM_SIZE), b = anim + 220;
     m.putf(b + 24, period); m.putf(b + 28, period); m.putf(b + 32, period);
-    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED);
+    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP);// switched on by the mod in races only
     m.put32(b + 40, nk);
     m.putf(b + 44, period); m.putf(b + 48, period); m.putf(b + 52, 1);
     m.setPtr(b + 64, times); m.setPtr(b + 68, values);// b + 72 (the node): from the alt model

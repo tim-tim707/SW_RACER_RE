@@ -28,10 +28,10 @@ void pod_edits_export_mesh(const swrRace* racer, int part, const swrModel_Mesh* 
                            bool textured);
 void pod_edits_export_end_frame(bool in_race);
 
-// Baked spinning parts: the pod editor bakes them as animations in the pod model (enabled, so the
-// game plays them as soon as it loads the pod), but a race drops them from the scene's animation
-// list after the pods load. Each pod model's animations are noted when it loads and kept registered
-// and enabled every race frame.
+// Baked spinning parts: the pod editor bakes them as animations in the pod model, switched off. Each
+// pod model's animations are noted when it loads; every race frame they are kept registered (a race
+// drops them from the scene's animation list after the pods load) and switched on, and outside races
+// switched off (no spinning in the racer-select preview).
 void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end);// after a model loads
 void pod_edits_drop_models_from(const char* asset_begin);// the asset buffer rewound
 void pod_edits_animations_frame(bool in_race);           // once per frame, before the scene is drawn

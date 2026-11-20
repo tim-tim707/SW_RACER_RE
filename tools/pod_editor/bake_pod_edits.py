@@ -23,8 +23,9 @@ cut): the inside stays in the spinning mesh (new vertex list + F3DEX2 display li
 becomes a copy of the mesh in a static mesh group next to the spinning node:
     parent -> new BASIC node -> [ pivot node (spins) -> mesh group (inside),  static mesh group (outside) ]
 
-The animation is written switched on, so the game plays it as soon as it loads the pod -- no mod
-code needed (it also turns in the racer-select preview).
+The animation is written switched off (the racer-select preview would otherwise spin it too); the
+mod keeps a pod's baked animations running during races (pod_edits_animations_frame), where the
+game would drop them.
 
 A spin group in the pod's alt model ('MAlt') works the same through the pod model: the game never
 animates an alt model, but when it loads a pod it merges the alt model's AltN nodes into the pod
@@ -945,7 +946,7 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=(), hide
         m.putf(b + 24, period)  # animation_end_time
         m.putf(b + 28, period)  # animation_duration
         m.putf(b + 32, period)  # duration3
-        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED)
+        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP)  # switched on by the mod in races only
         m.put32(b + 40, nk)
         m.putf(b + 44, period)  # duration4
         m.putf(b + 48, period)  # duration5
@@ -974,7 +975,7 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=(), hide
         m.putf(b + 24, period)
         m.putf(b + 28, period)
         m.putf(b + 32, period)
-        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP | ANIMATION_ENABLED)
+        m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP)  # switched on by the mod in races only
         m.put32(b + 40, nk)
         m.putf(b + 44, period)
         m.putf(b + 48, period)

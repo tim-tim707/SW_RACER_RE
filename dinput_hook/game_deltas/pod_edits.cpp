@@ -435,10 +435,12 @@ void pod_edits_drop_models_from(const char* asset_begin) {
 }
 
 void pod_edits_animations_frame(bool in_race) {
-    if (!in_race)
-        return;// menus (racer select) play them by themselves
     for (const PodAnim& pa: g_pod_anims) {
         swrModel_Animation* a = pa.anim;
+        if (!in_race) {// still in menus (the racer-select preview)
+            a->flags = (swrModel_AnimationFlags) (a->flags & ~ANIMATION_ENABLED);
+            continue;
+        }
         if (a->node_ptr == nullptr)
             continue;// an alt-model part's animation not linked (its alt model wasn't merged in)
         bool registered = false;
