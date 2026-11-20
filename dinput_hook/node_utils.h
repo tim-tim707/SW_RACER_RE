@@ -51,6 +51,16 @@ extern MaterialMember node_material_members[9];
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern std::vector<PodNodeOwner> pod_node_owners;
 
+constexpr uintptr_t kMinMappableAddress = 0x10000;// Win32 never maps the first 64 KB
+
+// Returns specs[i], or nullptr when the slot holds a value below the first mappable page. Crash
+// reports show in-race textures with specs[0] == 0x3 / 0xf, which a plain null check dereferences.
+inline const swrModel_MaterialTextureChild *material_texture_spec(const swrModel_MaterialTexture *tex,
+                                                                   int i) {
+    const swrModel_MaterialTextureChild *spec = tex->specs[i];
+    return (uintptr_t) spec >= kMinMappableAddress ? spec : nullptr;
+}
+
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);
 
 // Rebuilds pod_node_owners from the live racer roster (swrScores[]). Cheap (<=20 entries); call once

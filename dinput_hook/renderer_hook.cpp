@@ -880,10 +880,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // holds for both the LOD_FRACTION-combiner surfaces (e.g. Oovo tunnels) and the _mipcut_
         // alpha-cutout ones whose colour combiner never references LOD_FRACTION. Unscramble it the
         // first time it is bound (skip user replacements, which are already correct).
-        if (tex->specs[1] && !is_replacement_texture_handle(current_texture_handle)) {
+        const swrModel_MaterialTextureChild *spec0 = material_texture_spec(tex, 0);
+        if (material_texture_spec(tex, 1) &&
+            !is_replacement_texture_handle(current_texture_handle)) {
             // Mirror flags share the spec bits the UV scale uses (0x10000000 = mirror X, 0x01000000
             // = mirror Y); tex->width/height are the original tile dims before the mirror bake.
-            const uint32_t flags = tex->specs[0] ? tex->specs[0]->flags : 0;
+            const uint32_t flags = spec0 ? spec0->flags : 0;
             deswizzle_lod_texture(current_texture_handle, tex->width, tex->height,
                                   flags & 0x10'00'00'00, flags & 0x01'00'00'00);
         }
@@ -897,16 +899,16 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                         imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR);
 
-        if (tex->specs[0]) {
-            uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
-            uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
-            if (tex->specs[0]->flags & 0x20'00'00'00) {
+        if (spec0) {
+            uv_scale_x = spec0->flags & 0x10'00'00'00 ? 2.0 : 1.0;
+            uv_scale_y = spec0->flags & 0x01'00'00'00 ? 2.0 : 1.0;
+            if (spec0->flags & 0x20'00'00'00) {
                 uv_offset_x -= 1;
                 wrap_s = GL_CLAMP_TO_EDGE;
             } else {
                 wrap_s = GL_REPEAT;
             }
-            if (tex->specs[0]->flags & 0x02'00'00'00) {
+            if (spec0->flags & 0x02'00'00'00) {
                 uv_offset_y -= 1;
                 wrap_t = GL_CLAMP_TO_EDGE;
             } else {
@@ -1983,7 +1985,7 @@ void swrViewport_Render_Hook(int x) {
                 imgui_state.picked_mesh_material.tex_unk6 = mtex->unk6;
                 imgui_state.picked_mesh_material.tex_unk7 = mtex->unk7;
                 imgui_state.picked_mesh_material.tex_spec0_flags =
-                    mtex->specs[0] ? mtex->specs[0]->flags : 0;
+                    material_texture_spec(mtex, 0) ? material_texture_spec(mtex, 0)->flags : 0;
             }
             for (int i = 0; handle && i < texture_count; i++) {
                 if (gl_texture_from_texture_id((TEXID) i) == handle) {
