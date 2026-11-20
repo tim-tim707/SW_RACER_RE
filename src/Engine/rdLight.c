@@ -126,7 +126,7 @@ void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses,
 }
 
 // 0x00490930
-float rdLight_GetIntensity(const rdVector4* pLight)
+long double rdLight_GetIntensity(const rdVector4* pLight)
 {
     return (pLight->y + pLight->z + pLight->x) * 0.3333333;
 }

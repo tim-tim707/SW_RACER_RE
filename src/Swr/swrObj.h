@@ -493,7 +493,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5);
 void swrUI_ResetMenuInputBitsets(void);
 
 // Computes a cosine-based sine ease used by the holo-transition animators (best guess).
-float swrObjHang_EaseSine_Maybe(float t, float period);
+long double swrObjHang_EaseSine_Maybe(float t, float period);
 
 // Build a local player's menu (UI) input bitsets (swrUI_localPlayersInputPressedBitset /
 // DownBitset) for this frame by edge-detecting the player's held in-race input
@@ -674,7 +674,7 @@ void swrObjJdge_HideEngineUI(swrScore* score);
 
 // Sort key for a racer: live race progress while racing, or an inverse-finish-time value once
 // finished (so finishers always sort ahead of still-racing pods).
-float swrObjJdge_GetRacerRankValue(swrScore* score);
+long double swrObjJdge_GetRacerRankValue(swrScore* score);
 // Recomputes the field standings: ranks all racers by GetRacerRankValue, assigns each its
 // position (+0x5c) and the gap-to-leader / gap-ahead / gap-behind values, and sets catch-up flags.
 void swrObjJdge_UpdateStandings(swrObjJdge* jdge);

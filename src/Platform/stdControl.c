@@ -167,7 +167,7 @@ void stdControl_ReadControls(void)
 }
 
 // 0x004856e0
-float stdControl_ReadAxis(int controlId)
+long double stdControl_ReadAxis(int controlId)
 {
     int delta;
     int magnitude;
@@ -200,7 +200,7 @@ float stdControl_ReadAxis(int controlId)
 }
 
 // 0x004857b0
-float stdControl_ReadKeyAsAxis(unsigned int keyId)
+long double stdControl_ReadKeyAsAxis(unsigned int keyId)
 {
     unsigned int heldMs;
     float value;

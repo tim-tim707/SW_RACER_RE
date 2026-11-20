@@ -316,7 +316,7 @@ void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEn
 void swrModel_ClipAndTestTriangle(float* closest, float* a, float* b, float* c, float* center, float distSq, float* normal);
 void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
 // ray = {origin[3], dir[3], maxDist} (the swrModel_collisionRay* globals laid out contiguously)
-float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
+long double IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
 void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray);
 
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices);
@@ -417,7 +417,7 @@ void swrModel_NodeSetAnimationFlagsAndSpeed(swrModel_Node* node, swrModel_Animat
 // Inner helpers of the closest-point query: swrModel_ClosestPointOnTriangle (@0x482120) de-quantizes
 // the model's short verts + transform, then calls ...Impl on float verts; ...Impl tests via ...2.
 int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVector3* edgeAB, rdVector3* edgeBC, rdVector3* edgeCA);
-float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
+long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
 
 // Builds an orthonormal basis and offset origin from a direction and up vector.
 void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);

@@ -5263,7 +5263,7 @@ unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
 // shifts the result by -0.33 (left, parts 0..2) or +0.33 (right, parts 3..5), so a
 // lopsidedly damaged pod pulls to one side.
 // 0x0046a9f0
-RETAIL_FP float swrRace_GetEngineDamagePenalty(swrRace* player)
+RETAIL_FP long double swrRace_GetEngineDamagePenalty(swrRace* player)
 {
     // The health threshold is the double 0.8, so an engine at exactly 0.8f (just above it) counts.
     long double penalty = 0.0f;
@@ -10149,11 +10149,11 @@ void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float mirrorX, flo
 }
 
 // 0x00470510
-RETAIL_FP float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
+RETAIL_FP long double swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
 {
     float* value = &player->partOffset[part].y;
     float current = *value;
-    float result;
+    long double result; // retail returns the finished-pod average unrounded (FST, not FSTP)
 
     lowerRate *= swrRace_deltaTimeSecs;
     upperRate *= swrRace_deltaTimeSecs;

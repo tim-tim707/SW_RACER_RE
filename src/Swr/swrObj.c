@@ -5448,7 +5448,7 @@ float swrObjJdge_GetRacerProgress(swrScore* score)
 
 // Sort key for standings: finished racers rank by (maxRaceTime - total time); others by progress.
 // 0x0045d480
-float swrObjJdge_GetRacerRankValue(swrScore* score)
+long double swrObjJdge_GetRacerRankValue(swrScore* score)
 {
     if ((score->flag & 2) == 0)
         return swrObjJdge_GetRacerProgress(score);
@@ -12944,7 +12944,7 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport)
 
 // Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
 // 0x0045a420
-float swrObjHang_EaseSine_Maybe(float t, float period) {
+long double swrObjHang_EaseSine_Maybe(float t, float period) {
     float sine;
     // The original passes its own `t` slot as the cosine out-param and reads it back.
     stdMath_SinCos((t / period) * 180.0f, &sine, &t);
