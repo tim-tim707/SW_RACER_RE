@@ -5139,7 +5139,7 @@ typedef enum swrMultiplayer_MSG
     swrMultiplayer_MSG_JOIN_RESPONSE = 0x24,
     swrMultiplayer_MSG_PING = 0x26,
     swrMultiplayer_MSG_PING_REPLY = 0x27,
-    swrMultiplayer_MSG_PLAYER_LEAVE = 0x28,
+    swrMultiplayer_MSG_ACK = 0x28,
     swrMultiplayer_MSG_VERIFY_PLAYER_LIST = 0x29,
     swrMultiplayer_MSG_PLAYER_QUIT = 0x2a,
     swrMultiplayer_MSG_READY_MASK = 0x2c,

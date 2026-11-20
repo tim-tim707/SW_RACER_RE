@@ -999,9 +999,9 @@ void swrSound_UpdateIfEnabled(void)
     swrSound_Update();
 }
 
-// Set the min/max distance used to attenuate the next spatial sfx (the PlaySpatial path).
+// Set the min/max falloff distances for spatial sfx (the PlaySpatial path).
 // 0x004270f0
-void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist)
+void swrSound_SetSpatialDistances(float minDist, float maxDist)
 {
     swrSound_spatialMinDist = minDist;
     swrSound_spatialMaxDist = maxDist;
@@ -1653,9 +1653,9 @@ void swrSound_MarkSfxPlayed(int category, int variant, int soundId, int id)
 
 // A3D 3D-positional playback (distance attenuation, occlusion, panning). Reverse-hook stub for now;
 // reimplemented separately (it pulls in the perspective-projection + occlusion-ray helpers).
-// True for the sound id ranges that play as looping sfx (0x8e-0xa5, plus 0x22).
+// True for sound ids played at the music volume: the music tracks (0x8e-0xa5) plus loop cue 0x22.
 // 0x004269c0
-int swrSound_IsLoopingSfxId_Maybe(int soundId)
+int swrSound_UsesMusicVolume(int soundId)
 {
     return (soundId > 0x8d && soundId < 0xa6) || soundId == 0x22;
 }
@@ -1860,11 +1860,11 @@ void swrSound_ResetChannel(void* channel)
     c->dedicatedSource = 0;
 }
 
-// Zeroes the computed gain of every requested-voice slot (the per-frame voice mixer rebuilds them).
+// Nonzero routes voices onto reverb sources (when Main_sound_reverb is on); a change restarts them.
 // 0x004269f0
-void swrSound_SetUpdateFlag_Maybe(unsigned char flag)
+void swrSound_SetReverb(unsigned char flag)
 {
-    swrSound_updateFlag = flag;
+    swrSound_reverbLevel = flag;
 }
 
 // 0x00449e30
@@ -1934,9 +1934,9 @@ void swrSound_Update(void)
         swrSound_prevPosition.z = swrSound_Position.z;
         swrCam_GetActiveViewportCameraTransform((rdMatrix44*)&swrSound_Orientation0);
     }
-    if (swrSound_prevUpdateFlag != swrSound_updateFlag) {
+    if (swrSound_prevReverbLevel != swrSound_reverbLevel) {
         reverbChanged = 1;
-        swrSound_prevUpdateFlag = swrSound_updateFlag;
+        swrSound_prevReverbLevel = swrSound_reverbLevel;
     } else {
         reverbChanged = 0;
     }
@@ -2014,9 +2014,9 @@ void swrSound_Update(void)
                 entry = (swrSoundDescriptor*)swrSound_GetEntry(live->id);
                 if ((entry->flags & swrSoundDescriptor_STREAMED) == 0) {
                     // restart the voice on a source matching the new reverb setting
-                    createDedicated = swrSound_updateFlag != 0;
+                    createDedicated = swrSound_reverbLevel != 0;
                     source = swrSound_AcquireSource(entry, 0, &createDedicated);
-                    if (createDedicated == (swrSound_updateFlag != 0)) {
+                    if (createDedicated == (swrSound_reverbLevel != 0)) {
                         *backup = *live;
                         backup->unk24 = backup->source != entry->source;
                         requested->source = source;
@@ -2076,7 +2076,7 @@ void swrSound_Update(void)
             if (requested->id == -1)
                 continue;
             requested->activeSoundId = requested->id;
-            createDedicated = (swrSound_updateFlag != 0 && Main_sound_reverb != 0) ? 1 : 0;
+            createDedicated = (swrSound_reverbLevel != 0 && Main_sound_reverb != 0) ? 1 : 0;
             entry = (swrSoundDescriptor*)swrSound_GetEntry(requested->id);
             requested->source = swrSound_AcquireSource(entry, requested->unk08, &createDedicated);
             requested->dedicatedSource = requested->source != entry->source;

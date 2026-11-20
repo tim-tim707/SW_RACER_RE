@@ -649,7 +649,7 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
     cman->surfaceBehavior = behavior;
     swrObjcMan_LoadLightingFromBehavior(cman, pod, behavior);
     if (NumLocalPlayers() <= 1)
-        swrSound_SetUpdateFlag_Maybe(behavior != NULL && (behavior->unk18 & 1) != 0 ? 0x7f : 0);
+        swrSound_SetReverb(behavior != NULL && (behavior->unk18 & 1) != 0 ? 0x7f : 0);
     if (behavior == NULL)
         goto updateLightFlags;
 
@@ -1695,7 +1695,7 @@ void swrObjScene_Exit(swrObjScen* scene, int event)
     int ev[16];
 
     swrObjScene_ResetViewports();
-    swrSound_SetUpdateFlag_Maybe(0);
+    swrSound_SetReverb(0);
     swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
     swrSprite_ResetAllSprites();
     swrModel_ClearSceneAnimations();
@@ -5654,7 +5654,7 @@ void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
     swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 1
     swrObjJdge_UpdateViewportLayout(jdge, 1);
     swrUI_UpdateProgressBar(40);
-    swrSound_SetUpdateFlag_Maybe(0);
+    swrSound_SetReverb(0);
     swrModel_Node1 = NULL;
     swrModel_Node3 = NULL;
     swrModel_Node2 = NULL;
@@ -12656,7 +12656,7 @@ void swrScene_LoadPreviewModel(void)
 // 0x00448f40
 void swrScene_LoadObjects(void)
 {
-    swrSound_SetSpatialOrigin_Maybe(50.0f, 300.0f);
+    swrSound_SetSpatialDistances(50.0f, 300.0f);
     swrAssetBuffer_ReserveRegionA_Maybe();
     swrAssetBuffer_ReserveRegionB_Maybe();
     ResetModelPreviewState_Maybe();

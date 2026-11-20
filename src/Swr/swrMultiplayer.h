@@ -44,7 +44,7 @@
 #define swrMultiplayer_ApplyEvent_ADDR (0x0041e260)
 #define swrMultiplayer_ApplyRaceReset_ADDR (0x0041e6c0)
 #define swrMultiplayer_VerifyPlayerList_ADDR (0x00404a70)
-#define swrMultiplayer_ApplyPlayerLeave_ADDR (0x0041bba0)
+#define swrMultiplayer_ApplyAck_ADDR (0x0041bba0)
 #define swrMultiplayer_ApplyLobbyState_ADDR (0x0041c330)
 #define swrMultiplayer_ApplyLobbyRefresh_ADDR (0x0041c3e0)
 #define swrMultiplayer_ApplyMenuEvent_ADDR (0x0041c490)
@@ -117,8 +117,8 @@
 
 // Session lifecycle + event/player-list senders (subtype / 4-char magic noted).
 #define swrMultiplayer_InitMessaging_ADDR (0x0041b700)
-#define swrMultiplayer_FormatTimeString_Maybe_ADDR (0x0041bc20)
-#define swrMultiplayer_ResetRacerListState_Maybe_ADDR (0x0041bd60)
+#define swrMultiplayer_FormatTimeString_ADDR (0x0041bc20)
+#define swrMultiplayer_ClearChatLines_ADDR (0x0041bd60)
 #define swrMultiplayer_SendMenuEvent_ADDR (0x0041c3f0)
 #define swrMultiplayer_BroadcastMenuReset_ADDR (0x0041c450)
 #define swrMultiplayer_GetRacerId_ADDR (0x0041c4d0)
@@ -126,8 +126,8 @@
 #define swrMultiplayer_ClearHostState_ADDR (0x0041c760)
 #define swrMultiplayer_SendRejoin_ADDR (0x0041c870)
 #define swrMultiplayer_SendProxy_ADDR (0x0041c8e0)
-#define swrMultiplayer_MarkAllPodsRemote_Maybe_ADDR (0x0041c940)
-#define swrMultiplayer_MarkPodLocal_Maybe_ADDR (0x0041c990)
+#define swrMultiplayer_MarkAiPodsRemote_ADDR (0x0041c940)
+#define swrMultiplayer_TakeOverPodAsAi_ADDR (0x0041c990)
 #define swrMultiplayer_OnPlayerJoined_ADDR (0x0041c9e0)
 #define swrMultiplayer_BecomeHost_ADDR (0x0041ca50)
 #define swrMultiplayer_SendPlayerName_ADDR (0x0041cb20)
@@ -238,11 +238,11 @@ int swrMultiplayer_ApplyPlayerName(void* message);
 int swrMultiplayer_ApplyPlayerJoin(void* message);
 // 0x29: verifies a received player-id list against the local session and sets the synced flag.
 int swrMultiplayer_VerifyPlayerList(void* message);
-// 0x28: removes a player from a session group bitfield, freeing the slot when it empties.
-int swrMultiplayer_ApplyPlayerLeave(void* message);
+// 0x28: clears the sender's bit in the matching pending message's ackMask, freeing it once all have acked.
+int swrMultiplayer_ApplyAck(void* message);
 
-// Formats a minutes/seconds/hundredths time into a shared text buffer and returns it (best guess).
-char* swrMultiplayer_FormatTimeString_Maybe(float seconds);
+// Formats seconds as "M:SS.hh" (or "SS.hh" under a minute) into a shared buffer.
+char* swrMultiplayer_FormatTimeString(float seconds);
 // 0x2a: handles a player quit - closes the game on host quit, else removes that player.
 int swrMultiplayer_ApplyPlayerQuit(void* message);
 // 0x24/0x2f: no-op handler (acknowledges without acting).
@@ -294,8 +294,8 @@ unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionN
 char* swrMultiplayer_GetSessionName(void);
 void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
 
-// Resets the racer-list overlay slot, TTL, and id tables (best guess).
-void swrMultiplayer_ResetRacerListState_Maybe(void);
+// Clears the chat overlay lines, their state and their time-left timers.
+void swrMultiplayer_ClearChatLines(void);
 void swrMultiplayer_SetRacerListDisplay(int enabled, int x, int y); // toggle the chat overlay + free its lines
 void swrMultiplayer_FreeRacerSlot(int slot);
 void swrMultiplayer_ResetRaceSettings(void);                        // reset racer ids + track (Boonta) / laps (3)
@@ -377,9 +377,9 @@ void swrMultiplayer_SendRejoin(unsigned int playerNum);
 void swrMultiplayer_SendProxy(void);
 
 // Turns every 'AAII' pod into a 'REMO' pod (flags0 AI -> REMOTE, score + roster identifier).
-void swrMultiplayer_MarkAllPodsRemote_Maybe(void);
+void swrMultiplayer_MarkAiPodsRemote(void);
 
 // Host/proxy only: turns one pod back into an 'AAII' pod this machine simulates.
-void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex);
+void swrMultiplayer_TakeOverPodAsAi(int playerIndex);
 
 #endif // SWRMULTIPLAYER_H

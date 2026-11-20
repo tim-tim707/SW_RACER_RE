@@ -3155,7 +3155,7 @@ extern "C"
         char unka[2];
         DPID idTo; // 0x0c. set by sithMessage_SendMessage for guaranteed sends
         char unk10[4];
-        int unk14; // 0x14. cleared by sithMulti_ClearMessageField_Maybe right before SendMessage tests it
+        int ackMask; // 0x14. bit N = player N has not acked this guaranteed send yet
         char unk18[4];
         DPID idFrom; // 0x1c. sender DPID on receive; sithMessage_SendMessage stores playerNumber
         unsigned int dataSize; // 0x20. payload bytes in data
@@ -3190,7 +3190,7 @@ extern "C"
         unsigned int pingMs; // 0xac. smoothed ping round trip (swrMultiplayer_ApplyPingReply); zeroed when the slot is registered
     } SithPlayer; // sizeof(0xb0)
 
-    // One swrMultiplayer_aSeenMessages entry: a guaranteed message already applied (sithMulti_TrackMessagePair_Maybe).
+    // One swrMultiplayer_aSeenMessages entry: a guaranteed message already applied (sithMulti_IsDuplicateMessage).
     typedef struct swrMultiplayer_SeenMessage
     {
         DPID idFrom;

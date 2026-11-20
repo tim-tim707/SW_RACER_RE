@@ -72,9 +72,9 @@ int sithMessage_SendMessage(tSithMessage* pMessage, DPID idTo, unsigned int outs
             pMessage->sequenceId = sithMessage_g_nextSequenceId;
             sithMessage_g_nextSequenceId++;
             pMessage->idTo = idTo;
-            sithMulti_ClearMessageField_Maybe(pMessage);
-            // faithful: unk14 was just cleared, so every send goes out unsequenced
-            if (pMessage->unk14 == 0)
+            sithMulti_ClearAckMask(pMessage);
+            // faithful: ackMask was just cleared, so every send goes out unsequenced
+            if (pMessage->ackMask == 0)
                 pMessage->sequenceId = 0;
         }
         result = sithMessage_NetWrite(pMessage, idTo);
@@ -99,7 +99,7 @@ void sithMulti_ProcessPlayerLost(DPID idPlayer)
 
     sithMulti_RemovePlayer(playerNum);
     if (swrMultiplayer_proxyPlayer != -1) {
-        swrMultiplayer_MarkPodLocal_Maybe(playerNum);
+        swrMultiplayer_TakeOverPodAsAi(playerNum);
     } else {
         swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'lost', playerNum);
     }

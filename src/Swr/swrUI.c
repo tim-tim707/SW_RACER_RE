@@ -3920,11 +3920,11 @@ void swrUI_DrawRaceResultRow(swrUI_unk* row)
     else if (retired)
         sprintf(text, swrText_Translate("/MONDOTEXT_H_0549/Retired"));
     else
-        sprintf(text, swrText_Translate("/MONDOTEXT_H_0550/Current : %s"), swrMultiplayer_FormatTimeString_Maybe(row->result_current_time));
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0550/Current : %s"), swrMultiplayer_FormatTimeString(row->result_current_time));
     swrUI_DrawText(0, x + 0xd2, y + 0x1e, -1, -1, -1, -1, text, 0, 0, 0);
 
     if (!retired) {
-        sprintf(text, swrText_Translate("/MONDOTEXT_H_0551/Total : %s"), swrMultiplayer_FormatTimeString_Maybe(row->result_total_time));
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0551/Total : %s"), swrMultiplayer_FormatTimeString(row->result_total_time));
         swrUI_DrawText(0, x + 0x154, y + 0x1e, -1, -1, -1, -1, text, 0, 0, 0);
     }
 }

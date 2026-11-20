@@ -40,10 +40,8 @@
 #define swrSound_FillStreamBuffer_ADDR (0x004233a0)
 #define swrSound_UpdateStreaming_ADDR (0x004234c0)
 
-// True for the sound-id range used by looping sfx (best guess; 0x8e..0xa5 or 0x22).
-#define swrSound_IsLoopingSfxId_Maybe_ADDR (0x004269c0)
-// Set the byte flag read by swrSound_Update each tick (best guess).
-#define swrSound_SetUpdateFlag_Maybe_ADDR (0x004269f0)
+#define swrSound_UsesMusicVolume_ADDR (0x004269c0)
+#define swrSound_SetReverb_ADDR (0x004269f0)
 
 // High-level SFX playback. A (category, id) pair is resolved to a bank index,
 // then played 3D-positionally (distance-attenuated) via playASoundImpl.
@@ -51,8 +49,7 @@
 #define swrSound_PlaySpatial_ADDR (0x00426d80)
 // Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
 #define swrSound_UpdateIfEnabled_ADDR (0x004270d0)
-// Store the spatial reference point read by swrSound_PlaySpatial/playASoundImpl (best guess).
-#define swrSound_SetSpatialOrigin_Maybe_ADDR (0x004270f0)
+#define swrSound_SetSpatialDistances_ADDR (0x004270f0)
 #define swrSound_ResolveSfxId_ADDR (0x00427110)
 // Throttled one-shot SFX play: a (category, variant) cooldown plus a 3-entry recently-played
 // ring guard against retriggering the same sound too often (announcer lines, one-shots).
@@ -94,7 +91,6 @@
 #define swrSound_ResetChannels_ADDR (0x00449ea0)
 #define swrSound_Update_ADDR (0x00449ef0)
 #define swrSound_GetSoundLengthSeconds_ADDR (0x0044a930)
-// Play two file-backed sources (a one-shot + a positioned loop); enable toggles on/off (best guess).
 #define swrSound_PlayLayeredStream_Maybe_ADDR (0x0044a970)
 
 #define swrSound_Init_ADDR (0x004848a0)
@@ -224,14 +220,16 @@ void swrSound_UpdateDelayedSfx(void);
 // Call swrSound_Update only when the sfx or music volume is non-zero.
 void swrSound_UpdateIfEnabled(void);
 
-// Best-guess helpers (low confidence): looping-sfx id predicate, per-tick update
-// flag setter, and the spatial reference-point setter used by the PlaySpatial path.
-int swrSound_IsLoopingSfxId_Maybe(int soundId);
-void swrSound_SetUpdateFlag_Maybe(unsigned char flag);
-void swrSound_SetSpatialOrigin_Maybe(float minDist, float maxDist);
+// True for sound ids played at the music volume (music tracks + loop cue 0x22).
+int swrSound_UsesMusicVolume(int soundId);
+// 0x7f inside reverb surfaces (surface behavior unk18 & 1, single local player), else 0.
+void swrSound_SetReverb(unsigned char flag);
+// Min/max falloff distances for spatial sfx.
+void swrSound_SetSpatialDistances(float minDist, float maxDist);
 
-// Play two file-backed sources together: a one-shot (introWav) and a positioned
-// loop (loopWav); enable != 0 starts/updates, == 0 stops (best guess, low confidence).
+// Sets the main gain, plays introWav to completion (busy-wait), then loopWav; enable == 0
+// releases both. Only caller previews the gain slider on the audio page (still unresolved:
+// generic intro+loop player vs gain preview).
 void swrSound_PlayLayeredStream_Maybe(int enable, float gain, char* introWav, char* loopWav);
 
 // Streamed music controller (channel 7). swrSound_SelectTrackMusic picks the per-track theme

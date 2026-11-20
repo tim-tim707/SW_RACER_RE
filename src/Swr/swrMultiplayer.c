@@ -83,7 +83,7 @@ int swrMultiplayer_InitMessaging(void)
 }
 
 // 0x0041bc20
-char* swrMultiplayer_FormatTimeString_Maybe(float seconds)
+char* swrMultiplayer_FormatTimeString(float seconds)
 {
     double total;
     double rem;
@@ -162,7 +162,7 @@ int swrMultiplayer_ResetSession(void)
     swrMultiplayer_hangSyncUnk2 = 0;
     g_LoadTrackModel = 0;
     swrMultiplayer_hangSyncUnk4 = 0;
-    swrMultiplayer_ResetRacerListState_Maybe();
+    swrMultiplayer_ClearChatLines();
     swrMultiplayer_proxyPlayer = -1;
     return 1;
 }
@@ -819,7 +819,7 @@ void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex)
 }
 
 // 0x0041bd60
-void swrMultiplayer_ResetRacerListState_Maybe(void)
+void swrMultiplayer_ClearChatLines(void)
 {
     memset(swrMultiplayer_chatLineTimeLeftMs, 0, sizeof(swrMultiplayer_chatLineTimeLeftMs));
     memset(swrMultiplayer_chatLineState, 0, sizeof(swrMultiplayer_chatLineState));
@@ -1009,13 +1009,13 @@ void swrMultiplayer_SendProxy(void)
         if (swrMultiplayer_IsPlayerActive(i) != 0 && i != playerNumber && multiplayer_aPlayerQuit[i] == 0) {
             swrMultiplayer_proxyPlayer = i;
             swrMultiplayer_SendEvent(swrMultiplayer_GetPlayerDpid(i), sithMessage_SEND_GUARANTEED, 'prxy');
-            swrMultiplayer_MarkAllPodsRemote_Maybe();
+            swrMultiplayer_MarkAiPodsRemote();
         }
     }
 }
 
 // 0x0041c940
-void swrMultiplayer_MarkAllPodsRemote_Maybe(void)
+void swrMultiplayer_MarkAiPodsRemote(void)
 {
     int i;
     swrRace* pod;
@@ -1031,7 +1031,7 @@ void swrMultiplayer_MarkAllPodsRemote_Maybe(void)
 }
 
 // 0x0041c990
-void swrMultiplayer_MarkPodLocal_Maybe(int playerIndex)
+void swrMultiplayer_TakeOverPodAsAi(int playerIndex)
 {
     swrRace* pod;
 
@@ -1325,7 +1325,7 @@ int swrMultiplayer_ApplyEvent(void* message)
         break;
     case 'ctrl':
         swrMultiplayer_proxyPlayer = -1;
-        swrMultiplayer_MarkAllPodsRemote_Maybe();
+        swrMultiplayer_MarkAiPodsRemote();
         break;
     case 'fini':
         swrScoresPtr[sender].flag |= swrScore_FLAG_FINISHED;
@@ -1341,17 +1341,17 @@ int swrMultiplayer_ApplyEvent(void* message)
         swrMultiplayer_aPodStatus[args[0]][3] = 0;
         break;
     case 'lost':
-        swrMultiplayer_MarkPodLocal_Maybe(args[0]);
+        swrMultiplayer_TakeOverPodAsAi(args[0]);
         break;
     case 'plap':
-        sprintf(text, swrText_Translate("/MONDOTEXT_H_0511/~s%s completed lap %d in %s"), swrMultiplayer_GetPlayerNameAscii(sender), args[0], swrMultiplayer_FormatTimeString_Maybe(*(float*)&args[1]));
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0511/~s%s completed lap %d in %s"), swrMultiplayer_GetPlayerNameAscii(sender), args[0], swrMultiplayer_FormatTimeString(*(float*)&args[1]));
         swrMultiplayer_PostChatMessage(text);
         break;
     case 'prxy':
         swrMultiplayer_proxyPlayer = playerNumber;
         count = args[0];
         for (i = 0; i < count; i++)
-            swrMultiplayer_MarkPodLocal_Maybe(args[1 + i]);
+            swrMultiplayer_TakeOverPodAsAi(args[1 + i]);
         break;
     case 'quit':
         multiplayer_aPlayerQuit[sender] = 1;
@@ -1360,7 +1360,7 @@ int swrMultiplayer_ApplyEvent(void* message)
         swrMultiplayer_aPodStatus[sender][2] = 0;
         swrMultiplayer_aPodStatus[sender][3] = 0;
         if (multiplayer_isHost != 0)
-            swrMultiplayer_MarkPodLocal_Maybe(sender);
+            swrMultiplayer_TakeOverPodAsAi(sender);
         break;
     case 'rejn':
         swrUI_BroadcastToWindows(0x41, 0);
@@ -1749,7 +1749,7 @@ void swrMultiplayer_RegisterHandlers(void)
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_PING, swrMultiplayer_ReplyPing);
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_PING_REPLY, swrMultiplayer_ApplyPingReply);
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_VERIFY_PLAYER_LIST, swrMultiplayer_VerifyPlayerList);
-    swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_PLAYER_LEAVE, swrMultiplayer_ApplyPlayerLeave);
+    swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_ACK, swrMultiplayer_ApplyAck);
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_PLAYER_QUIT, swrMultiplayer_ApplyPlayerQuit);
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_JOIN_RESPONSE, swrMultiplayer_HandleNoOp);
     swrMultiplayer_RegisterHandler(swrMultiplayer_MSG_READY_MASK, swrMultiplayer_ApplyReadyMask);
@@ -1793,15 +1793,15 @@ int swrMultiplayer_PumpPackets(void)
             continue;
         }
         type = swrMultiplayer_message.callbackId;
-        if (sithMulti_GetPlayerNum(swrMultiplayer_message.idFrom) < 0 && type != swrMultiplayer_MSG_PLAYER_NAME && type != swrMultiplayer_MSG_PLAYER_JOIN && type != swrMultiplayer_MSG_PLAYER_LEAVE && type != swrMultiplayer_MSG_PLAYER_LIST) {
+        if (sithMulti_GetPlayerNum(swrMultiplayer_message.idFrom) < 0 && type != swrMultiplayer_MSG_PLAYER_NAME && type != swrMultiplayer_MSG_PLAYER_JOIN && type != swrMultiplayer_MSG_ACK && type != swrMultiplayer_MSG_PLAYER_LIST) {
             // unknown sender outside the join handshake
             if (multiplayer_isHost != 0)
                 swrMultiplayer_SendPlayerQuit(swrMultiplayer_message.idFrom);
             continue;
         }
         if (swrMultiplayer_message.sequenceId != 0) {
-            swrMultiplayer_SendPlayerLeave_Maybe(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId);
-            if (sithMulti_TrackMessagePair_Maybe(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId) != 0)
+            swrMultiplayer_SendAck(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId);
+            if (sithMulti_IsDuplicateMessage(swrMultiplayer_message.idFrom, swrMultiplayer_message.sequenceId) != 0)
                 continue;
         }
         sithMulti_RunCallback(&swrMultiplayer_message);
@@ -2265,7 +2265,7 @@ int swrMultiplayer_ApplyChat(void* message)
 }
 
 // 0x0041bba0
-int swrMultiplayer_ApplyPlayerLeave(void* message)
+int swrMultiplayer_ApplyAck(void* message)
 {
     tSithMessage* msg = (tSithMessage*)message;
     int sequenceId = *(short*)msg->data;
@@ -2279,8 +2279,8 @@ int swrMultiplayer_ApplyPlayerLeave(void* message)
     }
     if (i == SITH_MULTI_MAX_PENDING_MESSAGES)
         return 1;
-    ackMask = (unsigned int)sithMulti_aPendingMessages[i].unk14 & ~(1u << (playerNum & 0x1f)); // faithful: x86 masks the shift count
-    sithMulti_aPendingMessages[i].unk14 = ackMask;
+    ackMask = (unsigned int)sithMulti_aPendingMessages[i].ackMask & ~(1u << (playerNum & 0x1f)); // faithful: x86 masks the shift count
+    sithMulti_aPendingMessages[i].ackMask = ackMask;
     if (ackMask == 0) {
         memset(&sithMulti_aPendingMessages[i], 0, sizeof(tSithMessage));
         sithMulti_numPendingMessages--;

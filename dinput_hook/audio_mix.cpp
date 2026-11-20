@@ -14,7 +14,7 @@ extern "C" {
 #include <swr.h>          // playASoundImpl_ADDR
 #include <Swr/swrObj.h>   // swrObjJdge_UpdateCountdownLights_ADDR, GetLocalPlayerNumberFromScore
 #include <Swr/swrRace.h>  // swrRace_InRaceEngineUI_ADDR, swrRace_UpdateEngineSound_ADDR, ...
-#include <Swr/swrSound.h> // swrSound_GetEntry, swrSound_IsLoopingSfxId_Maybe
+#include <Swr/swrSound.h> // swrSound_GetEntry, swrSound_UsesMusicVolume
 #include <Swr/swrUI.h>    // playUISound_ADDR
 #include <globals.h>       // swrRace_voices_enabled
 }
@@ -100,7 +100,7 @@ typedef int(__cdecl *playUISound_t)(int);
 
 extern "C" int __cdecl playASoundImpl_delta(int sound_id, short priority, float pitch, float gain,
                                             short pan, int looping, int track_pos, int *pos) {
-    if (!swrSound_IsLoopingSfxId_Maybe(sound_id)) {// music ids ride the music byte; leave them
+    if (!swrSound_UsesMusicVolume(sound_id)) {// music ids ride the music byte; leave them
         const AudioMixCategory category = classify(sound_id);
         if (category != AUDIO_MIX_NONE)
             gain *= g_volume[category];

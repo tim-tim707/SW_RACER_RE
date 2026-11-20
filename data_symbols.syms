@@ -257,7 +257,7 @@ swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by s
 swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
-swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendPlayerLeave_Maybe)
+swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendAck)
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
@@ -613,7 +613,7 @@ multiplayer_in_mp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
 
-sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyPlayerLeave clears bits)
+sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyAck clears bits)
 swrMultiplayer_aSeenMessages 0x004e9918 swrMultiplayer_SeenMessage[128] # ring of applied guaranteed messages, deduplicates resends
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
@@ -928,8 +928,8 @@ swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
 swrSound_prevPosition 0x0050c678 rdVector3 # last frame's listener position (doppler velocity)
-swrSound_prevUpdateFlag 0x0050c684 uint8_t # last swrSound_updateFlag seen; a change restarts non-streamed voices
-swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
+swrSound_prevReverbLevel 0x0050c684 uint8_t # last swrSound_reverbLevel seen; a change restarts non-streamed voices
+swrSound_reverbLevel 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
 swrSound_layeredStreamActive 0x0050c69c int # set while swrSound_PlayLayeredStream_Maybe owns IA3dSource2_ptr (intro) / IA3dSource3_ptr (loop)
