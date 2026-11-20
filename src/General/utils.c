@@ -1,15 +1,17 @@
 #include "utils.h"
 
 #include "globals.h"
+#include "../engine_config.h"
 #include "../macros.h"
 
 #include <limits.h>
 
-// 0x0045cf00 TODO: crashes on release build, works fine on debug
-float swrUtils_RandFloat(void)
+// Random sign: -1.0 or +1.0 with equal odds.
+// 0x0045cf00
+RETAIL_FP long double swrUtils_RandFloat(void)
 {
-    int tmp = swrUtils_Rand();
-    return (float)(tmp * 2 - 1);
+    int bit = (int)((long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM * 2.0f);
+    return bit * 2 - 1;
 }
 
 // 0x004816b0

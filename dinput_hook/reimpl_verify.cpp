@@ -153,6 +153,36 @@ namespace {
         }
     }
 
+    void record_ld(Stats &s, long double ours, long double retail, const char *input_desc) {
+        s.total++;
+        if (std::memcmp(&ours, &retail, 10) == 0) {
+            s.exact++;
+            return;
+        }
+        s.mismatch++;
+        if (s.first_fail[0] == '\0') {
+            // msvcrt printf has no 80-bit %Lg: print a double plus the raw 10 bytes.
+            uint8_t ob[10], rb[10];
+            std::memcpy(ob, &ours, 10);
+            std::memcpy(rb, &retail, 10);
+            std::snprintf(s.first_fail, sizeof(s.first_fail),
+                          "%s -> ours=%.17g (%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x) "
+                          "retail=%.17g (%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x)",
+                          input_desc, (double) ours, ob[9], ob[8], ob[7], ob[6], ob[5], ob[4], ob[3],
+                          ob[2], ob[1], ob[0], (double) retail, rb[9], rb[8], rb[7], rb[6], rb[5],
+                          rb[4], rb[3], rb[2], rb[1], rb[0]);
+        }
+    }
+
+    // A long double return is an ST0 value callers use unrounded, so all 80 bits must match.
+    void record_any(Stats &s, float ours, float retail, int tolerance, const char *input_desc) {
+        record(s, ours, retail, tolerance, input_desc);
+    }
+
+    void record_any(Stats &s, long double ours, long double retail, int, const char *input_desc) {
+        record_ld(s, ours, retail, input_desc);
+    }
+
     void report(const Stats &s) {
         const bool passed = s.mismatch == 0;
         cases_run++;
@@ -271,12 +301,13 @@ namespace {
         report(s);
     }
 
-    void run_f_vv(const char *name, uint32_t retail_addr, F_vv ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_vv(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                   int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_vv retail = (F_vv) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -288,7 +319,7 @@ namespace {
             describe_vec3(sa, sizeof(sa), a);
             describe_vec3(sb, sizeof(sb), b);
             std::snprintf(desc, sizeof(desc), "%s, %s", sa, sb);
-            record(s, ours(&a, &b), retail(&a, &b), tolerance, desc);
+            record_any(s, ours(&a, &b), retail(&a, &b), tolerance, desc);
         }
         report(s);
     }
@@ -448,12 +479,13 @@ namespace {
         report(s);
     }
 
-    void run_f_vvv(const char *name, uint32_t retail_addr, F_vvv ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_vvv(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                    int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_vvv retail = (F_vvv) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -463,7 +495,7 @@ namespace {
             rdVector3 c = random_vec3(i + 41, lo, hi);
             char desc[304];
             describe3(desc, sizeof(desc), a, b, c);
-            record(s, ours(&a, &b, &c), retail(&a, &b, &c), tolerance, desc);
+            record_any(s, ours(&a, &b, &c), retail(&a, &b, &c), tolerance, desc);
         }
         report(s);
     }
@@ -885,12 +917,13 @@ namespace {
         report(s);
     }
 
-    void run_f_f(const char *name, uint32_t retail_addr, F_f ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_f(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                  int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_f retail = (F_f) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -898,17 +931,18 @@ namespace {
             const float x = sample(i, lo, hi);
             char desc[64];
             std::snprintf(desc, sizeof(desc), "f(%.9g)", x);
-            record(s, ours(x), retail(x), tolerance, desc);
+            record_any(s, ours(x), retail(x), tolerance, desc);
         }
         report(s);
     }
 
-    void run_f_ff(const char *name, uint32_t retail_addr, F_ff ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_ff(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                   int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_ff retail = (F_ff) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -917,7 +951,7 @@ namespace {
             const float b = sample(i + 7, lo, hi);
             char desc[96];
             std::snprintf(desc, sizeof(desc), "f(%.9g, %.9g)", a, b);
-            record(s, ours(a, b), retail(a, b), tolerance, desc);
+            record_any(s, ours(a, b), retail(a, b), tolerance, desc);
         }
         report(s);
     }
@@ -1365,7 +1399,7 @@ namespace {
         report(s);
     }
 
-    using F_racer = float (*)(swrRace *);
+    using F_racer = long double (*)(swrRace *);
 
     void run_engine_damage_penalty() {
         const char *name = "swrRace_GetEngineDamagePenalty";
@@ -1381,12 +1415,12 @@ namespace {
                 r->engineHealth[k] = (next_u32() % 4u == 0) ? 0.8f : next_float(0.0f, 1.0f);
             char desc[64];
             std::snprintf(desc, sizeof(desc), "health[0]=%.9g", r->engineHealth[0]);
-            record(s, swrRace_GetEngineDamagePenalty(r), retail(r), 0, desc);
+            record_any(s, swrRace_GetEngineDamagePenalty(r), retail(r), 0, desc);
         }
         report(s);
     }
 
-    using F_exhaust = float (*)(swrRace *, int, float, float, float, float, float, float);
+    using F_exhaust = long double (*)(swrRace *, int, float, float, float, float, float, float);
 
     void run_smooth_engine_exhaust_size() {
         const char *name = "swrRace_SmoothEngineExhaustSize";
@@ -1418,13 +1452,13 @@ namespace {
             const float brake = next_float(-10.0f, 10.0f);
             const float down = next_float(0.0f, 20.0f);
             const float up = next_float(0.0f, 20.0f);
-            const float our_r =
+            const long double our_r =
                 swrRace_SmoothEngineExhaustSize(ours, part, target, brake, down, up, lo, hi);
-            const float ret_r = retail(ret, part, target, brake, down, up, lo, hi);
+            const long double ret_r = retail(ret, part, target, brake, down, up, lo, hi);
             char desc[160];
             std::snprintf(desc, sizeof(desc), "part=%d target=%.9g flags0=0x%x dt=%.9g", part,
                           target, (unsigned) ours->flags0, swrRace_deltaTimeSecs);
-            record(s, our_r, ret_r, 0, desc);
+            record_any(s, our_r, ret_r, 0, desc);
             record_racer(s, *ours, *ret, desc);
         }
         report(s);
@@ -2551,18 +2585,6 @@ namespace {
         }
     };
 
-    void record_ld(Stats &s, long double ours, long double retail, const char *input_desc) {
-        s.total++;
-        if (std::memcmp(&ours, &retail, 10) == 0) {
-            s.exact++;
-            return;
-        }
-        s.mismatch++;
-        if (s.first_fail[0] == '\0') {
-            std::snprintf(s.first_fail, sizeof(s.first_fail), "%s -> ours=%.21Lg retail=%.21Lg",
-                          input_desc, ours, retail);
-        }
-    }
 
     // Per-case outputs that live outside the racer (out-params, return value).
     struct RacerOut {
@@ -2651,6 +2673,38 @@ namespace {
             std::snprintf(desc, sizeof(desc), "(%.9g, %.9g)", a, b);
             record_ld(s, ours(a, b), retail(a, b), desc);
         }
+        report(s);
+    }
+
+    using LD_void = long double (*)(void);
+
+    // Our swrUtils_Rand is inlined into RandFloat (same TU), so an entry patch can't intercept
+    // it. Drive the game's real generator instead: same seed in, same value and seed out.
+    void run_rand_float() {
+        const char *name = "swrUtils_RandFloat";
+        if (!testable(name, swrUtils_RandFloat_ADDR))
+            return;
+        const LD_void retail = (LD_void) hook_retail_ptr(swrUtils_RandFloat_ADDR);
+        const int saved_state = swrUtils_randState;
+        const int saved_init = swrUtils_randInitialized;
+        Stats s;
+        stats_init(s, name);
+        swrUtils_randInitialized = 1;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const int seed = (int) next_u32();
+            swrUtils_randState = seed;
+            const long double ours = swrUtils_RandFloat();
+            const int our_state = swrUtils_randState;
+            swrUtils_randState = seed;
+            const long double ret = retail();
+            const int ret_state = swrUtils_randState;
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "seed=0x%08x", (unsigned) seed);
+            record_ld(s, ours, ret, desc);
+            record_int(s, our_state, ret_state, desc);
+        }
+        swrUtils_randState = saved_state;
+        swrUtils_randInitialized = saved_init;
         report(s);
     }
 
@@ -3022,6 +3076,10 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_concat("stdFnames_Concat", stdFnames_Concat_ADDR, stdFnames_Concat);
     run_make_path("stdFnames_MakePath", stdFnames_MakePath_ADDR, stdFnames_MakePath);
 
+    std::fprintf(verify_log, "\nswrUtils / swrObjHang\n");
+    run_rand_float();
+    run_f_ff("swrObjHang_CosineEase", swrObjHang_EaseSine_Maybe_ADDR, swrObjHang_CosineEase,
+             -10.0f, 10.0f, 0);
     std::fprintf(verify_log, "\nswrRace\n");
     run_step_toward_clamped();
     run_set_angle_from_turn_rate();

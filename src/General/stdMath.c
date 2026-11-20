@@ -71,7 +71,7 @@ void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 }
 
 // 0x0042f3b0
-float stdMath_Tan(float angle_degrees)
+long double stdMath_Tan(float angle_degrees)
 {
     float cos;
     stdMath_SinCos(angle_degrees, &angle_degrees, &cos);
@@ -141,13 +141,13 @@ static long double stdMath_ArcSinX87(float angle)
 }
 
 // 0x0042f3e0
-float stdMath_ArcSin(float angle)
+long double stdMath_ArcSin(float angle)
 {
     return stdMath_ArcSinX87(angle);
 }
 
 // 0x0042f540
-float stdMath_ArcCos(float angle)
+long double stdMath_ArcCos(float angle)
 {
     return stdMath_ArcCosUnrounded(angle);
 }
@@ -158,7 +158,7 @@ long double stdMath_ArcCosUnrounded(float angle)
 }
 
 // 0x0042f560
-float stdMath_ArcTan2(float x1, float x2)
+long double stdMath_ArcTan2(float x1, float x2)
 {
     float abs1;
     float abs2;

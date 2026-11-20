@@ -2638,7 +2638,7 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
 // outPoint), or -1 when maxDistSq > 0 and the query's plane distance already exceeds it. outNormal
 // is the face normal, flipped to the query's side.
 // 0x00480dc0
-float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
+long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
 {
     rdVector4 normal;
     rdVector3 edgeAB;
@@ -2994,7 +2994,7 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
 // 0x00442470
-float rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
+long double rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
     float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
     if (denom >= -0.0001 && denom <= 0.0001)

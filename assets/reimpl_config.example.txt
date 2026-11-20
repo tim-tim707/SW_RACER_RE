@@ -32,6 +32,8 @@ both stdHashtbl_*
 both stdFnames_*
 both swrRace_*
 both swrMath_StepTowardClamped
+both swrUtils_RandFloat
+both swrObjHang_EaseSine_Maybe
 verify
 
 # ---------------------------------------------------------------------------
