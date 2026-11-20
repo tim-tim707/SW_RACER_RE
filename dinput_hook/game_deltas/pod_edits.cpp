@@ -17,6 +17,7 @@
 #include <shlobj.h>// SHGetFolderPathW (Desktop)
 
 extern "C" {
+#include <Swr/swrModel.h>// swrModel_LoadAnimation
 #include <globals.h>
 #include <types_enums.h>// swrObjTest_FLAG0_*
 extern FILE* hook_log;
@@ -396,6 +397,56 @@ void pod_edits_export_end_frame(bool in_race) {
     if (++g_export_frames > 600) {
         g_export_armed = false;
         g_status_export = "Nothing exported: start a race (your pod must be on screen), then press Export.";
+    }
+}
+
+// ---- baked spinning parts: the pod models' animations, kept running in races ----------------
+namespace {
+    struct PodAnim {
+        swrModel_Animation* anim;
+        const char* begin;// the owning model's asset range (dropped when the buffer rewinds past it)
+    };
+    std::vector<PodAnim> g_pod_anims;
+    constexpr uint32_t kTagPodd = 0x506f6464, kTagData = 0x44617461, kTagAnim = 0x416e696d;
+    constexpr int kMaxSceneAnimations = 300;// swrScene_animations[300]
+}// namespace
+
+void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end) {
+    (void) asset_end;
+    if (header == nullptr)
+        return;
+    const uint32_t* words = (const uint32_t*) header;
+    if (words[-1] != kTagPodd)// the loader skips the type tag: header points just past it
+        return;
+    const swrModel_HeaderEntry* e = header->entries;
+    while (e->value != 0xFFFFFFFF)
+        e++;
+    e++;
+    if (e->value == kTagData)
+        e += 2 + e[1].value;
+    if (e->value != kTagAnim)
+        return;
+    for (e++; e->animation != nullptr; e++)
+        g_pod_anims.push_back({e->animation, asset_begin});
+}
+
+void pod_edits_drop_models_from(const char* asset_begin) {
+    std::erase_if(g_pod_anims, [&](const PodAnim& a) { return a.begin >= asset_begin; });
+}
+
+void pod_edits_animations_frame(bool in_race) {
+    if (!in_race)
+        return;// menus (racer select) play them by themselves
+    for (const PodAnim& pa: g_pod_anims) {
+        swrModel_Animation* a = pa.anim;
+        if (a->node_ptr == nullptr)
+            continue;// an alt-model part's animation not linked (its alt model wasn't merged in)
+        bool registered = false;
+        for (int i = 0; i < swrScene_animations_count && !registered; i++)
+            registered = swrScene_animations[i] == a;
+        if (!registered && swrScene_animations_count < kMaxSceneAnimations)
+            swrModel_LoadAnimation(a);
+        a->flags = (swrModel_AnimationFlags) ((a->flags | ANIMATION_ENABLED | ANIMATION_LOOP) & ~ANIMATION_DISABLED);
     }
 }
 

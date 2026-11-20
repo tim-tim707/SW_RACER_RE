@@ -213,6 +213,8 @@ void swrText_InitFonts_delta(void) {
 }
 
 // We don't have the original function decompiled properly yet
+#include "pod_edits.h"// baked pod animations, kept running in races
+
 swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     const MODELID requested_id = id;
     const bool is_custom_track = prepare_loading_custom_track_model(&id);
@@ -241,6 +243,8 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
         return elem.asset_pointer_begin >= model_asset_pointer_begin;
     });
     swrRace_DropCableBendsFrom(model_asset_pointer_begin);
+    pod_edits_drop_models_from(model_asset_pointer_begin);
+    pod_edits_note_model(header, model_asset_pointer_begin, model_asset_pointer_end);
 
     if (!header) {
         // Usually the asset buffer is exhausted, which a large custom track makes easy. Register

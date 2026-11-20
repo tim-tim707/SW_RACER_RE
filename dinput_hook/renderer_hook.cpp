@@ -1935,6 +1935,7 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
+    pod_edits_animations_frame(currentPlayer_Test != nullptr);// baked spinning parts
     if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
         rebuild_export_parts();
