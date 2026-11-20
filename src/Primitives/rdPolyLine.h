@@ -7,6 +7,6 @@
 #define rdPolyline_DrawFace_ADDR (0x004941d0)
 
 int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix);
-void rdPolyline_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdVector2* aUVs);
+void rdPolyline_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdPrimit3* pIdxInfo);
 
 #endif // RDPOLYLINE_H

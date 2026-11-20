@@ -568,6 +568,7 @@
 
 // stdComm DirectPlay session/player tables
 #define STDCOMM_MAX_SESSIONS (32) // stdCommSessionSettings length
+#define STDCOMM_MAX_CONNECTIONS (16) // stdComm_Connections length
 #define STDCOMM_MAX_PLAYERS (20) // stdComm_aPlayerInfos length
 
 #endif // ENGINE_CONFIG_H

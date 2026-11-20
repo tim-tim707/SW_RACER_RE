@@ -192,7 +192,19 @@ void DirectPlay_Destroy(void)
 // 0x00487370
 BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID lpConnection, DWORD dwConnectionSize, LPCDPNAME lpName, DWORD dwFlags, LPVOID lpContext)
 {
-    HANG("TODO. Argument count doesnt match documentation");
+    StdCommConnection* connection;
+
+    if (stdComm_numConnections == STDCOMM_MAX_CONNECTIONS)
+        return 0;
+
+    connection = &stdComm_Connections[stdComm_numConnections];
+    wcsncpy(connection->name, lpName->lpszShortName, 127);
+    connection->name[127] = 0;
+    connection->guid = *lpguidSP;
+    connection->lpConnection = stdPlatform_hostServices_ptr->alloc(dwConnectionSize);
+    memcpy(connection->lpConnection, lpConnection, dwConnectionSize);
+    connection->lpConnectionSize = dwConnectionSize;
+    stdComm_numConnections++;
     return 1;
 }
 
