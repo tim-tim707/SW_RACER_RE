@@ -18,6 +18,15 @@ swrModel_Node *swrObjTrig_LoadAndInitializeTriggerModels_delta(int planet_id, in
                                                                swrModel_NodeTransformed *a3);
 int stdComm_UpdatePlayers_delta(unsigned int sessionNum);
 int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSettings);
+int stdComm_SetSessionOpenState_delta(int unused, int sessionName, DWORD maxPlayers, int bClosed);
+unsigned int swrMultiplayer_SetSessionDesc_delta(int unused, void *pSettings);
+HRESULT stdComm_HostSession_delta(int pSessionDesc);
+HRESULT stdComm_JoinSession_delta(int sessionIndex, wchar_t *password);
+void stdComm_EnumSessions_delta(int one, wchar_t *password);
+void stdComm_Close_delta(void);
+int stdComm_Receive_delta(DPID *pSender, void *pData, unsigned int *pLength);
+DPID stdComm_CreatePlayer_delta(wchar_t *const pPlayerName);
+void stdComm_DestroyPlayer_delta(DPID playerId);
 
 // Middle-player-leave fixes -- triage notes (3) and (4) in the .cpp.
 void swrMultiplayer_JoinGame_delta(swrUI_unk *page);

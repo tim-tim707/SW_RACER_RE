@@ -222,10 +222,12 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
 //     Validated against the roster bounds and the live 'Test' list; dropping the event matches
 //     vanilla's own no-op for a NULL slot pointer.
 //
-// (2) stdComm_UpdatePlayers and stdComm_GetSessionSettings call through stdComm_pDirectPlay with
-//     no NULL check, and the MP race-setup page polls both on a 500 ms timer -- so a teardown
-//     while the menu is up dereferences NULL. Fail the calls instead (GetSessionSettings' only
-//     caller, swrMultiplayer_GetSessionName, already maps failure to a NULL name).
+// (2) Every stdComm entry point except InitializeConnection calls through stdComm_pDirectPlay with
+//     no NULL check, and the MP menus keep calling them after a teardown (the race-setup page
+//     polls UpdatePlayers/GetSessionSettings on a 500 ms timer and calls SetSessionOpenState when
+//     shown). Fail each call the way vanilla InitializeConnection does (DPERR_UNINITIALIZED), or
+//     with the function's own failure value. GetSessionSettings' only caller,
+//     swrMultiplayer_GetSessionName, already maps failure to a NULL name.
 //
 // (5) Trigger-index desync. The wire event carries an INDEX into
 //     swrObjTrig_TriggerDescriptionArray, which is APPEND-ONLY for the process lifetime: nothing
@@ -244,6 +246,16 @@ typedef void(swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_t)(int trig
                                                                         int player_index);
 typedef int(stdComm_UpdatePlayers_t)(unsigned int sessionNum);
 typedef int(stdComm_GetSessionSettings_t)(void *unused, StdCommSessionSettings *pSettings);
+typedef int(stdComm_SetSessionOpenState_t)(int unused, int sessionName, DWORD maxPlayers,
+                                           int bClosed);
+typedef unsigned int(swrMultiplayer_SetSessionDesc_t)(int unused, void *pSettings);
+typedef HRESULT(stdComm_HostSession_t)(int pSessionDesc);
+typedef HRESULT(stdComm_JoinSession_t)(int sessionIndex, wchar_t *password);
+typedef void(stdComm_EnumSessions_t)(int one, wchar_t *password);
+typedef void(stdComm_Close_t)(void);
+typedef int(stdComm_Receive_t)(DPID *pSender, void *pData, unsigned int *pLength);
+typedef DPID(stdComm_CreatePlayer_t)(wchar_t *const pPlayerName);
+typedef void(stdComm_DestroyPlayer_t)(DPID playerId);
 typedef swrModel_Node *(swrObjTrig_LoadAndInitializeTriggerModels_t) (int planet_id, int a2,
                                                                       swrModel_NodeTransformed *a3);
 
@@ -575,6 +587,79 @@ int stdComm_GetSessionSettings_delta(void *unused, StdCommSessionSettings *pSett
                               unused, pSettings);
 }
 
+// DPERR_UNINITIALIZED, returned by vanilla stdComm_InitializeConnection when stdComm_pDirectPlay is
+// NULL.
+static const HRESULT STDCOMM_ERR_UNINITIALIZED = (HRESULT) 0x887700FA;
+// stdComm_Receive's "no message pending" result; sithMulti_HandleIncomingPacket ignores it.
+static const int STDCOMM_RECEIVE_NONE = -1;
+
+int stdComm_SetSessionOpenState_delta(int unused, int sessionName, DWORD maxPlayers, int bClosed) {
+    if (stdComm_pDirectPlay == NULL)
+        return 1;
+    return hook_call_original((stdComm_SetSessionOpenState_t *) stdComm_SetSessionOpenState_ADDR,
+                              unused, sessionName, maxPlayers, bClosed);
+}
+
+unsigned int swrMultiplayer_SetSessionDesc_delta(int unused, void *pSettings) {
+    if (stdComm_pDirectPlay == NULL)
+        return (unsigned int) STDCOMM_ERR_UNINITIALIZED;
+    return hook_call_original(
+        (swrMultiplayer_SetSessionDesc_t *) swrMultiplayer_SetSessionDesc_ADDR, unused, pSettings);
+}
+
+HRESULT stdComm_HostSession_delta(int pSessionDesc) {
+    if (stdComm_pDirectPlay == NULL) {
+        // Mirrors the original's Open-failure path.
+        stdComm_bIsServer = 0;
+        stdComm_bGameActive = 0;
+        return STDCOMM_ERR_UNINITIALIZED;
+    }
+    return hook_call_original((stdComm_HostSession_t *) stdComm_HostSession_ADDR, pSessionDesc);
+}
+
+HRESULT stdComm_JoinSession_delta(int sessionIndex, wchar_t *password) {
+    if (stdComm_pDirectPlay == NULL)
+        return STDCOMM_ERR_UNINITIALIZED;
+    return hook_call_original((stdComm_JoinSession_t *) stdComm_JoinSession_ADDR, sessionIndex,
+                              password);
+}
+
+void stdComm_EnumSessions_delta(int one, wchar_t *password) {
+    if (stdComm_pDirectPlay == NULL) {
+        // The original clears the session list before enumerating into it.
+        stdComm_numSessionSettings = 0;
+        return;
+    }
+    hook_call_original((stdComm_EnumSessions_t *) stdComm_EnumSessions_ADDR, one, password);
+}
+
+void stdComm_Close_delta(void) {
+    if (stdComm_pDirectPlay == NULL) {
+        stdComm_bGameActive = 0;
+        stdComm_bIsServer = 0;
+        return;
+    }
+    hook_call_original((stdComm_Close_t *) stdComm_Close_ADDR);
+}
+
+int stdComm_Receive_delta(DPID *pSender, void *pData, unsigned int *pLength) {
+    if (stdComm_pDirectPlay == NULL)
+        return STDCOMM_RECEIVE_NONE;
+    return hook_call_original((stdComm_Receive_t *) stdComm_Receive_ADDR, pSender, pData, pLength);
+}
+
+DPID stdComm_CreatePlayer_delta(wchar_t *const pPlayerName) {
+    if (stdComm_pDirectPlay == NULL)
+        return 0;
+    return hook_call_original((stdComm_CreatePlayer_t *) stdComm_CreatePlayer_ADDR, pPlayerName);
+}
+
+void stdComm_DestroyPlayer_delta(DPID playerId) {
+    if (stdComm_pDirectPlay == NULL)
+        return;
+    hook_call_original((stdComm_DestroyPlayer_t *) stdComm_DestroyPlayer_ADDR, playerId);
+}
+
 int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, DWORD dwFlags) {
     load_mp_settings_once();
 
@@ -598,5 +683,7 @@ int stdComm_Send_delta(DPID idFrom, DPID idTo, LPVOID lpData, DWORD dwDataSize, 
         }
     }
 
+    if (stdComm_pDirectPlay == NULL)
+        return STDCOMM_ERR_UNINITIALIZED;
     return hook_call_original(stdComm_Send, idFrom, idTo, lpData, dwDataSize, dwFlags);
 }
