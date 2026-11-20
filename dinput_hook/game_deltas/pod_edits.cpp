@@ -120,10 +120,6 @@ namespace {
         };
         std::vector<TrailNodeLine> trail_nodes;
         // "exhaustscale <sx> <sy> <sz>": the stock exhaust trails scaled about their anchor.
-        bool cable_stiff_set = false;// "cablestiff <k>"
-        float cable_stiff = 0.3f;
-        bool cable_out_set = false;// "cableout <cockpit z> <engine z>"
-        float cable_out[2] = {};
         bool exhaust_light_set = false;// "exhaustlight <aim> <reach> <width> <strength>"
         float exhaust_light[4] = {0.7f, 1.0f, 1.0f, 1.0f};
         bool exhaust_scale_set = false;
@@ -143,20 +139,14 @@ namespace {
         std::vector<std::array<float, 4>> fx[4][2];
         bool gamefire_streak_set = false;// "gamefirestreak <length> <rx> <ry> <rz>"
         float gamefire_streak[4] = {1.0f, 0.0f, 0.0f, 0.0f};
-        bool cable_rot_set = false;// "cablerot <cockpit rx ry rz> <engine rx ry rz>"
-        float cable_rot[6] = {};
-        // Per cable ("owncable1".."owncable4"; older files "cable1".."cable4"): own ends and turns.
+        // Per cable ("owncable1".."owncable4"; older files "cable1".."cable4"): own ends.
         bool cable_end_set[4][2] = {};
         float cable_end[4][2][3] = {};
-        bool cable_own_rot_set[4] = {};
-        float cable_own_rot[4][6] = {};
     };
     std::unordered_map<int, ModelEdits> g_models;
     bool g_apply = true;
     bool g_cable_clear = false;    // push cables out of the engines / cockpit
     float g_cable_margin = 0.12f;  // how far (game units)
-    bool g_cable_stiff = true;     // stiff cables: straight out of each end, then a curve
-    float g_cable_stiffness = 0.3f;// the straight run, as a share of the cable's length
     // Baked spins: share of the baked RPM while idle, and the speed that reaches the full RPM.
     float g_idle_spin = 0.25f;
     float g_full_spin_speed = 600.0f;
@@ -307,31 +297,17 @@ namespace {
                     m.found = true;
                     continue;
                 }
-                if (what == "rot" && in >> v[0] >> v[1] >> v[2] >> v[3] >> v[4] >> v[5]) {
-                    m.cable_own_rot_set[idx] = true;
-                    for (int j = 0; j < 6; j++)
-                        m.cable_own_rot[idx][j] = v[j];
-                    m.found = true;
+                if (what == "rot")// the removed stiff cables' end turns (older files): ignored
                     continue;
-                }
-            } else if (cmd == "gamefirestreak" || cmd == "cablerot") {
-                const bool streak = cmd == "gamefirestreak";
-                float v[6];
-                const int n = streak ? 4 : 6;
-                bool ok = true;
-                for (int j = 0; j < n && ok; j++)
-                    ok = (bool) (in >> v[j]);
-                if (ok) {
+            } else if (cmd == "cablerot" || cmd == "cableout" || cmd == "cablestiff") {
+                continue;// the removed stiff cables' settings (older files): ignored
+            } else if (cmd == "gamefirestreak") {
+                float v[4];
+                if (in >> v[0] >> v[1] >> v[2] >> v[3]) {
                     m.found = true;
-                    if (streak) {
-                        m.gamefire_streak_set = true;
-                        for (int j = 0; j < 4; j++)
-                            m.gamefire_streak[j] = v[j];
-                    } else {
-                        m.cable_rot_set = true;
-                        for (int j = 0; j < 6; j++)
-                            m.cable_rot[j] = v[j];
-                    }
+                    m.gamefire_streak_set = true;
+                    for (int j = 0; j < 4; j++)
+                        m.gamefire_streak[j] = v[j];
                     continue;
                 }
             } else if (cmd == "nozzle" || cmd == "firespot" || cmd == "dustspot" || cmd == "gamefire") {
@@ -361,15 +337,6 @@ namespace {
                 }
             } else if (cmd == "trail") {// an extra trail for the bake; its node comes as "trailnode"
                 continue;
-            } else if (cmd == "cableout") {
-                float v[2];
-                if (in >> v[0] >> v[1]) {
-                    m.cable_out_set = true;
-                    m.found = true;
-                    m.cable_out[0] = v[0];
-                    m.cable_out[1] = v[1];
-                    continue;
-                }
             } else if (cmd == "exhaustlight") {
                 float v[4];
                 if (in >> v[0] >> v[1] >> v[2] >> v[3]) {
@@ -417,14 +384,6 @@ namespace {
                 if (in >> h) {
                     m.height_set = true;
                     m.height = h;
-                    m.found = true;
-                    continue;
-                }
-            } else if (cmd == "cablestiff") {
-                float k;
-                if (in >> k) {
-                    m.cable_stiff_set = true;
-                    m.cable_stiff = k;
                     m.found = true;
                     continue;
                 }
@@ -892,17 +851,6 @@ namespace {
         ImGui::EndDisabled();
         if (ImGui::Checkbox("Apply pod edits", &g_apply))
             config::set_int("pod_edits", "apply", g_apply ? 1 : 0);
-        if (ImGui::Checkbox("Stiff cables", &g_cable_stiff))
-            config::set_int("pod_edits", "cable_stiff", g_cable_stiff ? 1 : 0);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Each cable leaves its attach point straight out from the cockpit / engine, then curves\n"
-                              "to the other end, like a stiff hose. A pod's own \"cablestiff\" edit overrides the amount.");
-        if (g_cable_stiff) {
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(120);
-            if (ImGui::SliderFloat("##cablestiff", &g_cable_stiffness, 0.0f, 0.6f, "straight %.2f"))
-                config::set_float("pod_edits", "cable_stiffness", g_cable_stiffness);
-        }
         if (ImGui::Checkbox("Push cables out of the pod", &g_cable_clear))
             config::set_int("pod_edits", "cable_clear", g_cable_clear ? 1 : 0);
         if (ImGui::IsItemHovered())
@@ -1555,36 +1503,6 @@ bool pod_edits_cable_end(int pilot, int index, int end, float out[3]) {
     return true;
 }
 
-bool pod_edits_cable_own_rot(int pilot, int index, float out[6]) {
-    if (index < 0 || index > 3)
-        return false;
-    const ModelEdits* e = pilot_edits(pilot, [index](const ModelEdits& m) { return m.cable_own_rot_set[index]; });
-    if (e == nullptr)
-        return false;
-    for (int j = 0; j < 6; j++)
-        out[j] = e->cable_own_rot[index][j];
-    return true;
-}
-
-bool pod_edits_cable_rot(int pilot, float out[6]) {
-    for (int j = 0; j < 6; j++)
-        out[j] = 0.0f;
-    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.cable_rot_set; });
-    if (e == nullptr)
-        return false;
-    for (int j = 0; j < 6; j++)
-        out[j] = e->cable_rot[j];
-    return true;
-}
-
-void pod_edits_cable_out(int pilot, float out[2]) {
-    out[0] = out[1] = 0.0f;
-    if (const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.cable_out_set; })) {
-        out[0] = e->cable_out[0];
-        out[1] = e->cable_out[1];
-    }
-}
-
 bool pod_edits_exhaust_light(int pilot, float out[4]) {
     const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.exhaust_light_set; });
     if (e == nullptr)
@@ -1594,21 +1512,11 @@ bool pod_edits_exhaust_light(int pilot, float out[4]) {
     return true;
 }
 
-float pod_edits_cable_stiffness(int pilot) {
-    if (!g_cable_stiff)
-        return -1.0f;
-    if (const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.cable_stiff_set; }))
-        return e->cable_stiff;
-    return g_cable_stiffness;
-}
-
 void pod_edits_register_panel() {
     pod_workspace();// create it (and copy the model block) at startup
     g_apply = config::get_int("pod_edits", "apply", 1) != 0;
     g_idle_spin = config::get_float("pod_edits", "idle_spin", 0.25f);
     g_cable_clear = config::get_int("pod_edits", "cable_clear", 0) != 0;
-    g_cable_stiff = config::get_int("pod_edits", "cable_stiff", 1) != 0;
-    g_cable_stiffness = config::get_float("pod_edits", "cable_stiffness", 0.3f);
     g_cable_margin = config::get_float("pod_edits", "cable_margin", 0.12f);
     g_full_spin_speed = config::get_float("pod_edits", "full_spin_speed", 600.0f);
     debug_ui_register(&g_panel);

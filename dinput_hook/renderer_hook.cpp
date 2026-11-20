@@ -500,131 +500,6 @@ static void record_cable_obstacle(const swrRace *racer, int part, const swrModel
     list.push_back(o);
 }
 
-// Stiff cable: the ring centres moved onto a cubic curve that leaves each end straight out from the
-// part it plugs into (cockpit centre -> cockpit end, engine centre -> engine end) for `k` x the
-// cable's length; the game's own bend (centres - straight) rides on top. Returns false if not shaped.
-// a then b (row vectors).
-static rdMatrix44 mat_then(const rdMatrix44 &a, const rdMatrix44 &b) {
-    rdMatrix44 o;
-    const rdVector4 *ra[4] = {&a.vA, &a.vB, &a.vC, &a.vD};
-    rdVector4 *ro[4] = {&o.vA, &o.vB, &o.vC, &o.vD};
-    for (int i = 0; i < 4; i++) {
-        const rdVector4 &r = *ra[i];
-        *ro[i] = {r.x * b.vA.x + r.y * b.vB.x + r.z * b.vC.x + r.w * b.vD.x,
-                  r.x * b.vA.y + r.y * b.vB.y + r.z * b.vC.y + r.w * b.vD.y,
-                  r.x * b.vA.z + r.y * b.vB.z + r.z * b.vC.z + r.w * b.vD.z,
-                  r.x * b.vA.w + r.y * b.vB.w + r.z * b.vC.w + r.w * b.vD.w};
-    }
-    return o;
-}
-
-static bool cable_stiff_shape_in(int pilot, int index, const rdMatrix44 &fcock, const rdMatrix44 &feng,
-                                 const std::vector<rdVector3> &straight, const std::vector<float> &along,
-                                 std::vector<rdVector3> &centres);
-
-// A racing pod's cable (its parts' frames from the racer), or the character-select display pod's
-// (its cockpit / engine frames rebuilt from the node transforms, in the cable mesh's space).
-static bool cable_stiff_shape(const swrModel_Node *cable, const rdMatrix44 &model_matrix,
-                              const std::vector<rdVector3> &straight, const std::vector<float> &along,
-                              std::vector<rdVector3> &centres) {
-    if (cable == nullptr)
-        return false;
-    const swrRace *racer = nullptr;
-    int engine = 0, index = 0;
-    if (swrRace_GetCableOwner(cable, &racer, &engine, &index)) {
-        const int pilot = (racer->score_ptr && racer->score_ptr->pilotId) ? *racer->score_ptr->pilotId : -1;
-        return cable_stiff_shape_in(pilot, index, part_frame(racer, 5), part_frame(racer, engine), straight, along, centres);
-    }
-    int pilot = -1;
-    rdMatrix44 lc, lk, le, inv;
-    if (!swrRace_GetDisplayCable(cable, &pilot, &index, &lc, &lk, &le) || !invert_affine(lc, inv))
-        return false;
-    const rdMatrix44 parent = mat_then(inv, model_matrix);
-    return cable_stiff_shape_in(pilot, index, mat_then(lk, parent), mat_then(le, parent), straight, along, centres);
-}
-
-static bool cable_stiff_shape_in(int pilot, int index, const rdMatrix44 &fcock, const rdMatrix44 &feng,
-                                 const std::vector<rdVector3> &straight, const std::vector<float> &along,
-                                 std::vector<rdVector3> &centres) {
-    const float k = pod_edits_cable_stiffness(pilot);
-    if (k <= 0.0f || straight.size() < 2)
-        return false;
-    const rdVector3 p0 = straight.front(), p3 = straight.back();
-    const rdVector4 *cock = &fcock.vD, *eng = &feng.vD;
-    auto dist2 = [](rdVector3 p, const rdVector4 *c) {
-        return (p.x - c->x) * (p.x - c->x) + (p.y - c->y) * (p.y - c->y) + (p.z - c->z) * (p.z - c->z);
-    };
-    if (dist2(p0, cock) > dist2(p0, eng))// the tube may run engine -> cockpit
-        std::swap(cock, eng);
-    const rdVector4 &c0 = *cock, &c3 = *eng;
-    // The pod editor's "cableout": each end's direction tilted along that part's up axis.
-    float tilt[2];
-    pod_edits_cable_out(pilot, tilt);
-    const bool swapped = cock != &fcock.vD;
-    const rdVector4 &up_cock = fcock.vC, &up_eng = feng.vC;
-    auto out_dir = [](rdVector3 p, const rdVector4 &c, const rdVector4 &up, float z) {
-        rdVector3 d = {p.x - c.x, p.y - c.y, p.z - c.z};
-        float l = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
-        if (l < 1e-5f)
-            return rdVector3{0.0f, 0.0f, 0.0f};
-        d = {d.x / l, d.y / l, d.z / l};
-        const float ul = std::sqrt(up.x * up.x + up.y * up.y + up.z * up.z);
-        if (z != 0.0f && ul > 1e-6f) {
-            d = {d.x + up.x / ul * z, d.y + up.y / ul * z, d.z + up.z / ul * z};
-            l = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z);
-            if (l > 1e-5f)
-                d = {d.x / l, d.y / l, d.z / l};
-        }
-        return d;
-    };
-    rdVector3 t0 = out_dir(p0, c0, swapped ? up_eng : up_cock, swapped ? tilt[1] : tilt[0]);
-    rdVector3 t3 = out_dir(p3, c3, swapped ? up_cock : up_eng, swapped ? tilt[0] : tilt[1]);
-    // The pod editor's "cablerot": each end's exit turned about its part's axes (left cables mirrored).
-    float rot[6];
-    // This cable's own turns (unmirrored), else the shared ones (mirrored for the left cables).
-    const bool own_rot = pod_edits_cable_own_rot(pilot, index, rot);
-    if (own_rot || pod_edits_cable_rot(pilot, rot)) {
-        const float m = (!own_rot && (index % 2) == 1) ? -1.0f : 1.0f;
-        auto turn = [](const rdMatrix44 &f, rdVector3 d, float rx, float ry, float rz) {
-            rdVector3 ax[3] = {{f.vA.x, f.vA.y, f.vA.z}, {f.vB.x, f.vB.y, f.vB.z}, {f.vC.x, f.vC.y, f.vC.z}};
-            for (rdVector3 &a: ax) {
-                const float l = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
-                if (l > 1e-6f)
-                    a = {a.x / l, a.y / l, a.z / l};
-            }
-            float l[3] = {d.x * ax[0].x + d.y * ax[0].y + d.z * ax[0].z, d.x * ax[1].x + d.y * ax[1].y + d.z * ax[1].z,
-                          d.x * ax[2].x + d.y * ax[2].y + d.z * ax[2].z};
-            const float deg = 3.14159265f / 180.0f;
-            auto r2 = [&](int i, int j, float a) {
-                const float c = std::cos(a * deg), s = std::sin(a * deg), u = l[i], v = l[j];
-                l[i] = u * c - v * s;
-                l[j] = u * s + v * c;
-            };
-            r2(1, 2, rx);
-            r2(2, 0, ry);
-            r2(0, 1, rz);
-            return rdVector3{l[0] * ax[0].x + l[1] * ax[1].x + l[2] * ax[2].x, l[0] * ax[0].y + l[1] * ax[1].y + l[2] * ax[2].y,
-                             l[0] * ax[0].z + l[1] * ax[1].z + l[2] * ax[2].z};
-        };
-        const rdMatrix44 &fc = fcock, &fe = feng;
-        const rdVector3 tc = turn(fc, swapped ? t3 : t0, rot[0], rot[1] * m, rot[2] * m);
-        const rdVector3 te = turn(fe, swapped ? t0 : t3, rot[3], rot[4] * m, rot[5] * m);
-        t0 = swapped ? te : tc;
-        t3 = swapped ? tc : te;
-    }
-    const float len = std::sqrt((p3.x - p0.x) * (p3.x - p0.x) + (p3.y - p0.y) * (p3.y - p0.y) + (p3.z - p0.z) * (p3.z - p0.z));
-    const rdVector3 p1 = {p0.x + t0.x * len * k, p0.y + t0.y * len * k, p0.z + t0.z * len * k};
-    const rdVector3 p2 = {p3.x + t3.x * len * k, p3.y + t3.y * len * k, p3.z + t3.z * len * k};
-    for (size_t r = 0; r < centres.size(); r++) {
-        const float t = along[r], u = 1.0f - t;
-        const float b0 = u * u * u, b1 = 3 * u * u * t, b2 = 3 * u * t * t, b3 = t * t * t;
-        const rdVector3 bend = {centres[r].x - straight[r].x, centres[r].y - straight[r].y, centres[r].z - straight[r].z};
-        centres[r] = {b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x + bend.x, b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y + bend.y,
-                      b0 * p0.z + b1 * p1.z + b2 * p2.z + b3 * p3.z + bend.z};
-    }
-    return true;
-}
-
 // Push a cable's ring centres (world) out of its engine's and the cockpit's boxes, smoothing the
 // pushes along the cable; both ends stay put (they plug into the pod). Returns false if nothing to do.
 static bool cable_clearance(const swrModel_Node *cable, const std::vector<rdVector3> &centres,
@@ -824,19 +699,15 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
     // smoothly; the bend itself is the game's.
     constexpr int kSegs = 16;
     Vertex ring[kSegs + 1][3];
-    std::vector<rdVector3> centres(kSegs + 1), straight(kSegs + 1), push;
-    std::vector<float> along(kSegs + 1);
+    std::vector<rdVector3> centres(kSegs + 1), push;
     for (int r = 0; r <= kSegs; r++) {
         const float s = cable_ease_ring_param(r * (1.0f / kSegs));
         const float y = truncf(-100.0f * s);
         const float z_bend = (r >= 1 && r < kSegs)
                                  ? truncf(-100.0f * amplitude * sinf(s * 6.28318530717958647692f))
                                  : 0.0f;
-        along[r] = -y / 100.0f;
         centres[r] = {0.0f, y, z_bend - 13.333f};// the prism's centre line
         rdMatrix_Transform3(&centres[r], &centres[r], &model_matrix);
-        straight[r] = {0.0f, y, -13.333f};
-        rdMatrix_Transform3(&straight[r], &straight[r], &model_matrix);
         for (int c = 0; c < 3; c++) {
             Vertex &v = ring[r][c];
             v = Vertex{};
@@ -847,18 +718,11 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
             v.color = cs_color[c];
         }
     }
-    // Stiff cable shape, then (optionally) clearance; each ring moves with its centre.
-    std::vector<rdVector3> shaped = centres;
-    const bool stiff = cable_stiff_shape(g_active_cable_node, model_matrix, straight, along, shaped);
-    if (cable_clearance(g_active_cable_node, shaped, push))
+    // The game's own shape; (optionally) pushed clear of the pod, each ring moving with its centre.
+    if (cable_clearance(g_active_cable_node, centres, push))
         for (int r = 0; r <= kSegs; r++)
-            shaped[r] = {shaped[r].x + push[r].x, shaped[r].y + push[r].y, shaped[r].z + push[r].z};
-    if (stiff || !push.empty())
-        for (int r = 0; r <= kSegs; r++) {
-            const rdVector3 d = {shaped[r].x - centres[r].x, shaped[r].y - centres[r].y, shaped[r].z - centres[r].z};
             for (int c = 0; c < 3; c++)
-                ring[r][c].pos = {ring[r][c].pos.x + d.x, ring[r][c].pos.y + d.y, ring[r][c].pos.z + d.z};
-        }
+                ring[r][c].pos = {ring[r][c].pos.x + push[r].x, ring[r][c].pos.y + push[r].y, ring[r][c].pos.z + push[r].z};
 
     // Segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
     // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.

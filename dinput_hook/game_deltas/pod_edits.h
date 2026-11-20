@@ -60,34 +60,17 @@ void pod_edits_register_panel();
 // the renderer pushes them out of; < 0 when switched off.
 float pod_edits_cable_clearance();
 
-// Stiff cables: each cable leaves its attach point straight out from the part it plugs into (the
-// cockpit's / its engine's centre outwards) for this share of its length, then curves to the other
-// end. The pod's "cablestiff <k>" line, else the global setting; < 0 when off (the game's shape).
-float pod_edits_cable_stiffness(int pilot);
-
 // The game's overheat fire streak: "gamefirestreak <length> <rx> <ry> <rz>" -- the flames' drift
 // (stock: straight back at 20 x the engine's forward axis) scaled by length and turned by the angles
 // (degrees, about the engine's x, y, z in that order; mirrored on the left). False when not set.
 bool pod_edits_gamefire_streak(int pilot, float out[4]);
 
-// Cable ends turned: "cablerot <cockpit rx ry rz> <engine rx ry rz>" (degrees, about that part's x,
-// y, z, in that order; mirrored for the left cables) applied to the stiff cables' exit directions.
-// False (out = 0) when not set.
-bool pod_edits_cable_rot(int pilot, float out[6]);
-
 // One cable's own settings (index 0..3 = part slots 10..13: right, left, second right, second left),
 // overriding the shared ones for that cable only, with no mirroring:
 //   owncable<N> cockpit <x y z>   its cockpit end, in the cockpit's frame        (N = index + 1)
 //   owncable<N> engine <x y z>    its engine end, in its engine's frame
-//   owncable<N> rot <cockpit rx ry rz> <engine rx ry rz>   its ends' turns (degrees)
 // Each returns false when that cable has no such line.
 bool pod_edits_cable_end(int pilot, int index, int end, float out[3]);// end: 0 = cockpit, 1 = engine
-bool pod_edits_cable_own_rot(int pilot, int index, float out[6]);
-
-// Stiff cables' exit direction, tilted along the part's up axis: "cableout <cockpit z> <engine z>"
-// (added to the up part of the automatic direction out of the cockpit / engine, then normalised;
-// +1 = steeply up, -1 = steeply down). out = {0, 0} when the pod's edits don't set it.
-void pod_edits_cable_out(int pilot, float out[2]);
 
 // The exhaust light (the warm spotlight each nozzle throws onto the ground behind the engine, the
 // orange streak on the track): "exhaustlight <aim> <reach> <width> <strength>" -- aim = how far behind

@@ -362,7 +362,6 @@ const layoutKinds = () => state.layout && state.layout.extra ? [...BASE_KINDS, .
 const extraDefaults = v => ({ cockpit2: v.cockpit.slice(), engine2: [v.engine[0], v.engine[1], -v.engine[2]] });
 const canHaveExtraCables = () => state.pod && !state.pod.fourEngines && state.layout && state.layout.pilot !== NEVA_KEE;
 const ENGINE_FRAMES = ['engineR', 'engineL', 'engineR2', 'engineL2'];
-const CABLE_STIFF_DEFAULT = 0.3;// the mod's default (Mods > Pod Editor > Stiff cables)
 const CABLE_MX = [1, -1, 1, -1], CABLE_PAIR = [1, 1, -1, -1];
 const NEVA_KEE = 14;// fused engines: no cables, no binder
 const layoutRoot = new THREE.Group(); layoutRoot.renderOrder = 9; scene.add(layoutRoot);
@@ -614,25 +613,11 @@ function drawLayout() {
     const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.8 }));
     l.renderOrder = 10; layoutRoot.add(l);
   };
-  // Cables as the mod draws them with stiff cables on: straight out of the cockpit / engine (from
-  // that part's centre outwards) for k x the cable's length, then a curve (cubic) to the other end.
-  const F = state.layout.frames, kStiff = state.layout.stiff ?? CABLE_STIFF_DEFAULT;
-  const curveOf = (a, b, engineFrame, color, left, ownRot) => {
-    // Out of each part from its centre, tilted along that part's up axis by the pod's "cableout".
-    const tilt = state.layout.cableOut || [0, 0];
-    const len3 = len(sub(b, a)), out = (p, f, z) => {
-      const d = nrm(sub(p, [f[12], f[13], f[14]]));
-      return z ? nrm(add(d, scl(nrm([f[8], f[9], f[10]]), z))) : d;
-    };
-    const rot = ownRot || state.layout.cableRot || [0, 0, 0, 0, 0, 0], m = left && !ownRot ? -1 : 1;
-    const t0 = turnInFrame(F.cockpit, out(a, F.cockpit, tilt[0]), rot[0], rot[1] * m, rot[2] * m);
-    const t3 = turnInFrame(engineFrame, out(b, engineFrame, tilt[1]), rot[3], rot[4] * m, rot[5] * m);
-    const p1 = add(a, scl(t0, len3 * kStiff)), p2 = add(b, scl(t3, len3 * kStiff));
+  // Cables as the game draws them at rest: end to end (its sway bend comes and goes in motion).
+  const F = state.layout.frames;
+  const curveOf = (a, b, engineFrame, color) => {
     const pts = [];
-    for (let i = 0; i <= 24; i++) {
-      const t = i / 24, u = 1 - t;
-      pts.push(new THREE.Vector3(...add(add(scl(a, u * u * u), scl(p1, 3 * u * u * t)), add(scl(p2, 3 * u * t * t), scl(b, t * t * t)))));
-    }
+    for (let i = 0; i <= 24; i++) pts.push(new THREE.Vector3(...add(a, scl(sub(b, a), i / 24))));
     const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.85 }));
     l.renderOrder = 10; layoutRoot.add(l);
@@ -644,9 +629,9 @@ function drawLayout() {
   const cableR = cableRadius();
   // The exported cable meshes give way to the tubes (and come back when the layout is hidden).
   state.meshes.forEach((m, i) => { if (CABLE_PARTS.has(m.part)) refreshMesh(i); });
-  P.cables.forEach(([a, b], i) => { curveOf(a, b, F[ENGINE_FRAMES[i]], 0x60c0ff, i % 2 === 1, state.layout.own?.[i]?.rot); dotAt(a, LAYOUT.cockpit.color); dotAt(b, LAYOUT.engine.color); });
+  P.cables.forEach(([a, b], i) => { curveOf(a, b, F[ENGINE_FRAMES[i]], 0x60c0ff); dotAt(a, LAYOUT.cockpit.color); dotAt(b, LAYOUT.engine.color); });
   for (const [a, b] of P.binders) { lineOf(a, b, LAYOUT.binder.color); dotAt(a, LAYOUT.binder.color); dotAt(b, LAYOUT.binder.color); }
-  P.extra.forEach(([a, b], i) => { curveOf(a, b, F[i === 0 ? 'engineR' : 'engineL'], 0x40e0c0, i === 1, state.layout.own?.[2 + i]?.rot); dotAt(a, LAYOUT.cockpit2.color); dotAt(b, LAYOUT.engine2.color); });
+  P.extra.forEach(([a, b], i) => { curveOf(a, b, F[i === 0 ? 'engineR' : 'engineL'], 0x40e0c0); dotAt(a, LAYOUT.cockpit2.color); dotAt(b, LAYOUT.engine2.color); });
   for (const a of P.exhaust) dotAt(a, LAYOUT.exhaust.color);
   drawPodRefs(F);
 
@@ -817,50 +802,14 @@ function renderLayout() {
     row.appendChild(r1);
     box.appendChild(row);
   }
-  {
-    // Stiff cables: how far each cable runs straight out of the cockpit / engine before curving.
-    const row = document.createElement('div'); row.className = 'vec';
-    row.style.gridTemplateColumns = '10px 84px minmax(0, 1fr) auto';
-    row.title = 'Stiff cables (Mods > Pod Editor > Stiff cables): each cable leaves its ends straight out from the cockpit / engine for this share of its length, then curves. Unset = the mod’s setting (0.3 by default); 0 = straight.';
-    row.innerHTML = `<span></span><span class="dim">Cable stiffness</span>`;
-    const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.05'; inp.min = '0'; inp.max = '1';
-    inp.value = fmt(L.stiff ?? CABLE_STIFF_DEFAULT);
-    inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
-    if (L.stiff === undefined || L.stiff === null) inp.style.opacity = '0.55';
-    inp.onchange = () => { L.stiff = Math.max(0, parseFloat(inp.value) || 0); inp.style.opacity = '1'; drawLayout(); markDirty(); };
-    const r = document.createElement('button'); r.textContent = '↺'; r.style.padding = '2px 7px'; r.title = 'Use the mod’s setting';
-    r.onclick = () => { L.stiff = null; renderLayout(); drawLayout(); markDirty(); };
-    row.append(inp, r);
-    box.appendChild(row);
-  }
-  // Which way the cables leave the cockpit and the engines: the automatic direction (out from that
-  // part's centre) turned about the part's x, y, z (degrees; the left cables mirrored).
-  if (!L.cableRot) L.cableRot = [0, 0, 0, 0, 0, 0];
-  for (const [end, at, tip] of [[0, 'Cable turn, cockpit', 'where the cables leave the cockpit'], [1, 'Cable turn, engine', 'where the cables leave the engines']]) {
-    const row = document.createElement('div'); row.className = 'vec';
-    row.style.gridTemplateColumns = '10px 84px repeat(3, minmax(0, 1fr)) auto';
-    row.title = `Turn the direction ${tip}: degrees about x (tilt up / down), y (roll round the pod's length), z (swing left / right); the left side mirrored.`;
-    row.innerHTML = `<span></span><span class="dim">${at}</span>`;
-    for (let j = 0; j < 3; j++) {
-      const inp = document.createElement('input'); inp.type = 'number'; inp.step = '5'; inp.value = fmt(L.cableRot[end * 3 + j]);
-      inp.title = ['x: up / down', 'y: around', 'z: left / right'][j] + ' (degrees)';
-      inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
-      inp.onchange = () => { L.cableRot[end * 3 + j] = parseFloat(inp.value) || 0; drawLayout(); markDirty(); };
-      row.appendChild(inp);
-    }
-    const r0 = document.createElement('button'); r0.textContent = '0'; r0.style.padding = '2px 7px'; r0.title = 'Back to the automatic direction';
-    r0.onclick = () => { for (let j = 0; j < 3; j++) L.cableRot[end * 3 + j] = 0; renderLayout(); drawLayout(); markDirty(); };
-    row.appendChild(r0);
-    box.appendChild(row);
-  }
-  // Each cable pair on its own: its ends and turns, replacing the shared values above. The left
+  // Each cable pair on its own: its ends, replacing the shared values above. The left
   // cable mirrors the right one (unless the pair's Mirror is off).
   if (!L.own) L.own = [null, null, null, null];
   if (!L.pairMirror) L.pairMirror = [true, true];
   const slots = cableSlots();
   if (slots.length) {
     const head = document.createElement('div'); head.className = 'dim'; head.style.marginTop = '6px';
-    head.textContent = 'Each cable pair (tick Own to move / turn that pair by itself; the left cable mirrors the right):';
+    head.textContent = 'Each cable pair (tick Own to move that pair by itself; the left cable mirrors the right):';
     box.appendChild(head);
   }
   const numRow = (label, vals, step, title, onChange, extraBtn) => {
@@ -884,9 +833,6 @@ function renderLayout() {
       sec.appendChild(numRow(lab, end === 0 ? own.c : own.e, '0.05', `${s.label} cable: ${lab.toLowerCase()} (${end === 0 ? 'cockpit' : 'engine'} frame, game units)`,
         (j, v) => { (end === 0 ? own.c : own.e)[j] = v; onEdit(); }, b));
     }
-    for (const [end, lab] of [[0, 'Turn, cockpit'], [1, 'Turn, engine']])
-      sec.appendChild(numRow(lab, own.rot.slice(end * 3, end * 3 + 3), '5', 'Degrees about x (up / down), y (around), z (left / right)',
-        (j, v) => { own.rot[end * 3 + j] = v; onEdit(); }));
   };
   for (const p of [0, 1]) {
     const right = slots.find(s => s.i === 2 * p), left = slots.find(s => s.i === 2 * p + 1);
@@ -2061,13 +2007,9 @@ function layoutLines() {
     if (S.cockpitGap !== 1) out.push(`cockpitgap ${fmt(S.cockpitGap)}`);
     if (S.cockpitMove.some(Boolean)) out.push(`cockpitmove ${S.cockpitMove.map(fmt).join(' ')}`);
   }
-  if (S.stiff !== undefined && S.stiff !== null) out.push(`cablestiff ${fmt(S.stiff)}`);
-  if (S.cableOut && (S.cableOut[0] || S.cableOut[1])) out.push(`cableout ${S.cableOut.map(fmt).join(' ')}`);
-  if (S.cableRot && S.cableRot.some(Boolean)) out.push(`cablerot ${S.cableRot.map(fmt).join(' ')}`);
   (S.own || []).forEach((o, i) => {
     if (!o) return;
-    out.push(`owncable${i + 1} cockpit ${o.c.map(fmt).join(' ')}`, `owncable${i + 1} engine ${o.e.map(fmt).join(' ')}`,
-             `owncable${i + 1} rot ${o.rot.map(fmt).join(' ')}`);
+    out.push(`owncable${i + 1} cockpit ${o.c.map(fmt).join(' ')}`, `owncable${i + 1} engine ${o.e.map(fmt).join(' ')}`);
   });
   if (S.extra) {
     out.push('# extra cable pair: baked into the model ("cables extra"), placed in game from the cable2 lines');
