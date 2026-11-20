@@ -376,7 +376,7 @@ void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2)
 }
 
 // 0x00431ba0
-void swrViewport_ResetCameraState_Maybe(void)
+void swrViewport_ResetRenderState(void)
 {
     translation_unk.x = 0.0f;
     translation_unk.y = 0.0f;
@@ -488,7 +488,7 @@ void swrRace_DrawDebugPosition(int debugLevel)
 }
 
 // 0x00483ca0
-void swrRace_DrawDebugMetaCamera_Maybe(void)
+void swrRace_RebuildViewport1Scene_Maybe(void)
 {
     rdModel_BuildSceneNoDraw_Maybe(&swrViewport_array[1]);
 }
@@ -558,7 +558,7 @@ void swrViewport_Render(int x)
                 swrModel_NodeModifyFlags(swrModel_Node4, 2, -4, 0x10, 3);
         }
     }
-    rdModel_SetupSceneFogAndLights_Maybe(&swrRender_displayListCursor);
+    rdModel_SetupSceneFogAndLights(&swrRender_displayListCursor);
     rdModel_BuildAndDrawScene(&swrRender_displayListCursor, &swrViewport_array[x]);
 }
 
@@ -571,7 +571,7 @@ void swrViewport_Activate(int viewportIndex)
 }
 
 // 0x00482e20
-void swrViewport_AdvanceFrameParity_Maybe(void)
+void swrViewport_AdvanceFrameParity(void)
 {
     swrViewport_frameTriple++;
     if (swrViewport_frameTriple > 2)

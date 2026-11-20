@@ -233,7 +233,7 @@ void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* seg
 // Crout LU decomposition with implicit partial pivoting (Numerical Recipes ludcmp) of the upper-left
 // 3x3 of a stride-4 matrix; returns 0 on a zero pivot.
 // 0x004304c0
-int rdMatrix_LUDecompose_Maybe(float* mat, float* in, int* pivots)
+int rdMatrix_LUDecompose(float* mat, float* in, int* pivots)
 {
     float rowScale[3];
     float big;
@@ -299,9 +299,9 @@ int rdMatrix_LUDecompose_Maybe(float* mat, float* in, int* pivots)
     return 1;
 }
 
-// Forward + back substitution (Numerical Recipes lubksb) on the 3x3 LU of rdMatrix_LUDecompose_Maybe.
+// Forward + back substitution (Numerical Recipes lubksb) on the 3x3 LU of rdMatrix_LUDecompose.
 // 0x00430730
-void rdMatrix_LUSolve_Maybe(float* lu, int* pivots, float* b)
+void rdMatrix_LUSolve(float* lu, int* pivots, float* b)
 {
     float sum;
     int i, j;
@@ -331,7 +331,7 @@ void rdMatrix_LUSolve_Maybe(float* lu, int* pivots, float* b)
 // Inverts an affine matrix: the 3x3 part column by column through the LU solve, then the
 // translation as -t * inverse. On a singular 3x3 the LU scratch is left in out.
 // 0x00430810
-void rdMatrix_InvertGeneral_Maybe(rdMatrix44* out, rdMatrix44* in)
+void rdMatrix_InvertAffine(rdMatrix44* out, rdMatrix44* in)
 {
     float* dst = &out->vA.x;
     float inverse[12];
@@ -339,14 +339,14 @@ void rdMatrix_InvertGeneral_Maybe(rdMatrix44* out, rdMatrix44* in)
     int pivots[3];
     int k, r;
 
-    if (rdMatrix_LUDecompose_Maybe(dst, &in->vA.x, pivots) == 0)
+    if (rdMatrix_LUDecompose(dst, &in->vA.x, pivots) == 0)
         return;
     for (k = 0; k < 3; k++) {
         column[0] = 0.0f;
         column[1] = 0.0f;
         column[2] = 0.0f;
         column[k] = 1.0f;
-        rdMatrix_LUSolve_Maybe(dst, pivots, column);
+        rdMatrix_LUSolve(dst, pivots, column);
         for (r = 0; r < 3; r++)
             inverse[r * 4 + k] = column[r];
     }

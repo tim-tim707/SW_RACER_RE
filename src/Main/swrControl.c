@@ -690,7 +690,7 @@ int swrControl_Startup(void)
     swrUI_UpdateProgressBar(38);
     Window_set_msg_handler(Window_msg_default_handler);
     swrUI_UpdateProgressBar(40);
-    enablePauseOverlay_Maybe();
+    swrViewport_InitRenderDefaults();
     swrUI_UpdateProgressBar(45);
     swrScene_Startup();
     swrUI_UpdateProgressBar(50);
@@ -760,7 +760,7 @@ int swrControl_LoadForceEffects(int deviceType)
         return 0;
     }
     if ((unsigned char)swrControl_forceEffectsDeviceType < SWR_FF_DEVICE_NONE) {
-        cifr_ReinitEffects_Maybe(&swrControl_forceEffects);
+        cifr_ReinitEffects(&swrControl_forceEffects);
     }
     memset(swrControl_forceEffectValue, 0, sizeof(swrControl_forceEffectValue));
     memset(swrControl_forceEffectPlaying, 0, sizeof(swrControl_forceEffectPlaying));
@@ -979,7 +979,7 @@ int swrControl_ConfigureForceEffect(int effectId, int value)
     if (restarted == 0 && swrControl_forceEffectValue[effectId] == value) {
         return 1;
     }
-    if (cifr_GetForceFeedbackState_Maybe(effect, &state) == 0) {
+    if (cifr_GetEffectType(effect, &state) == 0) {
         return 0;
     }
     size = effect->params.cbTypeSpecificParams;
@@ -998,7 +998,7 @@ int swrControl_ConfigureForceEffect(int effectId, int value)
         params[8] = params[7];
     }
     swrControl_forceEffectValue[effectId] = value;
-    ok = cifr_SetCustomForceData_Maybe(effect, size, params, restarted);
+    ok = cifr_SetTypeSpecificParams(effect, size, params, restarted);
     (*stdPlatform_hostServices_ptr->free)(params);
     if (ok != 0 && restarted != 0) {
         swrControl_forceEffectPlaying[effectId] = 1;
@@ -1037,7 +1037,7 @@ int swrControl_UpdateForceEffect(int effectId, int period)
     if (restarted == 0 && swrControl_forceEffectValue[effectId] == period) {
         return 1;
     }
-    if (cifr_GetForceFeedbackState_Maybe(effect, &state) == 0) {
+    if (cifr_GetEffectType(effect, &state) == 0) {
         return 0;
     }
     size = effect->params.cbTypeSpecificParams;
@@ -1045,7 +1045,7 @@ int swrControl_UpdateForceEffect(int effectId, int period)
     memcpy(params, effect->typeSpecificBuffer, size);
     params[3] = period; // DIPERIODIC dwPeriod
     swrControl_forceEffectValue[effectId] = period;
-    ok = cifr_SetCustomForceData_Maybe(effect, size, params, restarted);
+    ok = cifr_SetTypeSpecificParams(effect, size, params, restarted);
     (*stdPlatform_hostServices_ptr->free)(params);
     if (ok != 0 && restarted != 0) {
         swrControl_forceEffectPlaying[effectId] = 1;
@@ -1732,7 +1732,7 @@ int swrControl_PollAccept(int excludeDevice)
         keyboard = 0;
     } else if (stdControl_ReadKey(DIK_RETURN, NULL) != 0 || stdControl_ReadKey(DIK_NUMPADENTER, NULL) != 0) {
         keyboard = 1;
-    } else if (swrUI_GetMenuRoot_Maybe() == 0 && stdControl_ReadKey(DIK_SPACE, NULL) != 0) {
+    } else if (swrUI_IsTextEntryActive() == 0 && stdControl_ReadKey(DIK_SPACE, NULL) != 0) {
         // Space only accepts while no text entry is active
         keyboard = 1;
     } else {
@@ -1799,7 +1799,7 @@ void swrControl_SnapshotKeyboard(void)
 }
 
 // 0x004081c0
-int swrControl_ClearPollState_Maybe(void)
+int swrControl_ClearUIInputChangeFlags(void)
 {
     int* state;
     int i;

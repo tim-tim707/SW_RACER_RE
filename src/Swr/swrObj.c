@@ -133,7 +133,7 @@ void DrawTracks(swrObjHang* hang, char circuit)
 }
 
 // 0x00440990
-int swrUI_DebugColorsEqual_Maybe(char* a, char* b)
+int swrUI_DebugInitialsMatch(char* a, char* b)
 {
     if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_NAME_CHECKS) == 0)
         return 0;
@@ -373,9 +373,9 @@ void updatePauseMenu(void)
 }
 
 // 0x00445960
-void enablePauseOverlay_Maybe(void)
+void swrViewport_InitRenderDefaults(void)
 {
-    swrViewport_ResetCameraState_Maybe();
+    swrViewport_ResetRenderState();
     GameSettingFlags |= GAME_SETTING_FOG_DISABLED;
 }
 
@@ -649,7 +649,7 @@ void swrObjcMan_UpdateTerrainVisuals(swrObjcMan* cman)
     cman->surfaceBehavior = behavior;
     swrObjcMan_LoadLightingFromBehavior(cman, pod, behavior);
     if (NumLocalPlayers() <= 1)
-        swrSound_SetUpdateFlag_Maybe(behavior != NULL && (behavior->unk18 & 1) != 0 ? 0x7f : 0);
+        swrSound_SetReverb(behavior != NULL && (behavior->unk18 & 1) != 0 ? 0x7f : 0);
     if (behavior == NULL)
         goto updateLightFlags;
 
@@ -1383,13 +1383,13 @@ void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
     // faithful: the color snap request is only consumed while fog is on
     if (fogEnabled != 0) {
         cman->fog_flag = flags & ~swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR;
-        rdModel_SetFogEnabled_Maybe(1);
+        rdModel_SetFogEnabled(1);
         SetFogParameters(fogStartInt, 1000, cman->fog_r, cman->fog_g, cman->fog_b, 0xff);
         SetClearColor(cman->fog_r, cman->fog_g, cman->fog_b);
     } else {
-        rdModel_SetFogEnabled_Maybe(0);
+        rdModel_SetFogEnabled(0);
     }
-    swrObjJdge_ToggleSkyboxVisibility_Maybe((int)&cman->unk20_mat.vD, cman->fog_flag);
+    swrObjJdge_ApplySkyboxVisibility((int)&cman->unk20_mat.vD, cman->fog_flag);
 
     if (swrObjJdge_splitscreenActive == 0)
         return;
@@ -1466,7 +1466,7 @@ void swrObjcMan_UpdateCamera(swrObjcMan* cman)
     rdMatrix_Copy44(&cman->unk20_mat, &view);
 
     // camStateIndex holds the camera's mesh behavior, not an index
-    if (!swrCam_IsBehaviorActiveViewportCamera_Maybe((swrModel_Behavior*)cman->camStateIndex))
+    if (!swrCam_IsBehaviorActiveViewportCamera((swrModel_Behavior*)cman->camStateIndex))
         return;
 
     value = swrRace_creditsMode != 0 ? (int)0xffffff00 : (int)cman->visual_flag;
@@ -1695,7 +1695,7 @@ void swrObjScene_Exit(swrObjScen* scene, int event)
     int ev[16];
 
     swrObjScene_ResetViewports();
-    swrSound_SetUpdateFlag_Maybe(0);
+    swrSound_SetReverb(0);
     swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
     swrSprite_ResetAllSprites();
     swrModel_ClearSceneAnimations();
@@ -2342,7 +2342,7 @@ void swrObjHang_UpdateLoadScreen(swrObjHang* hang)
 }
 
 // 0x00440de0
-int getInRaceInputBufferEntry_Maybe(int index)
+int swrObjHang_IsExtraSplashPageEnabled(int index)
 {
     return swrObjHang_extraSplashPages[index];
 }
@@ -2389,7 +2389,7 @@ void swrObjHang_UpdateSplashScreen(swrObjHang* hang)
         swrObjHang_splashPageSequence[1] = 1;
         swrObjHang_splashPageSequence[2] = 2;
         swrObjHang_splashPageCount = 3;
-        if (getInRaceInputBufferEntry_Maybe(1) != 0)
+        if (swrObjHang_IsExtraSplashPageEnabled(1) != 0)
             swrObjHang_splashPageSequence[(int)swrObjHang_splashPageCount++] = 3;
     }
 
@@ -2639,7 +2639,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
         swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[38].position2, &maybeUICameraPlacements[39].position2, 1, 0, 0);
         swrObjHang_vehicleIntroPlanet = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 8.0f);
     }
-    swrUI_Front_DispatchPageCallbacks_Maybe(0, 0);
+    swrUI_Front_SetOkBackActive(0, 0);
     elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', hang->elmoEntityIndex);
     elmoHeight = elmo->unkbc * 0.8f;
     if (swrObjHang_vehicleIntroStep > 1)
@@ -2918,7 +2918,7 @@ void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
         }
     }
 
-    if ((swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) && swrRace_DebugLevel > 0 && swrUI_DebugColorsEqual_Maybe(swrRace_aProfiles[0].name, swrObjHang_planetIntroSkipInitials) != 0)
+    if ((swrControl_menuAcceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) && swrRace_DebugLevel > 0 && swrUI_DebugInitialsMatch(swrRace_aProfiles[0].name, swrObjHang_planetIntroSkipInitials) != 0)
         swrObjHang_planetIntroTimer = 0.0f;
 }
 
@@ -3020,7 +3020,7 @@ int swrObjHang_FadeOutAndAdvance(swrObjHang* hang)
 }
 
 // 0x0043e490
-int swrObjHang_FadeScreenFlash_Maybe(void)
+int swrObjHang_UpdateFadeIn(void)
 {
     int done = 0;
     if (swrObjHang_fadeInAlpha == 255.0f || swrObjHang_fadeInDelayFrames > 0) {
@@ -3123,7 +3123,7 @@ void swrObjHang_F0(swrObjHang* hang)
         if (hang->flag & swrObjHang_FLAG_UNK_2)
             hang->flag &= ~swrObjHang_FLAG_UNK_2;
         hang->unk60 = 0;
-        swrObjHang_TickHolotableSpin_Maybe();
+        swrObjHang_UpdateAmbientAnimSpeed();
         swrControl_uiInputActive = 0;
         swrControl_PlayForceEffect(swrForceEffect_AUTO_CENTER, -1, -1, -1);
         for (int player = 0; player < 4; player++)
@@ -3261,7 +3261,7 @@ void swrObjHang_F0(swrObjHang* hang)
             swrModel_NodeModifyFlags(swr_sceneModels[2]->entries[2].node, 2, -4, 0x10, 3);
 
         swr_noop4();
-        if (swrObjHang_fadeState == 1 && swrObjHang_FadeScreenFlash_Maybe() != 0)
+        if (swrObjHang_fadeState == 1 && swrObjHang_UpdateFadeIn() != 0)
             swrSound_SetSfxFlag(0, 0x10);
 
         swr_noop4();
@@ -3289,7 +3289,7 @@ void swrObjHang_F0(swrObjHang* hang)
         }
 
         swr_noop4();
-        swrObjHang_TickMenuRepeatDelay_Maybe();
+        swrObjHang_TickMenuRepeatDelay();
         if (hang->room == Cantina) {
             swrObjHang_UpdateCantinaHolotable(hang->menuScreen);
             if (swrRace_Transition > 0.0f && hang->menuScreen != swrObjHang_STATE_SPLASH)
@@ -3354,7 +3354,7 @@ void swrObjHang_LoadAllPilotSprites(void)
 }
 
 // 0x00433760
-void swrObjHang_EnterMultiplayerMenu_Maybe(void)
+void swrObjHang_ReturnToMultiplayerLobby(void)
 {
     if (multiplayer_enabled != 0) {
         swrUI_RunCallbacks2(swrUI_GetById(NULL, swrUI_WINDOW_MP_RACE_SETUP), 0);
@@ -3443,21 +3443,21 @@ void swrObjHang_UpdateLegalScreen(swrObjHang* hang)
 }
 
 // 0x00433720
-void swrObjHang_OnSelectVehicle_Maybe(void)
+void swrObjHang_EnterVehicleSelect(void)
 {
     swrObjHang_SetMenuState(g_objHang2, swrObjHang_STATE_SELECT_VEHICLE);
     swrControl_menuAcceptGuard = 1;
 }
 
 // 0x00433740
-void swrObjHang_OnSelectPlanet_Maybe(void)
+void swrObjHang_EnterPlanetSelect(void)
 {
     swrObjHang_SetUnused();
     swrObjHang_SetMenuState(g_objHang2, swrObjHang_STATE_SELECT_PLANET);
 }
 
 // 0x004337d0
-void swrObjHang_SetState5_Maybe(void)
+void swrObjHang_RequestDisplayPodReset(void)
 {
     swrObjHang_displayPodResetFrames = SWR_DISPLAY_POD_RESET_FRAMES;
 }
@@ -3771,7 +3771,7 @@ void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
     TrackInfo* track;
     int record;
 
-    swrObjHang_ResetCameraAssignments_Maybe();
+    swrObjHang_ResetCameraAssignments();
     swrObjHang_InitCameraAssignments(hang);
     swrUI_UpdateProgressBar(60);
 
@@ -4011,7 +4011,7 @@ void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out)
 }
 
 // 0x0045bb60
-void swrObjHang_ResetCameraAssignments_Maybe(void)
+void swrObjHang_ResetCameraAssignments(void)
 {
     for (int i = 0; i < 4; i++)
         swrObjHang_resetCameraSlots[i] = -1;
@@ -4322,7 +4322,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrUI_Front_LoadUIElements();
         swrUI_Front_LoadPartsUIElements();
         swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
-        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrObjHang_LoadShopPartModels(hang);
         swrModel_LoadPuppet(MODELID_char_watto_puppet, 0x15, swrObjElmo_KIND_WATTO, -1.0f);
         for (int k = 0; k < hang->num_local_players; k++)
             loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
@@ -4362,7 +4362,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
             loadPilotPuppet(pods[k], SWR_SCENE_SLOT_PILOT_PUPPETS + k);
         for (int i = 0; i < (int)(uint8_t)swrRace_nbPitDroids; i++)
             swrModel_LoadPuppet(MODELID_char_pitdroid_puppet, SWR_SCENE_SLOT_PIT_DROIDS + i, swrObjElmo_KIND_PIT_DROID, -1.0f);
-        LoadUpgradeModelsIntoScene_Maybe(hang);
+        swrObjHang_LoadShopPartModels(hang);
         swrModel_LoadModelIntoScene(MODELID_char_pitdroid_puppet, -1, INGAME_MODELID_char_pitdroid_puppet, false);
         swrModel_LoadPuppet(MODELID_char_dewback_puppet, 0x13, swrObjElmo_KIND_DEWBACK, -1.0f);
         swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, swrObjElmo_KIND_RONTO, -1.0f);
@@ -4456,7 +4456,7 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
     rdMatrix_SetTransform44(&rdMatrix44_unk7, &identity);
     rdMatrix_SetTransform44(&swrObjHang_cameraMatrix, &identity);
     rdMatrix_SetTransform44(&swrObjHang_holoCameraMatrix, &holoIdentity);
-    rdModel_SetFogEnabled_Maybe(0);
+    rdModel_SetFogEnabled(0);
     hang->cameraState = HangCameraState_CantinaHolotableFar;
     hang->elmoEntityIndex = -1;
 
@@ -5654,7 +5654,7 @@ void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
     swrSound_ResetRequestedVoices(); // via the 0x4269b0 thunk, which drops its arg 1
     swrObjJdge_UpdateViewportLayout(jdge, 1);
     swrUI_UpdateProgressBar(40);
-    swrSound_SetUpdateFlag_Maybe(0);
+    swrSound_SetReverb(0);
     swrModel_Node1 = NULL;
     swrModel_Node3 = NULL;
     swrModel_Node2 = NULL;
@@ -5669,7 +5669,7 @@ void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event)
     ResetPlayerSpriteValues();
     swrUI_UpdateProgressBar(70);
     swrSprite_ResetAllSprites();
-    swrScene_ClearTextureAnim_Maybe();
+    swrScene_ClearPaletteScrollTarget();
     GameSettingFlags &= ~GAME_SETTING_MIRROR;
     swrViewport_SetRootNodeForAllViewports(NULL);
     swrUI_UpdateProgressBar(80);
@@ -6053,29 +6053,29 @@ void swrObjJdge_F2(swrObjJdge* jdge)
                         } else {
                             swrWeather_SetParticleCap(60);
                             swrWeather_SetVelocity(20.0f, 60.0f);
-                            SetSunSpriteAlpha_Maybe(0, 0x80);
+                            SetSunSpriteAlpha(0, 0x80);
                         }
                     } else if (jdge->planet_track_number == 1) {
                         if (score->results_P1_Lap == 0) {
                             swrWeather_SetParticleCap(60);
                             swrWeather_SetVelocity(20.0f, 60.0f);
-                            SetSunSpriteAlpha_Maybe(0, 0x80);
+                            SetSunSpriteAlpha(0, 0x80);
                         } else {
                             swrWeather_SetParticleCap(80);
                             swrWeather_SetVelocity(10.0f, 90.0f);
                             swrWeather_SetStretchFactor(1.0f);
-                            SetSunSpriteAlpha_Maybe(0, 0x14);
+                            SetSunSpriteAlpha(0, 0x14);
                         }
                     } else if (jdge->planet_track_number == 2) {
                         if (score->results_P1_Lap == 0) {
                             swrWeather_SetParticleCap(80);
                             swrWeather_SetVelocity(10.0f, 60.0f);
-                            SetSunSpriteAlpha_Maybe(0, 0x40);
+                            SetSunSpriteAlpha(0, 0x40);
                         } else {
                             swrWeather_SetParticleCap(80);
                             swrWeather_SetVelocity(10.0f, 90.0f);
                             swrWeather_SetStretchFactor(1.0f);
-                            SetSunSpriteAlpha_Maybe(0, 0x14);
+                            SetSunSpriteAlpha(0, 0x14);
                         }
                     }
                 }
@@ -6215,7 +6215,7 @@ void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
 }
 
 // 0x0045fe70
-void swrObjJdge_DrawSpeedDialHud_Maybe(swrObjJdge* jdge, swrRace* pod, short x, short y, int playerIdx)
+void swrObjJdge_DrawBoostDialHud(swrObjJdge* jdge, swrRace* pod, short x, short y, int playerIdx)
 {
     char buffer[256];
     uint8_t lightRgb[3];
@@ -6317,7 +6317,7 @@ void swrObjJdge_DrawSpeedDialHud_Maybe(swrObjJdge* jdge, swrRace* pod, short x, 
 }
 
 // 0x004603f0
-void swrObjJdge_LayoutHudFrameSprites_Maybe(unsigned int mode)
+void swrObjJdge_LayoutHudFrameSprites(unsigned int mode)
 {
     if (NumLocalPlayers() > 1)
         return;
@@ -7589,9 +7589,9 @@ void swrObjJdge_SetupTrackEnvironment(swrObjJdge* judge, int* anims, int model)
     }
 
     if (fogStartDist == 0) {
-        rdModel_SetFogEnabled_Maybe(0);
+        rdModel_SetFogEnabled(0);
     } else {
-        rdModel_SetFogEnabled_Maybe(1);
+        rdModel_SetFogEnabled(1);
         SetFogParameters(fogStartDist, 1000, fogR, fogG, fogB, 0xff);
         SetClearColor(fogR, fogG, fogB);
     }
@@ -7705,12 +7705,12 @@ void LoadTrackModels(swrObjJdge* judge)
     swrViewport_SetNodeFlagsForAllViewports(4, 0xffffff00);
     swrViewport_SetNodeFlagsForAllViewports(3, 0xffffff00);
     swrViewport_SetNodeFlagsForAllViewports(6, viewFlags6);
-    rdMatrixStack_SetField_Maybe(5, stackField | 2);
+    rdMatrixStack_SetField(5, stackField | 2);
     swr_noop2();
 }
 
 // 0x00465820
-void RecordLoadedModel_Maybe(void* record, int value)
+void swrModel_NodeLinkSharedChild(void* record, int value)
 {
     swrModel_Node* node = (swrModel_Node*)record;
 
@@ -7967,14 +7967,14 @@ void swrObjJdge_SpawnRacer(swrObjJdge* judge, swrScore* score, int gridPos, void
         node->flags_5 |= 1;
         swrObjJdge_podReflectionRootNode.num_children++;
         reflection = node;
-        RecordLoadedModel_Maybe(header->entries[7].node, (int)&swrModel_beamTemplateNode);
-        RecordLoadedModel_Maybe(header->entries[9].node, (int)&swrModel_beamTemplateNode);
+        swrModel_NodeLinkSharedChild(header->entries[7].node, (int)&swrModel_beamTemplateNode);
+        swrModel_NodeLinkSharedChild(header->entries[9].node, (int)&swrModel_beamTemplateNode);
         if (header->entries[0x48].node != NULL)
             swrModel_NodeModifyFlags(header->entries[0x48].node, 2, -4, 0x10, 3);
         if (header->entries[0x49].node != NULL)
             swrModel_NodeModifyFlags(header->entries[0x49].node, 2, -4, 0x10, 3);
-        RecordLoadedModel_Maybe(header->entries[0x41].node, (int)&swrModel_sparkTemplateNode);
-        RecordLoadedModel_Maybe(header->entries[0x42].node, (int)&swrModel_sparkTemplateNode);
+        swrModel_NodeLinkSharedChild(header->entries[0x41].node, (int)&swrModel_sparkTemplateNode);
+        swrModel_NodeLinkSharedChild(header->entries[0x42].node, (int)&swrModel_sparkTemplateNode);
     } else if (lodBody != 0) {
         swrObjJdge_podRootChildren[swrObjJdge_podRootNode.num_children++] = (swrModel_Node*)lodBody;
         swrModel_NodeModifyFlags((swrModel_Node*)lodBody, 2, 3, 0x10, 2);
@@ -8213,7 +8213,7 @@ unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores)
 }
 
 // 0x00466e40
-void swrObjJdge_ToggleSkyboxVisibility_Maybe(int unused, unsigned char mode)
+void swrObjJdge_ApplySkyboxVisibility(int unused, unsigned char mode)
 {
     if ((mode & 4) == 0) {
         swrRender_frameClearFlags &= ~swrRender_FRAME_CLEAR_COLOR;
@@ -8455,7 +8455,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 0x19:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(10, 0xb, 0xc, 0xd, 0x12);
+            swrObjElmo_PlayRandomVoiceSfx(10, 0xb, 0xc, 0xd, 0x12);
         } else {
             swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 2, 2, 2, 2, 2, NULL);
         }
@@ -8470,7 +8470,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 0x1a:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(2, 0x1f, 7, 8, 9);
+            swrObjElmo_PlayRandomVoiceSfx(2, 0x1f, 7, 8, 9);
         } else {
             swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 3, 3, 3, 5, 5, NULL);
         }
@@ -8492,13 +8492,13 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 0x1d:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x30, 0x31, 0x32, 0x22, 0x2b);
+            swrObjElmo_PlayRandomVoiceSfx(0x30, 0x31, 0x32, 0x22, 0x2b);
         } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x23, 0x24, 0x25, 0x26, 0x27);
+            swrObjElmo_PlayRandomVoiceSfx(0x23, 0x24, 0x25, 0x26, 0x27);
         } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x18, 0x2e, 0x13, 0x29, 0x2b);
+            swrObjElmo_PlayRandomVoiceSfx(0x18, 0x2e, 0x13, 0x29, 0x2b);
         } else {
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x19, 0x20, 0x2c, 0x19, 0x20);
+            swrObjElmo_PlayRandomVoiceSfx(0x19, 0x20, 0x2c, 0x19, 0x20);
         }
         loopTransition = 0.0f;
         transition = 0.0f;
@@ -8523,19 +8523,19 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     case 0x23:
     case 0x25:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0xb, 0xc, 0xd, 0x2d, 0x14);
+            swrObjElmo_PlayRandomVoiceSfx(0xb, 0xc, 0xd, 0x2d, 0x14);
         elmo->unk88 = elmo->animCmd == 0x23 ? 3 : 0xd;
         setLoop = false;
         break;
     case 0x24:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x12, 0x28, 0x36, 0xe, 0x17);
+            swrObjElmo_PlayRandomVoiceSfx(0x12, 0x28, 0x36, 0xe, 0x17);
         elmo->unk88 = 1;
         setLoop = false;
         break;
     case 0x26:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
-            swrObjElmo_PlayRandomVoiceSfx_Maybe(0x12, 0x28, 0x36, 0xe, 0x17);
+            swrObjElmo_PlayRandomVoiceSfx(0x12, 0x28, 0x36, 0xe, 0x17);
         // fallthrough
     case 3:
         elmo->unk88 = 0xe;
@@ -8544,9 +8544,9 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     case 0x27:
         if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f) {
             if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
-                swrObjElmo_PlayRandomVoiceSfx_Maybe(0x2a, 0x32, 0x31, 0x33, 0x13);
+                swrObjElmo_PlayRandomVoiceSfx(0x2a, 0x32, 0x31, 0x33, 0x13);
             } else {
-                swrObjElmo_PlayRandomVoiceSfx_Maybe(0x2c, 0x19, 0x20, 0x2c, 0x19);
+                swrObjElmo_PlayRandomVoiceSfx(0x2c, 0x19, 0x20, 0x2c, 0x19);
             }
         }
         // fallthrough
@@ -8632,7 +8632,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
 }
 
 // 0x00467c80
-void swrObjElmo_PlayRandomVoiceSfx_Maybe(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5)
+void swrObjElmo_PlayRandomVoiceSfx(int sfx1, int sfx2, int sfx3, int sfx4, int sfx5)
 {
     if (swrSound_TestSfxFlag(0, 0x10) != 0 && swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING) == 0)
         swrSound_PlayRandomSfx(2, 0, sfx1, sfx2, sfx3, sfx4, sfx5, NULL);
@@ -8900,7 +8900,7 @@ int swrObjElmo_F4(swrObjElmo* elmo, int* subEvents)
 }
 
 // 0x004686b0
-void swrObjElmo_Init_Maybe(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind)
+void swrObjElmo_Init(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrObjElmo_KIND kind)
 {
     if (elmo == NULL)
         return;
@@ -9160,12 +9160,12 @@ void swrObjElmo_UpdateMovement(swrObjElmo* elmo)
 }
 
 // 0x00469010
-void swrObjHang_TickHolotableSpin_Maybe(void)
+void swrObjHang_UpdateAmbientAnimSpeed(void)
 {
     swrObjHang_ambientAnimPhase += swrRace_fdeltaTimeSecs;
     if (swrObjHang_ambientAnimPhase > 6.26666f)
         swrObjHang_ambientAnimPhase -= 6.26666f;
-    swrObjHang_ambientAnimSpeed = swrObjHang_EaseSine_Maybe(swrObjHang_ambientAnimPhase, 3.13333f) * 0.15957463f + 0.5;
+    swrObjHang_ambientAnimSpeed = swrObjHang_CosineEase(swrObjHang_ambientAnimPhase, 3.13333f) * 0.15957463f + 0.5;
 }
 
 // 0x00469070
@@ -9331,10 +9331,10 @@ void swrObjHang_UpdateCantinaHolotable(int menuScreen)
     holo = (swrObjElmo*)swrEvent_GetItem('Elmo', 4);
     if (swrObjHang_holotableInitScreen == -1) {
         swrObjHang_holotableInitScreen = menuScreen;
-        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor2, (int)holo, 2);
-        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor8, (int)holo, 8);
-        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor4, (int)holo, 4);
-        swrModel_GetNodeTranslation_Maybe(&swrObjHang_holoAnchor5, (int)holo, 5);
+        swrObjElmo_GetNodePosition(&swrObjHang_holoAnchor2, (int)holo, 2);
+        swrObjElmo_GetNodePosition(&swrObjHang_holoAnchor8, (int)holo, 8);
+        swrObjElmo_GetNodePosition(&swrObjHang_holoAnchor4, (int)holo, 4);
+        swrObjElmo_GetNodePosition(&swrObjHang_holoAnchor5, (int)holo, 5);
     }
     swrObjHang_holoSpinAngle = swrObjHang_holoSpinAngle - swrRace_fdeltaTimeSecs * -9.0f;
     if (swrObjHang_holoSpinAngle > 360.0f)
@@ -9376,7 +9376,7 @@ void swrObjHang_UpdateCantinaHolotable(int menuScreen)
 
         droid = (swrObjElmo*)swrEvent_GetItem('Elmo', 0x1c);
         rdMatrix_SetIdentity44(&world);
-        swrModel_ComputeNodeWorldMatrix_Maybe(holo->unk30_nodes[5], (float*)&world, holo->unk30_nodes[0], &world);
+        swrModel_ComputeNodeWorldMatrix(holo->unk30_nodes[5], (float*)&world, holo->unk30_nodes[0], &world);
         world.vD.z = world.vD.z - -10.0f;
         if (fade == 1.0f) {
             rdVector_Scale3Add3_both((rdVector3*)&world.vD, 0.75f, &maybeUICameraPlacements[0x24].position1, 0.25f, (rdVector3*)&world.vD);
@@ -9406,7 +9406,7 @@ void swrObjHang_UpdateCantinaHolotable(int menuScreen)
 }
 
 // 0x00469b50
-void swrModel_GetNodeTranslation_Maybe(rdVector3* out, int entity, int childIndex)
+void swrObjElmo_GetNodePosition(rdVector3* out, int entity, int childIndex)
 {
     rdMatrix44 xf;
 
@@ -9426,7 +9426,7 @@ float swrObjHang_StepTransition(float rate)
 }
 
 // 0x00469bf0
-void swrObjHang_TickMenuRepeatDelay_Maybe(void)
+void swrObjHang_TickMenuRepeatDelay(void)
 {
     if (swrObjHang_menuRepeatTimer > 0.0f) {
         swrObjHang_menuRepeatTimer -= swrRace_fdeltaTimeSecs;
@@ -11156,13 +11156,13 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
 void swrObjTest_UpdateControlAndMove(swrRace* player)
 {
     rdVector3 newPos;
-    int allMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
+    int allMask = rdMatrixStack_GetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
     if (player->speedValue > 150.0f)
-        rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
+        rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
     if (swrObjTrig_regionGridLayout != 0)
         swrRace_UpdateCollisionToggles(player);
-    int anyMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
+    int anyMask = rdMatrixStack_GetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
     swrObjTest_autoTiltSnapshot = player->autoTilt;
 
     int zeroG;
@@ -11231,8 +11231,8 @@ void swrObjTest_UpdateControlAndMove(swrRace* player)
     player->transform.vD.x = newPos.x;
     player->transform.vD.y = newPos.y;
     player->transform.vD.z = newPos.z;
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
 }
 
 // 0x0047aee0
@@ -11264,11 +11264,11 @@ void swrObjTest_UpdatePhysicsContact(swrRace* player)
     rdVector3 delta;
     rdVector3 up;
     float zMotion;
-    int allMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
+    int allMask = rdMatrixStack_GetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK);
     if (player->speedValue > 150.0f)
-        rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
-    int anyMask = rdMatrixStack_GetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
+        rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask | 4);
+    int anyMask = rdMatrixStack_GetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK, player->collisionToggles);
 
     pos = player->position;
     int zeroG = (player->flags0 & swrObjTest_FLAG0_ZON) != 0;
@@ -11366,8 +11366,8 @@ void swrObjTest_UpdatePhysicsContact(swrRace* player)
     player->unk1f18 = 0;
     if (player->flags0 & swrObjTest_FLAG0_LOCAL)
         swrControl_UpdateForceFeedback(); // EXE pushes two zero args the callee never reads
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
-    rdMatrixStack_SetField_Maybe(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ALL_MASK, allMask);
+    rdMatrixStack_SetField(rdMatrixStack_FIELD_COLLISION_ANY_MASK, anyMask);
 }
 
 // 0x0047b9e0
@@ -11862,7 +11862,7 @@ swrObjTrig* swrObjTrig_FindOrCreate(swrModel_TriggerDescription* desc)
         rdMatrix44 parent;
         rdMatrix44 world;
         rdMatrix_SetIdentity44(&parent);
-        swrModel_ComputeNodeWorldMatrix_Maybe(trig->unk3c_node, (float*)&world, (swrModel_Node*)GetTrackModelRoot(), &parent);
+        swrModel_ComputeNodeWorldMatrix(trig->unk3c_node, (float*)&world, (swrModel_Node*)GetTrackModelRoot(), &parent);
         rdVector_Copy3(&trig->unk30, (rdVector3*)&world.vD);
     }
     if (trig->unk40_animation != NULL) {
@@ -12150,7 +12150,7 @@ void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions
 }
 
 // 0x0047d890
-void swrObjTrig_InitColorBands_Maybe(void)
+void swrObjTrig_InitRegionGrid(void)
 {
     // the original leaves these uninitialized for other layouts; its only caller passes 1 or 2
     float minY = 0.0f;
@@ -12191,7 +12191,7 @@ void swrObjTrig_InitColorBands_Maybe(void)
 }
 
 // 0x0047da10
-unsigned int swrObjTrig_ApplyNodeRegionColor_Maybe(swrModel_Node* node)
+unsigned int swrObjTrig_ComputeNodeRegionMask(swrModel_Node* node)
 {
     // mesh-group AABB (min xyz, max xyz) follows the node header
     const float* aabb = (const float*)(node + 1);
@@ -12247,7 +12247,7 @@ unsigned int swrObjTrig_FindAndInitializeTriggersInNode(swrModel_Node* node)
     int nodeFlags = swrModel_NodeGetFlags(node);
     if (nodeFlags == NODE_MESH_GROUP) {
         if (swrObjTrig_regionGridLayout != 0 && swrObjTrig_regionGridSuppressed == 0)
-            result = swrObjTrig_ApplyNodeRegionColor_Maybe(node);
+            result = swrObjTrig_ComputeNodeRegionMask(node);
 
         int numChildren = swrModel_NodeGetNumChildren(node);
         for (int i = 0; i < numChildren; i++) {
@@ -12333,7 +12333,7 @@ swrModel_Node* swrObjTrig_LoadAndInitializeTriggerModels(int planetId, int track
     swrObjTrig_loadResetFlag = 0;
     swrObjTrig_CurrentPlanetId = planetId;
     if (swrObjTrig_regionGridLayout != 0)
-        swrObjTrig_InitColorBands_Maybe();
+        swrObjTrig_InitRegionGrid();
 
     if (planetId == 1) {
         root = swrObjTrig_CreateTriggerSceneNode();
@@ -12538,13 +12538,13 @@ void swrScene_Init(short sceneArg, int unused)
 }
 
 // 0x00449260
-void swrScene_ClearTextureAnim_Maybe(void)
+void swrScene_ClearPaletteScrollTarget(void)
 {
     swrScene_textureScrollState->destPalette = NULL;
 }
 
 // 0x00449270
-void swrScene_UpdateTextureScroll_Maybe(void)
+void swrScene_UpdatePaletteScroll(void)
 {
     swrScene_PaletteScroll* scroll = swrScene_textureScrollState;
     int steps = 0;
@@ -12569,7 +12569,7 @@ void swrScene_ResetRenderState(void)
     ResetSunAndLensFlareSprites();
     ResetPlayerSpriteValues();
     ResetLightStreakSprites();
-    ResetWorldSpriteCount_Maybe();
+    ResetWorldSpriteCount();
     for (int i = 0; i < SWR_VIEWPORT_COUNT; i++)
         swrViewport_Init(i);
     swrViewport_Enable(0, 1);
@@ -12584,8 +12584,8 @@ void swrScene_ResetRenderState(void)
     resetOverlayDrawQueues();
     swrViewport_frameTriple = 0;
     swrViewport_frameParity = 0;
-    rdMatrixStack_SetField_Maybe(3, 2);
-    rdMatrixStack_SetField_Maybe(5, 0);
+    rdMatrixStack_SetField(3, 2);
+    rdMatrixStack_SetField(5, 0);
 }
 
 // 0x004800c0
@@ -12656,9 +12656,9 @@ void swrScene_LoadPreviewModel(void)
 // 0x00448f40
 void swrScene_LoadObjects(void)
 {
-    swrSound_SetSpatialOrigin_Maybe(50.0f, 300.0f);
-    swrAssetBuffer_ReserveRegionA_Maybe();
-    swrAssetBuffer_ReserveRegionB_Maybe();
+    swrSound_SetSpatialDistances(50.0f, 300.0f);
+    swrAssetBuffer_ReserveRegionA();
+    swrAssetBuffer_ReserveRegionB();
     ResetModelPreviewState_Maybe();
     if (swrScene_previewModelId == -1) {
         swrEvent_AllocateAndLoadObjs('cMan', SWR_SCENE_CMAN_COUNT);
@@ -12691,7 +12691,7 @@ void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out)
 }
 
 // 0x00429330
-void swrCam_PickNearestSplitCameraTransform_Maybe(rdMatrix44* out, float* pos)
+void swrCam_PickNearestSplitCameraTransform(rdMatrix44* out, float* pos)
 {
     swrViewport* viewport1;
     swrViewport* viewport2;
@@ -12736,7 +12736,7 @@ void swrCam_PickNearestSplitCameraTransform_Maybe(rdMatrix44* out, float* pos)
 }
 
 // 0x004294e0
-int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior)
+int swrCam_IsBehaviorActiveViewportCamera(swrModel_Behavior* behavior)
 {
     int count = swrViewport_GetNumViewports();
     for (int i = 0; i < count; i++) {
@@ -12944,7 +12944,7 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport)
 
 // Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
 // 0x0045a420
-float swrObjHang_EaseSine_Maybe(float t, float period) {
+float swrObjHang_CosineEase(float t, float period) {
     float sine;
     // The original passes its own `t` slot as the cosine out-param and reads it back.
     stdMath_SinCos((t / period) * 180.0f, &sine, &t);
@@ -13421,7 +13421,7 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
 // Point the camera at a scene element: resolve the element position, then either retarget the camera
 // or slide the whole rig so the eye keeps its offset.
 // 0x0043e840
-void LoadUpgradeModelsIntoScene_Maybe(swrObjHang* hang)
+void swrObjHang_LoadShopPartModels(swrObjHang* hang)
 {
     char unlockedTracks = 0;
     int count = 0;
@@ -13507,7 +13507,7 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
                 swrObjHang_FocusMenuItem(hang, 2, ~swrObjHang_STATE_LEGAL, 0);
         }
     }
-    swrObjHang_PlayWattoVoiceLines_Maybe((int)hang);
+    swrObjHang_PlayShopGreeting((int)hang);
     if (hang->activeMenu == 0) {
         if (swrObjHang_shopLastSelectedItem != swrRace_MenuSelectedItem) {
             swrObjHang_shopLastSelectedItem = swrRace_MenuSelectedItem;
@@ -13682,7 +13682,7 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
 }
 
 // 0x00437ea0
-void swrObjHang_PlayWattoVoiceLines_Maybe(int hang)
+void swrObjHang_PlayShopGreeting(int hang)
 {
     // flag 0x10 (meaning unidentified) and the pending greeting gate every line
     if (swrSound_TestSfxFlag(0, 0x10) == 0 || swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_GREETING_PENDING) == 0)
@@ -13871,7 +13871,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
                         swrObjHang_workingDroidEngineEntry = swrObjHang_displayPodEngineREntry;
                     }
                     swrModel_FindClosestPointOnModel(pod->entries[0].node, pod->entries[swrObjHang_workingDroidTargetNode].node, &pos, SWR_PIT_DROID_NODE_CHAIN_LEN, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
-                    swrModel_TransformPointAndDir_Maybe(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
+                    swrModel_TransformPointAndDir(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
                 } while ((surfacePoint.z - 90.0f) - 32.0f <= -157.0f && tries++ < SWR_PIT_DROID_SPOT_TRIES);
                 swrModel_NodeGetTransform((swrModel_NodeTransformed*)pod->entries[swrObjHang_workingDroidEngineEntry].node, &nodeTransform);
                 rdVector_Copy3(&pos, &surfacePoint);
@@ -13884,7 +13884,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
                 y = swrObjHang_Rand01() * (swrObjHang_displayPodBoundsCockpit[4] - swrObjHang_displayPodBoundsCockpit[1]) + swrObjHang_displayPodBoundsCockpit[1];
                 rdVector_Set3(&pos, (swrObjHang_displayPodBoundsCockpit[0] - 30.0f) * swrUtils_RandFloat(), y, nodeTransform.vD.z);
                 swrModel_FindClosestPointOnModel(pod->entries[0].node, pod->entries[SWR_POD_ENTRY_COCKPIT_SURFACE].node, &pos, SWR_PIT_DROID_NODE_CHAIN_LEN, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
-                swrModel_TransformPointAndDir_Maybe(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
+                swrModel_TransformPointAndDir(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
                 rdVector_Copy3(&pos, &surfacePoint);
                 if (pos.x < 0.0f) {
                     pos.x = pos.x - 30.0f;
@@ -13897,7 +13897,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
                 y = swrObjHang_PitDroidRandY(swrObjHang_displayPodBoundsEngineL);
                 rdVector_Set3(&pos, swrObjHang_displayPodBoundsEngineL[0] - 30.0f, y, nodeTransform.vD.z);
                 swrModel_FindClosestPointOnModel(pod->entries[0].node, pod->entries[entryA].node, &pos, SWR_PIT_DROID_NODE_CHAIN_LEN, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
-                swrModel_TransformPointAndDir_Maybe(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
+                swrModel_TransformPointAndDir(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
                 rdVector_Copy3(&pos, &surfacePoint);
                 pos.x = pos.x - 30.0f;
                 break;
@@ -13907,7 +13907,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
                 y = swrObjHang_PitDroidRandY(swrObjHang_displayPodBoundsEngineL);
                 rdVector_Set3(&pos, swrObjHang_displayPodBoundsEngineR[3] - -30.0f, y, nodeTransform.vD.z);
                 swrModel_FindClosestPointOnModel(pod->entries[0].node, pod->entries[entryB].node, &pos, SWR_PIT_DROID_NODE_CHAIN_LEN, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
-                swrModel_TransformPointAndDir_Maybe(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
+                swrModel_TransformPointAndDir(&surfacePoint, &surfaceNormal, nodeChain, &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
                 rdVector_Copy3(&pos, &surfacePoint);
                 pos.x = pos.x - -30.0f;
                 break;
@@ -13938,7 +13938,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
 
     for (k = 0; k < (swrRace_nbPitDroids & 0xff); k++) {
         elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', SWR_SCENE_SLOT_PIT_DROIDS + k);
-        swrModel_TransformPointAndDir_Maybe(&surfacePoint, &surfaceNormal, &swrObjHang_pitDroidNodeChains[k * SWR_PIT_DROID_NODE_CHAIN_LEN], &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
+        swrModel_TransformPointAndDir(&surfacePoint, &surfaceNormal, &swrObjHang_pitDroidNodeChains[k * SWR_PIT_DROID_NODE_CHAIN_LEN], &swrObjHang_pitDroidSurfacePoints[k], &swrObjHang_pitDroidSurfaceNormals[k]);
         rdVector_Copy3(&elmo->position, &surfacePoint);
         switch (swrObjHang_pitDroidSpots[k]) {
         case swrObjHang_PIT_DROID_SPOT_ENGINE:
@@ -13964,7 +13964,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
         swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
     }
     // the original pushes hang here, but the callee takes no arguments
-    swrRace_UpdatePitDroidModels_Maybe();
+    swrRace_UpdatePitDroidModels();
 
     if (swrObjHang_menuJustEntered != 0 && swrObjHang_shopFocusTypePending == 1) {
         swrObjHang_shopFocusTypePending = 0;

@@ -162,7 +162,7 @@ fail:
 }
 
 // 0x00411720
-int swrUI_GetMenuRoot_Maybe(void)
+int swrUI_IsTextEntryActive(void)
 {
     return swrUI_textEntryActive;
 }
@@ -787,7 +787,7 @@ void swrSprite_SetPos(short id, short x, short y)
 }
 
 // 0x004286c0
-void swrSprite_SetUVOffset_Maybe(short id, short u, short v)
+void swrSprite_SetSecondPos_Maybe(short id, short u, short v)
 {
     if (id > -1) {
         swrSprite_array[id].unk0x4 = u;

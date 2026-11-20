@@ -177,7 +177,7 @@ void std3D_Close(void)
 }
 
 // 0x0048a230
-void std3D_GetTextureFormatInfo_Maybe(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey)
+void std3D_GetTextureFormat(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey)
 {
     int format;
 
@@ -198,7 +198,7 @@ void std3D_GetTextureFormatInfo_Maybe(StdColorFormatType formatType, ColorInfo* 
 }
 
 // 0x0048a2d0
-StdColorFormatType std3D_GetTextureFormatClass_Maybe(ColorInfo* format)
+StdColorFormatType std3D_GetColorFormatType(ColorInfo* format)
 {
     if (format->alphaBPP == 0)
         return STDCOLOR_FORMAT_RGB;

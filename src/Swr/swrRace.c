@@ -75,7 +75,7 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
         // "delete player?" answered yes
         if (id == 0) {
             swrRace_DeleteProfile(swrUI_profileName);
-            swrConfig_RefreshPlayerListMenu_Maybe(swrUI_profileSelectPage);
+            swrConfig_RefreshProfileListMenu(swrUI_profileSelectPage);
         }
         return 0;
     case swrUI_MSG_SET_ACTIVE:
@@ -95,7 +95,7 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
             swrRace_CreateProfile(swrUI_profileName);
             sprintf(label, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrUI_profileName);
             swrUI_RunCallbacksScreenText(swrUI_profileCurrentPlayerLabel, label, 0);
-            swrConfig_RefreshPlayerListMenu_Maybe(swrUI_profileSelectPage);
+            swrConfig_RefreshProfileListMenu(swrUI_profileSelectPage);
             swrUI_RunCallbacks2(swrUI_profileNameEntry, 0);
             swrUI_FocusElement(swrUI_GetById(swrUI_profileSelectPage, SWR_UI_ID_OK_BUTTON), 1);
             swrUI_profileShowLabelPending = 1;
@@ -214,7 +214,7 @@ void swrRace_ReservedSettingsMenu(swrUI_unk* page)
     lineHeight = swrText_GetStringHeight(swrText_Translate("/MONDOTEXT_H_0325/~sRESERVED KEYS"), swrText_fontsByIndex[0]) + 5;
     swrUI_AddNavButton(page, 3, 0, 0x1a4, 2);
 
-    swrUI_SetSpriteSelectionBBox_Maybe(padding, 0);
+    swrUI_GetListFrameInsets(padding, 0);
     panelWidth = swrText_GetStringWidth(swrText_Translate("/MONDOTEXT_H_0522/Net play: Press CTRL-Q to quit race."), swrText_fontsByIndex[0]);
     panelWidth += (panelWidth >> 1) + padding[0];
     rect[0] = SWR_UI_DESIGN_WIDTH / 2 - (panelWidth >> 1);
@@ -1271,7 +1271,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
         swrRace_PodRotationAnimation = 0.0f;
         swrModel_LoadModelIntoScene(swrRacer_PodData[swrRace_SelectedRacer].pod_modelID, swrRacer_PodData[swrRace_SelectedRacer].pod_alt_modelID, (INGAME_MODELID)SWR_SCENE_SLOT_POD_MODELS, false);
         if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS] != NULL) {
-            swrObjHang_SetState5_Maybe();
+            swrObjHang_RequestDisplayPodReset();
             swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3c].value = swrRace_SelectedRacer;
             swrModel_LoadPuppet(swrRacer_PodData[swrRace_SelectedRacer].puppet_modelId, (INGAME_MODELID)SWR_SCENE_SLOT_PILOT_PUPPETS, swrObjElmo_KIND_PILOT, swrRacer_PodData[swrRace_SelectedRacer].float20);
         }
@@ -1296,21 +1296,21 @@ void swrRace_SelectVehicle(swrObjHang* hang)
     if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS] != NULL && swrRace_Transition > 0.0f) {
         swrObjHang_UpdateHoloBillboardMatrix();
         if (swrRace_PodRotationAnimation < 540.0f) {
-            pitch = 100.08f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation, 540.0f);
+            pitch = 100.08f - swrObjHang_CosineEase(swrRace_PodRotationAnimation, 540.0f);
             yaw = 0.0f;
             roll = 0.0f;
         } else if (swrRace_PodRotationAnimation < 900.0f) {
             pitch = 100.08f;
             yaw = 180.0f;
-            roll = 180.0f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 540.0f, 360.0f);
+            roll = 180.0f - swrObjHang_CosineEase(swrRace_PodRotationAnimation - 540.0f, 360.0f);
         } else if (swrRace_PodRotationAnimation < 1440.0f) {
-            pitch = 280.08002f - swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 900.0f, 540.0f);
+            pitch = 280.08002f - swrObjHang_CosineEase(swrRace_PodRotationAnimation - 900.0f, 540.0f);
             yaw = 0.0f;
             roll = 0.0f;
         } else {
             pitch = 100.08f;
             yaw = 0.0f;
-            roll = -swrObjHang_EaseSine_Maybe(swrRace_PodRotationAnimation - 1440.0f, 360.0f);
+            roll = -swrObjHang_CosineEase(swrRace_PodRotationAnimation - 1440.0f, 360.0f);
         }
         rdMatrix_SetRotation44(&m, pitch, yaw, roll);
         rdVector_Copy3((rdVector3*)&m.vD, &maybeUICameraPlacements[0x24].position2);
@@ -2226,7 +2226,7 @@ void swrRace_CourseSelectionMenu(void)
             if (hang->isTournamentMode != 0 && isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1) != 0)
                 swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
         } else {
-            swrUI_Front_SeekToCurrentTrack_Maybe(hang);
+            swrUI_Front_SyncTrackSelection(hang);
         }
         swrObjHang_InitTrackSprites(hang, 1);
         swrObjHang_courseShownPlanet = g_aTrackInfos[hang->track_index].PlanetIdx;
@@ -2398,7 +2398,7 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
             swrRace_Transition = 1.0f;
         swrUI_Front_HandleCircuits(hang);
         if (hang->menuScreenPrev != swrObjHang_STATE_SELECT_PLANET)
-            swrUI_Front_SeekToCurrentTrack_Maybe(hang);
+            swrUI_Front_SyncTrackSelection(hang);
         for (i = 0; i < 12; i++)
             swrObjHang_courseInfoItemKinds[i] = -1;
         swrObjHang_courseInfoItemCount = 0;
@@ -3369,7 +3369,7 @@ void swrRace_UpdateStatPartModels(void)
 }
 
 // 0x00456200
-void swrRace_UpdatePitDroidModels_Maybe(void)
+void swrRace_UpdatePitDroidModels(void)
 {
     swrModel_NodeTransformed* node;
     swrObjElmo* droid;
@@ -4557,7 +4557,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
         if (pod->vibrationMagnitude < 0.0f)
             pod->vibrationMagnitude = 0.0f;
     }
-    swrObjJdge_LayoutHudFrameSprites_Maybe(jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING ? 5 : (jdge->hud_mode == swrObjJdge_HUDMODE_GAP_ARROWS ? 2 : 0));
+    swrObjJdge_LayoutHudFrameSprites(jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING ? 5 : (jdge->hud_mode == swrObjJdge_HUDMODE_GAP_ARROWS ? 2 : 0));
 
     // speed readout
     x = 254.0f;
@@ -4681,7 +4681,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 
     if (1 < numLocalPlayers && isPlayer2 == 0)
         dialY = 0x36;
-    swrObjJdge_DrawSpeedDialHud_Maybe(jdge, pod, 0xe1, (short)dialY, isPlayer2);
+    swrObjJdge_DrawBoostDialHud(jdge, pod, 0xe1, (short)dialY, isPlayer2);
     if (swrRace_DebugLevel != 0 && assetBufferOverflow != 0)
         swrText_CreateTextEntry1(0xa0, 0x14, -1, 0, 0, -1, "~c~oZOT");
 }

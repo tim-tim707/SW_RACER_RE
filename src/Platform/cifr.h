@@ -11,7 +11,7 @@
 // feedback layer (swrControl_PlayForceEffect etc.).
 
 #define cifr_Init_ADDR (0x00403e10)
-#define cifr_ReinitEffects_Maybe_ADDR (0x00403f00)
+#define cifr_ReinitEffects_ADDR (0x00403f00)
 #define cifr_LoadProjectFile_ADDR (0x00403f30)
 #define cifr_LoadAllEffects_ADDR (0x00403fd0)
 #define cifr_ReleaseAllEffects_ADDR (0x00404040)
@@ -26,16 +26,16 @@
 #define cifr_SetMagnitude_ADDR (0x00404400)
 #define cifr_GetDuration_ADDR (0x004044a0)
 #define cifr_SetDuration_ADDR (0x004044e0)
-#define cifr_SetCustomForceData_Maybe_ADDR (0x00404590)
-#define cifr_QueryEffectStatus_Maybe_ADDR (0x00404640)
-#define cifr_GetForceFeedbackState_Maybe_ADDR (0x00404670)
-#define cifr_InitEffectSlot_Maybe_ADDR (0x004046e0)
+#define cifr_SetTypeSpecificParams_ADDR (0x00404590)
+#define cifr_GetEffectGuid_ADDR (0x00404640)
+#define cifr_GetEffectType_ADDR (0x00404670)
+#define cifr_ResetEffectParams_ADDR (0x004046e0)
 
 // Initialize the 6 effect slots and select the force-feedback device.
 void cifr_Init(cifr_EffectSet* effects);
 
-// Tears down and reinitializes the controller's force-feedback effect slots when enabled (best guess).
-void cifr_ReinitEffects_Maybe(cifr_EffectSet* effects);
+// Tears down and reinitializes the controller's force-feedback effect slots when enabled.
+void cifr_ReinitEffects(cifr_EffectSet* effects);
 
 // Load an Immersion .fcr project file and give slot i the first effect after slotLastIds[i - 1].
 int cifr_LoadProjectFile(cifr_EffectSet* effects, char* projectFile, int* slotLastIds, char** names);
@@ -75,15 +75,15 @@ int cifr_GetDuration(cifr_Effect* effect);
 int cifr_SetDuration(cifr_Effect* effect, int durationMs, int start);
 
 // Replace the effect's type-specific parameters and download them to its first interface.
-int cifr_SetCustomForceData_Maybe(cifr_Effect* effect, unsigned int size, void* data, int start);
+int cifr_SetTypeSpecificParams(cifr_Effect* effect, unsigned int size, void* data, int start);
 
 // Get the effect GUID of the effect's first interface.
-int cifr_QueryEffectStatus_Maybe(cifr_Effect* effect, GUID* outGuid);
+int cifr_GetEffectGuid(cifr_Effect* effect, GUID* outGuid);
 
 // Get the low byte of the effect's DIEFFECTINFOA.dwEffType (DIEFT_*).
-int cifr_GetForceFeedbackState_Maybe(cifr_Effect* effect, char* outEffType);
+int cifr_GetEffectType(cifr_Effect* effect, char* outEffType);
 
 // Reset an effect's DIEFFECT/envelope to defaults and free its type-specific buffer.
-void cifr_InitEffectSlot_Maybe(cifr_Effect* effect);
+void cifr_ResetEffectParams(cifr_Effect* effect);
 
 #endif // CIFR_H

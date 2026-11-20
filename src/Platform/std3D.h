@@ -10,8 +10,8 @@
 #define std3D_Open_ADDR (0x00489ec0)
 
 #define std3D_Close_ADDR (0x0048a1c0)
-#define std3D_GetTextureFormatInfo_Maybe_ADDR (0x0048a230)
-#define std3D_GetTextureFormatClass_Maybe_ADDR (0x0048a2d0)
+#define std3D_GetTextureFormat_ADDR (0x0048a230)
+#define std3D_GetColorFormatType_ADDR (0x0048a2d0)
 
 #define std3D_GetNumTextureFormats_ADDR (0x0048a2f0)
 #define std3D_StartScene_ADDR (0x0048a300)
@@ -51,11 +51,11 @@ int std3D_Open(unsigned int deviceNum);
 
 void std3D_Close(void);
 
-// Selects a texture format and returns its color-key fields and color-mode descriptor (best guess).
-void std3D_GetTextureFormatInfo_Maybe(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey);
+// Maps a color-format type to its std3D texture format and color-key fields (RGB leaves outColorKey untouched).
+void std3D_GetTextureFormat(StdColorFormatType formatType, ColorInfo* outFormat, int* outHasColorKey, LPDDCOLORKEY* outColorKey);
 
-// Classifies a texture by a format field into one of three classes (best guess).
-StdColorFormatType std3D_GetTextureFormatClass_Maybe(ColorInfo* format);
+// Color-format type from alphaBPP: 0 = RGB, 1 = RGBA 1-bit alpha, else RGBA.
+StdColorFormatType std3D_GetColorFormatType(ColorInfo* format);
 
 int std3D_GetNumTextureFormats(void);
 int std3D_StartScene(void);

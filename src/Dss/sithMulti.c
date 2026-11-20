@@ -130,9 +130,9 @@ void sithMulti_CloseGame(void)
 }
 
 // 0x0041b950
-void sithMulti_ClearMessageField_Maybe(tSithMessage* message)
+void sithMulti_ClearAckMask(tSithMessage* message)
 {
-    message->unk14 = 0;
+    message->ackMask = 0;
 }
 
 // 0x0041b920
@@ -149,18 +149,18 @@ unsigned int sithMulti_DefaultCallback(tSithMessage* message)
 }
 
 // 0x0041b960
-void swrMultiplayer_SendPlayerLeave_Maybe(DPID to, unsigned short value)
+void swrMultiplayer_SendAck(DPID to, unsigned short value)
 {
     swrMultiplayer_ackMessage.sequenceId = 0;
     *(unsigned short*)swrMultiplayer_ackMessage.data = value;
     swrMultiplayer_ackMessage.idTo = to;
-    swrMultiplayer_ackMessage.callbackId = swrMultiplayer_MSG_PLAYER_LEAVE;
+    swrMultiplayer_ackMessage.callbackId = swrMultiplayer_MSG_ACK;
     swrMultiplayer_ackMessage.dataSize = sizeof(unsigned short);
     sithMessage_NetWrite(&swrMultiplayer_ackMessage, to);
 }
 
 // 0x0041b9a0
-unsigned int sithMulti_TrackMessagePair_Maybe(DPID idFrom, unsigned int sequenceId)
+unsigned int sithMulti_IsDuplicateMessage(DPID idFrom, unsigned int sequenceId)
 {
     swrMultiplayer_SeenMessage* seen;
 

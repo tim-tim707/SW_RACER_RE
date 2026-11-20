@@ -1744,7 +1744,7 @@ void ResetLightStreakSprites()
 }
 
 // 0x0042c500
-void ResetWorldSpriteCount_Maybe(void)
+void ResetWorldSpriteCount(void)
 {
     swrPlayerHUD_worldSpriteCount = 0;
 }
@@ -1960,7 +1960,7 @@ void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix,
 // writes that node's world matrix into outMatrix (a rdMatrix44). Only NODE_BASIC
 // and the transformed node types propagate/recurse; other node types are leaves.
 // 0x004816f0
-void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatrix,
+void swrModel_ComputeNodeWorldMatrix(swrModel_Node* target, float* outMatrix,
                                            swrModel_Node* node, rdMatrix44* parentMatrix)
 {
     if (node == NULL)
@@ -1997,7 +1997,7 @@ void swrModel_ComputeNodeWorldMatrix_Maybe(swrModel_Node* target, float* outMatr
     uint32_t num_children = swrModel_NodeGetNumChildren(node);
     for (int i = 0; i < (int)num_children; i++) {
         if (node->children.nodes[i] != NULL)
-            swrModel_ComputeNodeWorldMatrix_Maybe(target, outMatrix, node->children.nodes[i], &world);
+            swrModel_ComputeNodeWorldMatrix(target, outMatrix, node->children.nodes[i], &world);
     }
 }
 
@@ -2189,7 +2189,7 @@ void swrModel_LoadModelIntoScene(MODELID model_id, MODELID alt_model_id, INGAME_
             swr_sceneAnimations[ingame_model_id] = swrModel_LoadAllAnimationsOfModel(header);
     }
     swrViewport_SetRootNodeForAllViewports(&someUnkRootNode);
-    swrObjHang_SetState5_Maybe();
+    swrObjHang_RequestDisplayPodReset();
 }
 
 // 0x00454C60
@@ -2518,7 +2518,7 @@ void swrModel_LoadPuppet(MODELID model, INGAME_MODELID index, int kind, float a4
         return;
     swr_sceneElmos[index] = elmo;
     swrModel_LoadModelIntoScene(model, -1, index, true);
-    swrObjElmo_Init_Maybe(elmo, (swrModel_Node**)swr_sceneModels[index], (void*)swr_sceneAnimations[index], kind);
+    swrObjElmo_Init(elmo, (swrModel_Node**)swr_sceneModels[index], (void*)swr_sceneAnimations[index], kind);
     elmo->unkc_index = index;
     elmo->unkbc = a4;
     if (kind == swrObjElmo_KIND_PIT_DROID)
@@ -3768,7 +3768,7 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
 }
 
 // 0x0042c2d0
-void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
+void SetSunSpriteAlpha(int index, unsigned char alpha)
 {
     sunSpriteColors[index * 4 + 3] = alpha;
 }
@@ -3776,7 +3776,7 @@ void SetSunSpriteAlpha_Maybe(int index, unsigned char alpha)
 // Composes the transforms of a NULL-terminated node chain. The pivot comes from the last 0xd065
 // node seen; before one is seen the original reads it from outMatrix (+0x4c), kept as-is.
 // 0x004819b0
-void swrModel_ComputeNodeChainMatrix_Maybe(swrModel_Node** nodeList, rdMatrix44* outMatrix)
+void swrModel_ComputeNodeChainMatrix(swrModel_Node** nodeList, rdMatrix44* outMatrix)
 {
     swrModel_NodeTransformedWithPivot* pivotNode = (swrModel_NodeTransformedWithPivot*)outMatrix;
     rdMatrix44 local;
@@ -3853,7 +3853,7 @@ void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44
     for (i = 0; i < swrModel_closestPointDepth; i++)
         swrModel_closestPointChainOut[i] = swrModel_closestPointNodeStack[i];
     swrModel_closestPointChainOut[swrModel_closestPointDepth] = NULL;
-    rdMatrix_InvertGeneral_Maybe(&inverse, transform);
+    rdMatrix_InvertAffine(&inverse, transform);
     rdMatrix_Transform3(&swrModel_closestPoint, &point, &inverse);
     rdMatrix_Multiply3(&swrModel_closestPointNormal, &normal, &inverse);
 }
@@ -4088,11 +4088,11 @@ void swrModel_FindClosestPointOnModel(swrModel_Node* node, swrModel_Node* target
 }
 
 // 0x00482dd0
-void swrModel_TransformPointAndDir_Maybe(rdVector3* outPoint, rdVector3* outDir, swrModel_Node** nodeChain, rdVector3* point, rdVector3* dir)
+void swrModel_TransformPointAndDir(rdVector3* outPoint, rdVector3* outDir, swrModel_Node** nodeChain, rdVector3* point, rdVector3* dir)
 {
     rdMatrix44 m;
 
-    swrModel_ComputeNodeChainMatrix_Maybe(nodeChain, &m);
+    swrModel_ComputeNodeChainMatrix(nodeChain, &m);
     rdMatrix_Transform3(outPoint, point, &m);
     rdMatrix_Multiply3(outDir, dir, &m);
 }

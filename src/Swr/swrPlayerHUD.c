@@ -263,7 +263,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
             } else if (trackNumber == 2) {
                 swrWeather_SetVelocity(20.0f, 60.0f);
                 swrWeather_SetParticleCap(40);
-                SetSunSpriteAlpha_Maybe(0, 0x80);
+                SetSunSpriteAlpha(0, 0x80);
             }
         } else {
             swrWeather_SetColor(0xff, 0xff, 0xff, 40);
@@ -558,7 +558,7 @@ void swrPlayerHUD_RenderAllViewports(void)
 
     first = 1;
     if (assetBufferModelLoaded == 1) {
-        swrRace_DrawDebugMetaCamera_Maybe();
+        swrRace_RebuildViewport1Scene_Maybe();
         assetBufferModelLoaded = 0;
     }
     swr_noop2();
@@ -601,10 +601,10 @@ void swrPlayerHUD_RenderAllViewports(void)
         if (swrObjJdge_splitscreenActive != 0 && i >= 1 && (swrViewport_array[2].flag & swrViewport_FLAGS_CAMERA_VALID)) {
             fog = &swrPlayerHUD_viewportFog[i];
             if (fog->enabled != 0) {
-                rdModel_SetFogEnabled_Maybe(1);
+                rdModel_SetFogEnabled(1);
                 SetFogParameters(fog->start, 1000, fog->r, fog->g, fog->b, 0xff);
             } else {
-                rdModel_SetFogEnabled_Maybe(0);
+                rdModel_SetFogEnabled(0);
             }
             if (fog->skyboxVisible != 0) {
                 if (swrObjJdge_splitSkyboxNode != NULL)
@@ -634,7 +634,7 @@ void swrPlayerHUD_RenderAllViewports(void)
         swrSprite_DrawSprites(3);
         DrawTextEntries2();
     }
-    swrScene_UpdateTextureScroll_Maybe();
+    swrScene_UpdatePaletteScroll();
     swrSprite_ResetDirtyRects();
     swrRace_blankWorldForMenu = 0;
 }

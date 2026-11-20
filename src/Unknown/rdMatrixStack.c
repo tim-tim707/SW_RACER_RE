@@ -93,7 +93,7 @@ void rdMatrixStack44_Pop(void)
 }
 
 // 0x00445640
-void rdMatrixStack_SetField_Maybe(int selector, int value)
+void rdMatrixStack_SetField(int selector, int value)
 {
     if (selector == rdMatrixStack_FIELD_COLLISION_ANY_MASK)
         swrModel_collisionNodeAnyMask = value;
@@ -102,7 +102,7 @@ void rdMatrixStack_SetField_Maybe(int selector, int value)
 }
 
 // 0x00445660
-int rdMatrixStack_GetField_Maybe(int selector)
+int rdMatrixStack_GetField(int selector)
 {
     if (selector == rdMatrixStack_FIELD_COLLISION_ANY_MASK)
         return swrModel_collisionNodeAnyMask;

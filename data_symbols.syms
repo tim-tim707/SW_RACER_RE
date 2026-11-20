@@ -226,7 +226,7 @@ InRaceSpritesEnabled 0x004B94C0 int
 swrPlayerHUD_zBufferDepthScale 0x004b94b0 float[4] # 1/255, 1/65535, 1/(2^24-1), 1/2^32: raw z-buffer value -> [0,1] per depth byte count
 sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
 sunSpriteScale 0x004b94d0 float[2] # sun glow size; SetSunSprite, scaled by occlusion in UpdateSunAndLensFlareSprites2
-sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha_Maybe
+sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha
 lensFlareSpriteIds 0x004B94E0 int[16]
 lensFlareSize 0x00e99780 float[16] # per flare (sun * 8 + flare) sprite size; SetLensFlareSprite
 lensFlareSpread 0x00e9a440 float[16] # per flare position along the sun-to-screen-center axis (1 = on the sun, <0 = past center); SetLensFlareSprite
@@ -257,7 +257,7 @@ swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by s
 swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
-swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendPlayerLeave_Maybe)
+swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendAck)
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
@@ -364,7 +364,7 @@ g_pTxtTrackID_22 0x004c1430 char[1] # "/SCREENTEXT_519/~~Malastare 100"
 g_pTxtTrackID_23 0x004c1414 char[1] # "/SCREENTEXT_520/~~Dug Derby"
 g_pTxtTrackID_24 0x004c13f0 char[1] # "/SCREENTEXT_521/~~Sebulba's Legacy"
 
-swrScene_textureScrollState 0x004c1cb4 swrScene_PaletteScroll* # -> scroll-anim record (0x4c1c90); destPalette cleared by swrScene_ClearTextureAnim_Maybe, walked by swrScene_UpdateTextureScroll_Maybe
+swrScene_textureScrollState 0x004c1cb4 swrScene_PaletteScroll* # -> scroll-anim record (0x4c1c90); destPalette cleared by swrScene_ClearPaletteScrollTarget, walked by swrScene_UpdatePaletteScroll
 upgradeInfos 0x004C1CB8 swrUpgradeInfo[42]
 
 swrRace_defaultGravityScale 0x004c2590 float # 32.0; swrRace_ResetGravityDown sets gravityScale = this * 0.25
@@ -444,7 +444,7 @@ swrObjHang_menuJustEntered 0x004c4000 int # set by swrObjHang_SetMenuState; each
 swrObjHang_cameraLerpNeedsInit 0x004c4004 int # swrObjHang_LerpHoloCamera: recompute the move deltas and restart the clock
 swrObjHang_fadeDone 0x004c4008 int # set when a fade in/out completes, cleared when a fade-out starts; read by swrUI_UpdatePlayerMenuInput
 swrObjHang_cameraMoveSettled 0x004c400c char # set when a camera move settles; swrObjHang_UpdateIdleCamera consumes it
-swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCameraAssignments_Maybe; no reader in the retail binary
+swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCameraAssignments; no reader in the retail binary
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 swrSprite_drawStateWord 0x004c3db8 int # low 16 bits of the swrSprite_SetDrawStateWord_Maybe argument; no reader found
@@ -613,7 +613,7 @@ multiplayer_in_mp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
 
-sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyPlayerLeave clears bits)
+sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyAck clears bits)
 swrMultiplayer_aSeenMessages 0x004e9918 swrMultiplayer_SeenMessage[128] # ring of applied guaranteed messages, deduplicates resends
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
@@ -883,7 +883,7 @@ swrRace_audioVideoMenuRow 0x0050c528 int # highlighted A/V settings row (0 music
 swrRace_audioVideoMenuLastRow 0x004c0208 int # .data 5: last A/V settings row, the cursor wraps past it
 swrRace_menuSpriteCount 0x0050c928 int # next free garage menu sprite (id 0x82 + n); swrObjHang_F0 resets it, the stats panel and A/V settings page take from it
 swrRace_statBarSpriteCount 0x0050c92c int # next free garage stat-bar sprite (id 0x90 + n); swrRace_DrawStatBar takes two per bar
-swrObjHang_ambientAnimPhase 0x0050cad8 float # seconds, wraps at 6.26666 (swrObjHang_TickHolotableSpin_Maybe)
+swrObjHang_ambientAnimPhase 0x0050cad8 float # seconds, wraps at 6.26666 (swrObjHang_UpdateAmbientAnimSpeed)
 swrObjHang_partSpinAngle 0x0050c8f0 float # degrees, advanced every frame by swrObjHang_F0 and wrapped at 360; spins the part in the detail view
 swrObjHang_partLayoutDirty 0x0050c474 int # set by the Watto shop / junkyard / SwapSelectedPart; swrRace_UpdatePartMenuLayout re-places the part icons and clears it
 swrObjHang_partLerpActive 0x0050c46c int # part icons are gliding vector2 -> vector3 (swrRace_UpdatePartMenuLayout)
@@ -928,8 +928,8 @@ swrSound_Orientation2 0x0050c658 rdVector4
 swrSound_Position 0x0050c668 rdVector4
 
 swrSound_prevPosition 0x0050c678 rdVector3 # last frame's listener position (doppler velocity)
-swrSound_prevUpdateFlag 0x0050c684 uint8_t # last swrSound_updateFlag seen; a change restarts non-streamed voices
-swrSound_updateFlag 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
+swrSound_prevReverbLevel 0x0050c684 uint8_t # last swrSound_reverbLevel seen; a change restarts non-streamed voices
+swrSound_reverbLevel 0x0050c688 uint8_t # 0 or 0x7f from the surface under the camera pod (swrObjcMan_UpdateTerrainVisuals); read by swrSound_Update
 swrSound_unk_init 0x0050c68c int
 swrSound_Velocity 0x0050c690 rdVector3
 swrSound_layeredStreamActive 0x0050c69c int # set while swrSound_PlayLayeredStream_Maybe owns IA3dSource2_ptr (intro) / IA3dSource3_ptr (loop)
@@ -1011,12 +1011,12 @@ swrObjHang_episodeFadeTimer 0x0050c1dc float # splash: "Episode I" fade-in, 1 s 
 swrObjHang_racerSlideTimer 0x0050c1e0 float # splash: RACER slide-in, 1 -> 0 at 5x speed once the fade is half done
 swrObjHang_splashPageSequence 0x0050c218 char[12] # splash page order {0,1,2[,3]}, -1 padded; written by the splash, never read
 swrObjHang_splashPageCount 0x0050c490 char # entries used in swrObjHang_splashPageSequence
-swrObjHang_extraSplashPages 0x0050c5b0 int[4] # read only by getInRaceInputBufferEntry_Maybe; never written (BSS 0)
+swrObjHang_extraSplashPages 0x0050c5b0 int[4] # read only by swrObjHang_IsExtraSplashPageEnabled; never written (BSS 0)
 swrObjHang_attractDemoTimer 0x004c0014 float # splash idle time left before the attract demo starts (reset to 30)
 swrObjHang_fadeOutAlpha 0x0050c570 float # fade sprite alpha while fading out, 0 -> 255 (swrObjHang_FadeOutAndAdvance)
 swrObjHang_inspectIdleTimer 0x0050c574 float # seconds on the current idle look-at-vehicle camera (swrObjHang_CycleInspectCamera)
 swrObjHang_fadeOutHoldFrames 0x004c02a8 short = 3 # frames held at full black before swrObjHang_FadeOutAndAdvance switches screen
-swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading in (swrObjHang_FadeScreenFlash_Maybe)
+swrObjHang_fadeInAlpha 0x004c02ac float = 255.0 # fade sprite alpha while fading in (swrObjHang_UpdateFadeIn)
 swrObjHang_fadeInHoldFrames 0x004c02b0 short = 3 # frames held at alpha 0 before the fade-in finishes
 swrObjHang_fadeInDelayFrames 0x004c02b4 int = 30 # frames held at full black before the fade-in starts
 swrObjHang_inspectIdleDelay 0x004c02b8 float # seconds until the next idle camera change, 3..7 s; -1.0 = not rolled yet
@@ -1067,7 +1067,7 @@ swrSpriteTexture_dial_gradient_rgb2 0x0050CA00 swrSpriteTexture*
 
 speedDialPosition1 0x0050CA04 float
 speedDialPosition2 0x0050CA08 float
-swrObjJdge_boostHintBlinkCounter 0x0050ca58 int # frame toggle for the first-track "Boost" hint in swrObjJdge_DrawSpeedDialHud_Maybe
+swrObjJdge_boostHintBlinkCounter 0x0050ca58 int # frame toggle for the first-track "Boost" hint in swrObjJdge_DrawBoostDialHud
 
 swrObjJdge_unkCa0c 0x0050ca0c int
 
@@ -1371,7 +1371,7 @@ rdCamera_pCurCamera 0x00df7f2c rdCamera*
 bRDroidStartup 0x00df7f30 int
 rdroid_bRDroidOpen 0x00df7f34 int
 
-# rdClip_Face3T_Maybe light gather: per-face-vertex intensities, destination and source vertex lights
+# rdPrimit3_ClipFace3T light gather: per-face-vertex intensities, destination and source vertex lights
 rdClip_face3TIntensities 0x00df7f78 rdVector4*
 rdClip_face3TDstLights 0x00df7f7c rdVector4*
 rdClip_face3TSrcLights 0x00df7f80 rdVector4*
@@ -1400,7 +1400,7 @@ rdClip_pSrcIntensities 0x00dfa13c rdVector4*
 rdClip_workVerts 0x00dfa140 rdVector3[80]
 rdClip_workIntensities 0x00dfa500 rdVector4[80]
 rdClip_faceStatus 0x00dfaa04 int
-# rdClip_Face3TTestFrustum_Maybe / rdClip_Face3TClipPlane_Maybe indexed-face streams
+# rdClip_Face3TTestFrustum / rdClip_Face3TClipNear indexed-face streams
 rdClip_pFaceSrcUVs 0x00dfaa08 rdVector2*
 rdClip_pFaceDstUVs 0x00dfaa0c rdVector2*
 rdClip_pFaceDstLights 0x00dfaa10 rdVector4*
@@ -1505,7 +1505,7 @@ swrObjTrig_ModelArray2 0x00E26FE0 swrModel_Node*[6]
 swrObjTrig_TriggerDescriptionArray2 0x00E27000 swrModel_TriggerDescription*[50]
 dustWhirlChildNodesPtr 0x00E270C8 swrModel_Node**
 swrObjTest_autoTiltSnapshot 0x00e270e0 float # autoTilt copy written by swrObjTest_UpdateControlAndMove each frame; never read
-swrObjTrig_regionBoundsX 0x00E270D0 float[4] # 3 region columns (swrObjTrig_InitColorBands_Maybe)
+swrObjTrig_regionBoundsX 0x00E270D0 float[4] # 3 region columns (swrObjTrig_InitRegionGrid)
 swrObjTrig_regionBoundsY 0x00E27100 float[9] # 8 region rows
 swrObjTrig_regionMarginX 0x00E27124 float # column overlap margin for swrRace_UpdateCollisionToggles
 swrObjTrig_regionMarginY 0x00E27128 float # row overlap margin for swrRace_UpdateCollisionToggles
@@ -1528,7 +1528,7 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
 swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
-swrModel_beamTemplateNode 0x00e277e0 swrModel_Node* # beamanim_vlec root (swrModel_LoadBeamAndSparkModels); RecordLoadedModel_Maybe target for pod parts
+swrModel_beamTemplateNode 0x00e277e0 swrModel_Node* # beamanim_vlec root (swrModel_LoadBeamAndSparkModels); swrModel_NodeLinkSharedChild target for pod parts
 swrModel_sparkTemplateNode 0x00e28964 swrModel_Node* # first child of sparky_part's root (swrModel_LoadBeamAndSparkModels)
 swrObjJdge_duplicatePods 0x0050ca1c int # 1 when two racers in the race share a pod (swrObjJdge_SpawnRacers); passed to every swrObjJdge_SpawnRacer
 swrObjJdge_racerNameTags 0x00e27840 char[80] # per racer, 4 bytes: chars 2..4 of the translated pilot name + NUL (swrObjJdge_SpawnRacers)
@@ -1620,7 +1620,7 @@ someUnkRootNode 0x00e2a660 swrModel_Node # NODE_BASIC root over swrScene_ChildNo
 swrObjHang_lastMenuScreen 0x00e2a67c swrObjHang_STATE # copy of hang->menuScreen; swrObjElmo_SetAnimState picks pit-droid chatter from it
 
 swrRace_statBarChanged 0x00e2a6b0 short[7] // per-upgrade-slot flag: the candidate upgrade moves this bar
-uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[35] # shop/junkyard part list (LoadUpgradeModelsIntoScene_Maybe); 35 = 7 types x 5 non-installed levels, fills the gap up to 0xe2ae80
+uiUpgradeInfos2 0x00E2A6C0 swrUIUpgradeInfo[35] # shop/junkyard part list (swrObjHang_LoadShopPartModels); 35 = 7 types x 5 non-installed levels, fills the gap up to 0xe2ae80
 
 swrObjHang_menuAcceptLock 0x00e2a698 int # blocks course-select/-info accept+cancel while nonzero; no writer found in the retail binary
 
@@ -1663,18 +1663,18 @@ swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 rdModel_lastVertexLoad 0x00e996a0 Vtx* # last gSPVertex source (minus the mesh's vertex_base_offset) seen by rdModel_ConvertSwrModelMesh; write-only
 translation_unk 0x00e996c0 rdVector3
 rotation_unk 0x00e996cc rdVector3
-swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetCameraState_Maybe / ResetModelPreviewState_Maybe; no readers found
+swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetRenderState / ResetModelPreviewState_Maybe; no readers found
 
 GameSettingFlags 0x00e996dc int
 swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every access is 8/16-bit
-swrViewport_renderStateUnkE2 0x00e996e2 short # set to 2 by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkE4 0x00e996e4 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkE8 0x00e996e8 float # set to 1.0 by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_sceneInitArg 0x00e996ec int # first swrScene_Init argument (unless GAME_SETTING_UNK_200); zeroed by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkF0 0x00e996f0 int # set to 1 by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkF4 0x00e996f4 short # set to 30 by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkF6 0x00e996f6 short # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
-swrViewport_renderStateUnkF8 0x00e996f8 int # zeroed by swrViewport_ResetCameraState_Maybe; no reader found
+swrViewport_renderStateUnkE2 0x00e996e2 short # set to 2 by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkE4 0x00e996e4 float # set to 1.0 by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkE8 0x00e996e8 float # set to 1.0 by swrViewport_ResetRenderState; no reader found
+swrViewport_sceneInitArg 0x00e996ec int # first swrScene_Init argument (unless GAME_SETTING_UNK_200); zeroed by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkF0 0x00e996f0 int # set to 1 by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkF4 0x00e996f4 short # set to 30 by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkF6 0x00e996f6 short # zeroed by swrViewport_ResetRenderState; no reader found
+swrViewport_renderStateUnkF8 0x00e996f8 int # zeroed by swrViewport_ResetRenderState; no reader found
 
 # 1 when rdProcEntry's current color is already synced to currentSpriteColor; cleared by
 # swrSprite_setCurrentSpriteColor, re-set after swrText_DrawGlyph re-pushes the color
@@ -1738,7 +1738,7 @@ swrRace_airbrake_upgrade_health 0x00e35aac char
 swrRace_cooling_upgrade_health 0x00e35aad char
 swrRace_repair_upgrade_health 0x00e35aae char
 
-swrAssetBuffer_regionA 0x00e34a60 char* # 64-byte aligned block carved by swrAssetBuffer_ReserveRegionA_Maybe
+swrAssetBuffer_regionA 0x00e34a60 char* # 64-byte aligned block carved by swrAssetBuffer_ReserveRegionA
 swrPlayerHUD_frameBuffers 0x00e34a70 int[3] # indexed by swrViewport_frameTriple; never written in the PC build (N64 framebuffer ring)
 swrRace_saveDataBackup 0x00e34a80 swrSaveData # snapshot taken by swrRace_BackupGameData (shop transaction rollback)
 swrRace_aCrc32Table 0x00e360a0 uint32_t[256] # lazily built by swrRace_InitCrc32Table (poly 0x04c11db7)
@@ -1758,17 +1758,17 @@ repair_upgrade_level 0x00e364fb char
 
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
-rdModel_sceneStateUnusedE 0x00e374c4 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneStateUnusedE 0x00e374c4 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 rdModel_displayListCursor 0x00e374c0 Gfx* # display-list cursor saved/restored around rdModel_BuildAndDrawScene
 rdModel_sceneStatCounters 0x00e374e0 int[16] # zeroed per rdModel_BuildAndDrawScene, then [0] += [1..15]; nothing else touches them on PC
 
 PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
-rdModel_sceneStateUnusedD 0x00e37524 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
-rdModel_sceneStateUnusedC 0x00e37528 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneStateUnusedD 0x00e37524 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
+rdModel_sceneStateUnusedC 0x00e37528 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 
 PrecomputedModelMatrixPtr 0x00e3752c rdMatrix44*
 rdProcEntry_CurrentColor 0x00E37530 rdVector4
-rdModel_sceneState 0x00e37540 uint32_t[13] # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneState 0x00e37540 uint32_t[13] # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 
 rdMatrix44_model_MVP 0x00e37580 rdMatrix44
 rdMatrixStack34 0x00e375c0 rdMatrix34[33]
@@ -1776,9 +1776,9 @@ rdModel_rootGeoSet 0x00e37bf0 rdModel3GeoSet* # &swr_rootModel_ptr->aGeos[curGeo
 
 rdMatrix44_ringBuffer 0x00e37c00 rdMatrix44[0xbff]
 
-rdModel_sceneStateUnusedA 0x00e67c00 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneStateUnusedA 0x00e67c00 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 rdModel_CurrentViewport 0x00e67c04 swrViewport*
-rdModel_sceneStateUnusedB 0x00e67c08 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights_Maybe
+rdModel_sceneStateUnusedB 0x00e67c08 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 
 # 8-voice mixer. swrSound_Update reconciles requested -> live each frame and
 # snapshots live -> backup when the audio output changes. See swrSound struct.
@@ -1794,7 +1794,7 @@ assetBufferUnknown 0x00E981E8 int # only used in swrModel_ByteSwapModelData?
 
 assetBuffer 0x00e98200 char* # 0x800000 bytes
 swrAssetBuffer_regionBEnd 0x00e98230 char* # swrAssetBuffer_regionB + SWR_ASSET_BUFFER_REGION_B_SIZE
-swrAssetBuffer_regionB 0x00e98238 char* # 64-byte aligned block carved by swrAssetBuffer_ReserveRegionB_Maybe
+swrAssetBuffer_regionB 0x00e98238 char* # 64-byte aligned block carved by swrAssetBuffer_ReserveRegionB
 
 assetBuffer_ModelBeginPtr 0x00E9822C char*
 assetBufferUnknownStats4 0x00E98240 int
@@ -2051,7 +2051,7 @@ flip_y_axis 0x00ec8794 int
 flip_z_axis 0x00ec8798 int
 swrConfig_joystickNbButtons 0x00ec879c int
 swrConfig_joystickNbAxis 0x00ec87a0 int
-swrUI_inputChangeFlags 0x00ec8740 int # per-frame UI input change bits (swrUI_UpdateMouseState); first dword of the 0xb-dword block cleared by swrControl_ClearPollState_Maybe
+swrUI_inputChangeFlags 0x00ec8740 int # per-frame UI input change bits (swrUI_UpdateMouseState); first dword of the 0xb-dword block cleared by swrControl_ClearUIInputChangeFlags
 swrControl_joystickAxes 0x00ec87c0 float[6] # this frame's scaled joystick axes (swrControl_ProcessInputs)
 swrControl_mouseAxes 0x00ec87d8 float[3] # this frame's mouse axes, flip applied
 swrControl_keyboardAxes 0x00ec87f0 float[3] # arrow/numpad keys as steer X / Y axes
@@ -2301,8 +2301,8 @@ swrSound_racerPreloadSfxIds 0x004b9098 int[12] # category-1 (pilot voice) sfx id
 swrSound_localRacerPreloadSfxIds 0x004b90c8 int[10] # extra category-1 sfx ids preloaded for local ('Locl') racers
 swrSound_masterGainScaled 0x004c2588 int = 32000 # swrSound_SetMasterGain: gain * 32000, written while sound is up; no readers
 swrAssetBuffer_initialBase 0x00e98234 char* # assetBuffer as first allocated by swrScene_InitWorld; only read into a dead local by swrScene_Stub_Maybe
-swrViewport_frameParity 0x00e98228 uint8_t # toggled 0/1 by swrViewport_AdvanceFrameParity_Maybe; cleared with the asset-buffer slots by swrScene_InitWorld
-swrViewport_frameTriple 0x00e98244 uint8_t # cycles 0..2 in swrViewport_AdvanceFrameParity_Maybe; read by swrPlayerHUD_RenderAllViewports
+swrViewport_frameParity 0x00e98228 uint8_t # toggled 0/1 by swrViewport_AdvanceFrameParity; cleared with the asset-buffer slots by swrScene_InitWorld
+swrViewport_frameTriple 0x00e98244 uint8_t # cycles 0..2 in swrViewport_AdvanceFrameParity; read by swrPlayerHUD_RenderAllViewports
 swrCam_fixedCameraMatrices 0x00e99420 rdMatrix44[10] # matrix sources of camera states 0..9 (swrScene_InitCameras); cMan cameras take over 7+
 swrUI_rootElementStorage 0x004d8210 int[348] # swrUI_unk_ptr's storage; only its first 0x570 bytes exist (cleared by swrUI_Initialize)
 swrUI_initJoyAxisX 0x004d8204 float # swrControl_joystickAxes[0] latched by swrUI_Initialize; no readers

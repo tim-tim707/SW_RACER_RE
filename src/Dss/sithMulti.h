@@ -18,9 +18,9 @@
 #define sithMulti_RunCallback_ADDR (0x0041b8f0)
 #define sithMulti_ResetCallbackState_ADDR (0x0041b920)
 #define sithMulti_DefaultCallback_ADDR (0x0041b940)
-#define sithMulti_ClearMessageField_Maybe_ADDR (0x0041b950)
-#define swrMultiplayer_SendPlayerLeave_Maybe_ADDR (0x0041b960)
-#define sithMulti_TrackMessagePair_Maybe_ADDR (0x0041b9a0)
+#define sithMulti_ClearAckMask_ADDR (0x0041b950)
+#define swrMultiplayer_SendAck_ADDR (0x0041b960)
+#define sithMulti_IsDuplicateMessage_ADDR (0x0041b9a0)
 
 #define sithMulti_CloseGame_ADDR (0x0041c570)
 
@@ -39,14 +39,14 @@ void sithMulti_ResetCallbackState(void);
 // A default message handler that simply returns one (best guess).
 unsigned int sithMulti_DefaultCallback(tSithMessage* message);
 
-// Clears a single field of a message struct (best guess).
-void sithMulti_ClearMessageField_Maybe(tSithMessage* message);
+// Clears the message's ack-pending player mask (so sithMessage_SendMessage always sends unsequenced).
+void sithMulti_ClearAckMask(tSithMessage* message);
 
-// Sends a player-leave message to one DirectPlay peer (best guess).
-void swrMultiplayer_SendPlayerLeave_Maybe(DPID to, unsigned short value);
+// Acks a guaranteed message: sends its sequenceId back to the sender as MSG_ACK.
+void swrMultiplayer_SendAck(DPID to, unsigned short value);
 
-// Tracks a message pair in a 128-entry table, appending if unseen and reporting whether it was already present (best guess).
-unsigned int sithMulti_TrackMessagePair_Maybe(DPID idFrom, unsigned int sequenceId);
+// Returns 1 if (idFrom, sequenceId) was already received; otherwise records it in the 128-entry ring and returns 0.
+unsigned int sithMulti_IsDuplicateMessage(DPID idFrom, unsigned int sequenceId);
 
 void sithMulti_CloseGame(void);
 

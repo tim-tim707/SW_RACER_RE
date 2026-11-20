@@ -286,8 +286,8 @@
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
-#define SWR_ASSET_BUFFER_REGION_A_SIZE (0x4b000) // swrAssetBuffer_ReserveRegionA_Maybe, plus 0x40 alignment slack
-#define SWR_ASSET_BUFFER_REGION_B_SIZE (0x10000) // swrAssetBuffer_ReserveRegionB_Maybe, plus 0x40 alignment slack
+#define SWR_ASSET_BUFFER_REGION_A_SIZE (0x4b000) // swrAssetBuffer_ReserveRegionA, plus 0x40 alignment slack
+#define SWR_ASSET_BUFFER_REGION_B_SIZE (0x10000) // swrAssetBuffer_ReserveRegionB, plus 0x40 alignment slack
 // swrModel_LoadTextureDataAndPalette: pixel data and palette each start on a 64-byte boundary;
 // the free-space check reserves room for both alignment pads
 #define SWR_TEXTURE_DATA_ALIGN (64)
@@ -301,7 +301,7 @@
 #define WINDOW_KEY_SCANCODE_EXT_MASK (0x1ff) // WM_KEY* lParam high word: 8-bit scan code + extended-key bit
 #define SWR_TEXTURE_BUFFER_SIZE (1700) // texture_buffer entries; swrAssetBuffer_InvalidateTexturesBelow scans them all
 
-// swrObjHang_SetState5_Maybe (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
+// swrObjHang_RequestDisplayPodReset (0x004337d0): frames swrRace_AnimateDisplayPod spends in its reset path after a scene load
 #define SWR_DISPLAY_POD_RESET_FRAMES (5)
 
 // swrRace_ComputeUpgradePrices (0x0043eb50): float32 at 0x004ac9d8, -1/255 rounded toward zero
@@ -315,7 +315,7 @@
 #define SWR_POD_TRANSFORM_HISTORY (18) // swrRace.transformHistory ring size (PoddAnimateEngines)
 #define SWR_POD_MODEL_UNIT_SCALE (0.004f) // pod model units -> world (shadow quads, cable width, debug model)
 
-// LoadUpgradeModelsIntoScene_Maybe (0x0043e840)
+// swrObjHang_LoadShopPartModels (0x0043e840)
 #define SWR_UPGRADE_LEVEL_COUNT (6) // levels per upgrade type; upgradeInfos index = type * 6 + level
 #define SWR_SHOP_STARTING_TRACKS (3) // unlocked tracks a new profile starts with; not counted toward shop unlocks
 #define SWR_SCENE_SLOT_SHOP_PARTS (0x62) // swr_sceneModels slot of the first shop/junkyard part model

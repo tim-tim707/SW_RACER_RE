@@ -16,8 +16,8 @@
 #define swrCam_CamState_GetOffsetTransform_ADDR (0x00428c40)
 #define swrCam_CamState_ApplyToViewport_ADDR (0x00428cd0)
 #define swrCam_GetActiveViewportCameraTransform_ADDR (0x004292b0)
-#define swrCam_PickNearestSplitCameraTransform_Maybe_ADDR (0x00429330)
-#define swrCam_IsBehaviorActiveViewportCamera_Maybe_ADDR (0x004294e0)
+#define swrCam_PickNearestSplitCameraTransform_ADDR (0x00429330)
+#define swrCam_IsBehaviorActiveViewportCamera_ADDR (0x004294e0)
 
 // Reset/init the per-camera transform matrices across the camera-state array.
 void swrCam_CamState_InitMatrices(void);
@@ -44,10 +44,10 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport);
 // Copies the transform of the first visible viewport camera into the output, or identity if none.
 void swrCam_GetActiveViewportCameraTransform(rdMatrix44* out);
 
-// Compares the two split-screen viewport cameras and copies the one nearest the given position (best guess).
-void swrCam_PickNearestSplitCameraTransform_Maybe(rdMatrix44* out, float* pos);
+// Compares the two split-screen viewport cameras and copies the one nearest the given position.
+void swrCam_PickNearestSplitCameraTransform(rdMatrix44* out, float* pos);
 
-// Returns whether the given mesh behavior is the active camera of any viewport (best guess).
-int swrCam_IsBehaviorActiveViewportCamera_Maybe(swrModel_Behavior* behavior);
+// Returns whether the given mesh behavior is the active camera of any viewport.
+int swrCam_IsBehaviorActiveViewportCamera(swrModel_Behavior* behavior);
 
 #endif // SWRCAM_H

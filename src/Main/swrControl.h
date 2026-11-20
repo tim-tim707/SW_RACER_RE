@@ -37,7 +37,7 @@
 #define swrControl_FindKeyName_ADDR (0x00407d90)
 #define swrControl_SelectSavedJoystick_ADDR (0x00407de0)
 #define swrControl_IsKeyStringControl_ADDR (0x00408020)
-#define swrControl_ClearPollState_Maybe_ADDR (0x004081c0)
+#define swrControl_ClearUIInputChangeFlags_ADDR (0x004081c0)
 
 // Force feedback (DirectInput effects loaded from data/bundle*.fcr via cifr_*).
 #define swrControl_LoadForceEffects_ADDR (0x00409d70)
@@ -112,8 +112,8 @@ int stdControl_isAxisAboveDeadzone(int axisId, int direction, float value, float
 // Snapshot all 256 key states and drain the buffered-key (WndProc) queue.
 void swrControl_SnapshotKeyboard(void);
 
-// Clears the unified accept/cancel control-poll accumulators and returns one (best guess).
-int swrControl_ClearPollState_Maybe(void);
+// Zeroes the swrUI_inputChangeFlags block before swrUI_Initialize; returns 1.
+int swrControl_ClearUIInputChangeFlags(void);
 
 // Input rebinding / device-scan helpers:
 unsigned int swrControl_ScanPressedButtons(int device, int returnBitmask); // scan kbd 0x200-3 / joystick buttons for presses

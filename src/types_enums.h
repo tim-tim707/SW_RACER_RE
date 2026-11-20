@@ -99,10 +99,10 @@ typedef enum rdModel3MeshColorFlag
 // GameSettingFlags @ 0x00e996dc: global render/gameplay setting bits.
 typedef enum GameSettingFlag
 {
-    GAME_SETTING_UNK_1 = 0x1, // set by swrScene_LoadObjects; part of the swrViewport_ResetCameraState_Maybe default (9)
+    GAME_SETTING_UNK_1 = 0x1, // set by swrScene_LoadObjects; part of the swrViewport_ResetRenderState default (9)
     GAME_SETTING_STEREO_PAN = 0x8, // swrSound_PlaySpatial pans sfx by their side of the listener
     GAME_SETTING_UNTEXTURED = 0x10, // rdModel_AddMeshGroupToScene*: meshes take the default untextured material
-    GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled_Maybe)
+    GAME_SETTING_FOG_DISABLED = 0x40, // fog off (set/cleared by rdModel_SetFogEnabled)
     GAME_SETTING_UNK_200 = 0x200, // swrScene_Init skips latching its first argument when set
     GAME_SETTING_UNK_400 = 0x400, // swrScene_ResetRenderState also enables viewport 1
     GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
@@ -216,12 +216,12 @@ typedef enum swrSound_SFXFLAG
 typedef enum swrSound_HANGSFXFLAG
 {
     swrSound_HANGSFXFLAG_IN_WATTO_SHOP = 0x1, // set entering Watto's shop, cleared entering the junkyard
-    swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED = 0x2, // Watto's first parts-counter line played (swrObjHang_PlayWattoVoiceLines_Maybe)
+    swrSound_HANGSFXFLAG_PARTS_INTRO_PLAYED = 0x2, // Watto's first parts-counter line played (swrObjHang_PlayShopGreeting)
     swrSound_HANGSFXFLAG_JUNKYARD_INTRO_PLAYED = 0x4, // the junkyard's first greeting played (swrObjHang_UpdateJunkyard)
     swrSound_HANGSFXFLAG_PIT_DROID_INTRO_PLAYED = 0x8, // Watto's first pit-droid-counter line played
     swrSound_HANGSFXFLAG_FADED_IN = 0x10, // the screen fade-in finished; cleared when the fade-out starts
     swrSound_HANGSFXFLAG_GREETING_PENDING = 0x20, // shop greeting armed; consumed by the Watto/junkyard greeting,
-                                                  // blocks swrObjElmo_PlayRandomVoiceSfx_Maybe while set
+                                                  // blocks swrObjElmo_PlayRandomVoiceSfx while set
     swrSound_HANGSFXFLAG_PODIUM_LINE_PLAYED = 0x1000000, // planet-select intro: the winner's line followed the announcer
     swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER = 0x80000000, // menu screens without pit-droid idle chatter
                                                             // (swrObjElmo_SetAnimState skips it)
@@ -316,7 +316,7 @@ typedef enum swrRace_DEBUGFLAG
     swrRace_DEBUGFLAG_DEBUG_KEYS = 0x100, // with swrRace_DebugLevel != 0, enables held-key debug toggles (e.g. hide the pod reflection)
     swrRace_DEBUGFLAG_HIDE_OVERLAY_KEYS = 0x200, // with swrRace_DebugLevel > 0, holding input bits 0x1100 hides the sun/flares and the 2D overlay sprites
     swrRace_DEBUGFLAG_IFLY = 0x2000, // I+F+L+Y with DebugMenuState 2 (swrMain_ProcessDebugKeys); read by swrRace_UpdateSurfaceTag
-    swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugColorsEqual_Maybe (profile-initials checks)
+    swrRace_DEBUGFLAG_NAME_CHECKS = 0x4000, // gates swrUI_DebugInitialsMatch (profile-initials checks)
     swrRace_DEBUGFLAG_DUAL_CONTROL = 0x2000000, // N64 two-controller mode (one stick per engine); nothing on PC sets it
 } swrRace_DEBUGFLAG;
 
@@ -596,7 +596,7 @@ typedef enum swrObjcMan_VIEWFLAGS
 {
     swrObjcMan_VIEWFLAGS_FOG_DISTANCE = 0x1, // the surface sets the fog end distance (swrModel_Behavior_FOGFLAG_DISTANCE)
     swrObjcMan_VIEWFLAGS_FOG_START = 0x2, // the surface's fog start is > 0
-    swrObjcMan_VIEWFLAGS_NO_SKYBOX = 0x4, // hide the skybox and clear the frame (swrObjJdge_ToggleSkyboxVisibility_Maybe)
+    swrObjcMan_VIEWFLAGS_NO_SKYBOX = 0x4, // hide the skybox and clear the frame (swrObjJdge_ApplySkyboxVisibility)
     swrObjcMan_VIEWFLAGS_NO_WEATHER = 0x8, // swrWeather_Disable instead of Enable
     swrObjcMan_VIEWFLAGS_SNAP_FOG_COLOR = 0x10, // jump fog_rgb to its target instead of stepping (consumed while fog is on)
 } swrObjcMan_VIEWFLAGS;
@@ -648,7 +648,7 @@ typedef enum swrObjTrig_FLAG
     swrObjTrig_FLAG_FX_SPAWNED = 0x4, // earthquake FX has been spawned (SpawnEarthquakeShake phase gate)
 } swrObjTrig_FLAG;
 
-// selector argument of rdMatrixStack_GetField_Maybe / SetField_Maybe
+// selector argument of rdMatrixStack_GetField / SetField_Maybe
 typedef enum rdMatrixStack_FIELD
 {
     rdMatrixStack_FIELD_COLLISION_ANY_MASK = 3, // swrModel_collisionNodeAnyMask
@@ -1602,7 +1602,7 @@ typedef enum swrSprite_FLAG // swrSprite.flags
     swrSprite_FLAG_MIRROR_H = 0x4, // from swrUI_SPRITE_SLOT_MIRROR_H
     swrSprite_FLAG_MIRROR_V = 0x8, // from swrUI_SPRITE_SLOT_MIRROR_V
     swrSprite_FLAG_ADDITIVE = 0x800, // from swrUI_SPRITE_SLOT_ADDITIVE
-    swrSprite_FLAG_STREAK = 0x4000, // drawn as a streak to the swrSprite_SetStreakEndpoints_Maybe endpoint (weather)
+    swrSprite_FLAG_STREAK = 0x4000, // drawn as a streak to the swrSprite_SetStreakEndFromScreen endpoint (weather)
     swrSprite_FLAG_UNK_8000 = 0x8000, // set on the hangar track-grid windows; no reader in the draw path yet
     swrSprite_FLAG_UNK_10000 = 0x10000, // set every frame on swrUI element sprites and the caret
 } swrSprite_FLAG;
@@ -5139,7 +5139,7 @@ typedef enum swrMultiplayer_MSG
     swrMultiplayer_MSG_JOIN_RESPONSE = 0x24,
     swrMultiplayer_MSG_PING = 0x26,
     swrMultiplayer_MSG_PING_REPLY = 0x27,
-    swrMultiplayer_MSG_PLAYER_LEAVE = 0x28,
+    swrMultiplayer_MSG_ACK = 0x28,
     swrMultiplayer_MSG_VERIFY_PLAYER_LIST = 0x29,
     swrMultiplayer_MSG_PLAYER_QUIT = 0x2a,
     swrMultiplayer_MSG_READY_MASK = 0x2c,

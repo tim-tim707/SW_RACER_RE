@@ -111,7 +111,7 @@ void ResetModelPreviewState_Maybe(void)
 }
 
 // 0x00448d40
-void swrAssetBuffer_ReserveRegionA_Maybe(void)
+void swrAssetBuffer_ReserveRegionA(void)
 {
     char* buffer = swrAssetBuffer_GetBuffer();
 
@@ -120,7 +120,7 @@ void swrAssetBuffer_ReserveRegionA_Maybe(void)
 }
 
 // 0x00448d60
-void swrAssetBuffer_ReserveRegionB_Maybe(void)
+void swrAssetBuffer_ReserveRegionB(void)
 {
     char* buffer = swrAssetBuffer_GetBuffer();
 

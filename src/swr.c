@@ -27,8 +27,8 @@ void playASoundImpl(int soundId, short priority, float pitch, float volume, shor
         fade = 1.0f;
     }
     // the music volume is a short; only its low byte is the slider value
-    volume = (float)(swrSound_IsLoopingSfxId_Maybe(soundId) != 0 ? *(uint8_t*)&sound_music_volume : sound_sfx_volume) * SWR_SOUND_VOLUME_SCALE * volume;
-    if (swrSound_IsLoopingSfxId_Maybe(soundId) != 0) {
+    volume = (float)(swrSound_UsesMusicVolume(soundId) != 0 ? *(uint8_t*)&sound_music_volume : sound_sfx_volume) * SWR_SOUND_VOLUME_SCALE * volume;
+    if (swrSound_UsesMusicVolume(soundId) != 0) {
         priority = SWR_SOUND_LOOPING_PRIORITY;
     }
     gain = fade * volume;
