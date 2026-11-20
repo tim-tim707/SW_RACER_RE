@@ -125,6 +125,20 @@ void pod_edits_animations_frame(bool in_race);                                 /
 //   cables extra                (bake only) a second cable pair for a 2-engine pod, see below
 //   cable2 cockpit|engine <x y z> where that second pair meets the cockpit / the engines
 void pod_edits_layout_frame();
+// "enginegap <k>" / "cockpitgap <k>" / "podheight <dz>": after the game places the pod's parts
+// (PoddAnimateEngines), the engines are spread sideways from the pod's middle (k x their stock gap),
+// the cockpit moved toward / away from the engines (k x its stock distance), and the whole drawn pod
+// raised / lowered by dz along its up axis; "cockpitmove <x> <y> <z>" moves the cockpit freely (pod's
+// right, forward, up). Visual only: physics, collision and hitboxes untouched.
+void pod_edits_apply_gaps(swrRace* player);
+// The same spacing / height / cockpit move on the racer-select display pod (its node transforms,
+// after the display animator placed them). Returns true if anything moved (the cables need
+// rebuilding between the moved parts).
+bool pod_edits_apply_display_gaps(swrModel_Node** nodes, int pilot);
+// Camera offsets from where the game puts each camera (game units: further from the pod, higher):
+// which 0 = chase near ("chasecam near <f> <h>"), 1 = chase far ("chasecam far <f> <h>"), 2 =
+// looking behind with Tab ("rearcam <f> <h>"). Camera only.
+bool pod_edits_camera_offset(int pilot, int which, float out[2]);
 
 // Extra exhaust trails baked into the pod model (the editor's "trail R|L x y z", installed as
 // "trailnode <model>:<offset> R|L x y z"): placed for this racer right after the game placed its stock

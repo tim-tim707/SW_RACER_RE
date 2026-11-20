@@ -49,6 +49,7 @@ extern "C" {
 #include "./game_deltas/pod_motion.h"
 #include "./game_deltas/pod_fx.h"
 #include "./game_deltas/pod_edits.h"
+#include "./game_deltas/pod_wreck.h"
 #include "shadows.h"
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
@@ -1096,6 +1097,26 @@ static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, 
 // vertices, or nullptr when the drawn path would have hit the geometry cache instead.
 // Pod editor edits for the mesh being drawn (see game_deltas/pod_edits.h): spin groups rotate their
 // triangles about a pivot/axis given in the mesh's own frame; hidden triangles collapse to a point.
+// Knocked-off engine debris (pod_wreck): while drawing its subtree, this fraction of its triangles
+// (picked by a stable hash) has broken away and is collapsed.
+static float g_active_debris = -1.0f;
+static uint32_t g_active_debris_seed = 0;
+static void apply_debris_breakup(std::vector<Vertex> &tris, const swrModel_Mesh *mesh) {
+    if (g_active_debris <= 0.0f)
+        return;
+    const size_t ntri = tris.size() / 3;
+    const uint32_t base = g_active_debris_seed ^ ((uint32_t) (uintptr_t) mesh * 0x9e3779b9u);
+    for (size_t t = 0; t < ntri; t++) {
+        uint32_t h = base ^ ((uint32_t) t * 0x85ebca6bu);
+        h ^= h >> 16;
+        h *= 0x7feb352du;
+        h ^= h >> 15;
+        h *= 0x846ca68bu;
+        h ^= h >> 16;
+        if ((float) (h >> 8) * (1.0f / 16777216.0f) < g_active_debris)
+            tris[t * 3 + 1].pos = tris[t * 3 + 2].pos = tris[t * 3].pos;
+    }
+}
 static const PodMeshEdit *g_active_mesh_edit = nullptr;
 static rdMatrix44 g_active_mesh_edit_matrix;
 static bool g_active_mesh_edit_normals = false;
@@ -1185,7 +1206,7 @@ static void export_pod_mesh(const swrRace *racer, int part, const swrModel_Mesh 
 static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
                                                              const rdMatrix44 &model_matrix) {
     bool would_parse = true;
-    if (imgui_state.cache_meshes) {
+    if (imgui_state.cache_meshes && g_active_debris <= 0.0f) {
         const auto it = g_mesh_geometry_cache.find(mesh);
         would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
                       memcmp(&it->second.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
@@ -1195,6 +1216,7 @@ static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh
     static std::vector<Vertex> parse_only_scratch;
     parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
     apply_pod_mesh_edit(parse_only_scratch);
+    apply_debris_breakup(parse_only_scratch, mesh);
     return &parse_only_scratch;
 }
 
@@ -1205,6 +1227,7 @@ static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_M
     } else {
         parse_display_list_commands(model_matrix, mesh, out);
         apply_pod_mesh_edit(out);
+        apply_debris_breakup(out, mesh);
     }
 }
 
@@ -1740,7 +1763,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
     // would freeze the sway.
-    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f && g_active_mesh_edit == nullptr;
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f && g_active_mesh_edit == nullptr &&
+                           g_active_debris <= 0.0f;
     const bool can_stream = imgui_state.stream_dynamic_meshes && stream_ring_available();
     if (cacheable) {
         CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
@@ -1906,11 +1930,23 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // the traversal end in swrViewport_Render_Hook unbinds program and VAO once.
 }
 
+// Blown-apart pods (pod_wreck): the game hides a dead pod above its parts. While a pod is whole, the
+// chain of nodes down to each of its engines / cockpit is remembered; once it is blown apart, that
+// chain and the debris itself are drawn whatever their visibility flags or selectors say.
+static std::vector<const swrModel_Node *> g_trav_stack;
+static std::unordered_map<const swrModel_Node *, std::vector<const swrModel_Node *>> g_body_paths;
+static std::unordered_set<const swrModel_Node *> g_wreck_force;
+
 void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
                        int num_enabled_lights, bool mirrored, const rdMatrix44 &proj_mat,
                        const rdMatrix44 &view_mat, rdMatrix44 model_mat) {
     if (!node)
         return;
+    g_trav_stack.push_back(node);
+    struct PopTrav {
+        ~PopTrav() { g_trav_stack.pop_back(); }
+    } pop_trav;
+    const bool wreck_forced = !g_wreck_force.empty() && g_wreck_force.count(node) != 0;
 
     const bool exact_match_fail =
         (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
@@ -1920,13 +1956,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     swrRace *root_owner = pod_root_owner(node);
     const bool local_pod_root =
         root_owner != nullptr && (root_owner->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
-    if (local_pod_root && playercam_HideOwnPod())
+    if (local_pod_root && playercam_HideOwnPod() && !wreck_forced)
         return;
     const bool unhide_local_pod =
         local_pod_root && playercam_ShowPodInFirstPerson() &&
         (root_owner->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) ==
             swrObjTest_FLAG0_POD_HIDDEN;
-    if ((exact_match_fail || any_match_fail) && !unhide_local_pod) {
+    if ((exact_match_fail || any_match_fail) && !unhide_local_pod && !wreck_forced) {
         // The scene's per-node visibility flags hide this node. We honor that, with one exception:
         // a racer's pod that its OWN camera hides. swrRace_PoddAnimateEngines clears the pod root's
         // visible bit whenever the pod is in a hide-from-own-view camera mode (first-person / bumper
@@ -2034,8 +2070,21 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         g_active_cable_node = node;
     }
     const BodyNodeTag *prev_body = g_active_body;
-    if (const BodyNodeTag *bt = find_body_tag(node))
+    if (const BodyNodeTag *bt = find_body_tag(node)) {
         g_active_body = bt;
+        if (!wreck_forced)// remember the chain down to it (while the pod is whole)
+            g_body_paths[node].assign(g_trav_stack.begin(), g_trav_stack.end() - 1);
+    }
+    const float prev_debris = g_active_debris;
+    const uint32_t prev_debris_seed = g_active_debris_seed;
+    {
+        uint32_t seed = 0;
+        const float b = pod_wreck_breakup(node, &seed);
+        if (b >= 0.0f) {
+            g_active_debris = b;
+            g_active_debris_seed = seed;
+        }
+    }
 
     // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
     // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
@@ -2110,6 +2159,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
+        if (wreck_forced) {
+            // On a blown-apart pod's path: walk the child(ren) leading to its debris whatever is selected.
+            for (int i = 0; i < node->num_children; i++)
+                if (i != child && child != -1 && g_wreck_force.count(node->children.nodes[i]))
+                    debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
+                                      mirrored, *subtree_proj_mat, view_mat, model_mat);
+        }
         switch (child) {
             case -2:
                 // dont render any child node
@@ -2138,6 +2194,8 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     g_active_cable_amplitude = prev_cable_amplitude;
     g_active_cable_node = prev_cable_node;
     g_active_body = prev_body;
+    g_active_debris = prev_debris;
+    g_active_debris_seed = prev_debris_seed;
     g_weather_terrain_depth = prev_terrain_depth;
     g_pod_shadow_depth = prev_shadow_depth;
     g_active_nozzle_tag = prev_nozzle_tag;
@@ -2553,6 +2611,24 @@ void swrViewport_Render_Hook(int x) {
     g_deferred_after_shadows.clear();
     g_deferred_vertices.clear();
     g_defer_translucent = true;
+    static std::vector<swrModel_Node *> wreck_nodes;
+    pod_wreck_apart_nodes(wreck_nodes);
+    g_wreck_force.clear();
+    if (currentPlayer_Test == nullptr)
+        g_body_paths.clear();
+    for (swrModel_Node *n: wreck_nodes) {
+        g_wreck_force.insert(n);
+        // The debris' own node, and the chain down to it remembered from when the pod was whole
+        // (pieces riding on an engine sit beside it, so its chain covers them too).
+        const auto it = g_body_paths.find(n);
+        if (it != g_body_paths.end())
+            g_wreck_force.insert(it->second.begin(), it->second.end());
+    }
+    if (!g_wreck_force.empty())
+        for (const auto &[body, path]: g_body_paths)
+            if (g_wreck_force.count(body))
+                g_wreck_force.insert(path.begin(), path.end());
+    g_trav_stack.clear();
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     g_defer_translucent = false;
@@ -3793,6 +3869,12 @@ extern "C" void init_renderer_hooks() {
     // Engine damage smoke / fire: placed at the pod editor's fire spots (and added at extra ones).
     hook_function("swrRace_UpdateEngineDamageFX", (uint32_t) swrRace_UpdateEngineDamageFX_ADDR,
                   (uint8_t *) swrRace_UpdateEngineDamageFX_delta);
+
+    // An engine blown off the pod: tumbling debris, and (optionally) a survivable first loss.
+    hook_function("swrRace_Explode", (uint32_t) swrRace_Explode_ADDR, (uint8_t *) swrRace_Explode_delta);
+    hook_function("swrObjTest_F3", (uint32_t) swrObjTest_F3_ADDR, (uint8_t *) swrObjTest_F3_delta);
+    hook_function("swrRace_HandleDeathExplosion", (uint32_t) swrRace_HandleDeathExplosion_ADDR,
+                  (uint8_t *) swrRace_HandleDeathExplosion_delta);
 
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,

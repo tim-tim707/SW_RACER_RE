@@ -20,6 +20,13 @@ void swrRace_ResolvePodCollision_delta(swrRace* player);
 // - playASound_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
 // The game's engine damage smoke / fire moved to (and added at) the pod editor's fire spots.
 void swrRace_UpdateEngineDamageFX_delta(swrRace* player);
+// swrRace_Explode (0x004741d0): a blown engine breaks off as debris; the first one can be
+// survivable (pod_wreck).
+void __cdecl swrRace_Explode_delta(swrRace* player, int side);
+// swrObjTest_F3 (0x00470610): re-place knocked-off engines after it pushes the part matrices.
+void __cdecl swrObjTest_F3_delta(swrRace* player);
+// swrRace_HandleDeathExplosion (0x00474970): the whole pod blows up -- its pieces fly apart.
+void __cdecl swrRace_HandleDeathExplosion_delta(swrRace* player, int arg);
 
 void swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx, float sy,
                                              float sz, float param_6, int param_7);

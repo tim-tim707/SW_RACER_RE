@@ -23,6 +23,7 @@ extern FILE* hook_log;
 #include "swrModel_delta.h"// swrModel_LoadFromId_delta (loads dust models through the GL path)
 #include "pod_fx.h"        // pod_fx_on_ground_dust
 #include "pod_edits.h"     // pod_edits_extra_cable_values, pod_edits_fx_points
+#include "pod_wreck.h"     // engines knocked off as debris
 #include "../node_utils.h"  // find_asset_offset (display pod's pilot from its model)
 #include <array>
 #include <cstring>
@@ -171,6 +172,7 @@ void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
                                         four ? &player->engineXfL2 : &player->engineXfL};
         place_own_cables(nodes, *player->score_ptr->pilotId, player->cockpitXf, engines);
     }
+    pod_wreck_frame(player);       // knocked-off engines: debris, and what hung off them hidden
     pod_edits_place_trails(player);// extra exhaust trails, right after the game placed the stock ones
 
     // The game only runs its cable deformer on cables 10/11, but 4-engine pods (e.g. Ben
@@ -246,6 +248,29 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
         ((NodeGetTransform_t) swrModel_NodeGetTransform_ADDR)(nodes[10], &m);
         thick_x = std::sqrt(m.vA.x * m.vA.x + m.vA.y * m.vA.y + m.vA.z * m.vA.z);
         thick_z = std::sqrt(m.vC.x * m.vC.x + m.vC.y * m.vC.y + m.vC.z * m.vC.z);
+    }
+    // The pod editor's spacing / height / cockpit move, as in races; the stock cables are then
+    // rebuilt between the moved parts with the game's cable builder (thickness fixed below).
+    {
+        const int dpilot = display_pod_pilot(nodes);
+        if (dpilot >= 0 && pod_edits_apply_display_gaps(nodes, dpilot)) {
+            const auto get = (NodeGetTransform_t) swrModel_NodeGetTransform_ADDR;
+            const auto set = (NodeSetTransform_t) swrModel_NodeSetTransform_ADDR;
+            const auto build = (BuildStretchedQuad_t) swrRace_BuildStretchedQuad_ADDR;
+            const bool four = nodes[3] && nodes[4];
+            rdMatrix44 cockpit, eng[4];
+            get(nodes[5], &cockpit);
+            for (int k = 0; k < 4; k++)
+                if (nodes[1 + k])
+                    get(nodes[1 + k], &eng[k]);
+            for (int i = 0; i < 4; i++) {
+                if (nodes[10 + i] == nullptr || (i >= 2 && !four))
+                    continue;// (extra cables are placed below)
+                rdMatrix44 out;
+                build(&cockpit, &eng[i], (i % 2) ? -1.0f : 1.0f, i < 2 ? 1.0f : -1.0f, dpilot, &out);
+                set(nodes[10 + i], &out);
+            }
+        }
     }
     if (extra) {
         nodes[12] = saved12;
@@ -483,8 +508,37 @@ namespace {
     std::unordered_map<const swrRace*, ExtraFire> g_extra_fire;
 }// namespace
 
+typedef void(__cdecl* swrRace_HandleDeathExplosion_t)(swrRace* player, int arg);
+void __cdecl swrRace_HandleDeathExplosion_delta(swrRace* player, int arg) {
+    pod_wreck_before_death_explosion(player);
+    hook_call_original((swrRace_HandleDeathExplosion_t) swrRace_HandleDeathExplosion_ADDR, player, arg);
+}
+
+typedef void(__cdecl* swrObjTest_F3_t)(swrRace* player);
+void __cdecl swrObjTest_F3_delta(swrRace* player) {
+    hook_call_original((swrObjTest_F3_t) swrObjTest_F3_ADDR, player);
+    pod_wreck_after_f3(player);
+}
+
+typedef void(__cdecl* swrRace_Explode_t)(swrRace* player, int side);
+void __cdecl swrRace_Explode_delta(swrRace* player, int side) {
+    side &= 0xff;// a char argument
+    // Who blew it: the engine-damage check (its call returns to 0x46aeac), or a crash
+    // (swrRace_DeathSpeed, the track's kill triggers).
+    const bool crash = (uintptr_t) __builtin_return_address(0) != 0x0046aeac;
+    if (pod_wreck_on_explode(player, side, crash))
+        return;// a survivable engine loss, handled there
+    // Only the call that actually sets it off counts: once exploding, the game ignores repeats (a
+    // second wall hit in the spin, the damage check), and so must we.
+    const bool was_exploding = player != nullptr && (player->flags1 & swrObjTest_FLAG1_EXPLODING) != 0;
+    hook_call_original((swrRace_Explode_t) swrRace_Explode_ADDR, player, side);
+    if (!was_exploding)
+        pod_wreck_after_explode(player, side, crash);
+}
+
 void __cdecl swrRace_UpdateEngineDamageFX_delta(swrRace* player) {
     hook_call_original((swrRace_UpdateEngineDamageFX_t) swrRace_UpdateEngineDamageFX_ADDR, player);
+    pod_wreck_after_damage_fx(player);
     if (player == nullptr || player->partNodes == nullptr)
         return;
     const int pilot = pilot_of(player);
@@ -747,12 +801,14 @@ bool swrRace_GetDisplayCable(const swrModel_Node* node, int* pilot, int* index, 
 }
 
 void swrRace_ClearCableBends() {
+    pod_wreck_clear();
     cable_bend_by_node.clear();
     cable_owner_by_node.clear();
     display_cable_by_node.clear();
 }
 
 void swrRace_DropCableBendsFrom(const char* begin) {
+    pod_wreck_clear();// its nodes may be in the memory going away
     std::erase_if(cable_bend_by_node, [&](const auto& elem) {
         return (const char*) elem.first >= begin;
     });

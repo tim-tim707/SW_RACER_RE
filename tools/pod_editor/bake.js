@@ -309,6 +309,11 @@ function parseEdits(text) {
     const line = raw.split('#', 1)[0].trim().split(/\s+/).filter(Boolean);
     if (!line.length) continue;
     if (line[0] === 'spin') {
+      // A spin group piece's faces: "piece" / "pre" <dx dy dz> (mesh frame) after the other fields --
+      // moved by that much before the group spins.
+      let pre = null;
+      const pi = line.findIndex(x => x === 'piece' || x === 'pre');
+      if (pi >= 0) { pre = line.slice(pi + 1, pi + 4).map(Number); line.length = pi; if (!pre.every(Number.isFinite) || !pre.some(Boolean)) pre = null; }
       const key = line[1].toLowerCase(), rpm = +line[2];
       const pivot = line.slice(3, 6).map(Number), axis = line.slice(6, 9).map(Number);
       const offset = line.length >= 13 && line[10] !== 'ellipse' ? line.slice(10, 13).map(Number) : [0, 0, 0];
@@ -318,8 +323,14 @@ function parseEdits(text) {
       const tris = new Set();
       for (const r of line[9].split(',')) { const [a, b] = r.split('-').map(Number); for (let t = a; t <= (isNaN(b) ? a : b); t++) tris.add(t); }
       const gk = JSON.stringify([rpm, pivot, axis, offset, scale, cut]);
-      if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, meshes: new Map() });
-      groups.get(gk).meshes.set(key, tris);
+      if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, meshes: new Map(), pre: new Map() });
+      const g = groups.get(gk);
+      // One group can have several lines for a mesh (its pieces): their faces add up.
+      if (g.meshes.has(key)) for (const t of tris) g.meshes.get(key).add(t); else g.meshes.set(key, tris);
+      if (pre) {
+        if (!g.pre.has(key)) g.pre.set(key, new Map());
+        for (const t of tris) g.pre.get(key).set(t, pre);
+      }
     } else if (line[0] === 'hide') { hideKeys.push(line[1].toLowerCase()); notes.push(`hide line for mesh ${line[1]} stays an in-game edit`); }
     else if (line[0] === 'cables' && line[1] === 'extra') extraCables = true;
     else if (line[0] === 'trail' && (line[1] === 'R' || line[1] === 'L')) {
@@ -453,15 +464,16 @@ function bakePod(block, editsText, exportKeys = []) {
   // Spin groups split by model (a group can hold meshes of both of the pod's models).
   const perModel = new Map();
   for (const sg of spinGroups) {
-    const byModel = new Map();
+    const byModel = new Map(), preByModel = new Map();
     for (const [k, tris] of sg.meshes) {
       const { model, off } = resolved.get(k);
-      if (!byModel.has(model)) byModel.set(model, new Map());
+      if (!byModel.has(model)) { byModel.set(model, new Map()); preByModel.set(model, new Map()); }
       byModel.get(model).set(off, tris);
+      if (sg.pre && sg.pre.has(k)) preByModel.get(model).set(off, sg.pre.get(k));
     }
     for (const [model, meshes] of byModel) {
       if (!perModel.has(model)) perModel.set(model, []);
-      perModel.get(model).push({ ...sg, meshes });
+      perModel.get(model).push({ ...sg, meshes, pre: preByModel.get(model) });
     }
   }
   let cableModel = null;
@@ -486,6 +498,24 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = []) {
   let { parents, groups: meshGroups } = m.walk();
   const meshToGroup = new Map();
   for (const [g, ms] of meshGroups) for (const x of ms) meshToGroup.set(x, g);
+
+  // Spin group pieces: their faces moved first (mesh frame), in place in their meshes; the split and
+  // spin below then take them from there.
+  const moves = new Map();// mesh -> face -> move
+  for (const sg of spinGroups) for (const [mesh, faces] of sg.pre || []) {
+    if (!moves.has(mesh)) moves.set(mesh, new Map());
+    for (const [t, v] of faces) moves.get(mesh).set(t, v);
+  }
+  for (const [mesh, faces] of moves) {
+    if (!meshToGroup.has(mesh)) throw new BakeError(`Mesh ${mid + ':' + hex(mesh)} is not in a mesh group of this model.`);
+    const { tris, hasNormals } = decodeMesh(m, mesh);
+    const moved = tris.map((tri, t) => {
+      const v = faces.get(t);
+      return v ? tri.map(p => [p[0] + v[0], p[1] + v[1], p[2] + v[2], ...p.slice(3)]) : tri;
+    });
+    writeMesh(m, mesh, moved, hasNormals);
+    log.push(`moved ${faces.size} face(s) of mesh ${mid}:${hex(mesh)} (spin group pieces)`);
+  }
 
   // A spin group covering whole mesh groups spins those groups as they are; otherwise ("partial")
   // its faces are split off into new meshes in a new mesh group, and the rest stays where it was.

@@ -98,6 +98,18 @@ namespace {
         std::unordered_map<uint32_t, PodMeshEdit> meshes;
         bool layout_set[4] = {};// cable cockpit, cable engine, binder, exhaust trail
         float layout[4][3] = {};
+        // Camera offsets (further, higher), game units: [0] chase near ("chasecam near"), [1] chase
+        // far ("chasecam far"), [2] looking behind with Tab ("rearcam").
+        bool cam_set[3] = {};
+        float cam[3][2] = {};
+        bool height_set = false;// "podheight <dz>": the drawn pod raised / lowered (visual only)
+        float height = 0.0f;
+        bool engine_gap_set = false;// "enginegap <k>": the engines' sideways spacing, x the stock one
+        float engine_gap = 1.0f;
+        bool cockpit_gap_set = false;// "cockpitgap <k>": the cockpit's distance from the engines, x stock
+        float cockpit_gap = 1.0f;
+        bool cockpit_move_set = false;// "cockpitmove <x> <y> <z>": the cockpit moved (pod frame: right, forward, up)
+        float cockpit_move[3] = {};
         // "trailnode <model>:<offset> R|L <x> <y> <z>": an extra exhaust trail the bake added (a copy of
         // the stock exhaust node, sharing its trail), placed by the mod at that engine-frame point.
         struct TrailNodeLine {
@@ -367,6 +379,47 @@ namespace {
                         m.exhaust_light[j] = v[j];
                     continue;
                 }
+            } else if (cmd == "rearcam" || cmd == "chasecam") {
+                int which = 2;
+                if (cmd == "chasecam") {
+                    std::string mode;
+                    in >> mode;
+                    which = mode == "near" ? 0 : mode == "far" ? 1 : -1;
+                }
+                float v[2];
+                if (which >= 0 && in >> v[0] >> v[1]) {
+                    m.cam_set[which] = true;
+                    m.cam[which][0] = v[0], m.cam[which][1] = v[1];
+                    m.found = true;
+                    continue;
+                }
+            } else if (cmd == "cockpitmove") {
+                float v[3];
+                if (in >> v[0] >> v[1] >> v[2]) {
+                    m.cockpit_move_set = true;
+                    for (int j = 0; j < 3; j++)
+                        m.cockpit_move[j] = v[j];
+                    m.found = true;
+                    continue;
+                }
+            } else if (cmd == "enginegap" || cmd == "cockpitgap") {
+                float k;
+                if (in >> k && k > 0.0f) {
+                    if (cmd == "enginegap")
+                        m.engine_gap_set = true, m.engine_gap = k;
+                    else
+                        m.cockpit_gap_set = true, m.cockpit_gap = k;
+                    m.found = true;
+                    continue;
+                }
+            } else if (cmd == "podheight") {
+                float h;
+                if (in >> h) {
+                    m.height_set = true;
+                    m.height = h;
+                    m.found = true;
+                    continue;
+                }
             } else if (cmd == "cablestiff") {
                 float k;
                 if (in >> k) {
@@ -521,6 +574,10 @@ namespace {
     const float* layout_stock_row(int pilot) {
         return g_stock_saved[pilot] ? g_stock_rows[pilot] : (const float*) &swrRacer_PodVisualData[pilot];
     }
+    // The pod's ride height (physics: never changed here), exported so the editor can show the ground.
+    float hover_stock(int pilot) {
+        return swrRacer_PodHandlingData[pilot].hoverHeight;
+    }
 
     void write_export() {
         const swrRace* r = g_ex_racer;
@@ -558,6 +615,12 @@ namespace {
             write_floats(f, (const float*) &swrRacer_PodVisualData[pilot], 27);
             fputs(",\"visualStock\":", f);
             write_floats(f, layout_stock_row(pilot), 27);
+            fprintf(f, ",\"hover\":[%.5g,%.5g]", r->podStats.hoverHeight, hover_stock(pilot));
+            // The look-behind (Tab) camera's size: the racer float right after its stats (0xa8); the
+            // chase camera puts the camera 2x it ahead of the pod and 0.2x it up while looking back.
+            float rear_cam;
+            memcpy(&rear_cam, (const char*) r + 0xa8, sizeof(rear_cam));
+            fprintf(f, ",\"rearCam\":%.5g", rear_cam);
             fputs(",\"frames\":{", f);
             const rdMatrix44* frames[5] = {&r->cockpitXf, &r->engineXfR, &r->engineXfL, &r->engineXfR2, &r->engineXfL2};
             const char* names[5] = {"cockpit", "engineR", "engineL", "engineR2", "engineL2"};
@@ -682,6 +745,121 @@ namespace {
         fflush(hook_log);
     }
 
+    // ---- motion recording: the pod editor's Idle / Top speed preview replays these -----------------
+    // For a few seconds, 30 times a second: the cockpit's and each engine's frame in the pod's frame
+    // (idle: the pod's frame when recording started, so its own hover bob is in it; top speed: the pod's
+    // frame each moment). Written to export/<Pod>_idle.motion.json / <Pod>_top.motion.json.
+    struct MotionRec {
+        int kind = -1;// 0 idle, 1 top speed; -1 = not recording
+        bool waiting = false;// top speed: until the pod is flat out
+        float t = 0.0f, next = 0.0f;
+        rdMatrix44 inv_ref{};
+        std::vector<float> frames;// per sample: 5 parts x 16 floats
+        std::string name;
+    } g_rec;
+    constexpr float kRecSecs = 4.0f, kRecStep = 1.0f / 30.0f;
+
+    swrRace* local_racer() {
+        const int n = swrEvent_GetEventCount(0x54657374);// 'Test': one per racer
+        for (int i = 0; i < n; i++) {
+            swrRace* r = (swrRace*) swrEvent_GetItem(0x54657374, i);
+            if (r != nullptr && (r->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && r->partNodes != nullptr)
+                return r;
+        }
+        return nullptr;
+    }
+
+    void start_recording(int kind) {
+        swrRace* r = local_racer();
+        const int pilot = (r && r->score_ptr && r->score_ptr->pilotId) ? *r->score_ptr->pilotId : -1;
+        if (r == nullptr || pilot < 0 || pilot >= 23) {
+            g_status = "Start a race first (your pod must be on track).";
+            return;
+        }
+        MODELID id = swrRacer_PodData[pilot].pod_alt_modelID;
+        if ((int) id < 0 || (int) id >= 323 || modelid_cstr[id] == nullptr)
+            id = swrRacer_PodData[pilot].pod_modelID;
+        g_rec = MotionRec{};
+        g_rec.kind = kind;
+        g_rec.waiting = kind == 1;
+        g_rec.name = ((int) id >= 0 && (int) id < 323 && modelid_cstr[id]) ? modelid_cstr[id] : "unknown_pod";
+        g_status = kind == 0 ? "Recording idle motion (keep still)..." : "Waiting for top speed...";
+    }
+
+    void write_motion() {
+        std::error_code ec;
+        std::filesystem::create_directories(kExportDir, ec);
+        const std::string file = g_rec.name + (g_rec.kind == 0 ? "_idle" : "_top") + ".motion.json";
+        const std::string path = std::string(kExportDir) + file;
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f == nullptr) {
+            g_status = "Recording failed: cannot write " + path;
+            return;
+        }
+        fprintf(f, "{\"format\":\"swr-pod-motion-1\",\"model\":\"%s\",\"kind\":\"%s\",\"dt\":%.6g,\"parts\":{", g_rec.name.c_str(),
+                g_rec.kind == 0 ? "idle" : "top", kRecStep);
+        const char* names[5] = {"cockpit", "engineR", "engineL", "engineR2", "engineL2"};
+        const size_t n = g_rec.frames.size() / 80;
+        for (int part = 0; part < 5; part++) {
+            fprintf(f, "%s\"%s\":[", part ? "," : "", names[part]);
+            for (size_t i = 0; i < n; i++) {
+                if (i)
+                    fputc(',', f);
+                write_floats(f, &g_rec.frames[i * 80 + part * 16], 16);
+            }
+            fputc(']', f);
+        }
+        fputs("}}", f);
+        fclose(f);
+        std::string where = path;
+        if (!pod_workspace().empty()) {
+            const std::filesystem::path ws = pod_workspace() / L"export" / file;
+            if (std::filesystem::copy_file(path, ws, std::filesystem::copy_options::overwrite_existing, ec))
+                where = ws.string();
+        }
+        g_status = "Recorded " + std::to_string(n) + " frames to " + where + " (open it in the editor after the pod's export).";
+    }
+
+    void tick_recording() {
+        if (g_rec.kind < 0)
+            return;
+        swrRace* r = local_racer();
+        if (r == nullptr) {
+            g_rec.kind = -1;
+            g_status = "Recording stopped: the race ended.";
+            return;
+        }
+        const float dt = (float) std::fmin(std::fmax(swrRace_deltaTimeSecs, 0.0), 0.1);
+        if (dt <= 0.0f)
+            return;// paused
+        if (g_rec.waiting) {
+            if (r->speedValue < 0.92f * r->podStats.maxSpeed)
+                return;
+            g_rec.waiting = false;
+            g_status = "Recording top-speed motion (hold top speed)...";
+        }
+        if (g_rec.frames.empty() && g_rec.kind == 0 && !inv_affine(r->transform, g_rec.inv_ref)) {
+            g_rec.kind = -1;
+            return;
+        }
+        g_rec.t += dt;
+        while (g_rec.t >= g_rec.next && g_rec.next <= kRecSecs) {
+            rdMatrix44 ref = g_rec.inv_ref;
+            if (g_rec.kind == 1 && !inv_affine(r->transform, ref))
+                return;
+            const rdMatrix44* parts[5] = {&r->cockpitXf, &r->engineXfR, &r->engineXfL, &r->engineXfR2, &r->engineXfL2};
+            for (const rdMatrix44* m: parts) {
+                const rdMatrix44 rel = mul(*m, ref);
+                g_rec.frames.insert(g_rec.frames.end(), &rel.vA.x, &rel.vA.x + 16);
+            }
+            g_rec.next += kRecStep;
+        }
+        if (g_rec.next > kRecSecs) {
+            write_motion();
+            g_rec.kind = -1;
+        }
+    }
+
     // ---- panel -------------------------------------------------------------------------------
     void draw_panel() {
         ImGui::TextWrapped("Edit pod models in tools/pod_editor/pod_editor.html: export your pod during a race, "
@@ -699,6 +877,19 @@ namespace {
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Writes assets/pod_edits/export/<Pod>_pod.json from the next race frame. Best at the "
                               "start line, with nothing hidden or blown off.");
+        ImGui::BeginDisabled(g_rec.kind >= 0);
+        if (ImGui::Button(g_rec.kind == 0 ? "Recording..." : "Record idle motion"))
+            start_recording(0);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Records 4 seconds of how the pod's cockpit and engines move while it sits still (e.g. on the\n"
+                              "start line), for the editor's Idle preview: open the .motion.json after the pod's export.");
+        ImGui::SameLine();
+        if (ImGui::Button(g_rec.kind == 1 ? (g_rec.waiting ? "Waiting for top speed..." : "Recording...") : "Record top-speed motion"))
+            start_recording(1);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Waits until you are flat out, then records 4 seconds of how the pod's cockpit and engines\n"
+                              "move, for the editor's Top speed preview.");
+        ImGui::EndDisabled();
         if (ImGui::Checkbox("Apply pod edits", &g_apply))
             config::set_int("pod_edits", "apply", g_apply ? 1 : 0);
         if (ImGui::Checkbox("Stiff cables", &g_cable_stiff))
@@ -1192,6 +1383,7 @@ void pod_edits_place_trails(swrRace* player) {
 void pod_edits_layout_frame() {
     if (!g_scanned)
         scan_dir();
+    tick_recording();
     for (int pilot = 0; pilot < 23; pilot++) {
         float* row = (float*) &swrRacer_PodVisualData[pilot];
         const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) {
@@ -1213,6 +1405,129 @@ void pod_edits_layout_frame() {
             for (int j = 0; j < 3; j++)
                 row[fields[k] + j] = e->layout_set[k] ? e->layout[k][j] : g_stock_rows[pilot][fields[k] + j];
     }
+}
+
+bool pod_edits_camera_offset(int pilot, int which, float out[2]) {
+    if (which < 0 || which > 2)
+        return false;
+    const ModelEdits* e = pilot_edits(pilot, [which](const ModelEdits& m) { return m.cam_set[which]; });
+    if (e == nullptr)
+        return false;
+    out[0] = e->cam[which][0], out[1] = e->cam[which][1];
+    return true;
+}
+
+void pod_edits_apply_gaps(swrRace* p) {
+    if (p == nullptr || p->partNodes == nullptr || !p->score_ptr || !p->score_ptr->pilotId)
+        return;
+    if (g_rec.kind >= 0 && (p->flags0 & swrObjTest_FLAG0_LOCAL) != 0)
+        return;// recording the pod's motion: as the game moves it, without the edits
+    const ModelEdits* e = pilot_edits(*p->score_ptr->pilotId,
+                                      [](const ModelEdits& m) {
+                                          return m.engine_gap_set || m.cockpit_gap_set || m.height_set || m.cockpit_move_set;
+                                      });
+    if (e == nullptr)
+        return;
+    // Sideways = the pod's right axis; the middle = halfway between the main engine pair.
+    const rdVector4& ra = p->transform.vA;
+    const float rl = std::sqrt(ra.x * ra.x + ra.y * ra.y + ra.z * ra.z);
+    if (rl < 1e-6f)
+        return;
+    const float rx = ra.x / rl, ry = ra.y / rl, rz = ra.z / rl;
+    const float cx = (p->engineXfR.vD.x + p->engineXfL.vD.x) * 0.5f, cy = (p->engineXfR.vD.y + p->engineXfL.vD.y) * 0.5f,
+                cz = (p->engineXfR.vD.z + p->engineXfL.vD.z) * 0.5f;
+    if (e->engine_gap_set) {
+        const bool four = p->partNodes[3] && p->partNodes[4];
+        rdMatrix44* engines[4] = {&p->engineXfR, &p->engineXfL, four ? &p->engineXfR2 : nullptr, four ? &p->engineXfL2 : nullptr};
+        for (rdMatrix44* m: engines) {
+            if (m == nullptr)
+                continue;
+            const float side = (m->vD.x - cx) * rx + (m->vD.y - cy) * ry + (m->vD.z - cz) * rz;
+            const float d = side * (e->engine_gap - 1.0f);
+            m->vD.x += rx * d, m->vD.y += ry * d, m->vD.z += rz * d;
+        }
+    }
+    if (e->cockpit_gap_set) {
+        rdVector4& c = p->cockpitXf.vD;
+        c.x = cx + (c.x - cx) * e->cockpit_gap, c.y = cy + (c.y - cy) * e->cockpit_gap, c.z = cz + (c.z - cz) * e->cockpit_gap;
+    }
+    if (e->cockpit_move_set) {// moved freely, along the pod's own right / forward / up
+        const rdVector4* ax[3] = {&p->transform.vA, &p->transform.vB, &p->transform.vC};
+        rdVector4& c = p->cockpitXf.vD;
+        for (int j = 0; j < 3; j++) {
+            const rdVector4& a = *ax[j];
+            const float l = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+            if (l < 1e-6f)
+                continue;
+            const float k = e->cockpit_move[j] / l;
+            c.x += a.x * k, c.y += a.y * k, c.z += a.z * k;
+        }
+    }
+    // The whole drawn pod raised / lowered along the pod's up axis (the cables, binder and exhaust
+    // are built from these afterwards). The pod's own transform -- its physics, collision and ground
+    // contact -- is left alone.
+    if (e->height_set && e->height != 0.0f) {
+        const rdVector4& ua = p->transform.vC;
+        const float ul = std::sqrt(ua.x * ua.x + ua.y * ua.y + ua.z * ua.z);
+        if (ul > 1e-6f) {
+            const float k = e->height / ul;
+            const bool four = p->partNodes[3] && p->partNodes[4];
+            rdMatrix44* parts[5] = {&p->cockpitXf, &p->engineXfR, &p->engineXfL, four ? &p->engineXfR2 : nullptr,
+                                    four ? &p->engineXfL2 : nullptr};
+            for (rdMatrix44* m: parts)
+                if (m != nullptr)
+                    m->vD.x += ua.x * k, m->vD.y += ua.y * k, m->vD.z += ua.z * k;
+        }
+    }
+}
+
+bool pod_edits_apply_display_gaps(swrModel_Node** nodes, int pilot) {
+    if (nodes == nullptr || nodes[1] == nullptr || nodes[2] == nullptr || nodes[5] == nullptr)
+        return false;
+    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) {
+        return m.engine_gap_set || m.cockpit_gap_set || m.height_set || m.cockpit_move_set;
+    });
+    if (e == nullptr)
+        return false;
+    typedef void(__cdecl * NodeGetTransform_t)(const swrModel_Node* node, rdMatrix44* out);
+    typedef void(__cdecl * NodeSetTransform_t)(swrModel_Node* node, const rdMatrix44* m);
+    const auto get = (NodeGetTransform_t) swrModel_NodeGetTransform_ADDR;
+    const auto set = (NodeSetTransform_t) swrModel_NodeSetTransform_ADDR;
+    // The display pod is posed in world space, scaled (x 2.6 on the racer-select turntable) and
+    // turning: the pod's right / forward / up are the cockpit node's axes, and their length is the
+    // display's scale, so moves along them (in race units) come out the same as in a race.
+    rdMatrix44 m[6];
+    for (int i = 1; i <= 5; i++)
+        if (nodes[i])
+            get(nodes[i], &m[i]);
+    const rdVector4 right = m[5].vA, fwd = m[5].vB, up = m[5].vC;
+    const float rl2 = right.x * right.x + right.y * right.y + right.z * right.z;
+    const float cx = (m[1].vD.x + m[2].vD.x) * 0.5f, cy = (m[1].vD.y + m[2].vD.y) * 0.5f, cz = (m[1].vD.z + m[2].vD.z) * 0.5f;
+    if (e->engine_gap_set && rl2 > 1e-12f)
+        for (int i = 1; i <= 4; i++) {
+            if (!nodes[i])
+                continue;
+            rdVector4& v = m[i].vD;
+            const float side = ((v.x - cx) * right.x + (v.y - cy) * right.y + (v.z - cz) * right.z) / rl2;// along the pod's right
+            const float d = side * (e->engine_gap - 1.0f);
+            v.x += right.x * d, v.y += right.y * d, v.z += right.z * d;
+        }
+    rdVector4& c = m[5].vD;
+    if (e->cockpit_gap_set)
+        c.x = cx + (c.x - cx) * e->cockpit_gap, c.y = cy + (c.y - cy) * e->cockpit_gap, c.z = cz + (c.z - cz) * e->cockpit_gap;
+    if (e->cockpit_move_set) {
+        const float* mv = e->cockpit_move;
+        c.x += right.x * mv[0] + fwd.x * mv[1] + up.x * mv[2];
+        c.y += right.y * mv[0] + fwd.y * mv[1] + up.y * mv[2];
+        c.z += right.z * mv[0] + fwd.z * mv[1] + up.z * mv[2];
+    }
+    if (e->height_set)
+        for (int i = 1; i <= 5; i++)
+            m[i].vD.x += up.x * e->height, m[i].vD.y += up.y * e->height, m[i].vD.z += up.z * e->height;
+    for (int i = 1; i <= 5; i++)
+        if (nodes[i])
+            set(nodes[i], &m[i]);
+    return true;
 }
 
 float pod_edits_cable_clearance() {

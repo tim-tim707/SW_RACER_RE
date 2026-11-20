@@ -5,6 +5,7 @@
 #include "../imgui_utils.h"
 #include "../renderer_hook.h"
 #include "../config.h"
+#include "../game_deltas/pod_edits.h"// pod_edits_rear_camera (the pod editor's rear-view camera)
 
 #include <imgui.h>
 
@@ -516,6 +517,25 @@ extern "C" void __cdecl swrObjcMan_UpdateCamera_delta(swrObjcMan *cman) {
         if (cockpit_active(cman))
             apply_true_cockpit(cman, racer);
         apply_cockpit_offset(cman, racer);
+    }
+    // The pod editor's per-pod cameras (chase near, chase far, looking behind with Tab): the camera
+    // moved further from the pod and higher, then aimed back at the same point.
+    if (!is_first_person(cman->mode_type)) {
+        const bool behind = (racer->flags0 & swrObjTest_FLAG0_LOOK_BACK) != 0;
+        const int which = behind ? 2 : cman->mode_type == CAM_MODE_CHASE_FAR ? 1 : 0;
+        float off[2];
+        const int pilot = pilot_index(racer);
+        if (pilot >= 0 && pod_edits_camera_offset(pilot, which, off) && (off[0] != 0.0f || off[1] != 0.0f)) {
+            rdVector3 fwd = {racer->transform.vB.x, racer->transform.vB.y, racer->transform.vB.z};
+            rdVector3 up = {racer->transform.vC.x, racer->transform.vC.y, racer->transform.vC.z};
+            rdVector_Normalize3Acc(&fwd);
+            rdVector_Normalize3Acc(&up);
+            const float away = behind ? off[0] : -off[0];// the chase cameras trail behind, the Tab one leads
+            rdVector3 *cam = (rdVector3 *) &cman->unk20_mat.vD;
+            rdVector_Scale3Add3(cam, cam, away, &fwd);
+            rdVector_Scale3Add3(cam, cam, off[1], &up);
+            scale_roll(cman, 1.0f);// aim at the same point from there
+        }
     }
     if (g_cfg.roll_influence != 1.0f)
         scale_roll(cman, g_cfg.roll_influence);

@@ -508,6 +508,7 @@ def read_block_entry(block, model_id):
 
 def parse_edits(path):
     groups = {}
+    parse_edits.pre = {}  # spin group pieces: {group params: {mesh key: {face: (dx, dy, dz)}}} (mesh frame)
     parse_edits.extra_cables = False
     parse_edits.hide_keys = []
     parse_edits.trails = []
@@ -516,6 +517,17 @@ def parse_edits(path):
         if not line:
             continue
         if line[0] == 'spin':
+            # A spin group piece's faces: "piece" / "pre" <dx dy dz> after the other fields -- moved
+            # by that much before the group spins.
+            pre = None
+            for tok in ('piece', 'pre'):
+                if tok in line:
+                    i = line.index(tok)
+                    pre = tuple(map(float, line[i + 1:i + 4]))
+                    line = line[:i]
+                    break
+            if pre is not None and not any(pre):
+                pre = None
             key, rpm = line[1].lower(), float(line[2])
             pivot, axis = tuple(map(float, line[3:6])), tuple(map(float, line[6:9]))
             offset = tuple(map(float, line[10:13])) if len(line) >= 13 else (0.0, 0.0, 0.0)
@@ -528,8 +540,11 @@ def parse_edits(path):
             for r in line[9].split(','):
                 a, _, b = r.partition('-')
                 tris.update(range(int(a), int(b or a) + 1))
-            g = groups.setdefault((rpm, pivot, axis, offset, scale, cut), {})
-            g[key] = tris
+            params = (rpm, pivot, axis, offset, scale, cut)
+            g = groups.setdefault(params, {})
+            g.setdefault(key, set()).update(tris)  # one group can have several lines for a mesh (its pieces)
+            if pre is not None:
+                parse_edits.pre.setdefault(params, {}).setdefault(key, {}).update({t: pre for t in tris})
         elif line[0] == 'hide':
             parse_edits.hide_keys.append(line[1].lower())
             print(f'note: hide line for mesh {line[1]} skipped (keep the .txt in assets/pod_edits for it)')
@@ -615,6 +630,7 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
                  f'baked model was loaded?)')
     # Spin groups split by model (a group can hold meshes of both of the pod's models).
     per_model = {}
+    moves_per_model = {}
     for params, meshes in spin_groups.items():
         by_model = {}
         for k, tris in meshes.items():
@@ -622,6 +638,9 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
             by_model.setdefault(mid, {})[off] = tris
         for mid, ms in by_model.items():
             per_model.setdefault(mid, {})[params] = ms
+        for k, faces in parse_edits.pre.get(params, {}).items():
+            mid, off = resolved[k]
+            moves_per_model.setdefault(mid, {}).setdefault(off, {}).update(faces)
     cable_model = None
     if extra_cables or trails:
         cable_model = pod_model_of(idx, export_keys or keys)
@@ -635,7 +654,7 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
     for mid in sorted(per_model):
         m = Model(*read_block_entry(block, mid))
         print(f'model {mid}: {m.data[:4].decode()}, {len(m.data)} bytes')
-        out = bake_model(m, mid, per_model[mid], mid == cable_model and extra_cables, dry_run,
+        out = bake_model(m, mid, per_model[mid], mid == cable_model and extra_cables, dry_run, moves_per_model.get(mid, {}),
                          trails if mid == cable_model else [])
         if out is None:
             continue
@@ -656,11 +675,24 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
     return written
 
 
-def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, trails=()):
+def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, moves=None, trails=()):
     """One model: its spin groups ({params: {mesh file offset: faces}}) and maybe the extra cable
     pair. Returns the RAWM file bytes (None for a dry run)."""
     parents, mesh_groups = m.walk()
     mesh_to_group = {x: g for g, ms in mesh_groups.items() for x in ms}
+
+    # Spin group pieces: their faces moved first (mesh frame), in place in their meshes; the split and
+    # spin below then take them from there.
+    for mesh, faces in (moves or {}).items():
+        if mesh not in mesh_to_group:
+            sys.exit(f'mesh {mid}:{mesh:x} is not in a mesh group of this model')
+        tris, has_normals = decode_mesh(m, mesh)
+        moved = []
+        for t, tri in enumerate(tris):
+            v = faces.get(t)
+            moved.append([(p[0] + v[0], p[1] + v[1], p[2] + v[2]) + tuple(p[3:]) for p in tri] if v else tri)
+        write_mesh(m, mesh, moved, has_normals)
+        print(f'  moved {len(faces)} face(s) of mesh {mid}:{mesh:x} (spin group pieces)')
 
     # Each spin group's mesh groups: whole groups spin as they are, otherwise the faces are split off.
     plan = []

@@ -30,6 +30,7 @@ extern FILE* hook_log;
 #include "../debug_ui.h"
 #include "../shadows.h"// SceneLight
 #include "pod_edits.h"// pod_edits_fx_points (the pod editor's effect points)
+#include "pod_wreck.h"// pod_wreck_side_gone (an engine knocked off the pod)
 
 // Drawing follows swrWeather_delta.cpp: particles live in world space (z up), are projected
 // through the scene view/projection handed in by the renderer, and are emitted as screen-space
@@ -265,6 +266,8 @@ namespace {
     // = right, [2] = left; flags_1 bit 0x2 = visible), e.g. the engine lost in a crash while the
     // other one spins the pod out.
     bool engine_alive(const swrRace* r, int side) {
+        if (pod_wreck_side_gone(r, side))// knocked off: its effects stay with the debris
+            return false;
         const swrModel_Node* node = r->partNodes != nullptr ? r->partNodes[1 + side] : nullptr;
         return node == nullptr || (node->flags_1 & 0x2) != 0;
     }
@@ -1420,6 +1423,21 @@ namespace {
     Clock::time_point g_last_tick;
     bool g_has_tick = false;
 }// namespace
+
+void pod_fx_wreck_emit(const rdVector3& pos, const rdVector3& vel, const rdVector3& dir, float L, float ground_z,
+                       int sparks, int embers, int flames, int smoke, float smoke_shade) {
+    if (!s.enabled || !(L > 0.0f))
+        return;
+    const rdVector3 up = {0.0f, 0.0f, 1.0f};
+    for (int i = 0; i < sparks; i++)
+        spawn_spark(pos, vel, dir, up, L, s.ground_bounce ? ground_z : NAN);
+    for (int i = 0; i < embers; i++)
+        spawn_ember(add(pos, mul(rand_vec(), L * 0.04f)), add(vel, add(mul(dir, L * (0.5f + frand())), mul(rand_vec(), L * 0.8f))), L);
+    for (int i = 0; i < flames; i++)
+        spawn_flame(add(pos, mul(rand_vec(), L * 0.05f)), vel, dir, up, L);
+    for (int i = 0; i < smoke; i++)
+        spawn_smoke(add(pos, mul(rand_vec(), L * 0.05f)), vel, up, L, smoke_shade);
+}
 
 void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const swrModel_Mesh* mesh,
                                const rdMatrix44& model) {

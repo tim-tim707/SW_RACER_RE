@@ -16,6 +16,7 @@ extern "C" {
 #include "../debug_ui.h"
 #include "../hook_helper.h"
 #include "pod_fx.h"// pod_fx_engine_damage (damaged-engine wobble)
+#include "pod_edits.h"// pod_edits_apply_gaps (the pod editor's engine / cockpit spacing)
 
 // How it works
 // ------------
@@ -466,6 +467,10 @@ typedef void(__cdecl* swrRace_PoddAnimateEngines_t)(swrRace* player);
 
 void __cdecl swrRace_PoddAnimateEngines_delta(swrRace* player) {
     hook_call_original((swrRace_PoddAnimateEngines_t) swrRace_PoddAnimateEngines_ADDR, player);
+    // The pod editor's engine / cockpit spacing, before any motion (not while crashing).
+    if (player != nullptr && (player->flags1 & (swrObjTest_FLAG1_EXPLODING_LEFT | swrObjTest_FLAG1_EXPLODING_RIGHT)) == 0 &&
+        (player->flags0 & swrObjTest_FLAG0_DEAD) == 0)
+        pod_edits_apply_gaps(player);
     // partNodes == NULL is the far-LOD single-mesh pod: no separate parts to move.
     if (!s.enabled || player == nullptr || player->partNodes == nullptr)
         return;

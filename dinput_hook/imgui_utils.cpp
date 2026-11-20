@@ -37,6 +37,7 @@
 #include "game_deltas/pod_motion.h"
 #include "game_deltas/pod_fx.h"
 #include "game_deltas/pod_edits.h"
+#include "game_deltas/pod_wreck.h"
 #include "shadows.h"
 #include "game_deltas/swrRace_delta.h"// swrRace_tractionDtCorrect
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
@@ -2936,6 +2937,7 @@ static void register_builtin_debug_panels() {
     pod_motion_register_panel();
     pod_fx_register_panel();
     pod_edits_register_panel();
+    pod_wreck_register_panel();
     shadows_register_panel();
     debug_ui_register(&g_panel_render_debug);
     debug_ui_register(&g_panel_collision);
