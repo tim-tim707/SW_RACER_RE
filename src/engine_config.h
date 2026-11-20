@@ -596,4 +596,13 @@
 #define SWR_MP_SEEN_MESSAGE_COUNT (128) // swrMultiplayer_aSeenMessages ring length
 #define STDCOMM_MAX_PLAYERS (20) // stdComm_aPlayerInfos length
 
+// Per-node light banks (swrRender.c setters bounds-check 0..0xb; numEnabledLights[12]).
+#define SWR_LIGHT_BANK_COUNT (12)
+
+// swrScores[20] @0x00e29bc0: hard cap on racers in one race.
+#define SWR_MAX_RACERS (20)
+
+// swrScore.identifier for a local human racer ('Locl').
+#define SWR_SCORE_ID_LOCAL (0x4c6f636c)
+
 #endif // ENGINE_CONFIG_H
