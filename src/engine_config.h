@@ -69,6 +69,27 @@
 #define SWR_CONTROL_WHEEL_ACCEPT_AXIS_MIN (0.1) // swrControl_PollAccept wheel throttle (0x004ac338)
 #define SWR_UI_INPUT_STATE_DWORDS (11) // swrUI_inputChangeFlags block
 #define SWR_CONTROL_ACTION_BRAKE (2) // action index of swrControl_brakeButton
+#define SWR_CONTROL_ACTION_ROLL_LEFT (6)
+#define SWR_CONTROL_ACTION_ROLL_RIGHT (7)
+// swrControl_MappingsMenu element ids (keyboard/joystick/mouse settings pages)
+#define SWR_UI_MAPPING_BUTTON_ACCEPT (2)
+#define SWR_UI_MAPPING_BUTTON_BACK (4)
+#define SWR_UI_MAPPING_BUTTON_DEFAULTS (0x25)
+#define SWR_UI_MAPPING_BUTTON_UNDO (0x26)
+#define SWR_UI_MAPPING_ROW_FIRST (0x27) // 10 digital actions x 2 binding slots
+#define SWR_UI_MAPPING_ROW_ANALOG_BRAKE (0x3b) // then analog brake, roll, throttle, turn, pitch
+#define SWR_UI_MAPPING_ROW_ANALOG_PITCH (0x3f)
+#define SWR_UI_MAPPING_ROW_LAST (0x4b) // then pitch up/down, turn left/right x 3 binding slots
+#define SWR_UI_MAPPING_BUTTON_RESERVED_KEYS (0x4c)
+#define SWR_UI_MAPPING_DEADZONE_SLIDER (0x4d)
+#define SWR_UI_MAPPING_SENSITIVITY_SLIDER (0x4e)
+#define SWR_UI_MAPPING_TOGGLE_ENABLED (0x54)
+#define SWR_UI_MAPPING_TOGGLE_FLIP_X (0x55) // then flip y, flip z
+#define SWR_UI_MAPPING_RADIO_A_FIRST (0x30d43) // and 0x30d44
+#define SWR_UI_MAPPING_RADIO_B_FIRST (0x30d45)
+#define SWR_UI_MAPPING_RADIO_B_LAST (0x30d48)
+#define SWR_UI_MAPPING_RADIO_A (0x30d52) // enables group B, disables group A
+#define SWR_UI_MAPPING_RADIO_B (0x30d53)
 #define SWR_CONTROL_ACTION_ESCAPE (10) // action fed by the fixed Esc keyboard binding stdConfFile_readAndApplyConf appends
 #define SWR_CONTROL_NUM_ANALOG_ACTIONS (4) // *AxisInput arrays: throttle, unk, steer, pitch
 #define SWR_CONTROL_NUM_RECORD_ACTIONS (16) // action bytes in inRaceLocalPlayerInputRecord (swrControl_inputRecordActions)

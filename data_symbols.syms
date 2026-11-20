@@ -72,6 +72,7 @@ Window_UUID 0x004af9b0 uint32_t[4] = { 0xC95FB584, 0x11D2FA31, 0xAA009D90, 0xAD2
 rdMatrix34_identity 0x004af880 rdMatrix34 = {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 0.0, 0.0}}
 
 swrConfig_currentInputDeviceType 0x004b2030 swrConfig_DEVICE
+swrUI_mappingsCaptureIdleUnused 0x004b2034 unsigned char # cleared around swrControl_CaptureBinding in swrControl_MappingsMenu; never read
 
 swrTextFmtString1 0x004b2304 char[4] = "%s\0\0"
 
@@ -534,6 +535,7 @@ JoystickButtonPressedInput 0x4d5e80 float[15]
 MouseButtonPressedInput 0x4d5ebc float[15]
 KeyboardButtonPressedInput 0x4d5ef8 float[15]
 swrControl_bindingsJoystick 0x004d5fc0 swrControlBinding[65]
+swrControl_captureArmed 0x004d6510 int # swrControl_CaptureBinding: set once the accept that opened the capture is released
 swrControl_bindingsMouse 0x004d6518 swrControlBinding[65]
 swrControl_bindingsKeyboard 0x004d6828 swrControlBinding[65]
 swrControl_mouseAxesAccum 0x004d6b60 float[3] # mouse axes integrated and clamped to [-1, 1] while UI input is active
@@ -2263,9 +2265,14 @@ swrUI_videoSettingsPage 0x004d5548 swrUI_unk* # video settings page (swrUI_Menu_
 swrUI_forceFeedbackPageId 0x004d5554 int # written by swrUI_Menu_ForceFeedback, never read
 swrUI_videoSettingsPageId 0x004d5558 int # written by swrUI_Menu_VideoSettings, never read
 swrUI_noticeDurationUnused 0x004d5564 float # set to 2.1 next to several swrText_ShowTimedMessage calls; never read
+swrUI_mappingsPopPending 0x004d55a8 int # set when the save dialog opens from a back button; the Yes answer then pops the page
+swrUI_mappingsCaptureResult 0x004d55ac unsigned char # swrControl_CAPTURE bits of the last capture
 swrUI_videoSettingsClosePending 0x004d55b0 int # back pressed with unsaved changes: leave the page once the save dialog is answered
 swrUI_forceFeedbackClosePending 0x004d55c4 int # same, force feedback page
+swrUI_mappingsSavedUiInputActive 0x004d5534 int # swrControl_uiInputActive saved while the mouse mappings page is open
+swrUI_mappingsPage 0x004d5538 swrUI_unk* # current keyboard/joystick/mouse mappings page (swrControl_MappingsMenu)
 swrUI_audioSettingsPage 0x004d553c swrUI_unk* # audio settings page (swrUI_Menu_AudioSettings)
+swrUI_mappingsPageId 0x004d5544 int # swrUI_WINDOW id of swrUI_mappingsPage
 swrUI_audioSettingsPageId 0x004d5560 int # written by swrUI_Menu_AudioSettings, never read
 swrUI_audioSettingsClosePending 0x004d55b4 int # back pressed with unsaved changes: leave the page once the save dialog is answered
 swrUI_sfxVolumeChanged 0x004d55b8 int # sfx slider moved; applied (with a preview sound) on the page's next message

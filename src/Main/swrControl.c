@@ -18,6 +18,9 @@
 #include "Swr/swrRender.h"
 #include "Swr/swrObj.h"
 #include "Swr/swrRace.h"
+#include "Raster/rdCache.h"
+#include "Win95/stdDisplay.h"
+#include "Swr/swrMultiplayer.h"
 
 #include <objbase.h>
 #include <stdio.h>
@@ -28,9 +31,275 @@
 #include "macros.h"
 
 // 0x00402250
-int swrControl_MappingsMenu(swrUI_unk* param_1, unsigned int param_2, unsigned int param_3, int param_4)
+int swrControl_MappingsMenu(swrUI_unk* page, unsigned int msg, unsigned int param, int widget)
 {
-    HANG("TODO");
+    // digital rows come in pairs/triples (one per binding slot), analog rows are single
+    static char* const pairNames[] = {
+        "/MONDOTEXT_H_0014/CAMERA_CYCLE", "/MONDOTEXT_H_0015/LOOK_BACK", "/MONDOTEXT_H_0016/BRAKE", "/MONDOTEXT_H_0017/THRUST", "/MONDOTEXT_H_0018/BOOST", "/MONDOTEXT_H_0019/SLIDE", "/MONDOTEXT_H_0020/ROLL_LEFT", "/MONDOTEXT_H_0021/ROLL_RIGHT", "/MONDOTEXT_H_0022/SPECIAL", "/MONDOTEXT_H_0023/REPAIR",
+    };
+    static char* const tripleNames[] = {
+        "/MONDOTEXT_H_0028/PITCH_UP",
+        "/MONDOTEXT_H_0027/PITCH_DOWN",
+        "/MONDOTEXT_H_0029/TURN_LEFT",
+        "/MONDOTEXT_H_0030/TURN_RIGHT",
+    };
+    swrConfig_DEVICE device;
+    swrUI_unk* slider;
+    int* enabled;
+    int* detected;
+    int* flipAxes;
+    int whichOne;
+    int bAnalog;
+    int isMappingPage;
+    int centerValue;
+    int percent;
+    int id;
+    swrUI_FLAG flags;
+    unsigned char result;
+    char functionName[64];
+    char bindingText[64];
+
+    functionName[0] = wuRegistry_lpClass[0];
+    memset(&functionName[1], 0, 63);
+    whichOne = 1;
+    if (page->id == swrUI_WINDOW_JOYSTICK_SETTINGS) {
+        swrUI_mappingsPageId = swrUI_WINDOW_JOYSTICK_SETTINGS;
+        swrConfig_currentInputDeviceType = swrConfig_DEVICE_JOYSTICK;
+        isMappingPage = 1;
+        swrUI_mappingsPage = page;
+    } else if (page->id == swrUI_WINDOW_MOUSE_SETTINGS) {
+        swrUI_mappingsSavedUiInputActive = swrControl_uiInputActive;
+        swrControl_uiInputActive = 0;
+        swrUI_mappingsPageId = swrUI_WINDOW_MOUSE_SETTINGS;
+        swrConfig_currentInputDeviceType = swrConfig_DEVICE_MOUSE;
+        isMappingPage = 1;
+        swrUI_mappingsPage = page;
+    } else if (page->id == swrUI_WINDOW_KEYBOARD_SETTINGS) {
+        swrUI_mappingsPageId = swrUI_WINDOW_KEYBOARD_SETTINGS;
+        swrConfig_currentInputDeviceType = swrConfig_DEVICE_KEYBOARD;
+        isMappingPage = 1;
+        swrUI_mappingsPage = page;
+    } else {
+        isMappingPage = 0;
+    }
+
+    bAnalog = isMappingPage;
+    if ((msg == swrUI_MSG_ELEMENT_ACTIVATED || msg == swrUI_MSG_DELETE_PRESSED) && param >= SWR_UI_MAPPING_ROW_FIRST && param <= SWR_UI_MAPPING_ROW_LAST) {
+        if (param < SWR_UI_MAPPING_ROW_ANALOG_BRAKE) {
+            sprintf(functionName, swrText_Translate(pairNames[(param - SWR_UI_MAPPING_ROW_FIRST) / 2]));
+            whichOne = (param - SWR_UI_MAPPING_ROW_FIRST) % 2 + 1;
+            bAnalog = 0;
+        } else if (param <= SWR_UI_MAPPING_ROW_ANALOG_PITCH) {
+            if (param == SWR_UI_MAPPING_ROW_ANALOG_BRAKE)
+                sprintf(functionName, swrText_Translate("/MONDOTEXT_H_0016/BRAKE"));
+            else if (param == SWR_UI_MAPPING_ROW_ANALOG_BRAKE + 1)
+                sprintf(functionName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT"));
+            else if (param == SWR_UI_MAPPING_ROW_ANALOG_BRAKE + 2)
+                sprintf(functionName, swrText_Translate("/MONDOTEXT_H_0024/ANALOG_THROTTLE"));
+            else if (param == SWR_UI_MAPPING_ROW_ANALOG_BRAKE + 3)
+                sprintf(functionName, swrText_Translate("/MONDOTEXT_H_0025/TURN"));
+            else
+                sprintf(functionName, swrText_Translate("/MONDOTEXT_H_0026/PITCH"));
+            bAnalog = 1;
+        } else {
+            sprintf(functionName, swrText_Translate(tripleNames[(param - SWR_UI_MAPPING_ROW_ANALOG_PITCH - 1) / 3]));
+            whichOne = (param - SWR_UI_MAPPING_ROW_ANALOG_PITCH - 1) % 3 + 1;
+            bAnalog = 0;
+        }
+    }
+
+    device = swrConfig_currentInputDeviceType;
+    if (msg == swrUI_MSG_BACK) {
+        if ((swrUI_mappingsCaptureResult & swrControl_CAPTURE_SWALLOW_BACK) == 0) {
+            if (swrUI_settingsDirty == 0)
+                goto revert;
+            swrUI_ShowConfirmDialog(swrUI_mappingsPage, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0031/~sSave any changes?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), swrText_Translate("/MONDOTEXT_H_0034/~sCancel"), 0);
+            if (widget != 0)
+                swrUI_mappingsPopPending++;
+        }
+        swrUI_mappingsCaptureResult &= ~swrControl_CAPTURE_SWALLOW_BACK;
+        return 1;
+    }
+    if (msg == swrUI_MSG_SET_ACTIVE) {
+        if (param != 0) {
+            swrMultiplayer_SetInMultiplayer(0);
+            swrConfig_RefreshMappingMenu(swrConfig_currentInputDeviceType, swrUI_mappingsPage);
+        }
+        goto refreshSliders;
+    }
+    if (msg == swrUI_MSG_DIALOG_RESULT) {
+        if (param == 0) {
+            // Yes: keep the changes
+            swrConfig_WriteForceFeedbackConfig("current");
+            if (swrUI_mappingsPopPending != 0) {
+                swrUI_PopMenuPage();
+                swrUI_mappingsPopPending = 0;
+            }
+        } else if (param == 1) {
+            goto revert;
+        }
+        goto refreshSliders;
+    }
+    if (msg == swrUI_MSG_DELETE_PRESSED)
+        goto deleteBinding;
+    if (msg == swrUI_MSG_SLIDER_DECREASED || msg == swrUI_MSG_SLIDER_INCREASED) {
+        if (param == SWR_UI_MAPPING_DEADZONE_SLIDER) {
+            if (device == swrConfig_DEVICE_JOYSTICK)
+                Deadzone = Deadzone - (msg == swrUI_MSG_SLIDER_DECREASED ? 0.05 : -0.05);
+        } else if (param == SWR_UI_MAPPING_SENSITIVITY_SLIDER) {
+            swrControl_axisSensitivity[device] = swrControl_axisSensitivity[device] - (msg == swrUI_MSG_SLIDER_DECREASED ? 0.25 : -0.25);
+        }
+        if (swrControl_axisSensitivity[device] < 0.5)
+            swrControl_axisSensitivity[device] = 0.5;
+        else if (swrControl_axisSensitivity[device] > 5.0f)
+            swrControl_axisSensitivity[device] = 5.0f;
+        if (Deadzone < 0.0f)
+            Deadzone = 0.0;
+        else if (Deadzone > 0.85)
+            Deadzone = 0.85;
+        swrControl_ApplyAxisConfig(swrConfig_currentInputDeviceType);
+        swrUI_settingsDirty = 1;
+        goto refreshSliders;
+    }
+    if (msg == swrUI_MSG_LIST_SELECTION_CHANGED) {
+        if (widget != 0)
+            swrUI_RunCallbacks(page, swrUI_MSG_ELEMENT_ACTIVATED, ((swrUI_unk*)widget)->id, widget);
+        goto refreshSliders;
+    }
+    if (msg != swrUI_MSG_ELEMENT_ACTIVATED)
+        goto refreshSliders;
+
+    switch (param) {
+    case SWR_UI_MAPPING_BUTTON_DEFAULTS:
+        if (stdConfFile_readAndApplyConf(-1, wuRegistry_lpClass, 1) < 0)
+            swrControl_SetDefaultMappings(swrConfig_currentInputDeviceType);
+        if (cifr_deviceIsWheel != 0 && swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK)
+            stdConfFile_readAndApplyConf(0, "wheel", 1);
+        swrConfig_RefreshMappingMenu(swrConfig_currentInputDeviceType, swrUI_GetById(NULL, swrUI_mappingsPageId));
+        goto reapplyAxes;
+    case SWR_UI_MAPPING_BUTTON_UNDO:
+        stdConfFile_readAndApplyConf(-1, "current", 0);
+        swrConfig_RefreshMappingMenu(swrConfig_currentInputDeviceType, swrUI_GetById(NULL, swrUI_mappingsPageId));
+    reapplyAxes:
+        if (swrConfig_currentInputDeviceType < swrConfig_DEVICE_KEYBOARD)
+            swrControl_ApplyAxisConfig(swrConfig_currentInputDeviceType);
+        swrUI_settingsDirty = 1;
+        goto deleteBinding;
+    case SWR_UI_MAPPING_BUTTON_ACCEPT:
+        swrConfig_WriteMappings("current");
+        swrControl_bindingCaptureActive = 0;
+        if (swrConfig_currentInputDeviceType == swrConfig_DEVICE_MOUSE)
+            swrControl_uiInputActive = swrUI_mappingsSavedUiInputActive;
+        swrUI_PopMenuPage();
+        goto deleteBinding;
+    case SWR_UI_MAPPING_BUTTON_BACK:
+        swrUI_RunCallbacks(page, swrUI_MSG_BACK, 0, 1);
+        goto deleteBinding;
+    case SWR_UI_MAPPING_BUTTON_RESERVED_KEYS:
+        swrUI_PushMenuPage(swrUI_WINDOW_RESERVED_KEYS);
+        goto deleteBinding;
+    case SWR_UI_MAPPING_TOGGLE_ENABLED:
+        enabled = swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK ? &swrConfig_joystick_enabled : &swrConfig_mouse_enabled;
+        detected = swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK ? &joystick_detected : &mouse_detected;
+        *enabled = *detected != 0 ? *enabled == 0 : 0;
+        if (*detected == 0) {
+            swrUI_mappingsCaptureIdleUnused = 1;
+            swrUI_noticeDurationUnused = 2.1f;
+            swrText_ShowTimedMessage(swrText_Translate(swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK ? "/MONDOTEXT_H_0035/~nNO JOYSTICK DETECTED." : "/MONDOTEXT_H_0036/~nNO MOUSE DETECTED."), 2.0f);
+            playUISound(-1);
+            swrUI_SetChecked((swrUI_unk*)widget, 0);
+        }
+        goto deleteBinding;
+    case SWR_UI_MAPPING_TOGGLE_FLIP_X:
+    case SWR_UI_MAPPING_TOGGLE_FLIP_X + 1:
+    case SWR_UI_MAPPING_TOGGLE_FLIP_X + 2:
+        flipAxes = swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK ? swrControl_joystickFlipAxis : &flip_x_axis;
+        flipAxes[param - SWR_UI_MAPPING_TOGGLE_FLIP_X] = flipAxes[param - SWR_UI_MAPPING_TOGGLE_FLIP_X] == 0;
+        swrUI_settingsDirty = 1;
+        goto deleteBinding;
+    case SWR_UI_MAPPING_RADIO_A:
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A_FIRST), 0);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A_FIRST + 1), 0);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A), 0);
+        for (id = SWR_UI_MAPPING_RADIO_B_FIRST; id <= SWR_UI_MAPPING_RADIO_B_LAST; id++)
+            swrUI_RunCallbacks2(swrUI_GetById(page->prev, id), 1);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_B), 1);
+        goto deleteBinding;
+    case SWR_UI_MAPPING_RADIO_B:
+        for (id = SWR_UI_MAPPING_RADIO_B_FIRST; id <= SWR_UI_MAPPING_RADIO_B_LAST; id++)
+            swrUI_RunCallbacks2(swrUI_GetById(page->prev, id), 0);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_B), 0);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A_FIRST), 1);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A_FIRST + 1), 1);
+        swrUI_RunCallbacks2(swrUI_GetById(page->prev, SWR_UI_MAPPING_RADIO_A), 1);
+        goto deleteBinding;
+    default:
+        break;
+    }
+
+    // any other row: capture a new binding for it
+    if (strcmp(functionName, wuRegistry_lpClass) != 0) {
+        swrUI_mappingsCaptureIdleUnused = 0;
+        result = swrControl_CaptureBinding(bAnalog, swrConfig_currentInputDeviceType, (swrUI_unk*)widget, functionName, whichOne);
+        swrUI_mappingsCaptureResult = result;
+        swrUI_settingsDirty = result & swrControl_CAPTURE_CHANGED;
+        swrUI_mappingsCaptureIdleUnused = 1;
+        if (result != 0)
+            swrUI_noticeDurationUnused = 5.0f;
+        return 1;
+    }
+
+deleteBinding:
+    // Delete on a row removes its binding
+    if ((swrUI_mappingsCaptureResult & swrControl_CAPTURE_SWALLOW_ACCEPT) == 0 && widget == 0 && strcmp(functionName, wuRegistry_lpClass) != 0 && swrControl_RemoveMapping((void*)swrConfig_currentInputDeviceType, functionName, bAnalog, whichOne, 1) >= 0) {
+        swrUI_GetById(swrUI_mappingsPage, param);
+        if (bAnalog != 0 && _strcmpi(functionName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT")) == 0) {
+            if (swrControl_RemoveMapping((void*)swrConfig_currentInputDeviceType, swrText_Translate("/MONDOTEXT_H_0021/ROLL_RIGHT"), 1, whichOne, 1) == 0)
+                (*stdPlatform_hostServices_ptr->assert)("elfControl_RemoveMapping(cid, TXT_ROLL_RIGHT, 1, whichOne, TRUE)", "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfCallback.c", 0x43b);
+        }
+        swrConfig_RefreshMappingMenu(swrConfig_currentInputDeviceType, swrUI_mappingsPage);
+        swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0037/~nDeleted."), 1.5f);
+        swrUI_noticeDurationUnused = 1.8f;
+        swrUI_settingsDirty = 1;
+    }
+    swrUI_mappingsCaptureResult &= ~swrControl_CAPTURE_SWALLOW_ACCEPT;
+    return 1;
+
+revert:
+    stdConfFile_readAndApplyConf(-1, "current", 0);
+    swrConfig_RefreshMappingMenu(swrConfig_currentInputDeviceType, swrUI_GetById(NULL, swrUI_mappingsPageId));
+    swrControl_bindingCaptureActive = 0;
+    if (swrConfig_currentInputDeviceType == swrConfig_DEVICE_MOUSE)
+        swrControl_uiInputActive = swrUI_mappingsSavedUiInputActive;
+    swrUI_PopMenuPage();
+    return 1;
+
+refreshSliders:
+    if (swrConfig_currentInputDeviceType < swrConfig_DEVICE_KEYBOARD && isMappingPage != 0) {
+        // isMappingPage doubles as FormatBinding's out control
+        swrControl_FormatBinding(swrConfig_currentInputDeviceType, SWR_CONTROL_AXIS_STEER, swrControlBinding_FLAG_ANALOG | swrControlBinding_FLAG_AXIS, 0, 1, bindingText, (unsigned int*)&isMappingPage);
+        device = swrConfig_currentInputDeviceType;
+        if (isMappingPage >= 0 && device == swrConfig_DEVICE_JOYSTICK)
+            centerValue = (int)(swrControl_joystickAxes[isMappingPage] * 100.0f);
+        else
+            centerValue = isMappingPage;
+        // faithful: indexes past swrControl_joystickAxes into swrControl_mouseAxes for the mouse
+        percent = (int)(((&swrControl_joystickAxes[0])[isMappingPage + device * 6] - -1.0f) * 50.0f);
+        slider = swrUI_GetById(swrUI_mappingsPage, SWR_UI_MAPPING_DEADZONE_SLIDER);
+        if (slider != NULL) {
+            slider->slider_percent = percent;
+            flags = slider->flags;
+            if ((flags & swrUI_SLIDER_CENTERED) != 0) {
+                slider->slider_spread = (int)(Deadzone * 100.0f);
+                slider->slider_center_value = centerValue;
+            }
+            swrUI_BuildSliderSprites(slider, flags & swrUI_SLIDER_SELECTED);
+        }
+        slider = swrUI_GetById(swrUI_mappingsPage, SWR_UI_MAPPING_SENSITIVITY_SLIDER);
+        if (slider != NULL)
+            slider->slider_percent = (int)(swrControl_axisSensitivity[swrConfig_currentInputDeviceType] * 0.2 * 100.0);
+    }
+    return 0;
 }
 
 // 0x00404da0
@@ -392,12 +661,13 @@ int swrControl_AddMapping(void* cid, char* fnStr, int controllerBinding, int bAn
 }
 
 // 0x004078a0
-void swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int direction, int controllerBinding)
+int swrControl_ReplaceMapping(void* cid, char* fnStr, int whichOne, int bAnalogCapture, int direction, int controllerBinding)
 {
     int slot;
 
     slot = swrControl_RemoveMapping(cid, fnStr, bAnalogCapture, whichOne, 0);
-    swrControl_AddMapping(cid, fnStr, controllerBinding, bAnalogCapture, direction, slot);
+    // retail is void, but AddMapping's result stays in EAX and callers assert on it
+    return swrControl_AddMapping(cid, fnStr, controllerBinding, bAnalogCapture, direction, slot);
 }
 
 // 0x00423efd
@@ -1745,4 +2015,201 @@ void swrControl_ApplyAxisConfig(int axis)
         }
         swrControl_joystickAxisScale[steerAxis] = sensitivity;
     }
+}
+
+// 0x00406cc0
+unsigned char swrControl_CaptureBinding(int bAnalogCapture, swrConfig_DEVICE device, swrUI_unk* row, char* functionName, int whichOne)
+{
+    swrUI_unk* page;
+    char* name;
+    char* keyName;
+    char* text;
+    float promptTimer;
+    int capturedAxis;
+    int direction;
+    int directionLatched;
+    unsigned char mapFlags;
+    int skipFrame;
+    int done;
+    unsigned int button;
+    int axis;
+    int action;
+    int choice;
+    unsigned char result;
+    char directionPrefix[8];
+    char bindingDesc[64];
+    char savedText[64];
+    char line[256];
+
+    done = 0;
+    directionLatched = 0;
+    direction = 0;
+    capturedAxis = -1;
+    directionPrefix[0] = wuRegistry_lpClass[0];
+    memset(&directionPrefix[1], 0, 4);
+    promptTimer = 0.0f;
+    result = 0;
+    swrUI_GetValueText(row, savedText, sizeof(savedText));
+    swrUI_SetValueText(row, "????", 0);
+    if (device == swrConfig_DEVICE_JOYSTICK) {
+        page = swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS);
+    } else if (device == swrConfig_DEVICE_MOUSE) {
+        page = swrUI_GetById(NULL, swrUI_WINDOW_MOUSE_SETTINGS);
+    } else {
+        page = swrUI_GetById(NULL, swrUI_WINDOW_KEYBOARD_SETTINGS);
+    }
+    // skip one frame once armed
+    skipFrame = 10;
+    swrControl_captureArmed = 0;
+
+    do {
+        if (promptTimer == 0.0f) {
+            text = NULL;
+            if (device == swrConfig_DEVICE_JOYSTICK) {
+                text = bAnalogCapture != 0 ? "/MONDOTEXT_H_0218/~f4~nMove axis and press ENTER to accept, or ESC to cancel." : "/MONDOTEXT_H_0219/~f4~nPress new button or hat-switch, or ESC to cancel.";
+            } else if (device == swrConfig_DEVICE_MOUSE) {
+                text = bAnalogCapture != 0 ? "/MONDOTEXT_H_0218/~f4~nMove axis and press ENTER to accept, or ESC to cancel." : "/MONDOTEXT_H_0220/~f4~nPress new button, or ESC to cancel.";
+            } else if (device == swrConfig_DEVICE_KEYBOARD) {
+                text = "/MONDOTEXT_H_0221/~f4~nPress new key, or ESC to cancel.";
+            }
+            if (text != NULL) {
+                swrText_ShowTimedMessage(swrText_Translate(text), 2.0f);
+                promptTimer = 1.7f;
+            }
+        } else {
+            promptTimer = promptTimer - swrRace_deltaTimeSecs;
+            if (promptTimer < 0.0f)
+                promptTimer = 0.0f;
+        }
+
+        rdCache_AdvanceFrame();
+        stdDisplay_FillMainSurface();
+        swrControl_ProcessInputs();
+        swrMain_RunFrame(0, 2);
+        swrUI_RenderTree(NULL);
+
+        if (swrControl_captureArmed == 0) {
+            // wait for the accept that opened the capture to be released
+            swrControl_captureArmed = swrControl_acceptReleasedEdge;
+        } else if (skipFrame != 0) {
+            skipFrame = 0;
+        } else if (swrControl_PollCancel(device) != 0 || (swrControl_cancelPressedEdge != 0 && ((bAnalogCapture != 0 && cifr_deviceIsWheel == 0) || device >= swrConfig_DEVICE_KEYBOARD))) {
+            swrUI_SetValueText(row, savedText, 0);
+            swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0222/~nCancelled."), 2.0f);
+            result = swrControl_CAPTURE_SWALLOW_BACK | swrControl_CAPTURE_SWALLOW_ACCEPT;
+            done = 1;
+        } else if (bAnalogCapture == 0) {
+            button = swrControl_ScanPressedButtons(device, 0);
+            if (button != SWR_CONTROL_SCAN_NONE) {
+                // button 1 also raises a back message on the page
+                if (device != swrConfig_DEVICE_KEYBOARD && button == 1)
+                    result = swrControl_CAPTURE_SWALLOW_BACK;
+                action = swrControl_FindMapping((unsigned char*)device, button, 0, &mapFlags);
+                if (action >= 0) {
+                    keyName = swrText_Translate(swrControl_FindKeyName(action, mapFlags));
+                    if (_strcmpi(keyName, functionName) == 0) {
+                        swrUI_SetValueText(row, savedText, 0);
+                        result |= swrControl_CAPTURE_SWALLOW_ACCEPT;
+                        done = 1;
+                    } else {
+                        if (device != swrConfig_DEVICE_KEYBOARD) {
+                            name = swrText_Translate(swrConfig_ControlToString(button, keyMapping1));
+                            sprintf(bindingDesc, swrText_Translate("/MONDOTEXT_H_0213/BUTTON %s"), name);
+                        } else {
+                            name = swrText_Translate(swrConfig_ControlToString(button, NULL));
+                            sprintf(bindingDesc, swrTextFmtString1, name);
+                        }
+                        sprintf(line, swrText_Translate("/MONDOTEXT_H_0223/%s already assigned to %s.  Do you want to assign it to %s as well?"), bindingDesc, keyName, functionName);
+                        choice = swrUI_ShowConfirmDialog(page, -1, -1, swrText_Translate("/MONDOTEXT_H_0224/Conflict Detected"), line, swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 1);
+                        if (choice == 1 || choice == SWR_UI_DIALOG_RESULT_CANCEL) {
+                            swrUI_SetValueText(row, savedText, 0);
+                            result |= swrControl_CAPTURE_SWALLOW_ACCEPT;
+                            done = 1;
+                        }
+                    }
+                }
+                if (!done) {
+                    if (swrControl_ReplaceMapping((void*)device, functionName, whichOne, 0, 0, button) == 0)
+                        (*stdPlatform_hostServices_ptr->assert)("elfControl_ReplaceMapping(cid, fncStr, whichOne, bAnalogCapture, 0, controllerBinding)", "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfControl.c", 0x6f8);
+                    if (device == swrConfig_DEVICE_KEYBOARD) {
+                        name = swrText_Translate(swrConfig_ControlToString(button, NULL));
+                        sprintf(line, swrTextFmtString1, name);
+                    } else if ((int)button < STDCONTROL_JOYSTICK_POV_KEY_BASE) {
+                        name = swrText_Translate(swrConfig_ControlToString(button, keyMapping1));
+                        sprintf(line, swrText_Translate("/MONDOTEXT_H_0213/BUTTON %s"), name);
+                    } else {
+                        name = swrText_Translate(swrConfig_ControlToString(button, keyMapping1));
+                        sprintf(line, swrTextFmtString1, name);
+                    }
+                    swrUI_SetValueText(row, line, 0);
+                    result |= swrControl_CAPTURE_SWALLOW_ACCEPT | swrControl_CAPTURE_CHANGED;
+                    done = 1;
+                }
+            }
+        } else {
+            axis = swrControl_FindMovedAxis(device, &direction);
+            if (axis >= 0) {
+                if (_strcmpi(functionName, swrText_Translate("/MONDOTEXT_H_0016/BRAKE")) == 0) {
+                    if (direction > 0)
+                        sprintf(directionPrefix, "+");
+                    else if (direction < 0)
+                        sprintf(directionPrefix, "-");
+                    directionLatched = 1;
+                }
+                name = swrText_Translate(swrConfig_ControlToString(axis, keyMapping0));
+                sprintf(line, swrText_Translate("/MONDOTEXT_H_0216/%s%s AXIS"), directionPrefix, name);
+                swrUI_SetValueText(row, line, 0);
+                capturedAxis = axis;
+            }
+            if (capturedAxis >= 0 && swrControl_acceptPressedEdge != 0) {
+                action = swrControl_FindMapping((unsigned char*)device, capturedAxis, 1, &mapFlags);
+                if (action >= 0) {
+                    keyName = swrText_Translate(swrControl_FindKeyName(action, mapFlags));
+                    // faithful: rewrites the translated name in place
+                    if (_strcmpi(keyName, swrText_Translate("/MONDOTEXT_H_0021/ROLL_RIGHT")) == 0 || _strcmpi(keyName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT")) == 0)
+                        sprintf(keyName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT"));
+                    if (_strcmpi(keyName, functionName) == 0) {
+                        swrUI_SetValueText(row, savedText, 0);
+                        result = swrControl_CAPTURE_SWALLOW_ACCEPT;
+                        done = 1;
+                    } else {
+                        name = swrText_Translate(swrConfig_ControlToString(capturedAxis, keyMapping0));
+                        sprintf(bindingDesc, swrText_Translate("/MONDOTEXT_H_0228/%s Axis"), name);
+                        if (_strcmpi(functionName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT")) == 0) {
+                            sprintf(line, swrText_Translate("/MONDOTEXT_H_0223/%s already assigned to %s.  Do you want to assign it to %s as well?"), bindingDesc, keyName, swrText_Translate("/MONDOTEXT_H_0280/~sRoll Left/Right"));
+                        } else if (action == SWR_CONTROL_ACTION_ROLL_LEFT || action == SWR_CONTROL_ACTION_ROLL_RIGHT) {
+                            sprintf(line, swrText_Translate("/MONDOTEXT_H_0229/%s already assigned to ROLL.  Do you want to assign it to %s as well?"), bindingDesc, functionName);
+                        } else {
+                            sprintf(line, swrText_Translate("/MONDOTEXT_H_0223/%s already assigned to %s.  Do you want to assign it to %s as well?"), bindingDesc, keyName, functionName);
+                        }
+                        choice = swrUI_ShowConfirmDialog(page, -1, -1, swrText_Translate("/MONDOTEXT_H_0224/Conflict Detected"), line, swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 1);
+                        if (choice == 1 || choice == SWR_UI_DIALOG_RESULT_CANCEL) {
+                            swrUI_SetValueText(row, savedText, 0);
+                            result |= swrControl_CAPTURE_SWALLOW_ACCEPT;
+                            done = 1;
+                        }
+                    }
+                }
+                if (!done) {
+                    // binding roll left binds the same axis, inverted, to roll right
+                    if (_strcmpi(functionName, swrText_Translate("/MONDOTEXT_H_0020/ROLL_LEFT")) == 0) {
+                        if (swrControl_ReplaceMapping((void*)device, swrText_Translate("/MONDOTEXT_H_0021/ROLL_RIGHT"), whichOne, 1, -direction, capturedAxis) == 0)
+                            (*stdPlatform_hostServices_ptr->assert)("elfControl_ReplaceMapping(cid, TXT_ROLL_RIGHT, whichOne, 1, -sign, lastBinding)", "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfControl.c", 0x741);
+                        directionLatched = 1;
+                    }
+                    direction = directionLatched != 0 ? direction : 0;
+                    if (swrControl_ReplaceMapping((void*)device, functionName, whichOne, bAnalogCapture, direction, capturedAxis) == 0)
+                        (*stdPlatform_hostServices_ptr->assert)("elfControl_ReplaceMapping(cid, fncStr, whichOne, bAnalogCapture, sign, lastBinding)", "D:\\devel.QA5\\pc_gnome\\SpecPlat\\rdroid_gnome\\Source\\elfControl.c", 0x746);
+                    result = swrControl_CAPTURE_SWALLOW_ACCEPT | swrControl_CAPTURE_CHANGED;
+                    done = 1;
+                }
+            }
+        }
+
+        swr_noop2();
+        rdCache_Flush();
+        rdCache_FlushAlpha();
+        stdDisplay_Update();
+    } while (!done);
+    return result;
 }
