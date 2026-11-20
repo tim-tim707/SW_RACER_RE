@@ -121,11 +121,13 @@
     </div>
     <div id="groups"></div>
 
+    <div id="runtimeSections" style="display:none">
     <h2>Pod layout</h2>
     <div id="layout" class="dim">Open a pod export.</div>
 
     <h2>Engine effects</h2>
     <div id="fxbox" class="dim">Open a pod export.</div>
+    </div>
 
     <h2>View</h2>
     <div class="row">
@@ -338,6 +340,11 @@ const ENGINE_FRAMES = ['engineR', 'engineL', 'engineR2', 'engineL2'];
 const CABLE_STIFF_DEFAULT = 0.3;// the mod's default (Mods > Pod Editor > Stiff cables)
 const CABLE_MX = [1, -1, 1, -1], CABLE_PAIR = [1, 1, -1, -1];
 const NEVA_KEE = 14;// fused engines: no cables, no binder
+// The pod layout (cables, binder, dust trails) and engine-effect edits are applied in game by the
+// mod's runtime pod edits, which this build of the mod doesn't have: off, the sections stay hidden
+// and nothing of them is drawn, saved or baked.
+const RUNTIME_EDITS = false;
+if (RUNTIME_EDITS) document.getElementById('runtimeSections').style.display = '';
 const layoutRoot = new THREE.Group(); layoutRoot.renderOrder = 9; scene.add(layoutRoot);
 const layoutProxy = new THREE.Object3D(); scene.add(layoutProxy);
 const layoutMover = new TransformControls(camera, renderer.domElement);
@@ -426,6 +433,7 @@ function layoutFromHandle(kind, podPos) {
 function drawLayout() {
   for (const o of layoutRoot.children) { o.geometry.dispose(); o.material.dispose(); }
   layoutRoot.clear();
+  if (!RUNTIME_EDITS) { layoutRoot.visible = false; layoutMover.visible = layoutMover.enabled = false; return; }
   const P = layoutPoints();
   const show = !!P && document.getElementById('showLayout')?.checked;
   layoutRoot.visible = show;
@@ -751,6 +759,7 @@ function drawExhaustLight(F) {
 function drawFx() {
   for (const o of fxRoot.children) { o.geometry.dispose(); o.material.dispose(); }
   fxRoot.clear();
+  if (!RUNTIME_EDITS) { fxRoot.visible = false; trailRoot.clear(); return; }
   const F = state.fx, show = F && state.layout?.frames && document.getElementById('showFx')?.checked;
   fxRoot.visible = !!show;
   trailRoot.clear();
@@ -1639,8 +1648,10 @@ function buildEditsText() {
       } else L.push(`hide ${m.key} ${ranges(set)}`);
     }
   }
-  L.push(...layoutLines());
-  L.push(...fxLines());
+  if (RUNTIME_EDITS) {
+    L.push(...layoutLines());
+    L.push(...fxLines());
+  }
   return L.join('\n') + '\n';
 }
 // "cable cockpit / cable engine / binder" lines for the ends moved away from the game's values.
@@ -1924,7 +1935,7 @@ function runtimeEditsText(block, baked) {
       }
       out.push(`${t[0]} ${r.model}:${off.toString(16)} ${rest}`);
     }
-    else if (['cable', 'cable2', 'cables', 'binder', 'exhaust', 'exhaustscale', 'cablestiff', 'cableout', 'cablerot', 'exhaustlight', 'gamefirestreak', 'nozzle', 'firespot', 'dustspot', 'gamefire'].includes(t[0]) || /^(own)?cable[1-4]$/.test(t[0]) ||
+    else if (RUNTIME_EDITS && ['cable', 'cable2', 'cables', 'binder', 'exhaust', 'exhaustscale', 'cablestiff', 'cableout', 'cablerot', 'exhaustlight', 'gamefirestreak', 'nozzle', 'firespot', 'dustspot', 'gamefire'].includes(t[0]) || /^(own)?cable[1-4]$/.test(t[0]) ||
              /^#\s*(hide|spin|pod layout|extra cable|engine effects)/.test(line)) out.push(line);
   }
   return out.join('\n') + '\n';
