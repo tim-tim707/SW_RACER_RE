@@ -149,6 +149,8 @@
     </div>
     <div id="buildResult" style="display:none; border-radius:6px; padding:6px 8px; margin:4px 0; font-size:12px; white-space:pre-wrap"></div>
     <div class="row">
+      <button id="btnUndo" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button id="btnRedo" disabled title="Redo (Ctrl+Y or Ctrl+Shift+Z)">↷ Redo</button>
       <button id="btnSave" disabled>Save edits (.txt)</button>
       <button id="btnCopy" disabled>Copy</button>
     </div>
@@ -1310,6 +1312,7 @@ function loadExport(json) {
   fxInit(json);
   renderLayout(); renderFx();
   refreshAll(); markDirty(false);
+  historyReset();
   setStatus('Loaded ' + json.model);
 }
 
@@ -2206,10 +2209,72 @@ function loadEdits(text) {
 let dirty = false;
 function markDirty(v = true) {
   dirty = v;
+  if (v) historySchedule();
   document.getElementById('btnSave').disabled = !state.pod;
   document.getElementById('btnCopy').disabled = !state.pod;
   document.getElementById('btnBuild').disabled = !state.pod;
 }
+// ---- undo / redo: snapshots of the edits (the same text Save writes), taken once a change settles
+// (a drag or a typed value), and loaded back with loadEdits.
+const editHistory = { list: [], at: -1, timer: 0, muted: false, max: 200 };
+const anyDragging = () => moverDragging || layoutDragging || fxDragging;
+function historyButtons() {
+  document.getElementById('btnUndo').disabled = !(editHistory.at > 0 || editHistory.timer);
+  document.getElementById('btnRedo').disabled = !(editHistory.at < editHistory.list.length - 1);
+}
+function historyReset() {
+  clearTimeout(editHistory.timer); editHistory.timer = 0;
+  editHistory.list = state.pod ? [buildEditsText()] : []; editHistory.at = editHistory.list.length - 1;
+  historyButtons();
+}
+function historyCommit() {
+  clearTimeout(editHistory.timer); editHistory.timer = 0;
+  if (!state.pod || editHistory.at < 0) return;
+  const text = buildEditsText();
+  if (text !== editHistory.list[editHistory.at]) {
+    editHistory.list.length = editHistory.at + 1;// a new change drops the redo steps
+    editHistory.list.push(text);
+    if (editHistory.list.length > editHistory.max) editHistory.list.shift();
+    editHistory.at = editHistory.list.length - 1;
+  }
+  historyButtons();
+}
+function historySchedule() {
+  if (editHistory.muted || editHistory.at < 0) return;
+  clearTimeout(editHistory.timer);
+  const tick = () => { if (anyDragging()) editHistory.timer = setTimeout(tick, 150); else historyCommit(); };
+  editHistory.timer = setTimeout(tick, 250);
+  historyButtons();
+}
+function historyGo(step) {
+  if (!state.pod || anyDragging()) return;
+  if (editHistory.timer) historyCommit();// a change still settling counts as a step first
+  const to = editHistory.at + step;
+  if (to < 0 || to >= editHistory.list.length) return;
+  const active = state.active;
+  editHistory.muted = true;
+  try {
+    loadEdits(editHistory.list[to]);
+    editHistory.at = to;
+    if (active >= 0 && active < state.groups.length) state.active = active;
+    refreshAll();
+    markDirty(true);
+  } finally { editHistory.muted = false; }
+  historyButtons();
+  setStatus(`${step < 0 ? 'Undo' : 'Redo'} (${editHistory.at} of ${editHistory.list.length - 1})`);
+}
+document.getElementById('btnUndo').onclick = () => historyGo(-1);
+document.getElementById('btnRedo').onclick = () => historyGo(1);
+window.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k !== 'z' && k !== 'y') return;
+  // A text / number box keeps its own undo while it is being typed in.
+  const t = e.target;
+  if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'range'].includes(t.type)) || t.isContentEditable)) return;
+  e.preventDefault();
+  historyGo(k === 'y' || e.shiftKey ? 1 : -1);
+});
 document.getElementById('btnSave').onclick = () => {
   const blob = new Blob([buildEditsText()], { type: 'text/plain' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = state.pod.model + '.txt'; a.click();
@@ -2380,7 +2445,7 @@ function setStatus(s) { document.getElementById('status').textContent = s; }
 async function openFile(file) {
   try {
     const text = await file.text();
-    if (file.name.toLowerCase().endsWith('.txt')) { loadEdits(text); return; }
+    if (file.name.toLowerCase().endsWith('.txt')) { loadEdits(text); historyReset(); return; }
     const json = JSON.parse(text);
     if (json.format === 'swr-pod-motion-1') {
       // Recorded motion for the Idle / Top speed preview (made in game: Mods > Pod Editor).
