@@ -29,6 +29,7 @@ both rdVector_*
 both rdMath_*
 both rdMatrix_*
 both stdHashtbl_*
+both stdFnames_*
 both swrRace_*
 both swrMath_StepTowardClamped
 verify
