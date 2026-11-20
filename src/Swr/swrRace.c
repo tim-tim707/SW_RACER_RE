@@ -5245,14 +5245,14 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
     swrText_CreateTextEntry1(0xa1, placeY, colR, colG, colB, -2, text);
 }
 
-// Bitmask of which engine sides have damaged/disabled parts (status bits 0x14):
-// 0x1 = a left engine (parts 0..2), 0x2 = a right engine (parts 3..5).
+// Bitmask of which engine sides are under repair: 0x1 = a left engine (parts 0..2),
+// 0x2 = a right engine (parts 3..5).
 // 0x0046a9c0
 unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
 {
     unsigned int sides = 0;
     for (int i = 0; i < 6; i++) {
-        if ((player->engineStatus[i] & 0x14) != 0) {
+        if ((player->engineStatus[i] & (swrRace_ENGINESTATUS_REPAIRING | swrRace_ENGINESTATUS_EXTINGUISHING)) != 0) {
             sides |= (i < 3) ? 1 : 2;
         }
     }
@@ -5279,10 +5279,114 @@ RETAIL_FP float swrRace_GetEngineDamagePenalty(swrRace* player)
     return penalty;
 }
 
+// Per-tick engine repair and the destroyed-engine explosion countdown. While repairTimer is
+// positive one engine is repaired toward half its peak damage; any burning engine may go out.
+// An engine at full damage starts a 6-10s countdown that ends in swrRace_Explode.
 // 0x0046ab10
-void swrRace_Repair(swrRace* player)
+RETAIL_FP void swrRace_Repair(swrRace* player)
 {
-    // TODO
+    const unsigned int repairBits = swrRace_ENGINESTATUS_REPAIRING | swrRace_ENGINESTATUS_EXTINGUISHING;
+    bool repairing = false;
+    bool leftDestroyed = false;
+    bool rightDestroyed = false;
+    char explodeSide = 0;
+    int target = -1;
+
+    player->repairTimer = player->repairTimer - swrRace_deltaTimeSecs;
+    if (player->flags0 & swrObjTest_FLAG0_REPAIRING) {
+        player->repairTimer = (float)SWR_REPAIR_HELD_TIMER;
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (player->engineStatus[i] & swrRace_ENGINESTATUS_REPAIRING) {
+            target = i;
+        }
+        player->engineStatus[i] &= ~repairBits;
+    }
+
+    if (player->repairTimer > 0.0f) {
+        if (target < 0) {
+            float worst = 0.0f;
+            for (int i = 0; i < 6; i++) {
+                if (worst < player->engineHealth[i] && player->engineHealth[i] > SWR_CTL_HALF) {
+                    worst = player->engineHealth[i];
+                    target = i;
+                }
+            }
+        }
+        if (target >= 0 && player->engineHealthMin[target] * (double)SWR_CTL_HALF_HOLD < player->engineHealth[target]) {
+            player->engineStatus[target] |= swrRace_ENGINESTATUS_REPAIRING;
+        }
+        if ((player->flags1 & swrObjTest_FLAG1_ON_LAVA) == 0) {
+            for (int i = 0; i < 6; i++) {
+                if (player->engineStatus[i] & swrRace_ENGINESTATUS_ON_FIRE) {
+                    player->engineStatus[i] |= swrRace_ENGINESTATUS_EXTINGUISHING;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (player->engineStatus[i] & swrRace_ENGINESTATUS_REPAIRING) {
+            repairing = true;
+            // Retail spills the heal rate to a float before scaling it by the frame time.
+            float healRate = (player->engineHealthMin[i] * SWR_CTL_HALF - player->engineHealthMin[i]) * player->podStats.repairRate * SWR_CTL_HALF;
+            player->engineHealth[i] = swrRace_deltaTimeSecs * healRate + player->engineHealth[i];
+        }
+        if ((player->engineStatus[i] & swrRace_ENGINESTATUS_EXTINGUISHING) &&
+            (long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM < (double)SWR_REPAIR_EXTINGUISH_CHANCE) {
+            player->engineStatus[i] &= ~swrRace_ENGINESTATUS_ON_FIRE;
+        }
+    }
+
+    if (player->flags0 & swrObjTest_FLAG0_LOCAL) {
+        if (repairing) {
+            swrControl_PlayForceEffect(swrForceEffect_REPAIR, -1, -1, -1);
+        } else {
+            swrControl_StopForceEffect(swrForceEffect_REPAIR);
+        }
+        if (repairing) {
+            if ((long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM < (float)SWR_REPAIR_VOICE_CHANCE &&
+                swrSound_TestSfxFlag((char)player->score_ptr->sfxChannel, swrSound_SFXFLAG_REPAIRING) == 0) {
+                swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 10, 10, 10, 10, 10, (rdVector3*)&player->transform.vD);
+                swrSound_SetSfxFlag((char)player->score_ptr->sfxChannel, swrSound_SFXFLAG_REPAIRING);
+            }
+        } else if (swrSound_TestSfxFlag((char)player->score_ptr->sfxChannel, swrSound_SFXFLAG_REPAIRING) != 0) {
+            swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 11, 11, 11, 11, 11, (rdVector3*)&player->transform.vD);
+            swrSound_ClearSfxFlag((char)player->score_ptr->sfxChannel, swrSound_SFXFLAG_REPAIRING);
+        }
+    }
+
+    for (int i = 0; i < 6; i++) {
+        if (player->engineHealth[i] >= (double)SWR_ENGINE_DESTROYED) {
+            if (i < 3) {
+                leftDestroyed = true;
+            } else {
+                rightDestroyed = true;
+            }
+        }
+    }
+
+    if (!leftDestroyed && !rightDestroyed) {
+        player->damageWarningTimer = (long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM * SWR_DAMAGE_WARNING_SECS_RANGE + SWR_DAMAGE_WARNING_SECS_MIN;
+    } else {
+        player->damageWarningTimer = player->damageWarningTimer - swrRace_deltaTimeSecs;
+        if (player->flags0 & swrObjTest_FLAG0_WAS_BOOSTING) {
+            player->damageWarningTimer = 0.0f;
+        }
+    }
+    if (player->damageWarningTimer > 0.0f) {
+        return;
+    }
+
+    if (leftDestroyed && rightDestroyed) {
+        explodeSide = (long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM < SWR_CTL_HALF ? swrRace_EXPLODE_SIDE_LEFT : swrRace_EXPLODE_SIDE_RIGHT;
+    } else if (leftDestroyed) {
+        explodeSide = swrRace_EXPLODE_SIDE_LEFT;
+    } else if (rightDestroyed) {
+        explodeSide = swrRace_EXPLODE_SIDE_RIGHT;
+    }
+    swrRace_Explode(player, explodeSide);
 }
 
 // AI glide-dive pitch. When the pod has dropped below its spline path, pitch hard nose-down
@@ -7228,10 +7332,55 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
     return groundDist;
 }
 
+// Boost charge state machine on boostIndicatorStatus: 0 idle, 1 charging, 2 ready. Throttle
+// plus stick forward arms and charges it; holding that for a second makes it ready, and the
+// boost input then fires it. Returns 1 on the tick the boost fires.
 // 0x0046bd20
-int swrRace_BoostCharge(int player)
+RETAIL_FP int swrRace_BoostCharge(int player)
 {
-    // TODO
+    swrRace* p = (swrRace*)player;
+    int boostPressed = (int)swrRace_BoostInput;
+
+    if ((p->flags0 & swrObjTest_FLAG0_CAN_CHARGE_BOOST) == 0 || (p->flags0 & swrObjTest_FLAG0_BOOSTING) != 0) {
+        p->flags0 &= ~swrObjTest_FLAG0_BOOST_OVERDRIVE;
+        p->boostIndicatorStatus = 0;
+        return 0;
+    }
+
+    bool throttleHeld = swrRace_ThrustInput != 0.0f || swrRace_ThrottleInput > (double)SWR_CTL_BOOST_THROTTLE;
+    bool stickForward = swrRace_PitchInput > (float)SWR_CTL_BOOST_PITCH;
+
+    switch (p->boostIndicatorStatus) {
+    case 0:
+        if (throttleHeld && stickForward) {
+            p->boostIndicatorStatus = 1;
+            p->boostChargeTimer = 0.0f;
+        }
+        return 0;
+    case 1:
+        if (throttleHeld && stickForward) {
+            // Retail compares the sum before rounding it into boostChargeTimer.
+            long double charge = p->boostChargeTimer + swrRace_deltaTimeSecs;
+            p->boostChargeTimer = charge;
+            if (charge > SWR_CTL_ONE) {
+                p->boostIndicatorStatus = 2;
+            }
+            return 0;
+        }
+        break;
+    case 2:
+        if (swrRace_PitchInput >= (float)SWR_CTL_BOOST_PITCH) {
+            if (boostPressed == 0) {
+                return 0;
+            }
+            p->boostIndicatorStatus = 0;
+            float pitch = (long double)swrUtils_Rand() * (float)SWR_CTL_RAND_NORM * (double)SWR_BOOST_SFX_PITCH_RANGE + (double)SWR_BOOST_SFX_PITCH_MIN;
+            swrSound_PlaySpatialRange(0x72, 7, pitch, 1.0f, (rdVector3*)&p->transform.vD, 0, 1, 10.0f, 500.0f);
+            return 1;
+        }
+        break;
+    }
+    p->boostIndicatorStatus = 0;
     return 0;
 }
 

@@ -172,6 +172,16 @@
 #define SWR_CTL_BOOST_WINDOW_LO (0.0)          // boost-start window lower bound (0x004ad830, double)
 #define SWR_CTL_BOOST_CANCEL_SPEED (290.0f)    // speed above which a pending boost-start is cancelled (0x004ad910)
 #define SWR_CTL_BOOST_TAP_TIMEOUT (0.25)       // double-tap window for flame-attack / boost (0x004ad8d0, double)
+#define SWR_CTL_BOOST_PITCH (0.7f)            // pitch input (stick forward) above this charges boost (0x004ad8b0)
+#define SWR_BOOST_SFX_PITCH_MIN (0.18)         // boost whoosh pitch in [MIN, MIN + RANGE); retail subtracts -0.18 (0x004ad8c0, double)
+#define SWR_BOOST_SFX_PITCH_RANGE (0.10000000000000003) // 0.28 - 0.18 folded at double precision (0x004ad8b8, double)
+// swrRace_Repair (0x0046ab10). Engine "health" is damage: 0 = intact, 1 = destroyed.
+#define SWR_REPAIR_HELD_TIMER (0.1f)           // repairTimer pinned here while the repair input is held
+#define SWR_REPAIR_EXTINGUISH_CHANCE (0.03)    // per-tick chance a repaired engine's fire goes out (0x004ad780, double)
+#define SWR_REPAIR_VOICE_CHANCE (0.15f)        // per-tick chance of the pilot's 'repairing' line (0x004ad788)
+#define SWR_ENGINE_DESTROYED (1.0)             // engine damage at or above this counts as destroyed (0x004ad790, double)
+#define SWR_DAMAGE_WARNING_SECS_RANGE (4.0f)   // explode countdown in [MIN, MIN + RANGE) seconds (0x004ad798)
+#define SWR_DAMAGE_WARNING_SECS_MIN (6.0f)     // retail subtracts -6.0f (0x004ad79c)
 #define SWR_CTL_FLAT_THROTTLE_FLOOR (1.2f)     // flags0 0x400000 overdrive: minimum throttle (0x004ad944)
 #define SWR_CTL_DMG_PEN_GAIN (1.5f)            // engine-damage steering-penalty gain (0x004ad8f0)
 #define SWR_CTL_DMG_PEN_LEFT (-0.2f)           // penalty offset when left engines are the damaged side (0x004ad8e8)

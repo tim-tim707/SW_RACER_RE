@@ -172,7 +172,9 @@ typedef enum swrRace_ENGINESTATUS
 {
     swrRace_ENGINESTATUS_HIT = 0x1, // set by swrRace_TakeDamage; cleared by swrRace_InRaceEngineUI once vibrationMagnitude has decayed
     swrRace_ENGINESTATUS_BLINK = 0x2, // toggled every unpaused frame by swrRace_InRaceEngineUI (HUD icon flash phase)
+    swrRace_ENGINESTATUS_REPAIRING = 0x4, // being repaired this tick (swrRace_Repair rebuilds it every tick)
     swrRace_ENGINESTATUS_ON_FIRE = 0x8, // engine burning: fireball spawned, ENGINE_FIRE force effect
+    swrRace_ENGINESTATUS_EXTINGUISHING = 0x10, // fire being put out by the repair: swrRace_Repair clears ON_FIRE at random
 } swrRace_ENGINESTATUS;
 
 // swrRace_resultsStateFlags: one-shot latches while the results screen is up,
@@ -208,6 +210,7 @@ typedef enum swrSaveData_UNLOCKFLAGS
 // score->sfxChannel): each latches a one-shot line so it isn't spammed.
 typedef enum swrSound_SFXFLAG
 {
+    swrSound_SFXFLAG_REPAIRING = 0x10000, // pilot's 'repairing' line played; swrRace_Repair plays the 'repaired' line and clears it
     swrSound_SFXFLAG_ENGINE_FIRE = 0x40000, // engine-fire sfx started (swrRace_ApplyEngineDamage); cleared once no engine burns
     swrSound_SFXFLAG_LAP_FANFARE = 0x100000, // lap-record / finish fanfare played for this racer
 } swrSound_SFXFLAG;

@@ -1,5 +1,7 @@
 #include "reimpl_verify.h"
 
+#include <windows.h>
+
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -8,14 +10,17 @@
 
 extern "C" {
 #include <General/stdMath.h>
+#include <General/utils.h>
 #include <General/stdFnames.h>
 #include <General/stdHashTable.h>
+#include <Main/swrControl.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
+#include <Swr/swrSound.h>
 #include <globals.h>
 #include <hook_mode.h>
 }
@@ -2203,6 +2208,309 @@ namespace {
         report(s);
     }
 
+
+    // Side-effecting callees (RNG, sound, rumble, Explode) are jmp-patched at BOTH entries to
+    // recording stubs for a case, so both sides share scripted RNG and SFX-flag state and log
+    // every call. Original bytes, including any Detours jump, are restored afterwards.
+    struct EntryPatch {
+        uint8_t *at;
+        uint8_t saved[5];
+    };
+
+    void write_code(uint8_t *at, const uint8_t *bytes) {
+        DWORD old;
+        VirtualProtect(at, 5, PAGE_EXECUTE_READWRITE, &old);
+        std::memcpy(at, bytes, 5);
+        VirtualProtect(at, 5, old, &old);
+        FlushInstructionCache(GetCurrentProcess(), at, 5);
+    }
+
+    void patch_jmp(EntryPatch &p, void *at, void *to) {
+        p.at = (uint8_t *) at;
+        std::memcpy(p.saved, p.at, 5);
+        uint8_t jmp[5] = {0xe9};
+        const int32_t rel = (int32_t) ((uintptr_t) to - ((uintptr_t) at + 5));
+        std::memcpy(jmp + 1, &rel, 4);
+        write_code(p.at, jmp);
+    }
+
+    void unpatch(EntryPatch &p) {
+        write_code(p.at, p.saved);
+    }
+
+    struct CallLog {
+        uint32_t words[64];
+        int count;
+        uint32_t rng_state;
+        int rng_calls;
+        uint32_t sfx_flags;
+        const swrRace *racer;
+    };
+
+    CallLog *active_log = nullptr;
+
+    void log_word(uint32_t w) {
+        if (active_log->count < 64)
+            active_log->words[active_log->count] = w;
+        active_log->count++;
+    }
+
+    uint32_t float_bits(float f) {
+        uint32_t u;
+        std::memcpy(&u, &f, 4);
+        return u;
+    }
+
+    // Pointers into the racer are logged as offsets, so the two copies compare equal.
+    uint32_t racer_offset(const void *p) {
+        return (uint32_t) ((const uint8_t *) p - (const uint8_t *) active_log->racer);
+    }
+
+    int stub_rand(void) {
+        active_log->rng_calls++;
+        active_log->rng_state = active_log->rng_state * 1103515245u + 12345u;
+        return (int) (active_log->rng_state >> 1);
+    }
+    int stub_play_force(int id, int a, int b, int c) {
+        log_word(0xf0000000u | (uint32_t) id);
+        log_word((uint32_t) a), log_word((uint32_t) b), log_word((uint32_t) c);
+        return 0;
+    }
+    int stub_stop_force(int id) {
+        log_word(0xf1000000u | (uint32_t) id);
+        return 0;
+    }
+    unsigned int stub_test_sfx(int index, unsigned int mask) {
+        log_word(0xe0000000u | ((uint32_t) index & 0xffff));
+        return active_log->sfx_flags & mask;
+    }
+    void stub_set_sfx(int index, unsigned int mask) {
+        log_word(0xe1000000u | ((uint32_t) index & 0xffff));
+        active_log->sfx_flags |= mask;
+    }
+    void stub_clear_sfx(int index, unsigned int mask) {
+        log_word(0xe2000000u | ((uint32_t) index & 0xffff));
+        active_log->sfx_flags &= ~mask;
+    }
+    int stub_play_random_sfx(int category, int variant, int s1, int s2, int s3, int s4, int s5,
+                                    rdVector3 *pos) {
+        log_word(0xd0000000u | (uint32_t) category);
+        log_word((uint32_t) variant), log_word((uint32_t) s1), log_word((uint32_t) s2);
+        log_word((uint32_t) s3), log_word((uint32_t) s4), log_word((uint32_t) s5);
+        log_word(racer_offset(pos));
+        return 0;
+    }
+    void stub_play_spatial(int id, short p2, float p3, float gain, rdVector3 *pos, int p6,
+                                  unsigned int flags, float min_dist, float max_dist) {
+        log_word(0xd1000000u | (uint32_t) id);
+        log_word((uint32_t) p2), log_word(float_bits(p3)), log_word(float_bits(gain));
+        log_word(racer_offset(pos)), log_word((uint32_t) p6), log_word(flags);
+        log_word(float_bits(min_dist)), log_word(float_bits(max_dist));
+    }
+    void stub_explode(swrRace *player, char side) {
+        log_word(0xc0000000u | (uint8_t) side);
+        log_word(racer_offset(player));
+    }
+
+    struct SideEffectPatches {
+        EntryPatch p[18];
+        int n = 0;
+
+        void both(void *ours, uint32_t retail_addr, void *stub) {
+            patch_jmp(p[n++], hook_retail_ptr(retail_addr), stub);
+            patch_jmp(p[n++], ours, stub);
+        }
+
+        SideEffectPatches() {
+            both((void *) swrUtils_Rand, swrUtils_Rand_ADDR, (void *) stub_rand);
+            both((void *) swrControl_PlayForceEffect, swrControl_PlayForceEffect_ADDR,
+                 (void *) stub_play_force);
+            both((void *) swrControl_StopForceEffect, swrControl_StopForceEffect_ADDR,
+                 (void *) stub_stop_force);
+            both((void *) swrSound_TestSfxFlag, swrSound_TestSfxFlag_ADDR, (void *) stub_test_sfx);
+            both((void *) swrSound_SetSfxFlag, swrSound_SetSfxFlag_ADDR, (void *) stub_set_sfx);
+            both((void *) swrSound_ClearSfxFlag, swrSound_ClearSfxFlag_ADDR,
+                 (void *) stub_clear_sfx);
+            both((void *) swrSound_PlayRandomSfx, swrSound_PlayRandomSfx_ADDR,
+                 (void *) stub_play_random_sfx);
+            both((void *) swrSound_PlaySpatialRange, swrSound_PlaySpatialRange_ADDR,
+                 (void *) stub_play_spatial);
+            both((void *) swrRace_Explode, swrRace_Explode_ADDR, (void *) stub_explode);
+        }
+
+        ~SideEffectPatches() {
+            while (n > 0)
+                unpatch(p[--n]);
+        }
+    };
+
+    void record_calls(Stats &s, const CallLog &ours, const CallLog &retail, const char *desc) {
+        char d[200];
+        std::snprintf(d, sizeof(d), "%s [calls]", desc);
+        int same = ours.count == retail.count && ours.rng_calls == retail.rng_calls &&
+                   ours.sfx_flags == retail.sfx_flags;
+        const int n = ours.count < 64 ? ours.count : 64;
+        for (int k = 0; same && k < n; k++)
+            same = ours.words[k] == retail.words[k];
+        if (!same) {
+            std::snprintf(d, sizeof(d), "%s [calls ours=%d rng=%d sfx=%x, retail=%d rng=%d sfx=%x]",
+                          desc, ours.count, ours.rng_calls, ours.sfx_flags, retail.count,
+                          retail.rng_calls, retail.sfx_flags);
+        }
+        record_int(s, same, 1, d);
+    }
+
+    void begin_log(CallLog &log, const swrRace *racer, uint32_t seed, uint32_t sfx_flags) {
+        std::memset(&log, 0, sizeof(log));
+        log.rng_state = seed;
+        log.sfx_flags = sfx_flags;
+        log.racer = racer;
+        active_log = &log;
+    }
+
+    struct InputGuard {
+        float thrust, throttle, pitch, boost;
+        InputGuard()
+            : thrust(swrRace_ThrustInput), throttle(swrRace_ThrottleInput),
+              pitch(swrRace_PitchInput), boost(swrRace_BoostInput) {}
+        ~InputGuard() {
+            swrRace_ThrustInput = thrust;
+            swrRace_ThrottleInput = throttle;
+            swrRace_PitchInput = pitch;
+            swrRace_BoostInput = boost;
+        }
+    };
+
+    using V_racer = void (*)(swrRace *);
+    using I_int = int (*)(int);
+
+    // Damage values cluster around the thresholds the body branches on: 0.5 (repair target),
+    // half the peak (repair start) and 1.0 (destroyed).
+    float sample_damage() {
+        switch (next_u32() % 6u) {
+            case 0:
+                return 0.0f;
+            case 1:
+                return 1.0f;
+            case 2:
+                return 0.5f;
+            case 3:
+                return next_float(0.95f, 1.05f);
+            default:
+                return next_float(0.0f, 1.0f);
+        }
+    }
+
+    void run_repair() {
+        const char *name = "swrRace_Repair";
+        if (!testable(name, swrRace_Repair_ADDR))
+            return;
+        const V_racer retail = (V_racer) hook_retail_ptr(swrRace_Repair_ADDR);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        swrScore score;
+        int pilot = 5;
+        std::memset(&score, 0, sizeof(score));
+        score.sfxChannel = 3;
+        score.pilotId = &pilot;
+        SideEffectPatches patches;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            std::memset(ours, 0, sizeof(swrRace));
+            ours->score_ptr = &score;
+            uint32_t f0 = 0;
+            if (next_u32() % 3u == 0)
+                f0 |= swrObjTest_FLAG0_REPAIRING;
+            if (next_u32() % 2u == 0)
+                f0 |= swrObjTest_FLAG0_LOCAL;
+            if (next_u32() % 4u == 0)
+                f0 |= swrObjTest_FLAG0_WAS_BOOSTING;
+            ours->flags0 = (swrObjTest_FLAG0) f0;
+            ours->flags1 = (swrObjTest_FLAG1) (next_u32() % 4u == 0 ? swrObjTest_FLAG1_ON_LAVA : 0);
+            ours->repairTimer = next_float(-0.2f, 0.2f);
+            ours->damageWarningTimer = next_float(-1.0f, 10.0f);
+            ours->podStats.repairRate = next_float(0.0f, 1.0f);
+            for (int k = 0; k < 6; k++) {
+                ours->engineHealth[k] = sample_damage();
+                ours->engineHealthMin[k] = sample_damage();
+                ours->engineStatus[k] = next_u32() & 0x1fu;
+            }
+            std::memcpy(ret, ours, sizeof(swrRace));
+            const uint32_t seed = next_u32();
+            const uint32_t sfx = (next_u32() % 2u) ? swrSound_SFXFLAG_REPAIRING : 0u;
+
+            CallLog our_log, ret_log;
+            begin_log(our_log, ours, seed, sfx);
+            swrRace_Repair(ours);
+            begin_log(ret_log, ret, seed, sfx);
+            retail(ret);
+            active_log = nullptr;
+
+            char desc[128];
+            std::snprintf(desc, sizeof(desc), "case %d flags0=0x%x dt=%.9g timer=%.9g", i, f0,
+                          swrRace_deltaTimeSecs, ret->repairTimer);
+            record_racer(s, *ours, *ret, desc);
+            record_calls(s, our_log, ret_log, desc);
+        }
+        report(s);
+    }
+
+    void run_boost_charge() {
+        const char *name = "swrRace_BoostCharge";
+        if (!testable(name, swrRace_BoostCharge_ADDR))
+            return;
+        const I_int retail = (I_int) hook_retail_ptr(swrRace_BoostCharge_ADDR);
+        DeltaGuard guard;
+        InputGuard inputs;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        static const float pitches[] = {0.0f, 0.7f, 0.70000005f, 0.69999999f, 1.0f, -1.0f};
+        static const float throttles[] = {0.0f, 0.6f, 0.60000002f, 1.0f};
+        SideEffectPatches patches;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            std::memset(ours, 0, sizeof(swrRace));
+            uint32_t f0 = next_u32() % 5u ? swrObjTest_FLAG0_CAN_CHARGE_BOOST : 0;
+            if (next_u32() % 6u == 0)
+                f0 |= swrObjTest_FLAG0_BOOSTING;
+            if (next_u32() % 2u == 0)
+                f0 |= swrObjTest_FLAG0_BOOST_OVERDRIVE;
+            ours->flags0 = (swrObjTest_FLAG0) f0;
+            ours->boostIndicatorStatus = next_u32() % 4u;
+            const uint32_t status0 = ours->boostIndicatorStatus;
+            // Near 1.0 so a single tick's add straddles the ready threshold.
+            ours->boostChargeTimer = next_u32() % 2u ? next_float(0.9f, 1.0f) : next_float(0.0f, 1.0f);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            swrRace_ThrustInput = next_u32() % 2u ? 0.0f : 1.0f;
+            swrRace_ThrottleInput = throttles[next_u32() % 4u];
+            swrRace_PitchInput = next_u32() % 3u ? pitches[next_u32() % 6u] : next_float(-1.0f, 1.0f);
+            swrRace_BoostInput = next_u32() % 2u ? 0.0f : next_float(0.0f, 2.0f);
+            const uint32_t seed = next_u32();
+
+            CallLog our_log, ret_log;
+            begin_log(our_log, ours, seed, 0);
+            const int our_r = swrRace_BoostCharge((int) ours);
+            begin_log(ret_log, ret, seed, 0);
+            const int ret_r = retail((int) ret);
+            active_log = nullptr;
+
+            char desc[160];
+            std::snprintf(desc, sizeof(desc),
+                          "status=%u flags0=0x%x thrust=%.9g throttle=%.9g pitch=%.9g boost=%.9g",
+                          status0, f0, swrRace_ThrustInput, swrRace_ThrottleInput,
+                          swrRace_PitchInput, swrRace_BoostInput);
+            record_int(s, our_r, ret_r, desc);
+            record_racer(s, *ours, *ret, desc);
+            record_calls(s, our_log, ret_log, desc);
+        }
+        report(s);
+    }
+
 }// namespace
 
 extern "C" void reimpl_verify_run(FILE *hook_log) {
@@ -2394,6 +2702,8 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
         run_damaged_engine_sides();
         run_take_damage();
         run_boost_bar_color();
+        run_repair();
+        run_boost_charge();
     }
     free_racers();
 
