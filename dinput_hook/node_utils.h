@@ -30,6 +30,9 @@ struct AssetPointerToModel {
     char *asset_pointer_begin;
     char *asset_pointer_end;
     MODELID id;
+    // Where the model's own data starts (its type tag; the loader may pad before it), so a pointer
+    // maps to the same byte offset as in the model file whatever the buffer's alignment was.
+    char *data_begin = nullptr;
 };
 
 // Maps a contiguous pod-model asset range to the racer entity that owns it. Each racer loads its own
@@ -51,7 +54,24 @@ extern MaterialMember node_material_members[9];
 extern std::vector<AssetPointerToModel> asset_pointer_to_model;
 extern std::vector<PodNodeOwner> pod_node_owners;
 
+constexpr uintptr_t kMinMappableAddress = 0x10000;// Win32 never maps the first 64 KB
+
+// Returns specs[i], or nullptr when the slot holds a value below the first mappable page. Crash
+// reports show in-race textures with specs[0] == 0x3 / 0xf, which a plain null check dereferences.
+inline const swrModel_MaterialTextureChild *material_texture_spec(const swrModel_MaterialTexture *tex,
+                                                                   int i) {
+    const swrModel_MaterialTextureChild *spec = tex->specs[i];
+    return (uintptr_t) spec >= kMinMappableAddress ? spec : nullptr;
+}
+
 std::optional<MODELID> find_model_id_for_node(const swrModel_Node *node);
+
+// Model id and byte offset (from the start of that model's asset data) of any pointer into a loaded
+// model -- stable across loads, so it identifies a mesh the same way every session.
+bool find_asset_offset(const void *ptr, MODELID *id, uint32_t *offset);
+// Same, but the offset from the model data's start: the byte offset in the model file (stable across
+// loads, unlike find_asset_offset's, which depends on the asset buffer's alignment at load time).
+bool find_model_offset(const void *ptr, MODELID *id, uint32_t *offset);
 
 // Rebuilds pod_node_owners from the live racer roster (swrScores[]). Cheap (<=20 entries); call once
 // per frame before scene traversal while in a race.
