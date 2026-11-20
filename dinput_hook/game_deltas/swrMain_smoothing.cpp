@@ -659,7 +659,7 @@ namespace {
         if ((racer->flags1 & swrObjTest_FLAG1_SLIDING) != 0)
             target *= kExhaustSlidingScale;
         for (int i = firstEngine; i < firstEngine + kNumEnginesPerSide; i++)
-            if ((racer->engineStatus[i] & swrRace_ENGINESTATUS_DAMAGED) != 0) {
+            if ((racer->engineStatus[i] & swrRace_ENGINESTATUS_REPAIRING) != 0) {
                 target *= kExhaustDestroyedScale;
                 break;
             }
