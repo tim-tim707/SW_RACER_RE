@@ -33,6 +33,11 @@ hook_mode hook_mode_for(const char* function_name);
 // Non-zero when the config contains a bare `verify` line.
 int hook_verify_requested(void);
 
+// Set by the delta layer before hook_generated() runs; non-zero when it hook_replace()s that body.
+// Such a function stays `original` whatever the config says: the delta owns the retail entry and
+// its hook_call_original() needs the original-mode registration. NULL when there is no delta layer.
+extern int (*hook_mode_delta_owned)(uint32_t reimpl_addr);
+
 // `force_reimpl` marks functions annotated `// 0xADDR HOOK` -- deltas the GL renderer depends on
 // rather than equivalence candidates, so they go live regardless of configuration.
 void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, int force_reimpl, FILE* hook_log);

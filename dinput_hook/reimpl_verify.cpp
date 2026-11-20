@@ -1070,7 +1070,6 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
 
     std::fprintf(verify_log, "stdMath\n");
 
-    // Retail used the MSVC CRT and this build uses MinGW's, hence the 1 ULP budget.
     run_f_f("stdMath_Sqrt", stdMath_Sqrt_ADDR, stdMath_Sqrt, 0.0f, 1.0e6f, 0);
     run_f_f("stdMath_Sqrt_2", stdMath_Sqrt_2_ADDR, stdMath_Sqrt_2, 0.0f, 1.0e6f, 0);
     run_f_f("stdMath_fround", stdMath_fround_ADDR, stdMath_fround, -1.0e6f, 1.0e6f, 0);
@@ -1095,7 +1094,6 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_f_f("stdMath_ArcSin3", stdMath_ArcSin3_ADDR, stdMath_ArcSin3, -1.0f, 1.0f, 0);
     run_f_ff("stdMath_ArcTan2", stdMath_ArcTan2_ADDR, stdMath_ArcTan2, -1000.0f, 1000.0f, 0);
 
-    // sin/cos through the CRT: same rounding budget as sqrt.
     run_v_fpp("stdMath_SinCos", stdMath_SinCos_ADDR, stdMath_SinCos, -1000.0f, 1000.0f, 0);
     run_f_f("stdMath_Tan", stdMath_Tan_ADDR, stdMath_Tan, -1000.0f, 1000.0f, 0);
 
@@ -1120,8 +1118,8 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_v_vvfv("rdVector_Scale3Add3", rdVector_Scale3Add3_ADDR, rdVector_Scale3Add3, -1000.0f,
                1000.0f, 0);
     run_f_vv("rdVector_Dot3", rdVector_Dot3_ADDR, rdVector_Dot3, -1000.0f, 1000.0f, 0);
-    // 1 ULP deliberately: retail narrows dx and dy to 32-bit mid-computation but not dz (see
-    // rdVector_DistSquared3). An x87-intermediate artifact, not a defect in the expression.
+    // Retail narrows dx and dy to 32-bit mid-computation but not dz; the reimpl reproduces that
+    // (see rdVector_DistSquared3).
     run_f_vv("rdVector_DistSquared3", rdVector_DistSquared3_ADDR, rdVector_DistSquared3, -1000.0f,
              1000.0f, 0);
     run_f_v("rdVector_Len3", rdVector_Len3_ADDR, rdVector_Len3, -1000.0f, 1000.0f, 0);
@@ -1155,8 +1153,6 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_i_i("stdHashtbl_isPrime", stdHashtbl_isPrime_ADDR, stdHashtbl_isPrime, -50, 400);
     run_i_i("stdHashtbl_nextPrime", stdHashtbl_nextPrime_ADDR, stdHashtbl_nextPrime, -50, 400);
 
-    // The rotation builders route through stdMath_SinCos, hence the 1 ULP budget on those; the
-    // rest is plain assignment and arithmetic.
     std::fprintf(verify_log, "\nrdMatrix\n");
     run_v_m44("rdMatrix_SetIdentity44", rdMatrix_SetIdentity44_ADDR, rdMatrix_SetIdentity44, 0);
     run_v_m44fff("rdMatrix_SetDiagonal44", rdMatrix_SetDiagonal44_ADDR, rdMatrix_SetDiagonal44,
