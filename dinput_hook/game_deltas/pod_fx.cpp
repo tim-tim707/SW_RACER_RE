@@ -120,7 +120,7 @@ namespace {
     rdVector3 rand_vec() { return {frand_sym(), frand_sym(), frand_sym()}; }
 
     // ---- particles -------------------------------------------------------------------------
-    enum Kind : uint8_t { kSpark, kEmber, kFlame, kSmoke, kDust, kTrail, kExFire };
+    enum Kind : uint8_t { kSpark, kEmber, kFlame, kSmoke, kDust, kTrail, kExFire, kDebris };
     struct Particle {
         rdVector3 pos, vel, carrier;// carrier = pod velocity at spawn (streak direction)
         float age, life, size, unit;// unit = pod length at spawn (physics scale)
@@ -398,6 +398,21 @@ namespace {
         p.vel = add(pod_vel, mul(d, L * (1.5f + 3.0f * frand())));
         p.life = 0.3f + 0.5f * frand();
         p.size = L * 0.012f;
+        p.ground_z = gz;
+    }
+
+    // A chip of metal knocked off a wreck: thrown out, falls, skips along the ground, tumbling.
+    void spawn_debris(rdVector3 pos, rdVector3 vel, rdVector3 dir, rdVector3 up, float L, float gz) {
+        Particle& p = alloc();
+        p.kind = kDebris;
+        p.pos = pos;
+        p.carrier = vel;
+        p.unit = L;
+        const rdVector3 d = norm(add(add(dir, mul(rand_vec(), 1.3f)), mul(up, 0.6f)));
+        p.vel = add(vel, mul(d, L * (1.0f + 3.5f * frand())));
+        p.life = 1.8f + 2.6f * frand();
+        p.size = L * (0.012f + 0.03f * frand());
+        p.shade = frand();// its own tumble speed, shape and tint
         p.ground_z = gz;
     }
 
@@ -732,6 +747,7 @@ namespace {
             case kDust: drag = 3.5f; gravity = 0.8f * L; turb = 1.5f * L; break;
             case kTrail: drag = 2.0f; lift = 0.6f * L; turb = 1.2f * L; break;
             case kExFire: drag = 4.0f; lift = 1.0f * L; turb = 2.0f * L; break;
+            case kDebris: drag = 0.5f; gravity = 22.0f * L; break;
         }
         p.vel = mul(p.vel, std::exp(-drag * dt));// air drag (world-still air)
         p.vel.z += (lift - gravity) * dt;         // buoyancy / gravity, world z up
@@ -743,12 +759,13 @@ namespace {
             p.vel = add(p.vel, mul(sw, turb * s.turbulence * dt));
         }
         p.pos = add(p.pos, mul(p.vel, dt));
-        // Sparks skip off the ground instead of falling through it.
-        if (p.kind == kSpark && !std::isnan(p.ground_z) && p.pos.z < p.ground_z && p.vel.z < 0.0f) {
+        // Sparks and debris skip off the ground instead of falling through it.
+        if ((p.kind == kSpark || p.kind == kDebris) && !std::isnan(p.ground_z) && p.pos.z < p.ground_z && p.vel.z < 0.0f) {
+            const bool chip = p.kind == kDebris;
             p.pos.z = p.ground_z;
-            p.vel.z *= -0.35f;
-            p.vel.x *= 0.7f;
-            p.vel.y *= 0.7f;
+            p.vel.z *= chip ? -0.3f : -0.35f;
+            p.vel.x *= chip ? 0.55f : 0.7f;
+            p.vel.y *= chip ? 0.55f : 0.7f;
         }
     }
 
@@ -826,6 +843,23 @@ namespace {
         return *wz >= 0.0f && *wz <= 1.0f;
     }
 
+    // The depth of w pulled `pull` (world units) toward the camera: a glow drawn with it sits over
+    // the mesh it comes out of instead of being cut off by it, but still goes behind anything
+    // nearer (walls, the track).
+    float pulled_depth(rdVector3 w, float pull, float fallback) {
+        rdVector4 in = {w.x, w.y, w.z, 1.0f}, vp, clip;
+        rdMatrix_TransformPoint44(&vp, &in, &g_view);
+        const float d = std::sqrt(vp.x * vp.x + vp.y * vp.y + vp.z * vp.z);
+        if (d < 1e-3f)
+            return fallback;
+        const float k = std::max(0.02f, 1.0f - pull / d);
+        vp.x *= k, vp.y *= k, vp.z *= k;
+        rdMatrix_TransformPoint44(&clip, &vp, &g_proj);
+        if (clip.w <= 0.01f)
+            return fallback;
+        return clampf(clip.z / clip.w * 0.5f + 0.5f, 0.0f, fallback);
+    }
+
     GLuint make_texture(int N, float (*alpha_at)(float nx, float ny, int x, int y)) {
         std::vector<uint32_t> px((size_t) N * N);
         for (int y = 0; y < N; y++)
@@ -867,6 +901,15 @@ namespace {
         static GLuint tex = make_texture(128, [](float nx, float ny, int, int) {
             const float a = clampf((1.0f - std::sqrt(nx * nx + ny * ny)) * 1.4f, 0.0f, 1.0f);
             return a * a;
+        });
+        return tex;
+    }
+
+    // A hard-edged, angular chip (debris): a squashed diamond with a crisp rim.
+    GLuint chip_texture() {
+        static GLuint tex = make_texture(64, [](float nx, float ny, int, int) {
+            const float d = std::fabs(nx) * 0.85f + std::fabs(ny) * 1.1f + 0.15f * std::fabs(nx * ny);
+            return clampf((0.9f - d) * 12.0f, 0.0f, 1.0f);
         });
         return tex;
     }
@@ -963,7 +1006,7 @@ namespace {
             clear();
         }
     };
-    Batch g_alpha, g_add, g_add_soft;
+    Batch g_alpha, g_add, g_add_soft, g_chips;
 
     D3DCOLOR argb(float a, float r, float g, float b) {
         auto c = [](float x) { return (uint32_t) (clampf(x, 0.0f, 1.0f) * 255.0f + 0.5f); };
@@ -1104,6 +1147,19 @@ namespace {
                     g_add.sprite(hx, hy, half, head, wz);
                     break;
                 }
+                case kDebris: {
+                    half = clampf(half, 0.8f, 12.0f);
+                    // Tumbling: the chip turns and flips (its width swings), glowing hot for a
+                    // moment, then dull metal; fades out at the end.
+                    const float ang = p.shade * 6.2831853f + p.age * (5.0f + 12.0f * p.shade);
+                    const float flip = 0.3f + 0.7f * std::fabs(std::sin(p.age * (4.0f + 9.0f * p.shade) + p.shade * 3.0f));
+                    const float hot = clampf(1.0f - p.age / 0.35f, 0.0f, 1.0f);
+                    const float m = 0.16f + 0.14f * p.shade;
+                    const float a = clampf((1.0f - f) / 0.2f, 0.0f, 1.0f);
+                    g_chips.ellipse(hx, hy, std::cos(ang) * half, std::sin(ang) * half, half * flip,
+                                    argb(a, m + 0.8f * hot, m * 0.95f + 0.35f * hot, m * 0.9f + 0.05f * hot), wz);
+                    break;
+                }
                 case kEmber: {
                     half = clampf(half, 0.8f, 4.0f);
                     g_add.sprite(hx, hy, half, argb((1.0f - f) * 0.9f, 1.0f, 0.55f - 0.3f * f, 0.15f), wz);
@@ -1190,6 +1246,9 @@ namespace {
             float hx, hy, wz, vw;
             if (!project(e.pos, &hx, &hy, &wz, &vw))
                 continue;
+            // Drawn as a layer over its own engine: pulled toward the camera by about the halo's
+            // size, so the nozzle rim doesn't cut it off.
+            wz = pulled_depth(e.pos, std::max(e.radius * 3.4f, e.unit * 0.15f), wz);
             const float r = e.radius * focal / vw;
             const float in = clampf(e.intensity, 0.0f, 1.8f) * e.flicker;
             // Fades in with the moving factor (folded into intensity) as the pod gets going.
@@ -1230,6 +1289,7 @@ namespace {
                 g_add_soft.sprite(hx, hy, 6.0f, argb(1.0f, 0.2f, 1.0f, 1.0f), 0.0f);
         }
 
+        g_chips.flush(chip_texture(), false);
         g_alpha.flush(puff_texture(), false);
         g_add_soft.flush(soft_texture(), true);
         g_add.flush(soft_texture(), true);
@@ -1425,7 +1485,7 @@ namespace {
 }// namespace
 
 void pod_fx_wreck_emit(const rdVector3& pos, const rdVector3& vel, const rdVector3& dir, float L, float ground_z,
-                       int sparks, int embers, int flames, int smoke, float smoke_shade) {
+                       int sparks, int embers, int flames, int smoke, float smoke_shade, int debris) {
     if (!s.enabled || !(L > 0.0f))
         return;
     const rdVector3 up = {0.0f, 0.0f, 1.0f};
@@ -1437,6 +1497,8 @@ void pod_fx_wreck_emit(const rdVector3& pos, const rdVector3& vel, const rdVecto
         spawn_flame(add(pos, mul(rand_vec(), L * 0.05f)), vel, dir, up, L);
     for (int i = 0; i < smoke; i++)
         spawn_smoke(add(pos, mul(rand_vec(), L * 0.05f)), vel, up, L, smoke_shade);
+    for (int i = 0; i < debris; i++)
+        spawn_debris(add(pos, mul(rand_vec(), L * 0.05f)), vel, dir, up, L, ground_z);
 }
 
 void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const swrModel_Mesh* mesh,
@@ -1650,12 +1712,13 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
                     // A cone thrown out the back of the nozzle: full inside ~20 deg, gone by ~38 deg,
                     // reaching further with throttle -- lights a streak behind the engine rather
                     // than a flat patch around it.
-                    l.intensity = 1.4f * ex * share * flick;
+                    l.intensity = 0.8f * ex * share * flick;
                     l.radius = L * (1.8f + 1.0f * clampf(fx.throttle, 0.0f, 1.6f)) * std::max(xl[1], 0.05f);
-                    // Full inside ~20 deg, gone by ~38 deg (x the edit's width).
+                    // Feathered: full only in the middle (~7 deg), fading out to ~45 deg (x the
+                    // edit's width), so the pool on the ground has soft edges.
                     const float w = clampf(xl[2], 0.1f, 3.0f);
-                    l.cos_inner = std::cos(std::min(0.35f * w, 1.5f));
-                    l.cos_outer = std::cos(std::min(0.66f * w, 1.55f));
+                    l.cos_inner = std::cos(std::min(0.12f * w, 1.5f));
+                    l.cos_outer = std::cos(std::min(0.78f * w, 1.55f));
                     out.push_back(l);
                 }
             }

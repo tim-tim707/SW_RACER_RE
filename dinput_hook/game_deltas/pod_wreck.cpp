@@ -45,6 +45,10 @@ namespace {
         float grip = 0.75f;      // speed kept along the surface at each hit
         float kick = 1.0f;       // how hard it is thrown off the pod
         float fling = 1.0f;      // extra push ahead, along the pod's motion
+        float chase = 0.95f;     // the engine kept through the death spin: its speed when it lets go (x the pod's)
+        float drag = 0.8f;       // ... and how fast it slows in the air (per second)
+        float smoke = 1.0f;      // smoke amount (x)
+        float debris = 1.0f;     // debris chips thrown off (x)
         bool crash_scatter = true;// the pod blowing up: whatever is left (engines, cockpit) flies apart
         float spin = 1.0f;       // tumbling
         float breakup = 1.0f;    // how fast it falls apart
@@ -68,6 +72,10 @@ namespace {
         f("grip", s.grip, 0.0f, 1.0f);
         f("kick", s.kick, 0.0f, 4.0f);
         f("fling", s.fling, 0.0f, 4.0f);
+        f("chase2", s.chase, 0.3f, 3.0f);
+        f("drag", s.drag, 0.0f, 4.0f);
+        f("smoke", s.smoke, 0.0f, 4.0f);
+        f("debris", s.debris, 0.0f, 4.0f);
         b("crash_scatter", s.crash_scatter);
         f("spin", s.spin, 0.0f, 4.0f);
         f("breakup", s.breakup, 0.0f, 4.0f);
@@ -87,6 +95,10 @@ namespace {
         f("grip", s.grip);
         f("kick", s.kick);
         f("fling", s.fling);
+        f("chase2", s.chase);
+        f("drag", s.drag);
+        f("smoke", s.smoke);
+        f("debris", s.debris);
         b("crash_scatter", s.crash_scatter);
         f("spin", s.spin);
         f("breakup", s.breakup);
@@ -164,7 +176,8 @@ namespace {
         rdVector3 axes[3];// the engine matrix's rows (orientation + scale)
         rdVector3 pos{}, vel{}, spin{};// spin: world angular velocity (rad/s)
         float age = 0.0f, breakup = 0.0f, radius = 1.0f, L = 10.0f, ground_z = NAN;
-        float fire_acc = 0.0f, smoke_acc = 0.0f, rest = 0.0f, hit_cool = 0.0f;
+        float fire_acc = 0.0f, smoke_acc = 0.0f, debris_acc = 0.0f, rest = 0.0f, hit_cool = 0.0f;
+        float drag = 0.15f;// air drag (per second)
         bool grounded = false, done = false;
         uint32_t seed = 1;
         std::vector<Attached> parts;
@@ -194,6 +207,7 @@ namespace {
         rdVector3 hist[6][8]{};// recent velocities per part (the speed from just before a crash)
         int hist_at = 0;
         bool has_last = false;
+        rdVector3 pod_vel{};// the cockpit's velocity now (smoothed): the pod's own speed
     };
     std::unordered_map<swrRace*, Wreck> g_wrecks;
     struct Breakup {
@@ -311,8 +325,13 @@ namespace {
             b.vel = add(b.vel, mul(ahead, b.L * s.fling * (4.0f + 3.0f * frand())));
         b.spin = add(mul(rand_vec(), s.spin * (3.0f + 4.0f * frand())), mul(norm(b.axes[1]), s.spin * frand_sym() * 8.0f));
         if (momentum) {
-            // Let go: on along the way it was moving (a touch of wobble), tumbling as it was spun.
+            // Let go: on along the way it was moving (a touch of wobble), tumbling as it was spun --
+            // but held to about the pod's own speed and slowing quickly, so it stays in view.
             b.vel = add(carried, mul(rand_vec(), b.L * 0.3f));
+            const float sp = len(b.vel), cap = std::max(len(w.pod_vel), b.L * 0.5f) * s.chase;
+            if (sp > cap)
+                b.vel = mul(b.vel, cap / sp);
+            b.drag = s.drag;
             b.spin = add(mul(rand_vec(), s.spin * (2.0f + 2.0f * frand())), mul(norm(b.axes[1]), s.spin * frand_sym() * 4.0f));
         }
         if (part == 5) {
@@ -344,6 +363,9 @@ namespace {
                 if (nearest == part && best < b.L * 0.6f)
                     b.parts.push_back({n, mat_then(part_xf(r, p), inv)});
             }
+        // Breaking off: a burst of chips, sparks and smoke where it tore away.
+        pod_fx_wreck_emit(b.pos, mul(b.vel, 0.4f), out, b.L, NAN, (int) (35 * s.fx), (int) (15 * s.fx), (int) (8 * s.fx),
+                          (int) (22 * s.smoke), 0.7f, (int) (40 * s.debris));
         w.bodies.push_back(std::move(b));
     }
 
@@ -359,7 +381,7 @@ namespace {
         const float L = b.L;
         b.age += dt;
         b.vel = add(b.vel, mul(down, s.gravity * L * dt));
-        b.vel = mul(b.vel, std::exp(-0.15f * dt));// air drag
+        b.vel = mul(b.vel, std::exp(-b.drag * dt));// air drag
         rdVector3 step = mul(b.vel, dt);
         const float step_len = len(step);
         bool hit = false;
@@ -417,24 +439,28 @@ namespace {
         if (impact > L * 1.2f && b.hit_cool <= 0.0f) {
             b.hit_cool = 0.15f;
             b.breakup += std::clamp(impact / (L * 40.0f), 0.03f, 0.12f) * s.breakup;
-            const int sparks = (int) (std::min(impact / L, 12.0f) * 5.0f * s.fx);
-            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.5f), n, L, b.ground_z, sparks, (int) (sparks * 0.3f), (int) (6 * s.fx), 0, 0.5f);
+            const float hard = std::min(impact / L, 12.0f);
+            const int sparks = (int) (hard * 6.0f * s.fx);
+            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.5f), n, L, b.ground_z, sparks, (int) (sparks * 0.3f), (int) (6 * s.fx),
+                              (int) ((4.0f + hard) * s.smoke), 0.6f, (int) ((6.0f + 2.5f * hard) * s.debris));
         }
         // Burning: fire and smoke pour off it the whole way.
         b.fire_acc += dt * s.fx * (14.0f + 18.0f * (1.0f - std::min(b.breakup, 1.0f)));
-        b.smoke_acc += dt * s.fx * 10.0f;
-        const int flames = (int) b.fire_acc, smoke = (int) b.smoke_acc;
+        b.smoke_acc += dt * s.fx * s.smoke * 30.0f;
+        b.debris_acc += dt * s.debris * 5.0f;// bits dropping off it as it burns
+        const int flames = (int) b.fire_acc, smoke = (int) b.smoke_acc, chips = (int) b.debris_acc;
         b.fire_acc -= (float) flames;
         b.smoke_acc -= (float) smoke;
-        if (flames > 0 || smoke > 0)
-            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.3f), up, L, b.ground_z, 0, flames > 1 ? 1 : 0, flames, smoke, 0.75f);
+        b.debris_acc -= (float) chips;
+        if (flames > 0 || smoke > 0 || chips > 0)
+            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.3f), up, L, b.ground_z, 0, flames > 1 ? 1 : 0, flames, smoke, 0.75f, chips);
         // The end: a last burst.
         if (b.age > s.life || (b.breakup >= 0.92f && b.age > 1.5f)) {
             b.done = true;
             rdVector3 p = b.pos;
             ((SmokSpawn_t) swrObjSmok_Spawn_ADDR)(swrObjSmok_TYPE_EXPLOSION, 0, 2.0f, &p, 1.0f);
-            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.2f), up, L, b.ground_z, (int) (60 * s.fx), (int) (25 * s.fx),
-                              (int) (30 * s.fx), (int) (12 * s.fx), 0.8f);
+            pod_fx_wreck_emit(b.pos, mul(b.vel, 0.2f), up, L, b.ground_z, (int) (80 * s.fx), (int) (30 * s.fx),
+                              (int) (30 * s.fx), (int) (40 * s.smoke), 0.8f, (int) (70 * s.debris));
             play_explosion_sound(b.pos);
         }
     }
@@ -507,6 +533,10 @@ namespace {
         ImGui::SeparatorText("Debris");
         slider("Throw", &s.kick, 0.0f, 4.0f, "%.2f", "How hard the engine is thrown off the pod.");
         slider("Fling ahead", &s.fling, 0.0f, 4.0f, "%.2f", "Extra push ahead, so it tumbles on in front of the pod.");
+        slider("Last engine speed", &s.chase, 0.3f, 3.0f, "%.2f x",
+               "The engine kept through the death spin: when it breaks off at the end, it leaves at no more\n"
+               "than this times the pod's own speed, so it stays in view.");
+        slider("Last engine drag", &s.drag, 0.0f, 4.0f, "%.2f", "How quickly that engine slows down in the air.");
         slider("Tumble", &s.spin, 0.0f, 4.0f, "%.2f", "How wildly it spins.");
         slider("Gravity", &s.gravity, 0.0f, 40.0f, "%.1f", "Pod lengths per second squared.");
         slider("Bounce", &s.bounce, 0.0f, 1.0f, "%.2f", "0 = no bounce .. 1 = no speed lost.");
@@ -514,6 +544,8 @@ namespace {
         slider("Break-up", &s.breakup, 0.0f, 4.0f, "%.2f", "How fast it falls to pieces.");
         slider("Burst after", &s.life, 1.0f, 30.0f, "%.1f s", "Seconds until whatever is left bursts.");
         slider("Sparks / fire", &s.fx, 0.0f, 4.0f, "%.2f", "Sparks, fire and smoke (drawn by Pod FX).");
+        slider("Smoke", &s.smoke, 0.0f, 4.0f, "%.2f x", "How much smoke pours off the wreckage.");
+        slider("Debris", &s.debris, 0.0f, 4.0f, "%.2f x", "Chips of metal scattered when parts break off and hit things.");
         if (changed)
             save_settings();
     }
@@ -624,6 +656,8 @@ void pod_wreck_frame(swrRace* r) {
                     if (len(h) > len(best))
                         best = h;
                 w->last_vel[p] = best;
+                if (p == 5)
+                    w->pod_vel = add(mul(w->pod_vel, 0.7f), mul(v, 0.3f));
             }
             w->last_pos[p] = now;
         }

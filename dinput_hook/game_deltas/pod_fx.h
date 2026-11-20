@@ -39,7 +39,7 @@ void pod_fx_debug_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh
 // pod length `L`. Sparks / embers bounce on `ground_z` (NAN = no ground). `dir` = the main spray
 // direction (unit, e.g. the surface normal at an impact). Counts are whole particles.
 void pod_fx_wreck_emit(const rdVector3& pos, const rdVector3& vel, const rdVector3& dir, float L, float ground_z,
-                       int sparks, int embers, int flames, int smoke, float smoke_shade);
+                       int sparks, int embers, int flames, int smoke, float smoke_shade, int debris = 0);
 
 // Whether the renderer should skip the stock dust-kick models (Pod FX dust replaces them).
 bool pod_fx_hide_stock_dust();
