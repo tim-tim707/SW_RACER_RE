@@ -36,6 +36,7 @@
 #include "game_deltas/swrMain_smoothing.h"
 #include "game_deltas/swrGamepadNav_delta.h"// XInput pad snapshot for input diagnostics
 #include "game_deltas/swrObjJdge_delta.h"
+#include "game_deltas/pod_edits.h"// Pod Editor panel
 #include "game_deltas/swrModel_delta.h"// mod_hd_font
 #include "mod_registry.h"
 
@@ -2897,6 +2898,7 @@ static DebugPanel g_panel_mods = {
     .category = "Mods", .name = "Installed Mods", .draw = panel_mods, .dev_only = false};
 
 static void register_builtin_debug_panels() {
+    pod_edits_register_panel();
     debug_ui_register(&g_panel_race);
     debug_ui_register(&g_panel_cheats);
     debug_ui_register(&g_panel_game);

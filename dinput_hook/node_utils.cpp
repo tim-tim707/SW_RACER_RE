@@ -76,9 +76,9 @@ MaterialMember node_material_members[9]{
     {
         "tex_flags",
         [](const swrModel_MeshMaterial &m) {
-            return m.material_texture && m.material_texture->specs[0]
-                       ? m.material_texture->specs[0]->flags
-                       : 0;
+            const swrModel_MaterialTextureChild *spec =
+                m.material_texture ? material_texture_spec(m.material_texture, 0) : nullptr;
+            return spec ? spec->flags : 0;
         },
     },
 };
@@ -121,6 +121,24 @@ static const AssetPointerToModel *find_asset_range_for_node(const swrModel_Node 
         return nullptr;
 
     return &*it;
+}
+
+bool find_asset_offset(const void *ptr, MODELID *id, uint32_t *offset) {
+    const AssetPointerToModel *r = find_asset_range_for_node((const swrModel_Node *) ptr);
+    if (r == nullptr)
+        return false;
+    *id = r->id;
+    *offset = (uint32_t) ((const char *) ptr - r->asset_pointer_begin);
+    return true;
+}
+
+bool find_model_offset(const void *ptr, MODELID *id, uint32_t *offset) {
+    const AssetPointerToModel *r = find_asset_range_for_node((const swrModel_Node *) ptr);
+    if (r == nullptr || r->data_begin == nullptr || (const char *) ptr < r->data_begin)
+        return false;
+    *id = r->id;
+    *offset = (uint32_t) ((const char *) ptr - r->data_begin);
+    return true;
 }
 
 // Walks a node subtree to find the first descendant that lives in an asset buffer range. Used to map

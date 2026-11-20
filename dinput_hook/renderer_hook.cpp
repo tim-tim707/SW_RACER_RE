@@ -19,6 +19,7 @@
 #include "ai_tuning.h"
 #include "audio_mix.h"
 #include "game_deltas/swrSound_delta.h"
+#include "game_deltas/pod_edits.h"// pod editor export
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -427,6 +428,39 @@ static std::vector<Vertex> g_deferred_vertices;
 static std::vector<std::pair<float, int>> g_deferred_order;// (view distance, index), reused
 // Set by flush_deferred_translucent for the mesh being drawn.
 static const Vertex *g_preparsed_vertices = nullptr;
+
+// Pod editor export: every partNodes[] entry of the local pod (part = its index), tagged only
+// while an export is armed; the meshes under one are reported to pod_edits.
+struct ExportPartTag {
+    const swrModel_Node *node;
+    const swrRace *racer;
+    int part;
+    bool operator<(const ExportPartTag &o) const { return node < o.node; }
+};
+static std::vector<ExportPartTag> g_export_parts;
+static const ExportPartTag *g_active_export_part = nullptr;
+static const ExportPartTag *find_export_part(const swrModel_Node *node) {
+    if (g_export_parts.empty())
+        return nullptr;
+    const ExportPartTag key{node, nullptr, 0};
+    auto it = std::lower_bound(g_export_parts.begin(), g_export_parts.end(), key);
+    return (it != g_export_parts.end() && it->node == node) ? &*it : nullptr;
+}
+static void rebuild_export_parts() {
+    g_export_parts.clear();
+    if (!pod_edits_export_armed())
+        return;
+    for (int i = 0; i < 20; i++) {
+        const swrRace *entity = swrScores[i].obj_test_ptr;
+        if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr ||
+            (entity->flags0 & swrObjTest_FLAG0_LOCAL) == 0)
+            continue;
+        for (int part = 0; part <= 0x46; part++)
+            if (entity->partNodes[part] != nullptr)
+                g_export_parts.push_back({entity->partNodes[part], entity, part});
+    }
+    std::sort(g_export_parts.begin(), g_export_parts.end());
+}
 static int g_preparsed_count = 0;
 static bool g_defer_translucent = false;// only during the main scene traversal
 
@@ -730,6 +764,42 @@ static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh
     return &parse_only_scratch;
 }
 
+// Pod editor export: the mesh's triangles (world space), its final texture coordinates and texture,
+// computed the same way the draw path does (uv = tu / (uvScale * 4096) + uvOffset).
+static void export_pod_mesh(const swrRace *racer, int part, const swrModel_Mesh *mesh,
+                            const rdMatrix44 &model_matrix) {
+    float su = 1.0f, sv = 1.0f, ou = 0.0f, ov = 0.0f;
+    GLuint tex = 0;
+    const swrModel_MaterialTexture *mt = mesh->mesh_material ? mesh->mesh_material->material_texture : nullptr;
+    if (mt && mt->loaded_material) {
+        tex = GLuint(mt->loaded_material->aTextures->pD3DSrcTexture);
+        const swrModel_MaterialTextureChild *spec0 = material_texture_spec(mt, 0);
+        if (spec0) {
+            su = spec0->flags & 0x10'00'00'00 ? 2.0f : 1.0f;
+            sv = spec0->flags & 0x01'00'00'00 ? 2.0f : 1.0f;
+            if (spec0->flags & 0x20'00'00'00)
+                ou -= 1;
+            if (spec0->flags & 0x02'00'00'00)
+                ov -= 1;
+        }
+        ou += 1 - (float) mesh->mesh_material->texture_offset[0] / (float) mt->res[0];
+        ov += 1 - (float) mesh->mesh_material->texture_offset[1] / (float) mt->res[1];
+    }
+    static std::vector<Vertex> tmp;
+    parse_display_list_commands(model_matrix, mesh, tmp);
+    std::vector<float> pos, uv;
+    pos.reserve(tmp.size() * 3);
+    uv.reserve(tmp.size() * 2);
+    for (const Vertex &v: tmp) {
+        pos.push_back(v.pos.x);
+        pos.push_back(v.pos.y);
+        pos.push_back(v.pos.z);
+        uv.push_back((float) (int16_t) v.tu / (su * 4096.0f) + ou);
+        uv.push_back((float) (int16_t) v.tv / (sv * 4096.0f) + ov);
+    }
+    pod_edits_export_mesh(racer, part, mesh, model_matrix, pos, uv, tex, tex != 0);
+}
+
 static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
                                 std::vector<Vertex> &out) {
     if (g_preparsed_vertices)
@@ -750,6 +820,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
 
     if (!mesh->vertices)
         return;
+
+    // Pod editor export: this mesh, if it's part of the local pod.
+    if (pod_edits_export_armed() && g_active_export_part != nullptr && !g_preparsed_vertices)
+        export_pod_mesh(g_active_export_part->racer, g_active_export_part->part, mesh, model_matrix);
 
 #ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
@@ -1386,6 +1460,9 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Pod cable curve: if this is a curved cable node (nodeArray[10]/[11]), activate the bend so
     // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
     // below so sibling/parent geometry is unaffected.
+    const ExportPartTag *prev_export_part = g_active_export_part;
+    if (const ExportPartTag *ep = find_export_part(node))
+        g_active_export_part = ep;
     const float prev_cable_amplitude = g_active_cable_amplitude;
     const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
     if (node_cable_amplitude >= 0.0f)
@@ -1466,6 +1543,7 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
+    g_active_export_part = prev_export_part;
     g_weather_terrain_depth = prev_terrain_depth;
     g_pod_shadow_depth = prev_shadow_depth;
 }
@@ -1859,6 +1937,7 @@ void swrViewport_Render_Hook(int x) {
     // hangar pod node to a dangling entity.
     if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
+        rebuild_export_parts();
         rebuild_pod_shadow_nodes();
     } else {
         pod_node_owners.clear();
@@ -1875,6 +1954,7 @@ void swrViewport_Render_Hook(int x) {
                       proj_mat, view_mat_corrected, model_mat);
     g_defer_translucent = false;
     flush_deferred_translucent();
+    pod_edits_export_end_frame((uint32_t) root_node == (uint32_t) &someRootNode);
     PopDebugGroup();
 
     debugEnvInfos(envInfos, proj_mat, view_mat);

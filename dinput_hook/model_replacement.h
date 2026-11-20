@@ -31,3 +31,19 @@ bool try_prepare_loose_model(MODELID *model_id);
 
 // Revert the modelblock path swap performed by try_prepare_loose_model.
 void finalize_loose_model();
+
+// The game's model block and the stock copy kept when replacements are written into it.
+#define MODELBLOCK_PATH "./data/lev01/out_modelblock.bin"
+#define MODELBLOCK_ORIGINAL_PATH "./data/lev01/out_modelblock.original.bin"
+
+// Write every replacement model (the <id>.bin files the loader would use) into the game's model
+// block as that model's entry, so the game itself loads them (no loose-model swap needed, and the
+// file can be shared). Always built from the stock block: the first call keeps it as
+// out_modelblock.original.bin. `msg` says what happened. Returns false on failure (block unchanged).
+bool write_replacements_into_modelblock(std::string &msg);
+
+// Put the stock block back (from out_modelblock.original.bin) and drop the backup.
+bool restore_original_modelblock(std::string &msg);
+
+// The replacement models found (model id -> file), rescanned when their folders change.
+const std::map<int, std::filesystem::path> &current_replacement_models();

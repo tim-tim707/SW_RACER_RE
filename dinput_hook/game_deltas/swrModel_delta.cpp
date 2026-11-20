@@ -253,10 +253,15 @@ swrModel_Header *swrModel_LoadFromId_delta(MODELID id) {
     } else {
         // A loose model loaded through a single-entry block came back as id 0; register
         // the originally-requested id so the renderer associates it with the real model.
+        // The header points just past the model's 4-byte type tag, the start of its file data.
+        char *data_begin = (char *) header - 4;
+        if (data_begin < model_asset_pointer_begin || data_begin >= model_asset_pointer_end)
+            data_begin = nullptr;
         asset_pointer_to_model.emplace_back() = {
             model_asset_pointer_begin,
             model_asset_pointer_end,
             is_loose_model ? requested_id : id,
+            data_begin,
         };
     }
 
