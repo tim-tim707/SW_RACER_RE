@@ -23,6 +23,8 @@ static int hook_mode_counts[3] = { 0, 0, 0 };
 
 static uint8_t* hook_mode_image_base = NULL;
 
+int (*hook_mode_delta_owned)(uint32_t reimpl_addr) = NULL;
+
 uint8_t* hook_retail_ptr(uint32_t retail_addr)
 {
     // The retail EXE is not ASLR-aware, so this resolves to 0x00400000 and the rebase is a no-op;
@@ -146,6 +148,11 @@ int hook_verify_requested(void)
 void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, int force_reimpl, FILE* hook_log)
 {
     hook_mode mode = force_reimpl ? HOOK_MODE_REIMPL : hook_mode_for(function_name);
+
+    if (!force_reimpl && mode != HOOK_MODE_ORIGINAL && hook_mode_delta_owned != NULL && hook_mode_delta_owned(reimpl_addr)) {
+        fprintf(hook_log, "\t[Delta] %s: replaced by the delta layer, configured mode ignored\n", function_name);
+        mode = HOOK_MODE_ORIGINAL;
+    }
 
     hook_mode_counts[mode]++;
 
