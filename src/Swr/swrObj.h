@@ -662,7 +662,7 @@ int swrObjJdge_IsRacerRacing(swrObjJdge* jdge, swrRace* racer);
 // Draws the 2-player split-screen divider bar.
 void swrObjJdge_DrawSplitDivider(void);
 // Returns a racer's race progress (laps + fractional checkpoint) for placement/standings.
-float swrObjJdge_GetRacerProgress(swrScore* score);
+long double swrObjJdge_GetRacerProgress(swrScore* score);
 // Tears down the race: clears all entities, resets HUD/cameras, then restarts the track or returns to the hangar.
 void swrObjJdge_TeardownRace(swrObjJdge* jdge, int event);
 // Begins the post-race sequence (camera 'Swee' sweep + state/viewport transition).

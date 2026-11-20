@@ -5432,17 +5432,18 @@ int swrRace_GetLocalPlayerNumberFromScore(swrScore* score)
 
 // Placement metric: lap count + fraction of the current lap (spline progress, wrap-corrected).
 // 0x0045d410
-float swrObjJdge_GetRacerProgress(swrScore* score)
+RETAIL_FP long double swrObjJdge_GetRacerProgress(swrScore* score)
 {
-    float lapCompMax = score->obj_test_ptr->lapCompMax;
-    float wrap = lapCompMax - score->obj_test_ptr->lapComp;
+    // Retail keeps the whole chain on the FPU stack and returns it unrounded.
+    long double lapCompMax = score->obj_test_ptr->lapCompMax;
+    long double wrap = lapCompMax - score->obj_test_ptr->lapComp;
     if (wrap < 0.0f)
         wrap = -wrap;
     if (0.5f < wrap)
         wrap = 1.0f - wrap;
-    float progress = ((float)score->results_P1_Lap + lapCompMax) - wrap;
+    long double progress = (lapCompMax + score->results_P1_Lap) - wrap;
     if (progress < 0.0f)
-        progress = 0.0f;
+        return 0.0f;
     return progress;
 }
 
@@ -11236,18 +11237,20 @@ void swrObjTest_UpdateControlAndMove(swrRace* player)
 }
 
 // 0x0047aee0
-float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB)
+RETAIL_FP float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB)
 {
     outDirA->x = a1[0] - a0->x;
     outDirA->y = a1[1] - a0->y;
     outDirB->x = b1[0] - b0->x;
-    outDirB->y = b1[1] - b0->y;
-    float relX = outDirA->x - outDirB->x;
-    float relY = outDirA->y - outDirB->y;
-    float relSq = relY * relY + relX * relX;
-    if (relSq < 0.001f && -relSq < 0.001f)
+    // Retail FSTs dirB.y and keeps the unrounded value for relY; only t is rounded after that.
+    long double dirBy = b1[1] - b0->y;
+    outDirB->y = dirBy;
+    long double relX = outDirA->x - outDirB->x;
+    long double relY = outDirA->y - dirBy;
+    long double relSq = relX * relX + relY * relY;
+    if (relSq < (float)0.001f && -relSq < (float)0.001f)
         return -1.0f;
-    float t = -(relY * (a0->y - b0->y) + relX * (a0->x - b0->x)) / relSq;
+    float t = -(relX * (a0->x - b0->x) + relY * (a0->y - b0->y)) / relSq;
     if (t < 0.0f)
         t = 0.0f;
     if (t > 1.0f)
