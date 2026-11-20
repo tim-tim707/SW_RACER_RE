@@ -16,6 +16,7 @@ extern "C" {
 #include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <Main/swrControl.h>
+#include <Platform/stdControl.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
@@ -3005,6 +3006,288 @@ namespace {
         report(s);
     }
 
+    using LD_score = long double (*)(swrScore *);
+
+    // flag bit 2 (finished) switches RankValue from spline progress to the time-based key.
+    void run_score_ld(const char *name, uint32_t retail_addr, LD_score ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const LD_score retail = (LD_score) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        swrRace test;
+        swrScore score;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            std::memset(&test, 0, sizeof(test));
+            std::memset(&score, 0, sizeof(score));
+            score.obj_test_ptr = &test;
+            test.lapComp = next_float(-0.2f, 1.2f);
+            test.lapCompMax = (i % 5 == 0) ? test.lapComp : next_float(-0.2f, 1.2f);
+            score.results_P1_Lap = (int) (next_u32() % 6u) - 1;
+            score.results_P1_total_time = next_float(0.0f, 900.0f);
+            score.flag = (i % 3 == 0) ? 2 : 0;
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "case %d lap=%d comp=%.9g max=%.9g", i,
+                          score.results_P1_Lap, test.lapComp, test.lapCompMax);
+            record_ld(s, ours(&score), retail(&score), desc);
+        }
+        report(s);
+    }
+
+    // Triangles: random, plus sliver/degenerate ones every few cases. Coordinates span a track.
+    void random_triangle(int i, rdVector3 &a, rdVector3 &b, rdVector3 &c) {
+        a = random_vec3(i, -2000.0f, 2000.0f);
+        b = a, c = a;
+        const rdVector3 e1 = random_vec3(i + 3, -50.0f, 50.0f);
+        const rdVector3 e2 = random_vec3(i + 5, -50.0f, 50.0f);
+        b.x += e1.x, b.y += e1.y, b.z += e1.z;
+        if (i % 11 == 0) {
+            c = b;  // zero-area
+        } else if (i % 7 == 0) {
+            c.x += e1.x * 0.5f, c.y += e1.y * 0.5f, c.z += e1.z * 0.5f + next_float(-0.01f, 0.01f);
+        } else {
+            c.x += e2.x, c.y += e2.y, c.z += e2.z;
+        }
+    }
+
+    rdVector3 near_point(int i, const rdVector3 &a, const rdVector3 &b, const rdVector3 &c) {
+        // barycentric mix that lands inside, on an edge, or outside the triangle
+        float u = next_float(-0.5f, 1.5f), v = next_float(-0.5f, 1.5f);
+        if (i % 4 == 0)
+            u = next_float(0.0f, 1.0f), v = 1.0f - u;
+        rdVector3 off = random_vec3(i + 13, -30.0f, 30.0f);
+        return rdVector3{a.x + (b.x - a.x) * u + (c.x - a.x) * v + off.x,
+                         a.y + (b.y - a.y) * u + (c.y - a.y) * v + off.y,
+                         a.z + (b.z - a.z) * u + (c.z - a.z) * v + off.z};
+    }
+
+    using V_project_plane = void (*)(float *, rdVector3 *, rdVector3 *);
+    using V_closest_seg = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *);
+    using I_point_in_tri2 = int (*)(float *, float *, float *, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+    using LD_closest_tri = long double (*)(float *, float *, float *, float *, float, float *, float *);
+
+    void run_triangle_suite() {
+        {
+            const char *name = "ProjectPointOntoPlane";
+            if (testable(name, ProjectPointOntoPlane_ADDR)) {
+                const V_project_plane retail = (V_project_plane) hook_retail_ptr(ProjectPointOntoPlane_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 n = random_vec3(i, -1.0f, 1.0f);
+                    if (rdVector_Normalize3Acc(&n) == 0.0f)
+                        continue;
+                    float plane[4] = {n.x, n.y, n.z, next_float(-2000.0f, 2000.0f)};
+                    rdVector3 pt = random_vec3(i + 3, -2000.0f, 2000.0f);
+                    rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
+                    ProjectPointOntoPlane(plane, &pt, &o);
+                    retail(plane, &pt, &r);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_vec3(s, o, r, 0, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "ClosestPointOnSegment";
+            if (testable(name, ClosestPointOnSegment_ADDR)) {
+                const V_closest_seg retail = (V_closest_seg) hook_retail_ptr(ClosestPointOnSegment_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a0 = random_vec3(i, -2000.0f, 2000.0f);
+                    rdVector3 d = random_vec3(i + 3, -60.0f, 60.0f);
+                    if (i % 10 == 0)
+                        d = random_vec3(i + 3, -0.03f, 0.03f);
+                    rdVector3 a1 = {a0.x + d.x, a0.y + d.y, a0.z + d.z};
+                    rdVector3 pt = near_point(i, a0, a1, a0);
+                    rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
+                    ClosestPointOnSegment(&pt, &a0, &a1, &o);
+                    retail(&pt, &a0, &a1, &r);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_vec3(s, o, r, 0, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "swrModel_PointInTriangle2";
+            if (testable(name, swrModel_PointInTriangle2_ADDR)) {
+                const I_point_in_tri2 retail = (I_point_in_tri2) hook_retail_ptr(swrModel_PointInTriangle2_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a, b, c;
+                    random_triangle(i, a, b, c);
+                    rdVector3 pt = near_point(i, a, b, c);
+                    if (i % 13 == 0)
+                        pt = (i & 1) ? a : b;
+                    rdVector3 eab = {b.x - a.x, b.y - a.y, b.z - a.z};
+                    rdVector3 ebc = {c.x - b.x, c.y - b.y, c.z - b.z};
+                    rdVector3 eca = {a.x - c.x, a.y - c.y, a.z - c.z};
+                    const int o = swrModel_PointInTriangle2(&pt.x, &a.x, &b.x, &c.x, &eab, &ebc, &eca);
+                    const int r = retail(&pt.x, &a.x, &b.x, &c.x, &eab, &ebc, &eca);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_int(s, o, r, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "swrModel_ClosestPointOnTriangleImpl";
+            if (testable(name, swrModel_ClosestPointOnTriangleImpl_ADDR)) {
+                const LD_closest_tri retail = (LD_closest_tri) hook_retail_ptr(swrModel_ClosestPointOnTriangleImpl_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a, b, c;
+                    random_triangle(i, a, b, c);
+                    rdVector3 q = near_point(i, a, b, c);
+                    const float maxDistSq = (i % 3 == 0) ? 0.0f : next_float(1.0f, 900.0f);
+                    rdVector3 op = {-9.0f, -9.0f, -9.0f}, rp = op, on = op, rn = op;
+                    const long double o = swrModel_ClosestPointOnTriangleImpl(&q.x, &a.x, &b.x, &c.x, maxDistSq, &op.x, &on.x);
+                    const long double r = retail(&q.x, &a.x, &b.x, &c.x, maxDistSq, &rp.x, &rn.x);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_ld(s, o, r, desc);
+                    record_vec3(s, op, rp, 0, desc);
+                    record_vec3(s, on, rn, 0, desc);
+                }
+                report(s);
+            }
+        }
+    }
+
+    using V_closest_tri = void (*)(short *, short *, short *, rdMatrix44 *, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    // Depth -1 stops before the node-chain bookkeeping, which needs a live model walk.
+    void run_closest_point_on_triangle() {
+        const char *name = "swrModel_ClosestPointOnTriangle";
+        if (!testable(name, swrModel_ClosestPointOnTriangle_ADDR))
+            return;
+        const V_closest_tri retail = (V_closest_tri) hook_retail_ptr(swrModel_ClosestPointOnTriangle_ADDR);
+        const int saved_depth = swrModel_closestPointDepth;
+        swrModel_closestPointDepth = -1;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            short v[3][3];
+            for (int k = 0; k < 3; k++) {
+                for (int j = 0; j < 3; j++)
+                    v[k][j] = (short) ((int) (next_u32() % 801u) - 400);
+            }
+            if (i % 11 == 0)
+                std::memcpy(v[2], v[1], sizeof(v[1]));
+            rdMatrix44 xf;
+            random_rotation(xf, i);
+            xf.vD.x = next_float(-500.0f, 500.0f);
+            xf.vD.y = next_float(-500.0f, 500.0f);
+            xf.vD.z = next_float(-500.0f, 500.0f);
+            xf.vD.w = 1.0f;
+            rdVector3 query = random_vec3(i + 5, -900.0f, 900.0f);
+            const float start_min = (i % 2) ? 1.0e12f : next_float(1.0f, 400000.0f);
+            float our_min = start_min, ret_min = start_min;
+            rdVector3 our_p = {-1, -1, -1}, ret_p = our_p, our_n = our_p, ret_n = our_p;
+            swrModel_ClosestPointOnTriangle(v[0], v[1], v[2], &xf, &our_min, &query, &our_p, &our_n);
+            retail(v[0], v[1], v[2], &xf, &ret_min, &query, &ret_p, &ret_n);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record(s, our_min, ret_min, 0, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+            record_vec3(s, our_n, ret_n, 0, desc);
+        }
+        swrModel_closestPointDepth = saved_depth;
+        report(s);
+    }
+
+    using LD_int = long double (*)(int);
+    using LD_uint = long double (*)(unsigned int);
+    using I_int = int (*)(int);
+
+    // Drives axis 0 and key 0 through their deadzone, idle and timing paths; every input
+    // global they read or write is saved first and restored afterwards.
+    struct StdControlState {
+        StdControlAxis axis;
+        int axisPos, keyIdle, keyInfo, readDelta, idle, active;
+        float secFPS;
+
+        void capture() {
+            axis = stdControl_aAxes[0];
+            axisPos = stdControl_aAxisPos[0];
+            keyIdle = stdControl_aKeyIdleTimes[0];
+            keyInfo = stdControl_aKeyInfos[0];
+            readDelta = stdControl_readDeltaTime;
+            idle = stdControl_bControlsIdle;
+            active = stdControl_bControlsActive;
+            secFPS = sithControl_secFPS;
+        }
+        void apply() const {
+            stdControl_aAxes[0] = axis;
+            stdControl_aAxisPos[0] = axisPos;
+            stdControl_aKeyIdleTimes[0] = keyIdle;
+            stdControl_aKeyInfos[0] = keyInfo;
+            stdControl_readDeltaTime = readDelta;
+            stdControl_bControlsIdle = idle;
+            stdControl_bControlsActive = active;
+            sithControl_secFPS = secFPS;
+        }
+    };
+
+    void random_control_state(StdControlState &st, int i) {
+        st.active = (i % 17 != 0);
+        st.idle = (int) (next_u32() & 1u);
+        st.axis.flags = (StdControlAxisFlag) ((next_u32() % 8u ? STDCONTROL_AXIS_ENABLED : 0) |
+                                              (next_u32() % 4u ? 0 : STDCONTROL_AXIS_UNKNOWN_8));
+        st.axis.xOffset = (int) (next_u32() % 2001u) - 1000;
+        st.axis.yOffset = (i % 3 == 0) ? 0 : (int) (next_u32() % 3000u);
+        st.axis.fltMedian = (i % 5 == 0) ? next_float(1.0e-9f, 1.0e-6f) : next_float(1.0e-6f, 0.002f);
+        st.axisPos = st.axis.xOffset + ((i % 9 == 0) ? 0 : (int) (next_u32() % 70001u) - 35000);
+        st.keyIdle = (i % 4 == 0) ? 0 : (int) (next_u32() % 300u);
+        st.keyInfo = (int) (next_u32() & 1u);
+        st.readDelta = 1 + (int) (next_u32() % 200u);
+        st.secFPS = next_float(0.0001f, 0.06f);
+    }
+
+    template <typename Fn, typename Arg, typename Rec>
+    void run_control_reader(const char *name, uint32_t retail_addr, Fn ours, Arg arg, Rec rec) {
+        if (!testable(name, retail_addr))
+            return;
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
+        StdControlState saved;
+        saved.capture();
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            StdControlState st = saved;
+            random_control_state(st, i);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "case %d pos=%d med=%.9g held=%d", i, st.axisPos,
+                          st.axis.fltMedian, st.keyIdle);
+            st.apply();
+            const auto o = ours(arg);
+            const int our_idle = stdControl_bControlsIdle;
+            st.apply();
+            const auto r = retail(arg);
+            rec(s, o, r, desc);
+            record_int(s, our_idle, stdControl_bControlsIdle, desc);
+        }
+        saved.apply();
+        report(s);
+    }
+
+    void run_stdcontrol_readers() {
+        auto ld = [](Stats &s, long double o, long double r, const char *d) { record_ld(s, o, r, d); };
+        auto in = [](Stats &s, int o, int r, const char *d) { record_int(s, o, r, d); };
+        run_control_reader("stdControl_ReadAxis", stdControl_ReadAxis_ADDR, (LD_int) stdControl_ReadAxis, 0, ld);
+        run_control_reader("stdControl_ReadKeyAsAxis", stdControl_ReadKeyAsAxis_ADDR,
+                           (LD_uint) stdControl_ReadKeyAsAxis, 0u, ld);
+        run_control_reader("stdControl_ReadAxisAsKeyEx", stdControl_ReadAxisAsKeyEx_ADDR,
+                           (I_int) stdControl_ReadAxisAsKeyEx, 0, in);
+    }
+
     using I_add_light = int (*)(rdCamera *, rdLight *, rdVector3 *);
 
     void run_add_light() {
@@ -3438,8 +3721,15 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_calc_face_intensity();
     run_intersect_ray_plane();
     run_collide_ray_triangle();
+    run_triangle_suite();
+    run_closest_point_on_triangle();
+    run_stdcontrol_readers();
     run_node_closest_point();
     run_step_camera_toward();
+    run_score_ld("swrObjJdge_GetRacerProgress", swrObjJdge_GetRacerProgress_ADDR,
+                 swrObjJdge_GetRacerProgress);
+    run_score_ld("swrObjJdge_GetRacerRankValue", swrObjJdge_GetRacerRankValue_ADDR,
+                 swrObjJdge_GetRacerRankValue);
     std::fprintf(verify_log, "\nswrRace\n");
     run_step_toward_clamped();
     run_set_angle_from_turn_rate();

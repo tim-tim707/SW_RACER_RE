@@ -40,6 +40,17 @@ both IntersectRayPlane
 both swrModel_CollideRayTriangle
 both swrModel_NodeClosestPoint
 both swrObjHang_StepCameraToward
+both swrObjJdge_GetRacerProgress
+both swrObjJdge_GetRacerRankValue
+both ProjectPointOntoPlane
+both ClosestPointOnSegment
+both swrModel_PointInTriangle2
+both swrModel_ClosestPointOnTriangleImpl
+both swrModel_ClosestPointOnTriangle
+both stdControl_ReadAxis
+both stdControl_ReadKeyAsAxis
+both stdControl_ReadAxisAsKeyEx
+both swrRace_ClosestApproach2D
 verify
 
 # ---------------------------------------------------------------------------

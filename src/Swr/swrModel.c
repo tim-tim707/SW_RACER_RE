@@ -2638,20 +2638,26 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
 // outPoint), or -1 when maxDistSq > 0 and the query's plane distance already exceeds it. outNormal
 // is the face normal, flipped to the query's side.
 // 0x00480dc0
-long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
+RETAIL_FP long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
 {
     rdVector4 normal;
     rdVector3 edgeAB;
     rdVector3 edgeBC;
     rdVector3 edgeCA;
-    float distSq;
-    float candidateSq;
     int behind;
 
     rdMath_CalcSurfaceNormal2(&normal, (rdVector3*)a, (rdVector3*)b, (rdVector3*)c);
     behind = (query[0] - a[0]) * normal.x + (query[2] - a[2]) * normal.z + (query[1] - a[1]) * normal.y < 0.0f;
     ProjectPointOntoPlane(&normal.x, (rdVector3*)query, (rdVector3*)outPoint);
-    distSq = (query[2] - outPoint[2]) * (query[2] - outPoint[2]) + (query[1] - outPoint[1]) * (query[1] - outPoint[1]) + (query[0] - outPoint[0]) * (query[0] - outPoint[0]);
+
+    // Each squared distance below multiplies a raw difference by its spilled float copy, except
+    // the terms retail keeps entirely on the FPU stack (dz*dz here, dy*dy for BC and CA).
+    long double dx = query[0] - outPoint[0];
+    long double dy = query[1] - outPoint[1];
+    long double dz = query[2] - outPoint[2];
+    float dxf = dx;
+    float dyf = dy;
+    float distSq = (dy * dyf + dz * dz) + dx * dxf;
     if (maxDistSq > 0.0f && distSq > maxDistSq)
         return -1.0f;
 
@@ -2664,29 +2670,51 @@ long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b
     edgeCA.x = a[0] - c[0];
     edgeCA.y = a[1] - c[1];
     edgeCA.z = a[2] - c[2];
+    long double result = distSq;
     if (swrModel_PointInTriangle2(outPoint, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
         // the edge buffers are reused for the closest point on each edge
         ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)a, (rdVector3*)b, &edgeAB);
         ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)b, (rdVector3*)c, &edgeBC);
         ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)c, (rdVector3*)a, &edgeCA);
-        distSq = (query[2] - edgeAB.z) * (query[2] - edgeAB.z) + (query[1] - edgeAB.y) * (query[1] - edgeAB.y) + (query[0] - edgeAB.x) * (query[0] - edgeAB.x);
+
+        dx = query[0] - edgeAB.x;
+        dy = query[1] - edgeAB.y;
+        dz = query[2] - edgeAB.z;
+        dxf = dx;
+        dyf = dy;
+        float dzf = dz;
+        // The AB distance stays unrounded unless a later edge replaces it.
+        long double best = (dx * dxf + dy * dyf) + dz * dzf;
         outPoint[0] = edgeAB.x;
         outPoint[1] = edgeAB.y;
         outPoint[2] = edgeAB.z;
-        candidateSq = (query[2] - edgeBC.z) * (query[2] - edgeBC.z) + (query[1] - edgeBC.y) * (query[1] - edgeBC.y) + (query[0] - edgeBC.x) * (query[0] - edgeBC.x);
-        if (candidateSq < distSq) {
+
+        dx = query[0] - edgeBC.x;
+        dy = query[1] - edgeBC.y;
+        dz = query[2] - edgeBC.z;
+        dxf = dx;
+        dzf = dz;
+        long double candidate = (dx * dxf + dy * dy) + dz * dzf;
+        if (candidate < best) {
             outPoint[0] = edgeBC.x;
             outPoint[1] = edgeBC.y;
             outPoint[2] = edgeBC.z;
-            distSq = candidateSq;
+            best = (float)candidate;
         }
-        candidateSq = (query[2] - edgeCA.z) * (query[2] - edgeCA.z) + (query[1] - edgeCA.y) * (query[1] - edgeCA.y) + (query[0] - edgeCA.x) * (query[0] - edgeCA.x);
-        if (candidateSq < distSq) {
+
+        dx = query[0] - edgeCA.x;
+        dy = query[1] - edgeCA.y;
+        dz = query[2] - edgeCA.z;
+        dxf = dx;
+        dzf = dz;
+        candidate = (dx * dxf + dy * dy) + dz * dzf;
+        if (candidate < best) {
             outPoint[0] = edgeCA.x;
             outPoint[1] = edgeCA.y;
             outPoint[2] = edgeCA.z;
-            distSq = candidateSq;
+            best = (float)candidate;
         }
+        result = best;
     }
     if (behind) {
         outNormal[0] = -normal.x;
@@ -2697,7 +2725,7 @@ long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b
         outNormal[1] = normal.y;
         outNormal[2] = normal.z;
     }
-    return distSq;
+    return result;
 }
 
 // Keeps the hit if it is closer than the current best by more than 0.01, or (at a near-tie) if
@@ -3825,13 +3853,13 @@ void swrModel_ComputeNodeChainMatrix_Maybe(swrModel_Node** nodeList, rdMatrix44*
 }
 
 // 0x00482120
-void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+RETAIL_FP void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
 {
     rdVector3 local0, local1, local2;
     rdVector3 world0, world1, world2;
     rdVector3 point, normal;
     rdMatrix44 inverse;
-    float distSq;
+    long double distSq; // both tests and the store read the unrounded Impl result
     int i;
 
     local0.x = (float)v0[0];
