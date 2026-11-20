@@ -45,7 +45,7 @@ float stdMath_ArcCos(float angle);
 long double stdMath_ArcCosUnrounded(float angle);
 float stdMath_ArcTan2(float x1, float x2);
 
-float stdMath_Decelerator(float param_1, float param_2);
+long double stdMath_Decelerator(float deceleration, float time);
 float stdMath_Sqrt(float a);
 
 float stdMath_FlexPower(float x, int exp);

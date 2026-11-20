@@ -219,8 +219,9 @@ float stdMath_ArcTan2(float x1, float x2)
     return degrees;
 }
 
+// Returns the unrounded ST0 result: retail callers multiply by it before any store.
 // 0x00480650
-float stdMath_Decelerator(float deceleration, float time)
+long double stdMath_Decelerator(float deceleration, float time)
 {
     // 33.333336f is the exact float32 at 0x004adf9c (bits 0x42055556). Ghidra prints it
     // as "33.33334", which does NOT round-trip -- float("33.33334") is 0x42055557, one
