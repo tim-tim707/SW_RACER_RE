@@ -34,6 +34,12 @@ both swrRace_*
 both swrMath_StepTowardClamped
 both swrUtils_RandFloat
 both swrObjHang_EaseSine_Maybe
+both rdCamera_AddLight
+both rdLight_CalcFaceIntensity
+both IntersectRayPlane
+both swrModel_CollideRayTriangle
+both swrModel_NodeClosestPoint
+both swrObjHang_StepCameraToward
 verify
 
 # ---------------------------------------------------------------------------

@@ -76,15 +76,15 @@ void rdLight_CalcVertexIntensities(rdLight** apLights, rdVector3* aLightPos, int
 }
 
 // 0x00490750
-void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, rdFace* face, rdVector3* faceNormal, rdVector3* vertices, float scalar, void* outInfos)
+RETAIL_FP void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses, int numLights, RdFace* face, rdVector3* faceNormal, rdVector3* vertices, float scalar, void* outInfos)
 {
     rdVector4* out = (rdVector4*)outInfos;
     rdVector3 toLight;
     rdVector3* vertex;
     rdLight* light;
-    float dot;
+    long double dot; // used straight off the FPU stack for all three channels
     float dist;
-    float falloff;
+    long double falloff;
     int l;
 
     out->x = 0.0f;
@@ -106,12 +106,14 @@ void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses,
             }
         } else if (light->type == RD_LIGHT_TYPE_POINT) {
             // the face's first vertex stands in for the whole face
-            vertex = &vertices[face->vertexPosIdx[0]];
+            vertex = &vertices[face->aVertIdxs[0]];
             toLight.x = localLightPoses[l].x - vertex->x;
             toLight.y = localLightPoses[l].y - vertex->y;
             toLight.z = localLightPoses[l].z - vertex->z;
-            dist = rdMath_DistancePointToPlane(&localLightPoses[l], faceNormal, vertex);
-            if (dist < light->falloffMin) {
+            // FST spills the distance, then FCOMP tests the unrounded value.
+            long double distRaw = rdMath_DistancePointToPlane(&localLightPoses[l], faceNormal, vertex);
+            dist = distRaw;
+            if (distRaw < light->falloffMin) {
                 rdVector_Normalize3Acc_2(&toLight);
                 dot = faceNormal->y * toLight.y + faceNormal->z * toLight.z + faceNormal->x * toLight.x;
                 if (dot > 0.0f) {
@@ -128,5 +130,5 @@ void rdLight_CalcFaceIntensity(rdLight** meshLights, rdVector3* localLightPoses,
 // 0x00490930
 long double rdLight_GetIntensity(const rdVector4* pLight)
 {
-    return (pLight->y + pLight->z + pLight->x) * 0.3333333;
+    return (pLight->y + pLight->z + pLight->x) * (float)0.33333334f; // float32 at 0x004af7d4
 }

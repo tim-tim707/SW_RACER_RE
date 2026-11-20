@@ -7028,9 +7028,9 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
 
     float dotND = normal->x * player->world_gravity.x + normal->y * player->world_gravity.y +
                   normal->z * player->world_gravity.z;
-    if ((dotND < -0.995) || (0.995 < dotND)) {
+    if ((dotND < (double)-0.995) || ((double)0.995 < dotND)) {
         rdVector_Set3(out1, 0.0, 0.0, 0.0);
-        rdVector_Scale3(&player->velocitySlope, 0.9f, &player->velocitySlope);
+        rdVector_Scale3(&player->velocitySlope, (float)0.9f, &player->velocitySlope);
         rdVector_Copy3(out2, &player->velocitySlope);
         player->autoTilt = 0.0;
         return;
@@ -7071,7 +7071,7 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
     vbFlat.y = player->transform.vB.y;
     vbFlat.z = 0.0;
     float surfLen = rdVector_Normalize3Acc(&surfDir);
-    if (surfLen < 0.01f) {
+    if (surfLen < (float)0.01f) {
         surfDir.x = -normal->x;
         surfDir.y = -normal->y;
         surfDir.z = -normal->z;
@@ -7103,7 +7103,7 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
 // near-inverted bail. NOTE: the [-0.995, 0.995] gate + the speed tiers are the limits a "banking magnet"
 // corkscrew mode would relax. velocity/scrapeData/groundDist are unused here (kept for signature parity).
 // 0x00479550
-void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist,
+RETAIL_FP void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist,
                                       rdVector3* normal, rdVector3* out1, rdVector3* out2)
 {
     rdVector3 downhillAxis;
@@ -7126,8 +7126,8 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
     rdVector_Cross3(out1, normal, &downhillAxis);// out1 = downhill gradient on the surface
     float slopeSin = out1->x * player->world_gravity.x + out1->y * player->world_gravity.y +
                      out1->z * player->world_gravity.z;
-    float slopeAngle = stdMath_ArcSin(slopeSin);
-    float steerMag = slopeAngle * -1.1111112f;
+    long double slopeAngle = stdMath_ArcSin(slopeSin);
+    float steerMag = slopeAngle * (float)-1.1111112f;
 
     if (200.0f <= player->speedValue) {
         if (250.0f <= player->speedValue) {
@@ -7137,10 +7137,10 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
                 else
                     steerMag = (steerMag - 60.0f) * 2.5f;
             } else {
-                steerMag = (steerMag - 40.0f) * 1.6666666f;
+                steerMag = (steerMag - 40.0f) * (float)1.6666666f;
             }
         } else {
-            steerMag = (steerMag - 25.0f) * 1.3333334f;
+            steerMag = (steerMag - 25.0f) * (float)1.3333334f;
         }
     }
     if (steerMag < 0.0)
@@ -7177,7 +7177,7 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
     rdVector_Normalize3Acc(&vbFlat);
     float align = surfDir.x * vbFlat.x + surfDir.y * vbFlat.y + surfDir.z * vbFlat.z;
     if (0.0 <= align) {
-        float a = stdMath_ArcSin(align);
+        long double a = stdMath_ArcSin(align);
         float side = vbFlat.x * downhillAxis.x + vbFlat.y * downhillAxis.y + vbFlat.z * downhillAxis.z;
         if (side <= 0.0)
             player->autoTilt = -(a * slopeSin);

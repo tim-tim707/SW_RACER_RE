@@ -376,7 +376,7 @@ void rdCamera_SetAttenuation(rdCamera* camera, float minVal, float maxVal)
 int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
 {
     rdVector3* pos;
-    float fVar2;
+    long double intensity;
 
     if (128 < camera->numLights) // max number of lights
     {
@@ -390,13 +390,13 @@ int rdCamera_AddLight(rdCamera* camera, rdLight* light, rdVector3* lightPos)
     pos->z = lightPos->z;
     if (light->falloffMin == 0.0)
     {
-        fVar2 = rdLight_GetIntensity(&light->color);
-        light->falloffMin = (fVar2 / camera->attenuationMin);
+        intensity = rdLight_GetIntensity(&light->color);
+        light->falloffMin = intensity / camera->attenuationMin;
     }
     if (light->falloffMax == 0.0)
     {
-        fVar2 = rdLight_GetIntensity(&light->color);
-        light->falloffMax = (fVar2 / camera->attenuationMax);
+        intensity = rdLight_GetIntensity(&light->color);
+        light->falloffMax = intensity / camera->attenuationMax;
     }
     camera->numLights = camera->numLights + 1;
     return 1;

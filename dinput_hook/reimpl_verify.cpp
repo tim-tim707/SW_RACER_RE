@@ -9,6 +9,8 @@
 #include <cstring>
 
 extern "C" {
+#include <Engine/rdCamera.h>
+#include <Engine/rdLight.h>
 #include <General/stdMath.h>
 #include <General/utils.h>
 #include <General/stdFnames.h>
@@ -2589,7 +2591,7 @@ namespace {
     // Per-case outputs that live outside the racer (out-params, return value).
     struct RacerOut {
         float ret;
-        float extra[3];
+        float extra[6];
         long double ret_ld;
     };
 
@@ -2621,7 +2623,7 @@ namespace {
             std::memcpy(ret, ours, sizeof(swrRace));
             const uint32_t seed = next_u32();
 
-            RacerOut our_out = {-12345.0f, {-12345.0f, -12345.0f, -12345.0f}, 0.0L};
+            RacerOut our_out = {-12345.0f, {-12345.0f, -12345.0f, -12345.0f, -12345.0f, -12345.0f, -12345.0f}, 0.0L};
             RacerOut ret_out = our_out;
             CallLog our_log, ret_log;
             begin_log(our_log, ours, seed, 0);
@@ -2631,7 +2633,7 @@ namespace {
             active_log = nullptr;
 
             record(s, our_out.ret, ret_out.ret, 0, desc);
-            record_floats(s, our_out.extra, ret_out.extra, 3, 0, desc);
+            record_floats(s, our_out.extra, ret_out.extra, 6, 0, desc);
             record_ld(s, our_out.ret_ld, ret_out.ret_ld, desc);
             record_racer(s, *ours, *ret, desc);
             record_calls(s, our_log, ret_log, desc);
@@ -2715,6 +2717,7 @@ namespace {
     using V_reset_input = void (*)(swrRace *, int);
     using V_gravity = void (*)(swrRace *, float *, float);
     using V_wall = void (*)(swrRace *, rdVector3 *, rdVector3 *);
+    using V_slope = void (*)(swrRace *, int, int, float, rdVector3 *, rdVector3 *, rdVector3 *);
 
     void run_physics_suite() {
         run_racer(
@@ -2890,6 +2893,30 @@ namespace {
         for (int k = 0; k < 4; k++)
             inRaceLocalPlayerInputBitset3[k] = saved_inputs[k];
 
+        static rdVector3 slope_normal;
+        run_racer(
+            "swrRace_ApplySlopeSteeringMagnet", swrRace_ApplySlopeSteeringMagnet_ADDR,
+            (V_slope) swrRace_ApplySlopeSteeringMagnet,
+            [](swrRace &r, int i, char *) {
+                random_rotation(r.transform, i);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                slope_normal = random_vec3(i + 3, -1.0f, 1.0f);
+                if (i % 5 == 0)
+                    slope_normal = rdVector3{0.0f, 0.0f, 1.0f};
+                rdVector_Normalize3Acc(&slope_normal);
+                static const float speeds[] = {200.0f, 250.0f, 300.0f, 350.0f};
+                r.speedValue = next_u32() % 3u ? next_float(0.0f, 600.0f) : speeds[next_u32() % 4u];
+                r.velocitySlope = random_vec3(i + 9, -50.0f, 50.0f);
+                r.autoTilt = next_float(-1.0f, 1.0f);
+            },
+            [](V_slope fn, swrRace *r, RacerOut &o) {
+                rdVector3 n = slope_normal, out1 = {-9.0f, -9.0f, -9.0f}, out2 = out1;
+                fn(r, 0, 0, 0.0f, &n, &out1, &out2);
+                o.extra[0] = out1.x, o.extra[1] = out1.y, o.extra[2] = out1.z;
+                o.extra[3] = out2.x, o.extra[4] = out2.y, o.extra[5] = out2.z;
+                o.ret = 0.0f;
+            });
+
         run_racer(
             "swrRace_ResetGravityDown", swrRace_ResetGravityDown_ADDR,
             (V_racer_only) swrRace_ResetGravityDown,
@@ -2901,6 +2928,336 @@ namespace {
                 fn(r);
                 o.ret = 0.0f;
             });
+    }
+
+
+    // Module globals a case writes: saved before the case, captured after each side, restored
+    // after, so ours and retail start from the same state and the game's state is untouched.
+    struct GlobalSet {
+        struct Item {
+            void *ptr;
+            size_t size;
+        };
+        Item items[12];
+        int n = 0;
+        uint8_t saved[512];
+        uint8_t ours[512];
+        uint8_t ret[512];
+
+        void add(void *p, size_t size) {
+            items[n++] = Item{p, size};
+        }
+        size_t copy_out(uint8_t *dst) {
+            size_t off = 0;
+            for (int k = 0; k < n; k++) {
+                std::memcpy(dst + off, items[k].ptr, items[k].size);
+                off += items[k].size;
+            }
+            return off;
+        }
+        void copy_in(const uint8_t *src) {
+            size_t off = 0;
+            for (int k = 0; k < n; k++) {
+                std::memcpy(items[k].ptr, src + off, items[k].size);
+                off += items[k].size;
+            }
+        }
+        void save() {
+            copy_out(saved);
+        }
+        void restore() {
+            copy_in(saved);
+        }
+        // Compares as floats where it can, so a mismatch reports a value.
+        void record(Stats &s, const char *desc) {
+            const size_t total = copy_out(ret);
+            record_floats(s, (const float *) ours, (const float *) ret, (int) (total / 4), 0, desc);
+        }
+    };
+
+    using LD_irp = long double (*)(float *, float *, rdVector3 *);
+
+    void run_intersect_ray_plane() {
+        const char *name = "IntersectRayPlane";
+        if (!testable(name, IntersectRayPlane_ADDR))
+            return;
+        const LD_irp retail = (LD_irp) hook_retail_ptr(IntersectRayPlane_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector3 n = random_vec3(i, -1.0f, 1.0f);
+            if (rdVector_Normalize3Acc(&n) == 0.0f)
+                continue;
+            float plane[4] = {n.x, n.y, n.z, next_float(-500.0f, 500.0f)};
+            rdVector3 o = random_vec3(i + 3, -1000.0f, 1000.0f);
+            rdVector3 d = random_vec3(i + 7, -2000.0f, 2000.0f);
+            if (i % 9 == 0) {
+                // near-parallel rays exercise the +-0.0001 denominator gate
+                const float k = n.x * d.x + n.y * d.y + n.z * d.z;
+                d.x -= k * n.x, d.y -= k * n.y, d.z -= k * n.z;
+                d.x += next_float(-0.0002f, 0.0002f);
+            }
+            float ray[7] = {o.x, o.y, o.z, d.x, d.y, d.z, next_u32() % 4u ? 1.0e9f : next_float(0.0f, 2.0f)};
+            rdVector3 our_p = {-9.0f, -9.0f, -9.0f}, ret_p = our_p;
+            const long double ours = IntersectRayPlane(plane, ray, &our_p);
+            const long double ret = retail(plane, ray, &ret_p);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_ld(s, ours, ret, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+        }
+        report(s);
+    }
+
+    using I_add_light = int (*)(rdCamera *, rdLight *, rdVector3 *);
+
+    void run_add_light() {
+        const char *name = "rdCamera_AddLight";
+        if (!testable(name, rdCamera_AddLight_ADDR))
+            return;
+        const I_add_light retail = (I_add_light) hook_retail_ptr(rdCamera_AddLight_ADDR);
+        // Padding: retail's numLights == 128 path writes 4 bytes past the struct.
+        rdCamera *cam[2] = {(rdCamera *) std::calloc(1, sizeof(rdCamera) + 16),
+                            (rdCamera *) std::calloc(1, sizeof(rdCamera) + 16)};
+        rdLight light[2];
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            std::memset(cam[0], 0, sizeof(rdCamera) + 16);
+            // 128 itself writes past the struct (UB in C), so it is left out; 129+ is rejected.
+            cam[0]->numLights = (int) (next_u32() % 4u ? next_u32() % 128u : 129u + next_u32() % 3u);
+            cam[0]->attenuationMin = next_float(0.01f, 5.0f);
+            cam[0]->attenuationMax = next_float(0.01f, 5.0f);
+            std::memcpy(cam[1], cam[0], sizeof(rdCamera) + 16);
+            std::memset(&light[0], 0, sizeof(rdLight));
+            light[0].color.x = next_float(0.0f, 2.0f);
+            light[0].color.y = next_float(0.0f, 2.0f);
+            light[0].color.z = next_float(0.0f, 2.0f);
+            light[0].color.w = next_float(0.0f, 2.0f);
+            light[0].falloffMin = (next_u32() % 3u) ? 0.0f : next_float(0.0f, 10.0f);
+            light[0].falloffMax = (next_u32() % 3u) ? 0.0f : next_float(0.0f, 10.0f);
+            light[1] = light[0];
+            rdVector3 pos = random_vec3(i, -1000.0f, 1000.0f);
+            const int our_r = rdCamera_AddLight(cam[0], &light[0], &pos);
+            const int ret_r = retail(cam[1], &light[1], &pos);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "numLights=%d color=%.9g", cam[1]->numLights,
+                          light[1].color.x);
+            record_int(s, our_r, ret_r, desc);
+            const int slot = cam[1]->numLights - 1;
+            if (our_r && slot >= 0 && slot < 128) {
+                record_int(s, cam[0]->lights[slot] == &light[0], cam[1]->lights[slot] == &light[1],
+                           desc);
+                cam[0]->lights[slot] = cam[1]->lights[slot] = nullptr;
+            }
+            record_int(s, std::memcmp(cam[0], cam[1], sizeof(rdCamera) + 16), 0, desc);
+            record_floats(s, &light[0].falloffMin, &light[1].falloffMin, 2, 0, desc);
+            record_int(s, std::memcmp(&light[0], &light[1], sizeof(rdLight)), 0, desc);
+        }
+        std::free(cam[0]);
+        std::free(cam[1]);
+        report(s);
+    }
+
+    using V_collide_tri = void (*)(float *, float *, float *, float *, float *);
+
+    void run_collide_ray_triangle() {
+        const char *name = "swrModel_CollideRayTriangle";
+        if (!testable(name, swrModel_CollideRayTriangle_ADDR))
+            return;
+        const V_collide_tri retail = (V_collide_tri) hook_retail_ptr(swrModel_CollideRayTriangle_ADDR);
+        GlobalSet g;
+        g.add(&swrModel_collisionResultDist, 4);
+        g.add(&swrModel_collisionHitPoint, 12);
+        g.add(&swrModel_collisionHitNormal, 12);
+        g.add(&swrModel_collisionUnk250, 4);
+        g.add(&swrModel_collisionResultNode, 4);
+        g.add(&swrModel_collisionAcceptFrontFaces, 4);
+        g.add(&swrModel_collisionAcceptBackFaces, 4);
+        g.add(&swrModel_collisionCurrentMesh, 4);
+        g.save();
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            // A triangle, its plane (unit normal + offset), and a ray that usually crosses it.
+            rdVector3 a = random_vec3(i, -100.0f, 100.0f);
+            rdVector3 b = random_vec3(i + 3, -100.0f, 100.0f);
+            rdVector3 c = random_vec3(i + 9, -100.0f, 100.0f);
+            rdVector3 e1 = {b.x - a.x, b.y - a.y, b.z - a.z};
+            rdVector3 e2 = {c.x - a.x, c.y - a.y, c.z - a.z};
+            rdVector3 nrm;
+            rdVector_Cross3(&nrm, &e1, &e2);
+            if (rdVector_Normalize3Acc(&nrm) == 0.0f)
+                continue;
+            float plane[4] = {nrm.x, nrm.y, nrm.z, -(nrm.x * a.x + nrm.y * a.y + nrm.z * a.z)};
+            const float u = next_float(-0.2f, 1.2f), v = next_float(-0.2f, 1.2f);
+            rdVector3 target = {a.x + e1.x * u + e2.x * v * (1.0f - u), a.y + e1.y * u + e2.y * v * (1.0f - u),
+                                a.z + e1.z * u + e2.z * v * (1.0f - u)};
+            rdVector3 origin = random_vec3(i + 17, -200.0f, 200.0f);
+            float ray[6] = {origin.x, origin.y, origin.z, target.x - origin.x, target.y - origin.y,
+                            target.z - origin.z};
+            float ta[3] = {a.x, a.y, a.z}, tb[3] = {b.x, b.y, b.z}, tc[3] = {c.x, c.y, c.z};
+            uint8_t start[512];
+            swrModel_collisionResultDist = next_u32() % 4u ? 1.0e9f : next_float(0.0f, 2.0f);
+            swrModel_collisionAcceptFrontFaces = (int) (next_u32() % 4u != 0);
+            swrModel_collisionAcceptBackFaces = (int) (next_u32() % 2u);
+            swrModel_collisionUnk250 = 0;
+            g.copy_out(start);
+            V_collide_tri ours_fn = swrModel_CollideRayTriangle;
+            ours_fn(plane, ta, tb, tc, ray);
+            g.copy_out(g.ours);
+            g.copy_in(start);
+            retail(plane, ta, tb, tc, ray);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "case %d u=%.9g v=%.9g", i, u, v);
+            g.record(s, desc);
+        }
+        g.restore();
+        report(s);
+    }
+
+    using V_node_closest = void (*)(swrModel_Node *, rdMatrix44 *, int, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    // Mode 1 (raw vertices) only: mode 0 walks display lists through an unverified callee.
+    void run_node_closest_point() {
+        const char *name = "swrModel_NodeClosestPoint";
+        if (!testable(name, swrModel_NodeClosestPoint_ADDR))
+            return;
+        const V_node_closest retail = (V_node_closest) hook_retail_ptr(swrModel_NodeClosestPoint_ADDR);
+        static Vtx verts[2][24];
+        static swrModel_Mesh meshes[2];
+        static swrModel_Mesh *mesh_ptrs[2];
+        static swrModel_Node node;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 4; i++) {
+            std::memset(&node, 0, sizeof(node));
+            node.num_children = 1 + next_u32() % 2u;
+            for (int m = 0; m < 2; m++) {
+                std::memset(&meshes[m], 0, sizeof(swrModel_Mesh));
+                meshes[m].vertices = verts[m];
+                meshes[m].num_vertices = (uint16_t) (1 + next_u32() % 24u);
+                for (int k = 0; k < 24; k++) {
+                    verts[m][k].v.x = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                    verts[m][k].v.y = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                    verts[m][k].v.z = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                }
+                mesh_ptrs[m] = &meshes[m];
+            }
+            node.children.meshes = mesh_ptrs;
+            rdMatrix44 xf;
+            random_rotation(xf, i);
+            xf.vD.x = next_float(-500.0f, 500.0f);
+            xf.vD.y = next_float(-500.0f, 500.0f);
+            xf.vD.z = next_float(-500.0f, 500.0f);
+            xf.vD.w = 1.0f;
+            rdVector3 query = random_vec3(i + 5, -2500.0f, 2500.0f);
+            float our_min = 1.0e12f, ret_min = 1.0e12f;
+            rdVector3 our_p = {-1, -1, -1}, ret_p = our_p, our_n = our_p, ret_n = our_p;
+            swrModel_NodeClosestPoint(&node, &xf, 1, &our_min, &query, &our_p, &our_n);
+            retail(&node, &xf, 1, &ret_min, &query, &ret_p, &ret_n);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record(s, our_min, ret_min, 0, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_face_intensity = void (*)(rdLight **, rdVector3 *, int, RdFace *, rdVector3 *, rdVector3 *, float, void *);
+
+    void run_calc_face_intensity() {
+        const char *name = "rdLight_CalcFaceIntensity";
+        if (!testable(name, rdLight_CalcFaceIntensity_ADDR))
+            return;
+        const V_face_intensity retail = (V_face_intensity) hook_retail_ptr(rdLight_CalcFaceIntensity_ADDR);
+        static rdLight lights[6];
+        static rdLight *light_ptrs[6];
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const int n = (int) (1 + next_u32() % 6u);
+            rdVector3 poses[6];
+            for (int k = 0; k < n; k++) {
+                std::memset(&lights[k], 0, sizeof(rdLight));
+                lights[k].active = next_u32() % 5u != 0;
+                lights[k].type = (next_u32() % 2u) ? RD_LIGHT_TYPE_POINT : RD_LIGHT_TYPE_DIRECTIONAL;
+                lights[k].color.x = next_float(0.0f, 2.0f);
+                lights[k].color.y = next_float(0.0f, 2.0f);
+                lights[k].color.z = next_float(0.0f, 2.0f);
+                lights[k].falloffMin = next_float(0.0f, 300.0f);
+                light_ptrs[k] = &lights[k];
+                poses[k] = random_vec3(i + 7 * k, -200.0f, 200.0f);
+            }
+            rdVector3 verts[3] = {random_vec3(i, -100.0f, 100.0f), random_vec3(i + 1, -100.0f, 100.0f),
+                                  random_vec3(i + 2, -100.0f, 100.0f)};
+            int idx[3] = {(int) (next_u32() % 3u), 1, 2};
+            RdFace face;
+            std::memset(&face, 0, sizeof(face));
+            face.aVertIdxs = idx;
+            rdVector3 normal = random_vec3(i + 11, -1.0f, 1.0f);
+            rdVector_Normalize3Acc(&normal);
+            const float scalar = next_float(0.0f, 0.05f);
+            rdVector4 our_out = {-1, -1, -1, -1}, ret_out = our_out;
+            rdLight_CalcFaceIntensity(light_ptrs, poses, n, &face, &normal, verts, scalar, &our_out);
+            retail(light_ptrs, poses, n, &face, &normal, verts, scalar, &ret_out);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d lights=%d", i, n);
+            record_floats(s, &our_out.x, &ret_out.x, 4, 0, desc);
+        }
+        report(s);
+    }
+
+    using I_step_camera = int (*)(swrObjHang *, float *, rdVector3 *, rdVector3 *, rdVector3 *, float);
+
+    void run_step_camera_toward() {
+        const char *name = "swrObjHang_StepCameraToward";
+        if (!testable(name, swrObjHang_StepCameraToward_ADDR))
+            return;
+        const I_step_camera retail = (I_step_camera) hook_retail_ptr(swrObjHang_StepCameraToward_ADDR);
+        GlobalSet g;
+        g.add(&swrObjHang_inspectCameraTimer, 4);
+        g.add(&swrObjHang_fadeState, 4);
+        g.add(&swrObjHang_state2, 4);
+        g.add(&swrObjHang_cameraStepScratch, 4);
+        g.add(&swrRace_fdeltaTimeSecs, 4);
+        g.save();
+        swrObjHang *hang = (swrObjHang *) std::calloc(1, sizeof(swrObjHang));
+        static const swrObjHang_STATE screens[] = {
+            swrObjHang_STATE_MAIN_MENU, swrObjHang_STATE_LOOK_AT_VEHICLE, swrObjHang_STATE_RESULTS_INTRO,
+            swrObjHang_STATE_VEHICLE_SELECT_INTRO, swrObjHang_STATE_PLANET_SELECT_INTRO, swrObjHang_STATE_LEGAL};
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            hang->menuScreen = screens[next_u32() % 6u];
+            swrObjHang_inspectCameraTimer = next_float(0.0f, 10.0f);
+            swrObjHang_fadeState = (int) (next_u32() % 2u);
+            swrObjHang_state2 = (swrObjHang_STATE) (next_u32() % 3u ? 0 : -1);
+            swrRace_fdeltaTimeSecs = (float) sample_delta(i);
+            uint8_t start[512];
+            g.copy_out(start);
+            rdVector3 target = random_vec3(i, -500.0f, 500.0f);
+            rdVector3 to = random_vec3(i + 3, -500.0f, 500.0f);
+            rdVector3 from = random_vec3(i + 9, -500.0f, 500.0f);
+            if (i % 4 == 0)
+                from = rdVector3{target.x + next_float(-3.0f, 3.0f), target.y, target.z};
+            const float speed = next_float(0.1f, 3.0f);
+            float our_prog = next_float(0.0f, 2000.0f), ret_prog = our_prog;
+            rdVector3 our_from = from, ret_from = from;
+            const int our_r = swrObjHang_StepCameraToward(hang, &our_prog, &target, &our_from, &to, speed);
+            g.copy_out(g.ours);
+            g.copy_in(start);
+            const int ret_r = retail(hang, &ret_prog, &target, &ret_from, &to, speed);
+            char desc[80];
+            std::snprintf(desc, sizeof(desc), "case %d screen=%d speed=%.9g", i, (int) hang->menuScreen, speed);
+            record_int(s, our_r, ret_r, desc);
+            record(s, our_prog, ret_prog, 0, desc);
+            record_vec3(s, our_from, ret_from, 0, desc);
+            g.record(s, desc);
+        }
+        std::free(hang);
+        g.restore();
+        report(s);
     }
 
 }// namespace
@@ -3080,6 +3437,13 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_rand_float();
     run_f_ff("swrObjHang_CosineEase", swrObjHang_EaseSine_Maybe_ADDR, swrObjHang_CosineEase,
              -10.0f, 10.0f, 0);
+    std::fprintf(verify_log, "\nST0 callers\n");
+    run_add_light();
+    run_calc_face_intensity();
+    run_intersect_ray_plane();
+    run_collide_ray_triangle();
+    run_node_closest_point();
+    run_step_camera_toward();
     std::fprintf(verify_log, "\nswrRace\n");
     run_step_toward_clamped();
     run_set_angle_from_turn_rate();

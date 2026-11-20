@@ -390,9 +390,9 @@ int rdModel3_DrawFace(RdFace* pFace, int bIsBackFace, rdVector4* pMeshColor, flo
             normal.x = -pFace->normal.x;
             normal.y = -pFace->normal.y;
             normal.z = -pFace->normal.z;
-            rdLight_CalcFaceIntensity(rdCamera_pCurCamera->lights, rdModel3_g_aLocalLightPos, rdCamera_pCurCamera->numLights, (rdFace*)pFace, &normal, rdModel3_g_pCurMesh->apVertices, rdCamera_pCurCamera->attenuationMin, &faceLight);
+            rdLight_CalcFaceIntensity(rdCamera_pCurCamera->lights, rdModel3_g_aLocalLightPos, rdCamera_pCurCamera->numLights, pFace, &normal, rdModel3_g_pCurMesh->apVertices, rdCamera_pCurCamera->attenuationMin, &faceLight);
         } else {
-            rdLight_CalcFaceIntensity(rdCamera_pCurCamera->lights, rdModel3_g_aLocalLightPos, rdCamera_pCurCamera->numLights, (rdFace*)pFace, &pFace->normal, rdModel3_g_pCurMesh->apVertices, rdCamera_pCurCamera->attenuationMin, &faceLight);
+            rdLight_CalcFaceIntensity(rdCamera_pCurCamera->lights, rdModel3_g_aLocalLightPos, rdCamera_pCurCamera->numLights, pFace, &pFace->normal, rdModel3_g_pCurMesh->apVertices, rdCamera_pCurCamera->attenuationMin, &faceLight);
         }
         entry->extraLight.x = faceLight.x + entry->extraLight.x;
         entry->extraLight.y = faceLight.y + entry->extraLight.y;
