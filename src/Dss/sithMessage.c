@@ -5,11 +5,39 @@
 #include <Win95/stdComm.h>
 #include <Dss/sithMulti.h>
 #include <swr.h>
+#include <engine_config.h>
+#include <stdPlatform.h>
+#include <Swr/swrMultiplayer.h>
+#include <Swr/swrText.h>
+#include <Swr/swrUI.h>
+
+#include <stdio.h>
 
 // 0x004047b0
 int sithMessage_NetWrite(tSithMessage* pMsg, DPID idTo)
 {
-    HANG("TODO");
+    DWORD size;
+    unsigned int i;
+    SithPlayer* player;
+
+    // callbackId + sequenceId ride ahead of the payload
+    size = pMsg->dataSize + 4;
+    if (idTo == (DPID)-1) {
+        for (i = 0; i < sithPlayer_g_numPlayers; i++) {
+            player = &sithPlayer_g_aPlayers[i];
+            if ((player->flags & SITH_PLAYER_JOINEDGAME) != 0 && player->playerNetId != (DPID)sithMessage_g_localPlayerId) {
+                stdComm_Send(sithMessage_g_localPlayerId, player->playerNetId, &pMsg->callbackId, size, 0);
+                sithMessage_totalNetSent++;
+                sithMessage_totalSentDataSize += size;
+            }
+        }
+        return 1;
+    }
+    if (stdComm_Send(sithMessage_g_localPlayerId, idTo, &pMsg->callbackId, size, 0) < 0)
+        return 0;
+    sithMessage_totalNetSent++;
+    sithMessage_totalSentDataSize += size;
+    return 1;
 }
 
 // 0x004049e0
@@ -59,13 +87,41 @@ int sithMessage_SendMessage(tSithMessage* pMessage, DPID idTo, unsigned int outs
 // 0x0041c780
 void sithMulti_ProcessPlayerLost(DPID idPlayer)
 {
-    HANG("TODO");
+    char text[1024];
+    int playerNum;
+
+    if (swrMultiplayer_joinLocked != 0 && idPlayer == swrMultiplayer_reservedDpid)
+        stdPlatform_noop(1);
+
+    playerNum = sithMulti_GetPlayerNum(idPlayer);
+    if (playerNum < 0)
+        return;
+
+    sithMulti_RemovePlayer(playerNum);
+    if (swrMultiplayer_proxyPlayer != -1) {
+        swrMultiplayer_MarkPodLocal_Maybe(playerNum);
+    } else {
+        swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'lost', playerNum);
+    }
+
+    if (swrMultiplayer_lowestLostSlot >= playerNum)
+        swrMultiplayer_lowestLostSlot = playerNum;
+
+    if (multiplayer_isHost != 0 && swrMultiplayer_aRejoinRequested[playerNum] == 0) {
+        sprintf(text, swrText_Translate("/MONDOTEXT_H_0423/%s has left the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
+        swrMultiplayer_PostChatMessage(text);
+        swrMultiplayer_SendRejoin(playerNum);
+        swrUI_BroadcastToWindows(0x3e, playerNum);
+    }
+    swrMultiplayer_aRejoinRequested[playerNum] = 0;
 }
 
 // 0x0041cae0
 void sithMulti_RemovePlayer(unsigned int playerNum)
 {
-    HANG("TODO");
+    if (sithPlayer_g_aPlayers[playerNum].playerNetId == sithMulti_g_serverId)
+        sithMulti_g_serverId = 0;
+    sithPlayer_HidePlayer(playerNum);
 }
 
 // 0x0041d350

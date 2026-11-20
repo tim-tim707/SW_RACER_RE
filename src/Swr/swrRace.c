@@ -5803,8 +5803,7 @@ void swrRace_SpawnFlameAttackByIndex(int racerIndex)
 // 0x0046bb30
 void swrRace_SendFlameAttackEvent(int player, double param_2, void* param_3, void* param_4, int param_5)
 {
-    // only the first four args are pushed; the rest are stack garbage the receiver ignores
-    swrMultiplayer_SendEvent(-1, 0, 'flam', player, 0.0f, 0.0f, 0.0, NULL, NULL, 0);
+    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, 0, 'flam', player);
 }
 
 // The per-frame human-input -> pod-intent routine for a 'Locl' racer. Reads the processed input
@@ -6050,10 +6049,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
                                                 (rdVector3*) &player->transform.vD);
                 to = 1;
             }
-            // retail passes 6 args (a7-a10 undefined); satisfy the wider prototype with fillers.
-            // a5 is the sound-source's first dword reinterpreted as float, as retail does.
-            float srcAsFloat = *(float*) &soundSource;
-            swrMultiplayer_SendEvent(to, 0, 0x7461756e, 1, srcAsFloat, (float) sfxRet, 0.0, NULL, NULL, 0);
+            swrMultiplayer_SendEvent(to, 0, 'taun', 1, soundSource, sfxRet);
         }
     }
 
@@ -9487,20 +9483,13 @@ void swrRace_HandleWallScrapeHit(swrRace* player)
     rdVector3 sparkPos;
     rdVector3 sparkDir;
     int subEvents[3];
-    // SendEvent's a5/a6 slots carry the two halves of (double)0.2f
-    union
-    {
-        double d;
-        float f[2];
-    } sparkScale;
 
     rdVector_Scale3Add3(&sparkPos, (rdVector3*)&player->transform.vD, 6.0f, &player->bumpDirection);
     sparkDir.x = -player->bumpDirection.x;
     sparkDir.y = -player->bumpDirection.y;
     sparkDir.z = -player->bumpDirection.z;
     swrRace_SetupScrapeSpray(player, 0.2f, 0.0f, &sparkPos, &sparkDir, 2);
-    sparkScale.d = 0.2f;
-    swrMultiplayer_SendEvent(-1, 0, 'Sprk', *(int*)&player->score_ptr->time_unk, sparkScale.f[0], sparkScale.f[1], 0.0, &sparkPos, &sparkDir, 2);
+    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, 0, 'Sprk', *(int*)&player->score_ptr->time_unk, (double)0.2f, 0.0, &sparkPos, &sparkDir, 2);
     subEvents[0] = 'Hitt';
     subEvents[1] = 'VhLt';
     *(float*)&subEvents[2] = player->speedLoss;

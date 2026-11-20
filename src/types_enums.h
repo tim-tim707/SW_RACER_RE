@@ -434,6 +434,8 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_GROUND_CACHED = 0x20000000, // using cached / spline ground
     // flags1 bits a 'REMO' pod takes from its state packets (swrObjTest_F3)
     swrObjTest_FLAG1_REMOTE_SYNCED = swrObjTest_FLAG1_ON_LAVA | swrObjTest_FLAG1_ON_FLAT | swrObjTest_FLAG1_FINISHED | swrObjTest_FLAG1_FORCE_GROUND | swrObjTest_FLAG1_GROUNDED,
+    // flags1 bits a pod publishes (swrMultiplayer_InRace); the receiver drops IMMUNITY and forces it on
+    swrObjTest_FLAG1_REMOTE_PUBLISHED = swrObjTest_FLAG1_REMOTE_SYNCED | swrObjTest_FLAG1_IMMUNITY,
 } swrObjTest_FLAG1;
 
 // miniMapDotTypes: what swrObjJdge's minimap plotted (AddDotToMiniMap), drawn by RenderMiniMapDotsAndCrosses
@@ -1700,6 +1702,12 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
     swrUI_WINDOW_MP_RACER_LIST = 0x30d41, // swrMultiplayer_BuildRacerListUI
     swrUI_WINDOW_HANGAR_NAV = 0x30d51, // shared OK/Back buttons; hangar nav-overlay pages reparent under it
 } swrUI_WINDOW;
+
+typedef enum swrScore_FLAG // swrScore.flag
+{
+    swrScore_FLAG_ACTIVE = 0x1, // in the race
+    swrScore_FLAG_FINISHED = 0x2, // ranked by results_P1_total_time once set (swrObjJdge_GetRacerRankValue)
+} swrScore_FLAG;
 
 typedef enum swrObjHang_FLAG // swrObjHang.flag
 {
@@ -5201,6 +5209,7 @@ typedef enum StdCommReceiveResult
 {
     STDCOMM_RECV_ERROR = -2,
     STDCOMM_RECV_NONE = -1, // no message pending (or a system message with nothing to report)
+    STDCOMM_RECV_DATA = 0,
     STDCOMM_RECV_SESSION_LOST = 1, // DPSYS_SESSIONLOST
     STDCOMM_RECV_PLAYER_LEFT = 2, // DPSYS_DESTROYPLAYERORGROUP
     STDCOMM_RECV_PLAYER_JOINED = 5, // DPSYS_CREATEPLAYERORGROUP (player)

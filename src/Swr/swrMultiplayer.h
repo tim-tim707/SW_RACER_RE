@@ -148,7 +148,7 @@ void swrMultiplayer_RacerPick(int a);
 
 // netplay event/state senders (DirectPlay + sithMessage):
 // Serializes and broadcasts a 4-char game event ('fini','quit','taun','trig','hell','rejn','prxy',...).
-void swrMultiplayer_SendEvent(int to, unsigned int flags, int eventMagic, int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...);
 // Snapshots a pod's transform/speed/lap into the per-player netplay arrays.
 void swrMultiplayer_PublishPodState(swrRace* player);
 // Marks a pod as remote/proxy and broadcasts a 'hell'o announcement for it.
@@ -186,7 +186,7 @@ int swrMultiplayer_BuildCreateGameUI(void);
 // Sends a subtype-0x24 join-response code (result + value) to one player.
 void swrMultiplayer_SendJoinResponse(int result, int value, DPID to);
 // Broadcasts a chat string (subtype 2) to all players.
-void swrMultiplayer_SendChatMessage(char* text, int param2, int param3);
+void swrMultiplayer_SendChatMessage(char* text, int target, int sender);
 // Drops a player: resolves its DPID, sends a quit, and sithMulti_RemovePlayer.
 void swrMultiplayer_DropPlayer(unsigned int playerNum);
 // Sends a subtype-0x2a player-quit message to a player (host).
@@ -282,16 +282,15 @@ void swrMultiplayer_SetLastGame(char* str);
 
 // Looks like
 //----- (004C2EB0) --------------------------------------------------------
-// int __cdecl stdComm_GetSessionSettings(StdCommSessionSettings* pSettings)
 
-unsigned int swrMultiplayer_SetSessionDesc(int unused, void* param_2);
+unsigned int swrMultiplayer_SetSessionDesc(StdCommSessionSettings* pSettings);
 
 // Drain and dispatch all queued incoming network packets; returns the count handled.
 int swrMultiplayer_PumpPackets(void);
 
 // Multiplayer menu UI: host/join/race-setup screen builders + their helpers.
 int swrMultiplayer_IsAvailable(void);                               // can a session start? gates the MP menu entry
-unsigned int swrMultiplayer_CreateSession(wchar_t* a1, wchar_t* a2, wchar_t* a3, char* a4, int a5);
+unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionName, wchar_t* password, char* sessionSuffix, int user3);
 char* swrMultiplayer_GetSessionName(void);
 void swrMultiplayer_SetNetworkTick(int value); // sets swrMultiplayer_networkTick (read by UpdateNetworkTick/ApplyEvent)
 
@@ -366,16 +365,16 @@ void swrMultiplayer_OnPlayerJoined(DPID player);
 // 0x20: sends the full player list/roster to a player.
 void swrMultiplayer_SendPlayerList(DPID to, unsigned int reliable);
 // 0x21: sends one player's display name.
-void swrMultiplayer_SendPlayerName(int value, int playerIndex, DPID to);
+void swrMultiplayer_SendPlayerName(DPID playerId, int playerIndex, DPID to);
 // 0x22: sends a player-join announcement (local name + info).
 void swrMultiplayer_SendPlayerJoin(DPID to);
 // 0x3c: broadcasts a lobby/menu reset to all.
 void swrMultiplayer_BroadcastMenuReset(void);
 // 0x3d: sends a menu selection/event to the server.
 void swrMultiplayer_SendMenuEvent(int value);
-// 'rejn' / 'prxy': forward a SendEvent payload (a4..a10) for the rejoin / proxy events.
-void swrMultiplayer_SendRejoin(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
-void swrMultiplayer_SendProxy(int a4, float a5, float a6, double a7, void* a8, void* a9, int a10);
+// 'rejn' asks the last active slot to rejoin; 'prxy' hands the proxy role to the other active players.
+void swrMultiplayer_SendRejoin(unsigned int playerNum);
+void swrMultiplayer_SendProxy(void);
 
 // Turns every 'AAII' pod into a 'REMO' pod (flags0 AI -> REMOTE, score + roster identifier).
 void swrMultiplayer_MarkAllPodsRemote_Maybe(void);

@@ -528,6 +528,8 @@
 #define SWR_MP_PARKED_POD_Z (-9000.0f) // 0xc60ca000: z an AI pod waits at before it joins
 #define SWR_MP_POD_STATUS_PARKED (666) // swrMultiplayer_aPodStatus[slot][0] of a parked AI pod
 #define SWR_MP_POD_STATE_RECORD_INTS (28) // ints per pod record in the player-states message (swrMultiplayer_ApplyPlayerStates)
+#define SWR_MP_NO_SLOT (111111) // 0x1b207: 'none found' sentinel of swrMultiplayer_SendRejoin / lowestLostSlot
+#define SWR_MP_WIRE_NAME_LEN (15) // name characters sent per string in the player name/list/join messages
 #define SWR_UI_RACE_RESULT_RETIRED (666) // swrUI_unk::sort_key of a retired racer's result row
 
 // sithMulti guaranteed-send queue (sithMulti_aPendingMessages)
@@ -569,6 +571,8 @@
 // stdComm DirectPlay session/player tables
 #define STDCOMM_MAX_SESSIONS (32) // stdCommSessionSettings length
 #define STDCOMM_MAX_CONNECTIONS (16) // stdComm_Connections length
+#define STDCOMM_RECV_MAX_SIZE (0x804) // bytes sithMulti_HandleIncomingPacket receives (tSithMessage from callbackId)
+#define SWR_MP_SEEN_MESSAGE_COUNT (128) // swrMultiplayer_aSeenMessages ring length
 #define STDCOMM_MAX_PLAYERS (20) // stdComm_aPlayerInfos length
 
 #endif // ENGINE_CONFIG_H

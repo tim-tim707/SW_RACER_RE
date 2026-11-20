@@ -2033,7 +2033,7 @@ extern "C"
         GUID guid;
         int maxPlayers;
         int numCurrentPlayers;
-        wchar_t unk18[32];
+        wchar_t aPlayerName[32]; // 0x18. local player name (stdComm_CreatePlayer)
         wchar_t aSessionName[32]; // session name before ':' (L"%s:%S" in stdComm_HostSession)
         char aSomething[32]; // text after ':'
         wchar_t aPassword[32];
@@ -3185,9 +3185,33 @@ extern "C"
         wchar_t unk44[32]; // 0x44. second wide string, terminated alongside awName by ClearPlayerSlot
         SithPlayerFlag flags; // 0x84
         DPID playerNetId; // 0x88
-        char unk8c[32];
+        int unk8c; // 0x8c. copied from the join record (swrMultiplayer_JoinRecord.unk8c) and the player list
+        char unk90[28];
         unsigned int pingMs; // 0xac. smoothed ping round trip (swrMultiplayer_ApplyPingReply); zeroed when the slot is registered
     } SithPlayer; // sizeof(0xb0)
+
+    // One swrMultiplayer_aSeenMessages entry: a guaranteed message already applied (sithMulti_TrackMessagePair_Maybe).
+    typedef struct swrMultiplayer_SeenMessage
+    {
+        DPID idFrom;
+        unsigned int sequenceId;
+    } swrMultiplayer_SeenMessage;
+
+    // Payload of swrMultiplayer_MSG_PLAYER_JOIN (swrMultiplayer_SendPlayerJoin / ApplyPlayerJoin).
+    typedef struct swrMultiplayer_JoinRecord
+    {
+        wchar_t name[16]; // -> SithPlayer.awName
+        wchar_t unk44[32]; // 0x20. -> SithPlayer.unk44
+        int unk8c; // 0x60. -> SithPlayer.unk8c
+    } swrMultiplayer_JoinRecord; // sizeof(0x64)
+
+    // Payload of swrMultiplayer_MSG_PLAYER_NAME (swrMultiplayer_SendPlayerName / ApplyPlayerName).
+    typedef struct swrMultiplayer_NameRecord
+    {
+        int playerIndex;
+        DPID playerId; // 0x4. not read by ApplyPlayerName
+        wchar_t name[16]; // 0x8
+    } swrMultiplayer_NameRecord; // sizeof(0x28)
 
     typedef struct StdConffileArg
     {

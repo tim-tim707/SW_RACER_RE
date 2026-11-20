@@ -26,10 +26,10 @@
 
 void sithMulti_InitializeConnection(int connectionIndex);
 
-int sithMulti_HandleIncomingPacket(DPID dpid);
+int sithMulti_HandleIncomingPacket(tSithMessage* pMsg);
 HRESULT sithMulti_JoinSessionAndCreatePlayer(int sessionId, wchar_t* playerName, wchar_t* password);
 
-HRESULT sithMulti_CreatePlayerFromConfig(int param_1);
+HRESULT sithMulti_CreatePlayerFromConfig(StdCommSessionSettings* pSettings);
 
 int sithMulti_RunCallback(tSithMessage* message);
 
@@ -46,7 +46,7 @@ void sithMulti_ClearMessageField_Maybe(tSithMessage* message);
 void swrMultiplayer_SendPlayerLeave_Maybe(DPID to, unsigned short value);
 
 // Tracks a message pair in a 128-entry table, appending if unseen and reporting whether it was already present (best guess).
-unsigned int sithMulti_TrackMessagePair_Maybe(int a, int b);
+unsigned int sithMulti_TrackMessagePair_Maybe(DPID idFrom, unsigned int sequenceId);
 
 void sithMulti_CloseGame(void);
 

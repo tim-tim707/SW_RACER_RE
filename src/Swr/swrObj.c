@@ -4947,7 +4947,7 @@ int swrObjHang_F4(swrObjHang* hang, int* subEvents, int* p3, void* p4, int p5)
             swrObjHang_state2 = swrObjHang_STATE_SPLASH;
         } else {
             if (swrMultiplayer_IsMultiplayerEnabled()) {
-                swrMultiplayer_SendEvent(-1, 1, 'quit', 0, 0.0f, 0.0f, 0.0, NULL, NULL, 0);
+                swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'quit');
                 swrObjHang_state2 = swrObjHang_STATE_SPLASH;
             } else {
                 swrObjHang_state2 = swrObjHang_STATE_MAIN_MENU;
@@ -6112,7 +6112,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
                         }
                     }
                     score->flag |= 2;
-                    swrMultiplayer_SendEvent(-1, 1, 'fini', 0, 0.0f, 0.0f, 0.0, NULL, NULL, 0);
+                    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'fini');
                     pod->flags0 &= ~swrObjTest_FLAG0_LOCAL;
                     pod->flags0 &= ~(swrObjTest_FLAG0_CAN_CHARGE_BOOST | swrObjTest_FLAG0_BOOSTING);
                     pod->flags0 |= swrObjTest_FLAG0_AI;
@@ -12452,8 +12452,7 @@ void swrObjTrig_SendMultiplayerTriggerEvent(swrModel_TriggerDescription* trigger
     if (index == -1)
         return;
 
-    // only the first five args are pushed (add esp,0x14); the rest are stack garbage the receiver ignores
-    swrMultiplayer_SendEvent(-1, 0, 'trig', index, player->score_ptr->time_unk, 0.0f, 0.0, NULL, NULL, 0);
+    swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, 0, 'trig', index, *(int*)&player->score_ptr->time_unk);
 }
 
 // 0x00449000

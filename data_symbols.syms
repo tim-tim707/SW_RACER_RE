@@ -136,6 +136,8 @@ swrUI_pageTransitionStartTime 0x004b5d84 unsigned int = 0xffffffff # timeGetTime
 swrMultiplayer_proxyPlayer 0x004b6714 int = -1 # player the host last sent a 'prxy' proxy event to (-1 = none)
 sithMessage_g_nextSequenceId 0x004b6710 unsigned short # next tSithMessage.sequenceId for guaranteed sends; wraps past 0 back to 1
 Main_nut_delay_ms 0x004b6718 int = 32
+swrMultiplayer_lowestLostSlot 0x004b671c int = 111111 # lowest slot sithMulti_ProcessPlayerLost has dropped (SWR_MP_NO_SLOT until then); no other reader
+swrMultiplayer_rejoinSlot 0x004b6720 int = 111111 # set to SWR_MP_NO_SLOT by swrMultiplayer_SendRejoin; never otherwise written or read
 swrSound_loadBudgetBytes 0x004b6d10 int = 0x400000 # resident sample bytes before swrSound_LoadSound evicts (swrSound_loadedBytes)
 Main_hiRes_sound 0x004b6d14 int = 1
 Main_doppler_sound 0x004b6d18 int = 0
@@ -254,6 +256,7 @@ swrObjHang_ambientAnimSpeed 0x004c7074 float # 0.34..0.66 sine ease, ticked by s
 swrMain_debugKeysUnkFlag 0x004b5c40 int = 1 # cleared on the first swrMain_ProcessDebugKeys call; no other reader
 swrObjHang_unlockAllCheat 0x004d79d4 int # never written: when nonzero swrObjHang_F0 runs swrRace_CheatUnlockAll every frame
 swrUI_pendingInputDown 0x004d8bdc int # one-shot menu input injected by the swrUI widget handlers; swrObjHang_F0 moves it into swrUI_localPlayersInputDownBitset[0]
+swrMultiplayer_ackMessage 0x004d8bf0 tSithMessage # guaranteed-message acknowledgement buffer (swrMultiplayer_SendPlayerLeave_Maybe)
 swrUI_pendingInputPressed 0x004d8be0 int # same, for swrUI_localPlayersInputPressedBitset[0]
 
 g_aTracksInCircuits 0x004bfee0 char[4]
@@ -513,10 +516,13 @@ swrControl_forceStrength 0x004b493c float # Force strength option as a gain (-1 
 wuRegistry_lpClass 0x004d55cc char[]
 
 multiplayer_enabled 0x004d5e00 int
+sithMulti_playerListVerified 0x004d5e04 int # set once swrMultiplayer_VerifyPlayerList found every listed DPID in the DirectPlay session; cleared by sithMulti_JoinSessionAndCreatePlayer
 
 sithMessage_g_localPlayerId 0x004d5e08 int
 sithMessage_totalSentDataSize 0x004d5e0c int
 sithMessage_totalNetSent 0x004d5e10 int
+sithMessage_totalReceivedDataSize 0x004d5e14 int
+sithMessage_totalNetReceived 0x004d5e18 int
 
 swrControl_bindingCounts 0x004d5e20 int[3] # bindings in use per swrConfig_DEVICE
 JoystickAxisInput 0x004d5e30 float[4]
@@ -606,12 +612,16 @@ multiplayer_in_mp 0x004d87a0 int
 SpritesLoaded 0x004d879c int
 
 sithMulti_aPendingMessages 0x004d9418 tSithMessage[32] # guaranteed sends awaiting acks; unk14 = per-player pending-ack mask (swrMultiplayer_ApplyPlayerLeave clears bits)
-swr_unk_array2 0x004e9918 int[256]
+swrMultiplayer_aSeenMessages 0x004e9918 swrMultiplayer_SeenMessage[128] # ring of applied guaranteed messages, deduplicates resends
 swrCallback_multiplayer 0x004e9d18 tSithCallback*[100]
 
+swrMultiplayer_pumpStop 0x004e9ea8 int # cleared on entry to swrMultiplayer_PumpPackets, which loops until it is set (nothing else writes it)
 sithMessage_g_outputstream 0x004e9eac unsigned int
 sithMessage_g_inputstream 0x004e9eb0 unsigned int
 sithMulti_numPendingMessages 0x004e9eb8 int # live entries in sithMulti_aPendingMessages
+swrMultiplayer_messagingInitialized 0x004e9ebc int # set once by swrMultiplayer_InitMessaging
+swrMultiplayer_seenMessageNext 0x004e9ec0 unsigned int # next slot written in swrMultiplayer_aSeenMessages
+swrMultiplayer_sessionName 0x004ea098 char[64] # swrMultiplayer_GetSessionName result
 swrMultiplayer_aReadyStatus 0x004ea020 swrMultiplayer_ReadyStatus[3] # size maybe wrong: handshake ids 1 and 2 are the only ones used (swrObjJdge)
 swrMultiplayer_chatSavedUiInputActive 0x004e9ecc int # swrControl_uiInputActive saved by swrMultiplayer_OpenChatInput, restored on Enter/Esc
 swrMultiplayer_chatLineTimeLeftMs 0x004e9ed8 unsigned int[15] # per chat line: ms until it expires (10000 on add)
@@ -621,6 +631,7 @@ time_buffer 0x004e9f20 char[256]
 
 swrMultiplayer_aRejoinRequested 0x004ea8a0 int[20] # per-slot: 1 once swrMultiplayer_SendRejoin asked the slot to rejoin; suppresses the "has left" chat line in sithMulti_ProcessPlayerLost, cleared on join/leave
 swrMultiplayer_rosterIdentifiers 0x004ea8f0 int[20] # per-slot racer identifier ('AAII' AI / 'REMO' remote) mirrored into swrScores[i].identifier
+swrMultiplayer_joiningSlot 0x004ea97c int # free slot swrMultiplayer_ApplyPlayerJoin picked for the joining player
 swrMultiplayer_chatLineState 0x004ea940 int[15] # zeroed on add/free/reset; never read in the retail binary
 swrMultiplayer_chatInput 0x004ea988 char[1024] # chat input line: 4-char "~F0]" prefix + typed text
 
@@ -641,7 +652,9 @@ swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
 multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
+swrMultiplayer_sessionSeed 0x004eb1f4 int # random DPSESSIONDESC2.dwUser1 picked by swrMultiplayer_CreateSession; no reader found
 swrMultiplayer_joinLocked 0x004eb1f8 int # while set, swrMultiplayer_ApplyPlayerJoin only admits the reserved DPID; cleared by ResetSession
+swrMultiplayer_reservedDpid 0x004eb1fc DPID # the one DPID admitted while swrMultiplayer_joinLocked is set
 swrMultiplayer_pingSentTime 0x004eb208 int # timeGetTime() of the outgoing ping, matched by swrMultiplayer_ApplyPingReply; no writer found
 swrMultiplayer_rosterUnk 0x004eb214 int # cleared by swrMultiplayer_ApplyRoster; no reader
 swrMultiplayer_raceBeginValid 0x004eb218 int # swrMultiplayer_raceBegin holds a broadcast roster (re-sent on a roster request)
@@ -667,6 +680,7 @@ swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setu
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
 swrMultiplayer_maxPlayers 0x004eb3bc int # player-slot capacity; set to 20 before creating/joining a session, bounds the slot scans in ApplyPlayerJoin
+sithPlayer_g_localPlayer 0x004eb3c0 SithPlayer* # &sithPlayer_g_aPlayers[playerNumber], set by swrMultiplayer_SetLocalPlayer
 
 swrText_racerTab_array 0x004eb3c4 char**
 swrText_racerTab_buffer 0x004eb3c8 char*
@@ -1893,6 +1907,8 @@ Window_smushDstRect 0x00e9f350 RECT # 4:3 letterbox/pillarbox rect on the back b
 
 rootPathName 0x00e9f300 char[80]
 swrSound_mapSoundCount 0x00e9f360 int # sounds.map NUMSOUNDS minus NUMVOICES; swrSound_LoadSoundMap
+swrMultiplayer_localPlayerUnk8c 0x00e9f364 int # sent as swrMultiplayer_JoinRecord.unk8c by SendPlayerJoin; no writer found
+swrMultiplayer_localPlayerName 0x00e9f380 wchar_t[32] # local player's name: sent by SendPlayerJoin, copied into the local SithPlayer by SetLocalPlayer
 swrMultiplayer_playerNames 0x00e9f3c4 wchar_t[32] # view of sithPlayer_g_aPlayers[].awName (see swrMultiplayer_GetPlayerName)
 
 sithPlayer_g_aPlayers 0x00e9f3c0 SithPlayer[20] # base + stride 0xb0 from swrMultiplayer_ClearPlayerSlot, which bounds-checks < 0x14
@@ -1967,6 +1983,7 @@ swrTextEntries1ClipEnabled 0x00e2be7c int[129] # indexed [entry + 1]; swrText_Cl
 miniMapPositions 0x00E2C080 short[190][2]
 
 sithMulti_g_serverId 0x00ec7620 DPID
+sithMulti_g_serverUnk 0x00ec7624 int # zeroed next to sithMulti_g_serverId by CreateSession / ApplyPlayerList; no reader found
 
 cheatedTrugutsAmount 0x00ec83cc int
 
@@ -2109,6 +2126,7 @@ stdControl_KeyPressed_unused 0x00ec88e0 char[0x100]
 stdControlInputItemCount 0x00ec89e0 uint8_t # WindowsInputStackSize snapshot (swrControl_SnapshotKeyboard)
 stdControlInputItems 0x00ec89e4 stdControlInputItem[64]
 
+swrMultiplayer_localPlayerUnk44 0x00ec8c00 wchar_t[32] # second local string: sent as swrMultiplayer_JoinRecord.unk44, copied into the local SithPlayer.unk44 by SetLocalPlayer
 stdPlatfom_FPU1 0x00ec8c80 unsigned short
 stdPlatfom_FPU2 0x00ec8c82 unsigned short
 stdPlatfom_FPU3 0x00ec8c84 unsigned int
