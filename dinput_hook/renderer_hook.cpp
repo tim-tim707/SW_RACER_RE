@@ -2471,7 +2471,7 @@ static MusicGate music_final_lap_gate(const swrObjJdge **outJdge) {
     return s_oneLapMusicReleased ? MUSIC_GATE_ARM : MUSIC_GATE_HOLD;
 }
 
-// swrSound_UpdateMusic (0x00427880). Music is refreshed every frame through playASoundImpl on channel 7, which drops the
+// swrSound_UpdateMusic (0x00427880). Music is refreshed every frame through swrSound_RequestVoice on channel 7, which drops the
 // request (and so lets the streamed voice die) when sound_music_volume is 0. Zero it for the call while
 // held; once released the next refresh restarts the track theme.
 typedef void(__cdecl *swrSound_UpdateMusic_t)(void);
@@ -2479,9 +2479,9 @@ static void swrSound_UpdateMusic_delta(void) {
     typedef float(__cdecl * getPauseScroll_t)(void);
     const swrObjJdge *jdge = nullptr;
     const MusicGate gate = music_final_lap_gate(&jdge);
-    if (gate == MUSIC_GATE_ARM && swrRace_music_enabled != 0 && swrRace_demoMode == 0 &&
+    if (gate == MUSIC_GATE_ARM && swrRace_music_enabled != 0 && swrRace_creditsMode == 0 &&
         swrObjJdge_postRaceHudState == 0 &&
-        ((getPauseScroll_t) GetPauseMenuScrollInOut_ADDR)() <= 0.0f) {
+        ((getPauseScroll_t) swrRace_GetPauseMenuScrollInOut_ADDR)() <= 0.0f) {
         if (!s_oneLapMusicQueued) {
             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
             s_oneLapMusicQueued = true;
