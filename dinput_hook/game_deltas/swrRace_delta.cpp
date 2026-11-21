@@ -518,6 +518,13 @@ typedef void(__cdecl* swrObjTest_F3_t)(swrRace* player);
 void __cdecl swrObjTest_F3_delta(swrRace* player) {
     hook_call_original((swrObjTest_F3_t) swrObjTest_F3_ADDR, player);
     pod_wreck_after_f3(player);
+    // Neva Kee's pod has fused engines and no binder, but the game still places its binder beam
+    // (partNodes 6..9), somewhere off in the level: hide it.
+    if (player != nullptr && player->partNodes != nullptr && player->score_ptr != nullptr &&
+        player->score_ptr->pilotId != nullptr && *player->score_ptr->pilotId == 14)
+        for (int p = 6; p <= 9; p++)
+            if (player->partNodes[p] != nullptr)
+                player->partNodes[p]->flags_1 &= ~0x2u;
 }
 
 typedef void(__cdecl* swrRace_Explode_t)(swrRace* player, int side);

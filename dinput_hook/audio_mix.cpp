@@ -6,6 +6,7 @@
 #include "config.h"
 #include "custom_engine_sound.h"
 #include "shadows.h"// camera_get
+#include "game_deltas/pod_wreck.h"// pod_wreck_side_gone
 
 #include <imgui.h>
 
@@ -74,6 +75,25 @@ struct AiEngineSettings {
 };
 static AiEngineSettings g_ai_engine;
 static std::chrono::steady_clock::time_point g_film_ai_time{};
+
+// The energy binder's hum on your pod while idling / in the lowest gear. Stock, the binder loop is
+// only baked into the gear-0 engine loop (sfx_pod_chop_a_combo_loop), which the game pitches per
+// racer, so it is only heard near its own pitch on Sebulba's deep engine. This plays the binder
+// loop at its recorded pitch on every other racer's pod, fading out as the engine leaves gear 0.
+struct BinderHumSettings {
+    bool on = true;
+    float volume = 0.7f;
+    float fade_start = 0.12f;// speed (x the pod's top speed) where it starts fading
+    float fade_end = 0.25f;  // ... and is gone (the game's gear 0 ends at 0.25)
+};
+static BinderHumSettings g_binder;
+static float g_binder_debug_gain = -1.0f;
+// The binder's start-up sound (sfx_pod_binder_start_b, 4.28 s) as it lights at the start of a
+// race: the hum comes in just before it ends.
+constexpr int kBinderStartSfx = 116;
+constexpr float kBinderStartLen = 4.28f, kBinderHumLead = 1.0f;
+static std::chrono::steady_clock::time_point g_binder_start_heard{};
+static bool g_binder_start_seen = false;
 static const swrRace *g_engine_racer = nullptr;// the pod whose engine sounds are being issued
 
 static bool is_sebulba(const swrRace *r) {
@@ -137,6 +157,10 @@ typedef int(__cdecl *playUISound_t)(int);
 
 extern "C" int __cdecl playASoundImpl_delta(int sound_id, short priority, float pitch, float gain,
                                             short pan, int looping, int track_pos, int *pos) {
+    if (sound_id == kBinderStartSfx) {
+        g_binder_start_heard = std::chrono::steady_clock::now();
+        g_binder_start_seen = true;
+    }
     if (!swrSound_IsLoopingSfxId_Maybe(sound_id)) {// music ids ride the music byte; leave them
         const AudioMixCategory category = classify(sound_id);
         if (category != AUDIO_MIX_NONE)
@@ -398,10 +422,82 @@ static bool update_ai_engine(const swrRace *player) {
     return true;
 }
 
+static void update_binder_hum(const swrRace *player) {
+    if (!g_binder.on || engine_category(player) != AUDIO_MIX_PLAYER_ENGINE)
+        return;
+    // Sebulba's own gear-0 loop already carries it near its recorded pitch.
+    if (is_sebulba(player) || (player->flags0 & swrObjTest_FLAG0_DEAD) != 0 ||
+        (player->flags1 & swrObjTest_FLAG1_EXPLODING) != 0)
+        return;
+    // Repairing: the game plays its own binder sound then (the voice fades out by itself).
+    if ((player->flags0 & swrObjTest_FLAG0_REPAIRING) != 0) {
+        g_binder_debug_gain = 0.0f;
+        return;
+    }
+    // No binder once an engine has come off (the beam goes with it), and none on Neva Kee's pod.
+    if (pod_wreck_side_gone(player, 0) || pod_wreck_side_gone(player, 1))
+        return;
+    if (player->score_ptr && player->score_ptr->pilotId && *player->score_ptr->pilotId == 14)
+        return;
+    // Only once the binder has lit: until then (the pre-race sweep) the game parks the hidden
+    // beam at z = -100000 (swrRace_UpdateEnergyBinder).
+    if (player->binderXfL.vD.z < -50000.0f && player->binderXfR.vD.z < -50000.0f) {
+        g_binder_debug_gain = 0.0f;
+        return;
+    }
+    // Before the race starts (pod state 0 = pre-race) the hum waits for this race's binder
+    // start-up sound and comes in just before it ends -- silent until then. Once racing it plays
+    // straight away.
+    const bool pre_race = (player->flags0 & swrObjTest_FLAG0_STATE_MASK) == 0;
+    static bool was_pre_race = false;
+    if (pre_race && !was_pre_race)
+        g_binder_start_seen = false;// a new race: wait for its start-up sound
+    was_pre_race = pre_race;
+    if (pre_race) {
+        const auto wait = std::chrono::duration<float>(kBinderStartLen - kBinderHumLead);
+        if (!g_binder_start_seen || std::chrono::steady_clock::now() - g_binder_start_heard < wait) {
+            g_binder_debug_gain = 0.0f;
+            return;
+        }
+    }
+    static int loop = -2;
+    if (loop == -2)
+        loop = custom_sound_load("data\\wavs\\22K\\sfx_pod_binder_steady_loop.wav");
+    if (loop < 0)
+        return;
+    // Gear 0 = under a quarter of the pod's top speed (the game's own gear table).
+    const float top = player->podStats.maxSpeed > 1.0f ? player->podStats.maxSpeed : 600.0f;
+    const float sf = player->speedValue / top;
+    const float span = g_binder.fade_end - g_binder.fade_start;
+    float k = span > 1e-3f ? (g_binder.fade_end - sf) / span : (sf < g_binder.fade_end ? 1.0f : 0.0f);
+    k = k < 0.0f ? 0.0f : (k > 1.0f ? 1.0f : k);
+    if (k <= 0.0f) {
+        g_binder_debug_gain = 0.0f;
+        return;
+    }
+    // Heard at the pod from the camera (a far-off cutscene camera barely hears it).
+    float gain = 1.0f, pan = 0.0f;
+    rdVector3 cam{}, cam_right{};
+    if (camera_get(&cam, &cam_right)) {
+        const float dx = player->transform.vD.x - cam.x, dy = player->transform.vD.y - cam.y,
+                    dz = player->transform.vD.z - cam.z;
+        const float d = std::sqrt(dx * dx + dy * dy + dz * dz);
+        const float near_ = 1.0f - d / g_film.range;
+        gain = near_ > 0.0f ? near_ * near_ : 0.0f;
+        const float rl = std::sqrt(cam_right.x * cam_right.x + cam_right.y * cam_right.y + cam_right.z * cam_right.z);
+        if (d > 1e-3f && rl > 1e-6f)
+            pan = 0.5f * (dx * cam_right.x + dy * cam_right.y + dz * cam_right.z) / (d * rl);
+    }
+    gain *= k * k * (3.0f - 2.0f * k) * g_binder.volume * g_volume[AUDIO_MIX_PLAYER_ENGINE];
+    g_binder_debug_gain = gain;
+    custom_sound_voice((((uint64_t) (uintptr_t) player) << 4) | 9u, loop, gain, 1.0f, pan);// rate 1: unpitched
+}
+
 // Plays the distant-pod hum directly, or hands the pod on to swrRace_PlayEngineSounds.
 extern "C" int __cdecl swrRace_UpdateEngineSound_delta(swrRace *player) {
     track_pod_velocity(player);
     update_film_engine(player);
+    update_binder_hum(player);
     if (update_ai_engine(player))
         return 0;// replaced the stock AI hum
     const swrRace *prev = g_engine_racer;
@@ -468,6 +564,10 @@ void audio_mix_LoadSettings() {
         const int v = config::get_int("audio_mix", "ai_engine_voices", g_ai_engine.max_voices);
         g_ai_engine.max_voices = v < 1 ? 1 : (v > 12 ? 12 : v);
     }
+    g_binder.on = config::get_int("audio_mix", "binder_hum", g_binder.on) != 0;
+    g_binder.volume = clampf(config::get_float("audio_mix", "binder_hum_volume", g_binder.volume), 0.0f, 1.5f);
+    g_binder.fade_start = clampf(config::get_float("audio_mix", "binder_hum_fade_start", g_binder.fade_start), 0.0f, 1.0f);
+    g_binder.fade_end = clampf(config::get_float("audio_mix", "binder_hum_fade_end", g_binder.fade_end), 0.0f, 1.0f);
 }
 
 void audio_mix_SaveSettings() {
@@ -483,6 +583,10 @@ void audio_mix_SaveSettings() {
     config::set_float("audio_mix", "ai_engine_range", g_ai_engine.range);
     config::set_float("audio_mix", "ai_engine_doppler", g_ai_engine.doppler);
     config::set_int("audio_mix", "ai_engine_voices", g_ai_engine.max_voices);
+    config::set_bool("audio_mix", "binder_hum", g_binder.on);
+    config::set_float("audio_mix", "binder_hum_volume", g_binder.volume);
+    config::set_float("audio_mix", "binder_hum_fade_start", g_binder.fade_start);
+    config::set_float("audio_mix", "binder_hum_fade_end", g_binder.fade_end);
 }
 
 bool audio_mix_DrawSliders() {
@@ -521,6 +625,26 @@ bool audio_mix_DrawSliders() {
     ImGui::EndDisabled();
     if (ImGui::Button("Reset AI engine sound to defaults")) {
         g_ai_engine = AiEngineSettings{};
+        changed = true;
+    }
+
+    ImGui::SeparatorText("Binder hum");
+    changed |= ImGui::Checkbox("Binder hum at idle", &g_binder.on);
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Your pod's energy binder humming at its recorded pitch while you idle and in the\n"
+                          "lowest gear, fading out as you speed up -- as in the film. Every racer but\n"
+                          "Sebulba (his low engine loop already carries it).");
+    ImGui::BeginDisabled(!g_binder.on);
+    changed |= ImGui::SliderFloat("Binder hum volume", &g_binder.volume, 0.0f, 1.5f, "%.2f");
+    changed |= ImGui::SliderFloat("Fade from", &g_binder.fade_start, 0.0f, 1.0f, "%.2f x top speed");
+    changed |= ImGui::SliderFloat("Gone at", &g_binder.fade_end, 0.0f, 1.0f, "%.2f x top speed");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("The game's lowest engine gear ends at 0.25 x top speed.");
+    if (g_binder_debug_gain >= 0.0f)
+        ImGui::TextDisabled("Now: volume %.0f%%", g_binder_debug_gain * 100.0f);
+    ImGui::EndDisabled();
+    if (ImGui::Button("Reset binder hum to defaults")) {
+        g_binder = BinderHumSettings{};
         changed = true;
     }
 
