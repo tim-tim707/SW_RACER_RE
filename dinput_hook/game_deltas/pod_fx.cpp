@@ -1223,8 +1223,12 @@ namespace {
                 !project(mid, &mx, &my, &mwz, &mvw))
                 continue;
             const float fl = binder_flicker(bm, 6.0f) * s.binder_light * bm.share;
-            const float halo = clampf(bm.L * 0.16f * focal / mvw, 2.0f, 260.0f);// thickness across the beam
-            const float core = clampf(bm.L * 0.045f * focal / mvw, 1.0f, 80.0f);
+            // Thickness across the beam: from the beam's own length, as the game scales the binder
+            // mesh with the gap it spans (a short beam is a thin one). Matched to the pods with long
+            // binders (beam ~0.55 x the cockpit distance, which these sizes were tuned on).
+            const float span = len(sub(bm.b, bm.a));
+            const float halo = clampf(span * 0.29f * focal / mvw, 2.0f, 260.0f);
+            const float core = clampf(span * 0.082f * focal / mvw, 1.0f, 80.0f);
             const float wz = std::min(mwz, std::min(awz, bwz));
             const D3DCOLOR c_halo = argb(clampf(0.26f * fl, 0.0f, 1.0f), bm.r, bm.g, bm.bl);
             const D3DCOLOR c_core = argb(clampf(0.5f * fl, 0.0f, 1.0f), 0.55f + 0.45f * bm.r, 0.55f + 0.45f * bm.g,
