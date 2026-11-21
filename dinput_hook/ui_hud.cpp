@@ -42,18 +42,18 @@ struct HudFunctionRange {
 };
 
 constexpr HudFunctionRange kFunctions[] = {
-    {swrObjJdge_DrawSpeedDialHud_Maybe_ADDR, swrObjJdge_DrawHudBar_ADDR, HUD_CLUSTER_SPEEDOMETER},
-    {swrObjJdge_LayoutHudFrameSprites_Maybe_ADDR, swrRace_InRaceTimer_ADDR, HUD_CLUSTER_CENTER},
+    {swrObjJdge_DrawBoostDialHud_ADDR, swrObjJdge_DrawHudBar_ADDR, HUD_CLUSTER_SPEEDOMETER},
+    {swrObjJdge_LayoutHudFrameSprites_ADDR, swrRace_InRaceTimer_ADDR, HUD_CLUSTER_CENTER},
     {swrRace_InRaceTimer_ADDR, swrObjJdge_DrawSplitDivider_ADDR, HUD_CLUSTER_CENTER},
     {swrRace_InRaceEngineUI_ADDR, swrRace_InRaceEndStatistics_ADDR, HUD_CLUSTER_ENGINE},
-    {swrRace_VehicleStatisticsSubMenu_ADDR, swrRace_SetupStatsMenuLighting_ADDR,
+    {swrObjHang_VehicleStatisticsSubMenu_ADDR, swrRace_SetupStatsMenuLighting_ADDR,
      HUD_CLUSTER_STAT_TABLE},
     // Carousel arrows + frame: vehicle select, Watto's shop, junkyard, course select, course info.
     {swrUI_Front_MenuAxisHorizontal_ADDR, 0x004403d6, HUD_CLUSTER_SCREEN_HEADER},
     // Part shop buy panel (Watto's shop, junkyard) and pit droid shop. Their nested helpers are
     // covered by UiHudClusterScope; the ranges let other code name the panel as an owner.
-    {swrRace_DrawPartShopScreen_ADDR, swrRace_BuyPitdroidsMenu_ADDR, HUD_CLUSTER_SHOP_PANEL},
-    {swrRace_BuyPitdroidsMenu_ADDR, 0x0043f76a, HUD_CLUSTER_SHOP_PANEL},
+    {swrRace_DrawPartShopScreen_ADDR, swrObjHang_BuyPitDroidsMenu_ADDR, HUD_CLUSTER_SHOP_PANEL},
+    {swrObjHang_BuyPitDroidsMenu_ADDR, 0x0043f76a, HUD_CLUSTER_SHOP_PANEL},
 };
 
 // Return address of each call that places an element of a mixed-cluster HUD function.
@@ -71,10 +71,10 @@ constexpr HudSite kSites[] = {
     {0x00435968, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
     {0x004359d5, HUD_CLUSTER_SCREEN_HEADER, HUD_SPAN_NONE},
 
-    // swrObjJdge_DrawSpeedDialHud_Maybe: the centered text under the dial (x 0xa0).
+    // swrObjJdge_DrawBoostDialHud: the centered text under the dial (x 0xa0).
     {0x00460107, HUD_CLUSTER_CENTER, HUD_SPAN_NONE},
 
-    // swrObjJdge_LayoutHudFrameSprites_Maybe, header (lap / time / position holders + backing).
+    // swrObjJdge_LayoutHudFrameSprites, header (lap / time / position holders + backing).
     {0x00460424, HUD_CLUSTER_HEADER_RULE, HUD_SPAN_NONE},    // SetPos dial_time_wire_rgb_1 (rule)
     {0x00460438, HUD_CLUSTER_HEADER_RULE, HUD_SPAN_WINDOW},  // SetDim rule
     {0x00460470, HUD_CLUSTER_HEADER_RULE, HUD_SPAN_NONE},    // SetPos ej_fadel_rgb_0 (gradient)

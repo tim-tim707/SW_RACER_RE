@@ -407,5 +407,5 @@ void swrRace_DrawPartShopScreen_delta(swrObjHang *hang) {
 
 void swrRace_BuyPitdroidsMenu_delta(swrObjHang *hang) {
     UiHudClusterScope scope(HUD_CLUSTER_SHOP_PANEL);
-    hook_call_original((void (*)(swrObjHang *)) swrRace_BuyPitdroidsMenu_ADDR, hang);
+    hook_call_original((void (*)(swrObjHang *)) swrObjHang_BuyPitDroidsMenu_ADDR, hang);
 }

@@ -58,7 +58,7 @@ void swrObjHang_ResultsMenu_delta(swrObjHang* hang);
 // (g_aBeatTracksGlobal), which stock only does on the post-race results screen.
 void swrRace_CopyProfileFromSave_delta(int workingSlot, int savedSlot);
 
-// 0x0043ec10 -- swrRace_DrawPartShopScreen / 0x0043f380 -- swrRace_BuyPitdroidsMenu. Pin the whole
+// 0x0043ec10 -- swrRace_DrawPartShopScreen / 0x0043f380 -- swrObjHang_BuyPitDroidsMenu. Pin the whole
 // panel (text, stat bars, BUY/CANCEL, hologram) as one UI cluster.
 void swrRace_DrawPartShopScreen_delta(swrObjHang *hang);
 void swrRace_BuyPitdroidsMenu_delta(swrObjHang *hang);

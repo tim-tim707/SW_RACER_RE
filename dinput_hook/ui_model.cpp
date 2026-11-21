@@ -28,7 +28,7 @@ struct ModelSite {
 };
 
 // The shop parts are loaded into swr_sceneModels from INGAME_MODELID_map_tat1_part, one per
-// uiUpgradeInfos2 entry (LoadUpgradeModelsIntoScene_Maybe).
+// uiUpgradeInfos2 entry (swrObjHang_LoadShopPartModels).
 bool is_featured_part(const swrModel_NodeTransformed *node) {
     if (swrObjHang_partDetailActive == 0 && swrObjHang_partDetailClosing == 0)
         return false;
@@ -52,7 +52,7 @@ constexpr ModelSite kModelSites[] = {
     // swrObjHang_PositionHoloNode: holo node at camera + (x + 18, 126 deep, y - 20); called by the
     // part shop, pit droid shop and results screens.
     {0x0045732e, 0, MODEL_ALWAYS},
-    // DrawTrackPreview: course-select track hologram, a third of the way from the camera to the
+    // swrObjHang_DrawTrackPreview: course-select track hologram, a third of the way from the camera to the
     // holo target; no panel cluster, so it scales about the screen centre.
     {0x00456e43, 0x00456e43, MODEL_ALWAYS},
     {0x00457052, 0x00457052, MODEL_ALWAYS},

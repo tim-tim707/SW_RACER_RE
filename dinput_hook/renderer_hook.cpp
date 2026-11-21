@@ -2896,7 +2896,7 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjHang_PositionHoloNode_delta);
     hook_function("swrRace_DrawPartShopScreen", (uint32_t) swrRace_DrawPartShopScreen_ADDR,
                   (uint8_t *) swrRace_DrawPartShopScreen_delta);
-    hook_function("swrRace_BuyPitdroidsMenu", (uint32_t) swrRace_BuyPitdroidsMenu_ADDR,
+    hook_function("swrObjHang_BuyPitDroidsMenu", (uint32_t) swrObjHang_BuyPitDroidsMenu_ADDR,
                   (uint8_t *) swrRace_BuyPitdroidsMenu_delta);
 
     // stdDisplay
