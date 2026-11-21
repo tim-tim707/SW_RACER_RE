@@ -3565,7 +3565,7 @@ extern "C"
         uint8_t unk[8]; // 0x30
     } swrUIUpgradeInfo; // sizeof(0x38)
 
-    // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.
+    // One front-end camera framing, indexed by swrObjHang.cameraState out of swrObjHang_cameraPlacements.
     // One junkyard stock slot (swrObjHang_junkyardStock, 16 slots, rolled by swrObjHang_GenerateJunkyardStock).
     typedef struct swrJunkyardSlot
     {

@@ -75,7 +75,7 @@ void swrPlayerHUD_RenderDistanceText_delta(void *viewport, bool secondaryPass) {
         return;
     }
 
-    if (multiplayer_enabled == 0) {
+    if (swrMultiplayer_enabled == 0) {
         // Single-player: position numbers over AI, unchanged.
         hook_call_original((swrPlayerHUD_RenderDistanceText_t *) swrPlayerHUD_RenderDistanceText_ADDR,
                            viewport, secondaryPass);

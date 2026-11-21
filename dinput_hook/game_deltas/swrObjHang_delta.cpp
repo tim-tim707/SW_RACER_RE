@@ -30,9 +30,9 @@ extern "C" int g_cutscene_skip_edge;
 // single local player (slot 0): with num_local_players forced to 1 the confirm path
 // (`if (num_local_players-1 <= current) -> next screen`) exits cleanly without ever stepping to a
 // remote player, and the cursor input always reads the populated slot. Single-player / split-screen
-// is untouched (guarded by multiplayer_enabled).
+// is untouched (guarded by swrMultiplayer_enabled).
 void swrObjHang_F0_delta(swrObjHang *hang) {
-    if (multiplayer_enabled != 0 && hang->menuScreen == swrObjHang_STATE_SELECT_VEHICLE) {
+    if (swrMultiplayer_enabled != 0 && hang->menuScreen == swrObjHang_STATE_SELECT_VEHICLE) {
         hang->current_player_for_vehicle_selection = 0;
         hang->num_local_players = 1;
     }

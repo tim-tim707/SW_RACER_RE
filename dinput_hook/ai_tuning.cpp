@@ -319,7 +319,7 @@ extern "C" void __cdecl swrRace_UpdateCatchup_delta(swrRace *player) {
     // Catch-up assist for a solo human. Vanilla runs this only for a trailing splitscreen player
     // (swrObjJdge_NumLocalPlayers() > 1, paced on the gap to local player 1); reuse the same formula against
     // the gap to the race leader so it means something with one human on the grid.
-    if (local && g_cfg.player_catchup && multiplayer_enabled == 0 && swrObjJdge_NumLocalPlayers() <= 1 &&
+    if (local && g_cfg.player_catchup && swrMultiplayer_enabled == 0 && swrObjJdge_NumLocalPlayers() <= 1 &&
         player->gapToLeader > 0.0f) {
         const float trackLen = swrSpline_GetTrackLength();
         if (trackLen > 0.0f) {

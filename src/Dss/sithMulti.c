@@ -37,7 +37,7 @@ int sithMulti_HandleIncomingPacket(tSithMessage* pMsg)
     int res;
 
     size = STDCOMM_RECV_MAX_SIZE;
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return 0;
     res = stdComm_Receive(&idFrom, &pMsg->callbackId, &size);
     if (res == STDCOMM_RECV_NONE)
@@ -53,10 +53,10 @@ int sithMulti_HandleIncomingPacket(tSithMessage* pMsg)
     if (res == STDCOMM_RECV_PLAYER_LEFT) {
         sithMulti_ProcessPlayerLost(idFrom);
     } else if (res == STDCOMM_RECV_PLAYER_JOINED) {
-        if (multiplayer_isHost != 0)
+        if (swrMultiplayer_isHost != 0)
             swrMultiplayer_SendPlayerList(idFrom, 1);
     } else if (res == STDCOMM_RECV_BECAME_HOST) {
-        multiplayer_isHost = 1;
+        swrMultiplayer_isHost = 1;
         sithMulti_g_serverId = sithMessage_g_localPlayerId;
         swrMultiplayer_BecomeHost(sithMessage_g_localPlayerId);
     }
@@ -72,13 +72,13 @@ HRESULT sithMulti_JoinSessionAndCreatePlayer(int sessionId, wchar_t* playerName,
     if (res != 0)
         return res;
 
-    multiplayer_enabled = 1;
+    swrMultiplayer_enabled = 1;
     sithMulti_playerListVerified = 0;
     sithMessage_g_localPlayerId = stdComm_CreatePlayer(playerName);
     if (sithMessage_g_localPlayerId == 0) {
-        if (multiplayer_enabled != 0) {
+        if (swrMultiplayer_enabled != 0) {
             stdComm_Close();
-            multiplayer_enabled = 0;
+            swrMultiplayer_enabled = 0;
         }
         return E_FAIL;
     }
@@ -101,7 +101,7 @@ HRESULT sithMulti_CreatePlayerFromConfig(StdCommSessionSettings* pSettings)
         stdComm_Close();
         return E_FAIL;
     }
-    multiplayer_enabled = 1;
+    swrMultiplayer_enabled = 1;
     return 0;
 }
 
@@ -122,8 +122,8 @@ int sithMulti_RunCallback(tSithMessage* message)
 void sithMulti_CloseGame(void)
 {
     swrMultiplayer_SetRacerListDisplay(0, 0, 0);
-    multiplayer_inSession = 0;
-    multiplayer_isHost = 0;
+    swrMultiplayer_inSession = 0;
+    swrMultiplayer_isHost = 0;
     sithMessage_g_outputstream &= ~sithMessage_STREAM_NET;
     sithMessage_g_inputstream &= ~sithMessage_STREAM_NET;
     sithMessage_CloseGame();

@@ -179,7 +179,7 @@ int swrObjHang_IsTrackUnlocked(char circuitId, char trackId)
 bool swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
 {
     char tmp = swrRace_UnlockDataBase[circuitIdx + 1];
-    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
+    if ((swrMultiplayer_enabled != 0) && (circuitIdx < '\x03')) {
         return true;
     }
     if (hang->isTournamentMode == '\0') {
@@ -309,9 +309,9 @@ int swrRace_RequestPause()
 
     if (pauseDisabled != 0)
         return pauseDisabled;
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         swrRace_netPauseNoticeFade = 1.0f; // net play can't pause: show the notice instead
-        return multiplayer_enabled;
+        return swrMultiplayer_enabled;
     }
     swrSound_RewindChannels();
     swrSound_Play2D(0x4e, 6, 0.25f, 1.0f, 0);
@@ -707,7 +707,7 @@ void swrObjcMan_F0(swrObjcMan* cman)
     swrObjcMan_UpdatePreRaceSweepTimer(cman, -2.0f);
     if (cman->mode_type != 1 && cman->mode_type == 5 && cman->unkf4_objTest != NULL)
         cman->unkf4_objTest->flags0 |= swrObjTest_FLAG0_POD_HIDDEN;
-    if (multiplayer_enabled != 0 && &swrScoresPtr[playerNumber] != NULL)
+    if (swrMultiplayer_enabled != 0 && &swrScoresPtr[playerNumber] != NULL)
         cman->unkf4_objTest = swrScoresPtr[playerNumber].obj_test_ptr;
 }
 
@@ -1819,7 +1819,7 @@ void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state)
     if (someUI != NULL)
         swrUI_RunCallbacks2(someUI, 0);
     someUI = NULL;
-    if (multiplayer_enabled == 0) {
+    if (swrMultiplayer_enabled == 0) {
         uiId = -1;
         switch (state) {
         case swrObjHang_STATE_MAIN_MENU:
@@ -2072,7 +2072,7 @@ void swrObjHang_DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
     if (node != NULL) {
         swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
         rdMatrix_Copy44(&xf, &swrObjHang_holoCameraMatrix);
-        rdVector_Copy3(&pos, &maybeUICameraPlacements[36].position2);
+        rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[36].position2);
         rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, swrPlanetTable[planetIdx].spinAngle, swrObjHang_cameraMatrix.vC.x, swrObjHang_cameraMatrix.vC.y, swrObjHang_cameraMatrix.vC.z);
         rdMatrix_AddRotationFromVectorAngle44After(&xf, &xf, swrPlanetTable[planetIdx].orientationAngle, swrObjHang_cameraMatrix.vB.x, swrObjHang_cameraMatrix.vB.y, swrObjHang_cameraMatrix.vB.z);
         if (planetIdx == 6)
@@ -2092,7 +2092,7 @@ void swrObjHang_DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale)
             continue;
         swrModel_NodeModifyFlags(&node->node, 2, -4, 0x10, 3);
         rdMatrix_Copy44(&xf, &swrObjHang_holoCameraMatrix);
-        rdVector_Copy3(&pos, &maybeUICameraPlacements[36].position2);
+        rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[36].position2);
         stdMath_SinCos(moon->angle, &sinAngle, &cosAngle);
         rdVector_Scale3Add3(&pos, &pos, moon->orbit.x * sinAngle * scale, (rdVector3*)&swrObjHang_cameraMatrix.vA);
         rdVector_Scale3Add3(&pos, &pos, cosAngle * scale * moon->orbit.y, (rdVector3*)&swrObjHang_cameraMatrix.vB);
@@ -2268,7 +2268,7 @@ void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int wrap)
     if (wrap == 0) {
         if (next < 0 || next > HangCameraState_CantinaEntryCutscene)
             return;
-        if ((short)maybeUICameraPlacements[next].unk1 != (short)maybeUICameraPlacements[current].unk1)
+        if ((short)swrObjHang_cameraPlacements[next].unk1 != (short)swrObjHang_cameraPlacements[current].unk1)
             return;
     }
     next -= dir;
@@ -2278,11 +2278,11 @@ void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int wrap)
             next = HangCameraState_CantinaEntryCutscene;
         else if (next > HangCameraState_CantinaEntryCutscene)
             next = 0;
-    } while ((short)maybeUICameraPlacements[next].unk1 != (short)maybeUICameraPlacements[current].unk1);
+    } while ((short)swrObjHang_cameraPlacements[next].unk1 != (short)swrObjHang_cameraPlacements[current].unk1);
 
-    if (maybeUICameraPlacements[next].unk2 != 0 && (!rdVector_AreSame3(&maybeUICameraPlacements[next].position1, &maybeUICameraPlacements[current].position1) || !rdVector_AreSame3(&maybeUICameraPlacements[next].position2, &maybeUICameraPlacements[hang->cameraState].position2))) {
+    if (swrObjHang_cameraPlacements[next].unk2 != 0 && (!rdVector_AreSame3(&swrObjHang_cameraPlacements[next].position1, &swrObjHang_cameraPlacements[current].position1) || !rdVector_AreSame3(&swrObjHang_cameraPlacements[next].position2, &swrObjHang_cameraPlacements[hang->cameraState].position2))) {
         moved = 1;
-        swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[next].position1, &maybeUICameraPlacements[next].position2, 1, 0, 0);
+        swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[next].position1, &swrObjHang_cameraPlacements[next].position2, 1, 0, 0);
     }
     hang->cameraState = next;
     if (moved)
@@ -2293,8 +2293,8 @@ void swrObjHang_NavigateMenu(swrObjHang* hang, short dir, int wrap)
 void swrObjHang_FocusMenuItem(swrObjHang* hang, int itemIndex, swrObjHang_STATE nextState, int resetCamera)
 {
     hang->cameraState = itemIndex;
-    swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[itemIndex].position1,
-                                   &maybeUICameraPlacements[itemIndex].position2, 1, 0, resetCamera);
+    swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[itemIndex].position1,
+                                   &swrObjHang_cameraPlacements[itemIndex].position2, 1, 0, resetCamera);
     if (nextState != ~swrObjHang_STATE_LEGAL)
         swrObjHang_state2 = nextState;
 }
@@ -2636,7 +2636,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
         swrSound_RewindChannels();
         swrObjHang_vehicleIntroStep = 0;
         swrObjHang_vehicleIntroTimer = 3.0f;
-        swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[38].position2, &maybeUICameraPlacements[39].position2, 1, 0, 0);
+        swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[38].position2, &swrObjHang_cameraPlacements[39].position2, 1, 0, 0);
         swrObjHang_vehicleIntroPlanet = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 8.0f);
     }
     swrUI_Front_SetOkBackActive(0, 0);
@@ -2666,7 +2666,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
         if (swrObjHang_vehicleIntroStep == 0 && swrObjHang_vehicleIntroTimer > 0.0f) {
             swrObjHang_vehicleIntroTimer -= swrRace_fdeltaTimeSecs;
             if (swrObjHang_vehicleIntroTimer <= 0.0f) {
-                swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[38].position2, &maybeUICameraPlacements[36].position2, 1, 0, 0);
+                swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[38].position2, &swrObjHang_cameraPlacements[36].position2, 1, 0, 0);
                 swrObjHang_vehicleIntroStep = 1;
             }
         }
@@ -2686,13 +2686,13 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
             }
         }
         if (swrObjHang_vehicleIntroTimer <= 0.0f && swrObjHang_vehicleIntroStep == 3) {
-            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &maybeUICameraPlacements[36].position2, 1, 0, 0);
+            swrObjHang_SetHoloCameraTarget((rdVector3*)&swrObjHang_cameraMatrix.vD, &swrObjHang_cameraPlacements[36].position2, 1, 0, 0);
             swrObjHang_vehicleIntroStep = 4;
         }
         if (swrObjHang_cameraMoveMode != 0)
             return;
         if (swrObjHang_vehicleIntroStep == 4) {
-            swrObjHang_SetHoloCameraTarget(&maybeUICameraPlacements[36].position1, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, 1, 0, 0);
+            swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[36].position1, (rdVector3*)&swrObjHang_holoCameraMatrix.vD, 1, 0, 0);
             swrObjHang_vehicleIntroStep = 5;
         }
         if (swrObjHang_cameraMoveMode != 0 || swrObjHang_vehicleIntroStep != 5)
@@ -3086,7 +3086,7 @@ void swrObjHang_LoadScreen(swrObjHang* hang, int rosterArg, int noBroadcast)
     }
 
     char planet = g_aTrackInfos[hang->track_index].PlanetIdx;
-    if ((swrRace_saveData.profiles[0].planetIntrosSeen & (1 << planet)) == 0 && multiplayer_enabled == 0 && swrRace_creditsMode == 0 && hang->demo_mode == 0) {
+    if ((swrRace_saveData.profiles[0].planetIntrosSeen & (1 << planet)) == 0 && swrMultiplayer_enabled == 0 && swrRace_creditsMode == 0 && hang->demo_mode == 0) {
         // tests save slot 0's mask but records into the live profile
         Window_PlayCinematic(swrObjHang_cinematicFiles[planet]);
         swrRace_aProfiles[0].planetIntrosSeen |= 1 << g_aTrackInfos[hang->track_index].PlanetIdx;
@@ -3129,7 +3129,7 @@ void swrObjHang_F0(swrObjHang* hang)
         for (int player = 0; player < 4; player++)
             swrUI_UpdatePlayerMenuInput(player);
 
-        if (multiplayer_enabled != 0)
+        if (swrMultiplayer_enabled != 0)
             swrObjHang_skipTournamentIntro = 1;
         if (swrUI_pendingInputDown != 0) {
             swrUI_localPlayersInputDownBitset[0] = swrUI_pendingInputDown;
@@ -3356,7 +3356,7 @@ void swrObjHang_LoadAllPilotSprites(void)
 // 0x00433760
 void swrObjHang_ReturnToMultiplayerLobby(void)
 {
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         swrUI_RunCallbacks2(swrUI_GetById(NULL, swrUI_WINDOW_MP_RACE_SETUP), 0);
         swrUI_PushMenuPage(swrUI_WINDOW_MP_RACER_LIST);
         swrUI_RunCallbacks2(swrUI_GetById(NULL, swrUI_WINDOW_MP_RACER_LIST), 0);
@@ -3794,9 +3794,9 @@ void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
         swrMultiplayer_SetRacerListDisplay(1, 10, 120);
         hang->isTournamentMode = 0;
         hang->num_local_players = (char)swrMultiplayer_GetActivePlayerCount();
-        hang->num_players = (char)swrMultiplayer_GetActivePlayerCount() + (char)multiplayer_numAiRacers;
-        hang->track_index = (char)multiplayer_track_select;
-        hang->numLaps = (char)multiplayer_laps;
+        hang->num_players = (char)swrMultiplayer_GetActivePlayerCount() + (char)swrMultiplayer_numAiRacers;
+        hang->track_index = (char)swrMultiplayer_trackSelect;
+        hang->numLaps = (char)swrMultiplayer_laps;
     }
     // faithful: the credits override runs twice
     if (swrRace_creditsMode != 0) {
@@ -4066,7 +4066,7 @@ void swrObjHang_LoadRoomModels(swrObjHang* hang, float scale)
 
     swrModel_LoadPuppet(MODELID_holo_proj02_puppet, INGAME_MODELID_holo_proj02_puppet, swrObjElmo_KIND_HOLO_PROJECTOR, -1.0f);
     if (swr_sceneModels[INGAME_MODELID_holo_proj02_puppet] != NULL) {
-        const swrUICameraPlacement* placement = &maybeUICameraPlacements[0x24];
+        const swrUICameraPlacement* placement = &swrObjHang_cameraPlacements[0x24];
         hang->holo_proj02_part_model = swr_sceneModels[INGAME_MODELID_holo_proj02_puppet]->entries[0].node;
         rdVector_Copy3(&pos, &placement->position2);
         pos.z = -60.0f;
@@ -4493,7 +4493,7 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
         ambient.z = 140.0f;
         hang->cameraState = HangCameraState_JunkyardPart01;
         for (i = HangCameraState_JunkyardPart01; i < HangCameraState_JunkyardPart16; i++) {
-            if ((short)maybeUICameraPlacements[i].unk1 == 4) {
+            if ((short)swrObjHang_cameraPlacements[i].unk1 == 4) {
                 hang->cameraState = i;
                 break;
             }
@@ -4501,11 +4501,11 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
         for (i = 0; i < hang->num_local_players; i++) {
             rdVector_Set3(&pos, (float)(-214.0 - i * -50.0), -569.0f, -145.0f);
             swrObjHang_ComputeCameraEye(hang, i);
-            placement = &maybeUICameraPlacements[hang->cameraState];
+            placement = &swrObjHang_cameraPlacements[hang->cameraState];
             yaw = stdMath_ArcTan2(placement->position2.x - placement->position1.x, placement->position1.y - placement->position2.y);
             swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x14, &pos, &swrObjHang_sceneCameraEye, yaw, yaw - -180.0f);
         }
-        rdVector_Copy3(&pos, &maybeUICameraPlacements[3].position2);
+        rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[3].position2);
         pos.z = -125.0f;
         rdVector_Copy3(&swrObjHang_sceneCameraEye, &swrObjElmo_waypoints[5]);
         yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
@@ -4536,7 +4536,7 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
         yaw = yawTarget;
         anim = 0x1d;
         if (hang->menuScreenPrev == swrObjHang_STATE_JUNKYARD) {
-            rdVector_Copy3(&pos, &maybeUICameraPlacements[hang->cameraState].position2);
+            rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[hang->cameraState].position2);
             pos.z = -40.0f;
             yaw = stdMath_ArcTan2(pos.x - swrObjHang_sceneCameraEye.x, swrObjHang_sceneCameraEye.y - pos.y);
             anim = 0x1e;
@@ -4577,7 +4577,7 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
         for (i = 0; i < hang->num_local_players; i++) {
             rdVector_Set3(&pos, (float)(200.0 - i * -50.0), -200.0f, -60.0f);
             if (hang->menuScreenPrev == swrObjHang_STATE_JUNKYARD)
-                rdVector_Copy3(&pos, &maybeUICameraPlacements[hang->cameraState].position2);
+                rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[hang->cameraState].position2);
             // faithful: the per-player position above is overwritten
             pos.z = -60.0f;
             rdVector_Set3(&pos, -20.0f, -100.0f, -60.0f);
@@ -4655,7 +4655,7 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
             pilotId = SWR_SCENE_SLOT_CANTINA_GUEST;
             guestId = SWR_SCENE_SLOT_CANTINA_PILOT;
         }
-        placement = &maybeUICameraPlacements[HangCameraState_CantinaHolotableFar];
+        placement = &swrObjHang_cameraPlacements[HangCameraState_CantinaHolotableFar];
         rdVector_Copy3(&pos, &placement->position1);
         hang->cameraState = HangCameraState_CantinaEntryCutscene;
         hang->elmoEntityIndex = pilotId;
@@ -4693,8 +4693,8 @@ void swrObjHang_SetupScreenScene(swrObjHang* hang)
     swrCam_CamState_SetOffsetSource(swrObjHang_holoCamState, &swrObjHang_holoCameraMatrix, 0);
     swrViewport_SetCameraParameters(swrObjHang_sceneViewport, 45.0f, -1.0f, nearClip, farClip, -1.0f);
     if (hang->cameraState != HangCameraState_None) {
-        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &maybeUICameraPlacements[hang->cameraState].position1);
-        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &maybeUICameraPlacements[hang->cameraState].position2);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrix.vD, &swrObjHang_cameraPlacements[hang->cameraState].position1);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, &swrObjHang_cameraPlacements[hang->cameraState].position2);
     }
     rdMatrix_Copy44(&swrObjHang_cameraMatrixStart, &swrObjHang_cameraMatrix);
     rdMatrix_Copy44(&swrObjHang_cameraMatrixTarget, &swrObjHang_cameraMatrix);
@@ -5176,7 +5176,7 @@ void swrObjHang_LayoutVehicleSelectIcons(swrObjHang* hang)
         for (int slot = 0; slot < SWR_JUNKYARD_SLOT_COUNT; slot++) {
             char type = swrObjHang_junkyardStock[slot].partType;
             if (type != -1) {
-                swrUICameraPlacement* placement = &maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot];
+                swrUICameraPlacement* placement = &swrObjHang_cameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot];
                 uiUpgradeInfos2[type].vector1.x = placement->position2.x;
                 uiUpgradeInfos2[type].vector1.y = placement->position2.y;
                 uiUpgradeInfos2[type].vector1.z = -130.0f;
@@ -5218,7 +5218,7 @@ void swrObjHang_GenerateJunkyardStock(swrObjHang* hang)
     for (int i = 0; i < SWR_JUNKYARD_SLOT_COUNT; i++) {
         swrObjHang_junkyardStock[i].partType = -1;
         // the slot's camera framing is only enabled once a part lands in it
-        *(short*)&maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + i].unk1 = -1;
+        *(short*)&swrObjHang_cameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + i].unk1 = -1;
         swrObjHang_junkyardStock[i].level = 1 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -5.0f);
         swrObjHang_junkyardStock[i].health = 102 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -129.0f);
     }
@@ -5228,7 +5228,7 @@ void swrObjHang_GenerateJunkyardStock(swrObjHang* hang)
             slot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 16.0f);
         } while (swrObjHang_junkyardStock[slot].partType != -1);
         swrObjHang_junkyardStock[slot].partType = (char)part;
-        *(short*)&maybeUICameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot].unk1 = 4;
+        *(short*)&swrObjHang_cameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot].unk1 = 4;
     }
 }
 
@@ -5263,7 +5263,7 @@ void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgrade
     for (int i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
         upgradeLevels[i] = (&swrRace_traction_upgrade_level)[i];
         upgradeHealths[i] = (&swrRace_traction_upgrade_health)[i];
-        if (multiplayer_enabled != 0) {
+        if (swrMultiplayer_enabled != 0) {
             upgradeLevels[i] = 0;
             upgradeHealths[i] = -1;
         }
@@ -5830,7 +5830,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
 
     case 1: // "Go!" hold -> racing
         if ((jdge->flag & 0x20) == 0) {
-            if (multiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0) {
+            if (swrMultiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0) {
                 jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
                 swrRace_InitFireEffects(jdge->planetId, 0);
                 return;
@@ -5973,7 +5973,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     case 6: // teardown
         if (jdge->raceTimer_ms < 0.0f) {
             swrMultiplayer_SetNetworkTick(0);
-            if (multiplayer_enabled != 0) {
+            if (swrMultiplayer_enabled != 0) {
                 swrUI_unk* page = swrUI_GetById(NULL, swrUI_WINDOW_MP_RACER_LIST);
                 swrUI_RunCallbacks2(page, 1);
             }
@@ -6196,7 +6196,7 @@ void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
                 }
                 if (variant != -1) {
                     otherPod = other->obj_test_ptr;
-                    if ((otherPod->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (otherPod->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0 && otherPod->lodDistance < 500.0 && multiplayer_enabled == 0) {
+                    if ((otherPod->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (otherPod->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0 && otherPod->lodDistance < 500.0 && swrMultiplayer_enabled == 0) {
                         rdVector3* at = (rdVector3*)&otherPod->transform.vD;
                         if (!lost) {
                             swrSound_PlayRandomSfx(1, variant, 0x15, 0x01, 0x17, 0x03, 0x14, at);
@@ -8382,7 +8382,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         }
         break;
     case 0x12:
-        if (elmo->moveTarget.x == maybeUICameraPlacements[1].position2.x && elmo->moveTarget.y == maybeUICameraPlacements[1].position2.y) {
+        if (elmo->moveTarget.x == swrObjHang_cameraPlacements[1].position2.x && elmo->moveTarget.y == swrObjHang_cameraPlacements[1].position2.y) {
             choiceCount = 2;
             atWattoCounter = 1;
         }
@@ -9379,7 +9379,7 @@ void swrObjHang_UpdateCantinaHolotable(int menuScreen)
         swrModel_ComputeNodeWorldMatrix(holo->unk30_nodes[5], (float*)&world, holo->unk30_nodes[0], &world);
         world.vD.z = world.vD.z - -10.0f;
         if (fade == 1.0f) {
-            rdVector_Scale3Add3_both((rdVector3*)&world.vD, 0.75f, &maybeUICameraPlacements[0x24].position1, 0.25f, (rdVector3*)&world.vD);
+            rdVector_Scale3Add3_both((rdVector3*)&world.vD, 0.75f, &swrObjHang_cameraPlacements[0x24].position1, 0.25f, (rdVector3*)&world.vD);
             fade = fade * 0.25f;
         }
         swrRace_SetEngineNodeTranslation((void**)droid->unk30_nodes, (rdVector3*)&world.vD);
@@ -12954,7 +12954,7 @@ float swrObjHang_CosineEase(float t, float period) {
 // 0x00440b50
 int swrObjHang_IsCameraMoving(swrObjHang* hang)
 {
-    const swrUICameraPlacement* place = &maybeUICameraPlacements[hang->cameraState];
+    const swrUICameraPlacement* place = &swrObjHang_cameraPlacements[hang->cameraState];
 
     if (rdVector_AreSame3((rdVector3*)&place->position2, (rdVector3*)&swrObjHang_holoCameraMatrix.vD) && rdVector_AreSame3((rdVector3*)&place->position2, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD) && rdVector_AreSame3((rdVector3*)&place->position1, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD)) {
         return 0;
@@ -12994,7 +12994,7 @@ void swrObjHang_UpdateUICameraPlacements(float time)
 {
     swrUICameraPlacement* placement;
 
-    for (placement = &maybeUICameraPlacements[0]; placement < &maybeUICameraPlacements[40]; placement++) {
+    for (placement = &swrObjHang_cameraPlacements[0]; placement < &swrObjHang_cameraPlacements[40]; placement++) {
         switch ((short)placement->unk1) {
         case 0:
             placement->position1.z = time - 60.0f;
@@ -13049,7 +13049,7 @@ void swrObjHang_ComputeModelViewBounds(void)
         rdVector_Set3((rdVector3*)&swrObjHang_displayPodBoundsCockpit[3], -10.0f, -10.0f, -10.0f);
     } else {
         // look-at of the inspect-vehicle camera framing
-        rdVector_Set3(&maybeUICameraPlacements[0x1e].position2, swrObjHang_displayPodBoundsCockpit[3] + 100.0f, (swrObjHang_displayPodBoundsCockpit[1] + swrObjHang_displayPodBoundsCockpit[4]) * 0.5, -157.0f);
+        rdVector_Set3(&swrObjHang_cameraPlacements[0x1e].position2, swrObjHang_displayPodBoundsCockpit[3] + 100.0f, (swrObjHang_displayPodBoundsCockpit[1] + swrObjHang_displayPodBoundsCockpit[4]) * 0.5, -157.0f);
     }
     if (swrModel_NodeComputeFirstMeshAABB(pod[0x3e], swrObjHang_displayPodBoundsEngineR, 0) == 0) {
         rdVector_Copy3((rdVector3*)&swrObjHang_displayPodBoundsEngineR[0], (rdVector3*)&swrObjHang_displayPodBoundsCockpit[0]);
@@ -13095,8 +13095,8 @@ void swrObjHang_PositionPlayerPuppets(swrObjHang* hang)
     rdVector3 lookAt;
     rdVector3 puppetPos;
 
-    rdVector_Copy3(&eye, &maybeUICameraPlacements[hang->cameraState].position1); // unused, as in the original
-    rdVector_Copy3(&lookAt, &maybeUICameraPlacements[hang->cameraState].position2);
+    rdVector_Copy3(&eye, &swrObjHang_cameraPlacements[hang->cameraState].position1); // unused, as in the original
+    rdVector_Copy3(&lookAt, &swrObjHang_cameraPlacements[hang->cameraState].position2);
     for (int player = 0; player < hang->num_local_players; player++) {
         swrObjElmo* elmo;
         swrObjHang_ComputeCameraEye(hang, player);
@@ -13145,8 +13145,8 @@ void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode)
     float jitterScale;
 
     if (mode == 0) {
-        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position2);
-        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position1);
+        rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraPlacements[hang->cameraState].position2);
+        rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraPlacements[hang->cameraState].position1);
     } else {
         if (swrObjHang_state2 != (swrObjHang_STATE)~swrObjHang_STATE_LEGAL) {
             rdVector_Sub3(&lookAtToEye, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
@@ -13187,13 +13187,13 @@ void swrObjHang_ComputeCameraEye(swrObjHang* hang, int mode)
     up.x = 0.0f;
     up.y = 0.0f;
     up.z = 1.0f;
-    rdVector_Copy3(&from, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position1);
-    rdVector_Copy3(&to, (rdVector3*)&maybeUICameraPlacements[hang->cameraState].position2);
+    rdVector_Copy3(&from, (rdVector3*)&swrObjHang_cameraPlacements[hang->cameraState].position1);
+    rdVector_Copy3(&to, (rdVector3*)&swrObjHang_cameraPlacements[hang->cameraState].position2);
 
     if (hang->cameraState == HangCameraState_CantinaHolotableFar) {
-        eyeSrc = (rdVector3*)&maybeUICameraPlacements[HangCameraState_CantinaHolotableFar].position1;
+        eyeSrc = (rdVector3*)&swrObjHang_cameraPlacements[HangCameraState_CantinaHolotableFar].position1;
     } else if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
-        eyeSrc = (rdVector3*)&maybeUICameraPlacements[HangCameraState_InspectCharacter].position2;
+        eyeSrc = (rdVector3*)&swrObjHang_cameraPlacements[HangCameraState_InspectCharacter].position2;
     } else if (swrObjHang_cameraMoveParity == 0 || mode != 0 || hang->menuScreen != swrObjHang_STATE_WATTO || (swrObjHang_cameraMoveMode != 0 && swrObjHang_cameraMoveMode != 5)) {
         // Offset the eye off the from->to line: 3 parts along it to 1 part sideways, scaled x60.
         rdVector_Sub3(&forward, &to, &from);
@@ -13595,7 +13595,7 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
                         swrObjHang_fadeState = -1;
                     } else if (SWR_PIT_DROID_PRICE - 1 < swrRace_truguts) {
                         swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS - 1 + swrObjHang_pitDroidsForSale], &droidPos);
-                        rdVector_Copy3(&droidLookAt, &maybeUICameraPlacements[0].position2);
+                        rdVector_Copy3(&droidLookAt, &swrObjHang_cameraPlacements[0].position2);
                         droidLookAt.z = -60.0f;
                         yaw = stdMath_ArcTan2(droidPos.x - 12.0f, -116.0f - droidPos.y);
                         swrObjElmo_SetTransformAndAnimById(swrObjHang_pitDroidsForSale + SWR_ELMO_ID_PIT_DROID_BASE, 10, &droidPos, &droidLookAt, yaw, yaw);
@@ -13816,12 +13816,12 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
 
     if (swrObjHang_menuJustEntered != 0 && hang->roomPrev != Hangar) {
         for (i = 0; i < hang->num_local_players; i++) {
-            rdVector_Copy3(&pos, &maybeUICameraPlacements[0x1e].position1);
+            rdVector_Copy3(&pos, &swrObjHang_cameraPlacements[0x1e].position1);
             pos.z = -157.0f;
-            rdVector_Copy3(&swrObjHang_sceneCameraEye, &maybeUICameraPlacements[0x1e].position2);
+            rdVector_Copy3(&swrObjHang_sceneCameraEye, &swrObjHang_cameraPlacements[0x1e].position2);
             swrObjHang_sceneCameraEye.y = swrObjHang_sceneCameraEye.y - (float)(i * 2500);
-            yaw = stdMath_ArcTan2(pos.x - maybeUICameraPlacements[0x1e].position2.x, maybeUICameraPlacements[0x1e].position2.y - pos.y);
-            yawTarget = stdMath_ArcTan2(swrObjHang_sceneCameraEye.x - maybeUICameraPlacements[hang->cameraState].position2.x, maybeUICameraPlacements[hang->cameraState].position2.y - swrObjHang_sceneCameraEye.y);
+            yaw = stdMath_ArcTan2(pos.x - swrObjHang_cameraPlacements[0x1e].position2.x, swrObjHang_cameraPlacements[0x1e].position2.y - pos.y);
+            yawTarget = stdMath_ArcTan2(swrObjHang_sceneCameraEye.x - swrObjHang_cameraPlacements[hang->cameraState].position2.x, swrObjHang_cameraPlacements[hang->cameraState].position2.y - swrObjHang_sceneCameraEye.y);
             swrObjElmo_SetTransformAndAnimById(SWR_SCENE_SLOT_PILOT_PUPPETS + i, 0x14, &pos, &swrObjHang_sceneCameraEye, yaw, yawTarget);
         }
 

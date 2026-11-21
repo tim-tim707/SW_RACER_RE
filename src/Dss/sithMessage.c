@@ -48,7 +48,7 @@ void sithMessage_CloseGame(void)
         stdComm_DestroyPlayer(sithMessage_g_localPlayerId);
     }
     stdComm_Close();
-    multiplayer_enabled = 0;
+    swrMultiplayer_enabled = 0;
     sithMessage_g_localPlayerId = 0;
     playerNumber = 0;
 }
@@ -107,7 +107,7 @@ void sithMulti_ProcessPlayerLost(DPID idPlayer)
     if (swrMultiplayer_lowestLostSlot >= playerNum)
         swrMultiplayer_lowestLostSlot = playerNum;
 
-    if (multiplayer_isHost != 0 && swrMultiplayer_aRejoinRequested[playerNum] == 0) {
+    if (swrMultiplayer_isHost != 0 && swrMultiplayer_aRejoinRequested[playerNum] == 0) {
         sprintf(text, swrText_Translate("/MONDOTEXT_H_0423/%s has left the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
         swrMultiplayer_PostChatMessage(text);
         swrMultiplayer_SendRejoin(playerNum);

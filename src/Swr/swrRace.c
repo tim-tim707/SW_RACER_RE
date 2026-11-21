@@ -314,7 +314,7 @@ void swrConfig_BuildProfileListMenu(swrUI_unk* page)
 // 0x0041c4e0
 swrRace_TRACK swrRace_GetSelectedTrack(void)
 {
-    return multiplayer_track_select;
+    return swrMultiplayer_trackSelect;
 }
 
 // 0x00421810
@@ -1237,7 +1237,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
     if (swrRace_vehicleSelectStep == 5 && swrObjHang_StepTransition(-3.3f) == 0.0f) {
         swrObjElmo_SetAnimStateById(SWR_SCENE_SLOT_PILOT_PUPPETS, 0);
         swrRace_SaveCurrentProfile();
-        if (multiplayer_enabled != 0) {
+        if (swrMultiplayer_enabled != 0) {
             swrUI_PopMenuPage();
             return;
         }
@@ -1313,9 +1313,9 @@ void swrRace_SelectVehicle(swrObjHang* hang)
             roll = -swrObjHang_CosineEase(swrRace_PodRotationAnimation - 1440.0f, 360.0f);
         }
         rdMatrix_SetRotation44(&m, pitch, yaw, roll);
-        rdVector_Copy3((rdVector3*)&m.vD, &maybeUICameraPlacements[0x24].position2);
+        rdVector_Copy3((rdVector3*)&m.vD, &swrObjHang_cameraPlacements[0x24].position2);
         swrRace_vehicleSelectPodScale = swrRace_vehicleSelectPodScale * 0.5f;
-        rdVector_Scale3Add3_both((rdVector3*)&m.vD, 0.5f, &maybeUICameraPlacements[0x24].position2, 0.5f, &maybeUICameraPlacements[0x24].position1);
+        rdVector_Scale3Add3_both((rdVector3*)&m.vD, 0.5f, &swrObjHang_cameraPlacements[0x24].position2, 0.5f, &swrObjHang_cameraPlacements[0x24].position1);
         swrRace_AnimateDisplayPod((swrModel_Node**)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS], &m, 1, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, -1157.0f, 0, 1.0f, 1.0f);
         if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node != NULL)
             swrModel_NodeModifyFlags(swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node, 2, 3, 0x10, 2);
@@ -1432,16 +1432,16 @@ void swrObjHang_MainMenu(swrObjHang* hang)
         rdVector_Sub3(&toEye, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
         swrObjHang_orbitDistance = rdVector_Len3(&toEye);
         rdVector_Normalize3Acc(&toEye);
-        gamma_unk = stdMath_ArcTan2(-toEye.x, toEye.y);
-        alpha_unk = stdMath_ArcSin(toEye.z);
-        if (gamma_unk < 0.0f)
-            gamma_unk = gamma_unk - -360.0f;
-        if (gamma_unk > 360.0f)
-            gamma_unk = gamma_unk - 360.0f;
-        if (alpha_unk < -90.0f)
-            alpha_unk = alpha_unk - -180.0f;
-        if (alpha_unk > 90.0f)
-            alpha_unk = alpha_unk - 180.0f;
+        swrObjHang_orbitYaw = stdMath_ArcTan2(-toEye.x, toEye.y);
+        swrObjHang_orbitPitch = stdMath_ArcSin(toEye.z);
+        if (swrObjHang_orbitYaw < 0.0f)
+            swrObjHang_orbitYaw = swrObjHang_orbitYaw - -360.0f;
+        if (swrObjHang_orbitYaw > 360.0f)
+            swrObjHang_orbitYaw = swrObjHang_orbitYaw - 360.0f;
+        if (swrObjHang_orbitPitch < -90.0f)
+            swrObjHang_orbitPitch = swrObjHang_orbitPitch - -180.0f;
+        if (swrObjHang_orbitPitch > 90.0f)
+            swrObjHang_orbitPitch = swrObjHang_orbitPitch - 180.0f;
 
         memset(swrObjHang_mainMenuItems, -1, sizeof(swrObjHang_mainMenuItems));
         swrObjHang_mainMenuItems[0] = swrObjHang_MAINMENU_START_RACE;
@@ -1519,18 +1519,18 @@ void swrObjHang_MainMenu(swrObjHang* hang)
             swrObjHang_cameraMoveMode = 0;
             if (swrControl_aPlayerAxisX[player] > 0.1f || swrControl_aPlayerAxisX[player] < -0.1f) {
                 moved = 1;
-                gamma_unk = gamma_unk - swrControl_aPlayerAxisX[player] * swrRace_fdeltaTimeSecs * 105.0f;
+                swrObjHang_orbitYaw = swrObjHang_orbitYaw - swrControl_aPlayerAxisX[player] * swrRace_fdeltaTimeSecs * 105.0f;
             }
             if (swrControl_aPlayerAxisY[player] > 0.1f || swrControl_aPlayerAxisY[player] < -0.1f) {
-                alpha_unk = alpha_unk - swrControl_aPlayerAxisY[player] * swrRace_fdeltaTimeSecs * -67.5f;
-                if (alpha_unk > 45.0f)
-                    alpha_unk = 45.0f;
-                if (alpha_unk < -45.0f)
-                    alpha_unk = -45.0f;
+                swrObjHang_orbitPitch = swrObjHang_orbitPitch - swrControl_aPlayerAxisY[player] * swrRace_fdeltaTimeSecs * -67.5f;
+                if (swrObjHang_orbitPitch > 45.0f)
+                    swrObjHang_orbitPitch = 45.0f;
+                if (swrObjHang_orbitPitch < -45.0f)
+                    swrObjHang_orbitPitch = -45.0f;
                 moved = 1;
             }
             if (moved) {
-                rdMatrix_SetRotation44(&orbit, gamma_unk, alpha_unk, 0.0f);
+                rdMatrix_SetRotation44(&orbit, swrObjHang_orbitYaw, swrObjHang_orbitPitch, 0.0f);
                 rdVector_Scale3Add3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD, -swrObjHang_orbitDistance, (rdVector3*)&orbit.vB);
                 // faithful: the distance is never changed above, so this never recomputes
                 if (swrObjHang_orbitDistance != distance)
@@ -1753,33 +1753,33 @@ void swrObjHang_LookAtVehicleMenu(swrObjHang* hang)
         pod = swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)pod->entries[swrObjHang_displayPodEngineREntry].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x1f].position2.x = 0.0f;
-        maybeUICameraPlacements[0x1f].position1.x = swrObjHang_displayPodBoundsEngineR[3] + 200.0f;
-        maybeUICameraPlacements[0x1f].position1.y = swrObjHang_displayPodBoundsEngineR[4] + 300.0f;
-        maybeUICameraPlacements[0x1f].position1.z = maybeUICameraPlacements[0x1f].position1.z + 200.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x1f].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x1f].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x1f].position2.x = 0.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.x = swrObjHang_displayPodBoundsEngineR[3] + 200.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.y = swrObjHang_displayPodBoundsEngineR[4] + 300.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.z = swrObjHang_cameraPlacements[0x1f].position1.z + 200.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x20].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x20].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x20].position1.z = -152.0f;
-        maybeUICameraPlacements[0x20].position1.x = maybeUICameraPlacements[0x20].position1.x + 50.0f;
-        maybeUICameraPlacements[0x20].position1.y = maybeUICameraPlacements[0x20].position1.y - 300.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x20].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x20].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x20].position1.z = -152.0f;
+        swrObjHang_cameraPlacements[0x20].position1.x = swrObjHang_cameraPlacements[0x20].position1.x + 50.0f;
+        swrObjHang_cameraPlacements[0x20].position1.y = swrObjHang_cameraPlacements[0x20].position1.y - 300.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x21].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x21].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x21].position1.x = maybeUICameraPlacements[0x21].position1.x - 100.0f;
-        maybeUICameraPlacements[0x21].position1.y = maybeUICameraPlacements[0x21].position1.y - 500.0f;
-        maybeUICameraPlacements[0x21].position1.z = maybeUICameraPlacements[0x21].position1.z + 100.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x21].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x21].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x21].position1.x = swrObjHang_cameraPlacements[0x21].position1.x - 100.0f;
+        swrObjHang_cameraPlacements[0x21].position1.y = swrObjHang_cameraPlacements[0x21].position1.y - 500.0f;
+        swrObjHang_cameraPlacements[0x21].position1.z = swrObjHang_cameraPlacements[0x21].position1.z + 100.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[swrObjHang_displayPodEngineLEntry].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x22].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x22].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x22].position1.z = -152.0f;
-        maybeUICameraPlacements[0x22].position1.x = swrObjHang_displayPodBoundsEngineL[0] - 300.0f;
-        maybeUICameraPlacements[0x22].position1.y = swrObjHang_displayPodBoundsEngineL[4] + 300.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x22].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x22].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x22].position1.z = -152.0f;
+        swrObjHang_cameraPlacements[0x22].position1.x = swrObjHang_displayPodBoundsEngineL[0] - 300.0f;
+        swrObjHang_cameraPlacements[0x22].position1.y = swrObjHang_displayPodBoundsEngineL[4] + 300.0f;
 
         if (swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT)
             swrObjHang_FocusMenuItem(hang, swrObjHang_hangarUpgradeType % 4 + HangCameraState_InspectUpgrades1, ~swrObjHang_STATE_LEGAL, 0);
@@ -2304,7 +2304,7 @@ void swrObjHang_CourseSelectionMenu(void)
     // faithful: the original's per-player loop bound stops after player 1
     if (swrMultiplayer_menuOverlayActive == 0) {
         if (swrControl_menuAcceptPressedEdge != 0 && (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0)) {
-            if (multiplayer_enabled != 0) {
+            if (swrMultiplayer_enabled != 0) {
                 swrUI_PopMenuPage();
                 return;
             }
@@ -2317,7 +2317,7 @@ void swrObjHang_CourseSelectionMenu(void)
             return;
         }
         if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
-            if (multiplayer_enabled != 0) {
+            if (swrMultiplayer_enabled != 0) {
                 swrUI_PopMenuPage();
                 return;
             }
@@ -2352,7 +2352,7 @@ void swrObjHang_CourseSelectionMenu(void)
         }
     }
 
-    multiplayer_track_select = hang->track_index;
+    swrMultiplayer_trackSelect = hang->track_index;
     if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
         g_LoadTrackModel = g_aTrackInfos[hang->track_index].trackID;
         swrMultiplayer_BroadcastPlayerState();
@@ -2918,7 +2918,7 @@ void swrRace_BuildPartMenuList(swrObjHang* hang)
     unlocked = swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotsUnlocked | ELFSAVE_DEFAULT_PILOTS;
     count = 0;
     for (racer = 0; racer < SWR_PILOT_COUNT; racer++) {
-        if ((unlocked & (1 << racer)) != 0 || multiplayer_enabled != 0) {
+        if ((unlocked & (1 << racer)) != 0 || swrMultiplayer_enabled != 0) {
             swrRace_SelectIndex[count].racerId = racer;
             swrRace_SelectIndex[count].unk4 = 0xff;
             swrRace_SelectIndex[count].unk5 = 0;
@@ -3006,7 +3006,7 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
                 rdVector_Copy3(&icon->vector3, &detailPos);
                 pullTowardEye(&icon->vector1);
             } else {
-                rdVector_Copy3(&icon->vector3, &maybeUICameraPlacements[hang->cameraState].position2);
+                rdVector_Copy3(&icon->vector3, &swrObjHang_cameraPlacements[hang->cameraState].position2);
                 if (swrObjHang_partDetailClosing != 0)
                     pullTowardEye(&icon->vector3);
             }
@@ -8902,13 +8902,13 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
     if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0)
         checkCrossing = 1;
     player->lapCompPrev = player->lapComp;
-    if (multiplayer_enabled != 0 && (player->flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
+    if (swrMultiplayer_enabled != 0 && (player->flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
         score = player->score_ptr;
         netSlot = *(int*)&score->time_unk;
         player->lapCompMax = swrMultiplayer_aRemoteLapCompMax[netSlot];
         score->results_P1_Lap = swrMultiplayer_aRemoteLap[netSlot];
     }
-    if (multiplayer_enabled == 0 || (player->flags0 & swrObjTest_FLAG0_REMOTE) == 0)
+    if (swrMultiplayer_enabled == 0 || (player->flags0 & swrObjTest_FLAG0_REMOTE) == 0)
         player->lapComp = swrRace_LapProgress(&player->splineCursor);
     else
         player->lapComp = swrMultiplayer_aRemoteLapComp[*(int*)&player->score_ptr->time_unk];

@@ -487,11 +487,11 @@ extern "C" int cutscene_should_skip_startup_movies(void) {
     return imgui_state.skip_intro_fmv ? 1 : 0;
 }
 bool cutscene_skip_effective(bool user_setting) {
-    return user_setting || multiplayer_enabled != 0;
+    return user_setting || swrMultiplayer_enabled != 0;
 }
 
 bool cutscene_restore_effective(bool user_setting) {
-    return user_setting && multiplayer_enabled == 0;
+    return user_setting && swrMultiplayer_enabled == 0;
 }
 
 extern "C" int cutscene_should_skip_prerace_cinematic(void) {
@@ -2711,11 +2711,11 @@ static void panel_multiplayer() {
     }
 }
 
-// Pinned while in the MP menus, independent of F5. multiplayer_in_mp spans session-type page ->
-// main menu, multiplayer_enabled the in-session hangar; hang->flag bit 0 = front-end up (the judge
+// Pinned while in the MP menus, independent of F5. swrMultiplayer_inMp spans session-type page ->
+// main menu, swrMultiplayer_enabled the in-session hangar; hang->flag bit 0 = front-end up (the judge
 // slot exists outside races too, so it can't tell).
 static void draw_multiplayer_window() {
-    const bool in_mp = multiplayer_in_mp != 0 || multiplayer_enabled != 0;
+    const bool in_mp = swrMultiplayer_inMp != 0 || swrMultiplayer_enabled != 0;
     const bool in_menus = g_objHang2 != nullptr && (g_objHang2->flag & 1) != 0;
     if (!in_mp || !in_menus)
         return;

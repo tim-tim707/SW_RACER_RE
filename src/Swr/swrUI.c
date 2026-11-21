@@ -1767,7 +1767,7 @@ void swrUI_RenderTree(swrUI_unk* node)
     int animating = 0;
     int stepping = 0;
 
-    if (multiplayer_in_mp != 0)
+    if (swrMultiplayer_inMp != 0)
         swrUI_ResetAttractDemoTimer();
     if (node == NULL)
         node = swrUI_unk_ptr;
@@ -3156,8 +3156,8 @@ int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* para
     case swrUI_MSG_SET_ACTIVE:
         if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_VEHICLE) {
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
-            swrUI_RefreshPageButtons(self, 1, multiplayer_enabled == 0);
-            if (multiplayer_enabled != 0)
+            swrUI_RefreshPageButtons(self, 1, swrMultiplayer_enabled == 0);
+            if (swrMultiplayer_enabled != 0)
                 swrObjHang_EnterVehicleSelect();
         }
         break;
@@ -3213,8 +3213,8 @@ int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param
     case swrUI_MSG_SET_ACTIVE:
         if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_PLANET) {
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
-            swrUI_RefreshPageButtons(self, multiplayer_enabled == 0, 1);
-            if (multiplayer_enabled != 0)
+            swrUI_RefreshPageButtons(self, swrMultiplayer_enabled == 0, 1);
+            if (swrMultiplayer_enabled != 0)
                 swrObjHang_EnterPlanetSelect();
         }
         break;
@@ -3889,9 +3889,9 @@ void swrUI_DrawRaceResultRow(swrUI_unk* row)
     finished = 0;
     if (row->sort_key == SWR_UI_RACE_RESULT_RETIRED)
         retired = 1;
-    if (multiplayer_aPlayerQuit[row->result_player_slot] != 0)
+    if (swrMultiplayer_aPlayerQuit[row->result_player_slot] != 0)
         retired = 1;
-    if (multiplayer_aPlayerFinished[row->result_player_slot] != 0)
+    if (swrMultiplayer_aPlayerFinished[row->result_player_slot] != 0)
         finished = 1;
     x = row->x;
     y = row->y;
@@ -4255,11 +4255,11 @@ int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, s
             swrUI_PopMenuPage();
         } else if ((int)param_3 == SWR_UI_ID_MP_HOST_BUTTON) {
             stdComm_Startup();
-            multiplayer_track_change_permission = 1;
+            swrMultiplayer_trackChangePermission = 1;
             swrUI_PushMenuPage(swrUI_WINDOW_MP_CREATE_GAME);
         } else if ((int)param_3 == SWR_UI_ID_MP_JOIN_BUTTON) {
             stdComm_Startup();
-            multiplayer_track_change_permission = 0;
+            swrMultiplayer_trackChangePermission = 0;
             swrUI_PushMenuPage(swrUI_WINDOW_MP_JOIN_GAME);
         }
     }
@@ -4433,7 +4433,7 @@ int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param, swrUI_
         }
         if ((int)param != SWR_UI_ID_OK_BUTTON)
             return 0;
-        multiplayer_track_change_permission = 0;
+        swrMultiplayer_trackChangePermission = 0;
         swrUI_EntryTextToWchar(playerName, swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated);
         memset(password, 0, 0x100 * sizeof(wchar_t));
         text = swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
@@ -4519,7 +4519,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         if (param == NULL) {
             swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
             swrMultiplayer_SendMenuEvent(0);
-            multiplayer_race_button_toggle[playerNumber] = 0;
+            swrMultiplayer_aRaceButtonToggle[playerNumber] = 0;
             return 0;
         }
         swrMultiplayer_playerListDirty = 1;
@@ -4533,23 +4533,23 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         swrUI_RunCallbacksScreenText(element, buffer, 0x40000);
         swrMultiplayer_SetRacerListDisplay(0, 0, 0);
         swrUI_RunCallbacksScreenText(swrUI_GetById(self, SWR_UI_ID_MP_CHAT_ENTRY), NULL, 0);
-        if (multiplayer_track_change_permission != 0)
+        if (swrMultiplayer_trackChangePermission != 0)
             stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 1);
         swrUI_MpSetupShowTrack(self, buffer + 0x14);
-        if (multiplayer_track_change_permission == 0) {
+        if (swrMultiplayer_trackChangePermission == 0) {
             swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_TRACKS));
             swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_LAPS));
             for (i = 0; i < SWR_MAX_RACERS; i++)
-                multiplayer_race_button_toggle[i] = 0;
+                swrMultiplayer_aRaceButtonToggle[i] = 0;
             swrMultiplayer_SendRacerSelection();
         } else {
             swrUI_MpSetupEnableHostControls(self);
             swrMultiplayer_BroadcastRaceSettings();
         }
-        swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+        swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), swrMultiplayer_trackChangePermission);
         swrUI_AddTimer(self, SWR_UI_TIMER_MP_SETUP_INTERVAL_MS, SWR_UI_TIMER_MP_SETUP_REFRESH);
         swrMultiplayer_SendMenuEvent(1);
-        multiplayer_race_button_toggle[playerNumber] = 1;
+        swrMultiplayer_aRaceButtonToggle[playerNumber] = 1;
         return 0;
 
     case swrUI_MSG_BACK:
@@ -4561,7 +4561,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
     case swrUI_MSG_TIMER:
         if ((int)param != SWR_UI_TIMER_MP_SETUP_REFRESH)
             return 0;
-        if (multiplayer_rejoinPending != 0 && multiplayer_isHost == 0)
+        if (swrMultiplayer_rejoinPending != 0 && swrMultiplayer_isHost == 0)
             swrMultiplayer_JoinGame(self);
         element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
         stdComm_UpdatePlayers(swrMultiplayer_joinedSessionIndex);
@@ -4595,8 +4595,8 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             }
             swrUI_RestoreListSelection(element);
         }
-        if (multiplayer_track_change_permission != 0) {
-            multiplayer_numAiRacers = 0;
+        if (swrMultiplayer_trackChangePermission != 0) {
+            swrMultiplayer_numAiRacers = 0;
             swrMultiplayer_BroadcastRaceSettings();
         }
         element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
@@ -4618,9 +4618,9 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             return 0;
         case swrMultiplayer_UIEVENT_BECAME_HOST:
             swrUI_MpSetupEnableHostControls(self);
-            swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+            swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), swrMultiplayer_trackChangePermission);
             swrMultiplayer_SendMenuEvent(1);
-            multiplayer_race_button_toggle[playerNumber] = 1;
+            swrMultiplayer_aRaceButtonToggle[playerNumber] = 1;
             return 0;
         case swrMultiplayer_MSG_MENU_EVENT:
             swrMultiplayer_SetRaceButtonToggle(self, (int*)ui2);
@@ -4636,7 +4636,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             swrUI_MpSetupShowTrack(self, buffer + 0x14);
             element = swrUI_GetById(self, SWR_UI_ID_MP_LAPS);
             if (element != NULL)
-                swrUI_SetNumberValue(element, multiplayer_laps);
+                swrUI_SetNumberValue(element, swrMultiplayer_laps);
             element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
             if (element != NULL)
                 swrMultiplayer_UpdateRacerSelectUI(self, element);
@@ -4660,7 +4660,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         case swrUI_WINDOW_MP_RACE_BUTTON:
             swrControl_menuAcceptGuard = 1;
             swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
-            if (multiplayer_track_change_permission != 0)
+            if (swrMultiplayer_trackChangePermission != 0)
                 stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 0);
             swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
             swrMultiplayer_BroadcastRaceReset();
@@ -4696,7 +4696,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
                 value++;
             }
             swrUI_SetNumberValue(ui2, value);
-            multiplayer_laps = value;
+            swrMultiplayer_laps = value;
         }
         swrMultiplayer_BroadcastRaceSettings();
         return 0;
@@ -4817,7 +4817,7 @@ void swrUI_Front_HandleCircuits(swrObjHang* hang)
         }
     }
     // multiplayer offers every track of the three main circuits
-    if (multiplayer_enabled != 0 && hang->circuitIdx < SWR_CIRCUIT_COUNT - 1) {
+    if (swrMultiplayer_enabled != 0 && hang->circuitIdx < SWR_CIRCUIT_COUNT - 1) {
         count = g_aTracksInCircuits[(int)hang->circuitIdx];
         swrRace_MenuMaxSelection = count;
     }

@@ -97,7 +97,7 @@ int sithMulti_HandleIncomingPacket_delta(tSithMessage *pMsg) {
 
 // --- 5+ laps in multiplayer ------------------------------------------------------------------
 // The MP race-setup lobby (swrUI_Menu_MpRaceSetup) clamps the host's lap stepper to 1..5: it bumps
-// the count by 1 and stops at 5. Everything downstream already supports more -- multiplayer_laps is
+// the count by 1 and stops at 5. Everything downstream already supports more -- swrMultiplayer_laps is
 // an int sent full-width over the wire (swrMultiplayer_BroadcastRaceSettings / _ApplyLobbyState copy
 // it verbatim, no re-clamp), and the race funnels it through the same swrObjHang_StartRace ->
 // hang->numLaps (signed char) -> judge->num_laps -> swrObjJdge_F2 path as single-player, which
@@ -145,7 +145,7 @@ int swrUI_Menu_MpRaceSetup_delta(swrUI_unk *self, unsigned int msg, void *elemen
                 laps = MP_LAPS_MAX; // wrap backward
         }
         ((swrUI_SetNumberValue_t *) swrUI_SetNumberValue_ADDR)(widget, laps);
-        multiplayer_laps = laps;
+        swrMultiplayer_laps = laps;
         // host -> all: track/laps/racers (msg 0x3a)
         ((swrMultiplayer_BroadcastRaceSettings_t *) swrMultiplayer_BroadcastRaceSettings_ADDR)();
         return 0;
@@ -181,7 +181,7 @@ void *swrObjHang_BuildRosterMultiplayer_delta(swrObjHang *hang, int *out) {
     void *result = hook_call_original(
         (swrObjHang_BuildRosterMultiplayer_t *) swrObjHang_BuildRosterMultiplayer_ADDR, hang, out);
 
-    if (!imgui_state.mp_allow_upgrades || multiplayer_enabled == 0)
+    if (!imgui_state.mp_allow_upgrades || swrMultiplayer_enabled == 0)
         return result;
     // The original no-ops when out is null (a measuring/query call, no roster built), so there is
     // nothing to upgrade then.
@@ -339,7 +339,7 @@ void swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_delta(int trigger_i
 // and swrMultiplayer_ApplyPlayerJoin assigns it the vacated slot. Two things go stale around that
 // relocation. These four are declaration-only in src, so they are reached through their _ADDR casts.
 //
-// (3) Picks live per-slot in multiplayer_racer1_id[20], and the host's copy is authoritative
+// (3) Picks live per-slot in swrMultiplayer_aRacerIds[20], and the host's copy is authoritative
 //     (clients report with msg 0x33, the host re-broadcasts the array in the 0x3a lobby state).
 //     The relocated player never re-sends its pick, so it inherits the leaver's pod everywhere.
 //     Captured before the rejoin tears the session down and re-sent through RacerPick once the new
@@ -365,18 +365,18 @@ static bool g_rejoin_pick_pending = false;
 static int g_rejoin_pick = 0;
 
 void swrMultiplayer_JoinGame_delta(swrUI_unk *page) {
-    // multiplayer_rejoinPending is only ever set by the 'rejn' event handler; the original resets
+    // swrMultiplayer_rejoinPending is only ever set by the 'rejn' event handler; the original resets
     // it on entry, so read it first. playerNumber still holds our OLD slot here.
-    if (multiplayer_rejoinPending != 0 && multiplayer_enabled != 0 && playerNumber >= 0 &&
+    if (swrMultiplayer_rejoinPending != 0 && swrMultiplayer_enabled != 0 && playerNumber >= 0 &&
         playerNumber < 20) {
-        g_rejoin_pick = (&multiplayer_racer1_id)[playerNumber];
+        g_rejoin_pick = swrMultiplayer_aRacerIds[playerNumber];
         g_rejoin_pick_pending = true;
     }
 
     hook_call_original((swrMultiplayer_JoinGame_t *) swrMultiplayer_JoinGame_ADDR, page);
 
     // A failed (re)join shuts multiplayer down entirely; drop the pending pick with it.
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         g_rejoin_pick_pending = false;
 }
 
@@ -384,7 +384,7 @@ void swrMultiplayer_SetLocalPlayer_delta(int playerIndex) {
     hook_call_original((swrMultiplayer_SetLocalPlayer_t *) swrMultiplayer_SetLocalPlayer_ADDR,
                        playerIndex);
 
-    if (g_rejoin_pick_pending && multiplayer_enabled != 0) {
+    if (g_rejoin_pick_pending && swrMultiplayer_enabled != 0) {
         g_rejoin_pick_pending = false;
         // playerNumber is now the vacated slot; RacerPick writes the local array and reports the
         // pick to the host (msg 0x33), whose next 0x3a lobby broadcast propagates it to everyone.
@@ -403,9 +403,9 @@ void sithMulti_ProcessPlayerLost_delta(DPID idPlayer) {
                        idPlayer);
 
     // The judge entity only exists while a race runs, so lobby departures are unaffected.
-    if (slot >= 0 && slot < (int) std::size(multiplayer_aPlayerQuit) &&
+    if (slot >= 0 && slot < (int) std::size(swrMultiplayer_aPlayerQuit) &&
         swrEvent_GetItem('Jdge', 0) != NULL) {
-        multiplayer_aPlayerQuit[slot] = 1;
+        swrMultiplayer_aPlayerQuit[slot] = 1;
     }
 }
 
@@ -416,11 +416,11 @@ void swrMultiplayer_PopulateRacerList_delta(void) {
     swrUI_unk *list = swrUI_GetById(NULL, MP_RACER_LIST_ID);
     ((swrUI_RefreshListSelection_t *) swrUI_RefreshListSelection_ADDR)(list);
 
-    for (int slot = 0; slot < (int) std::size(multiplayer_aPlayerQuit); slot++) {
+    for (int slot = 0; slot < (int) std::size(swrMultiplayer_aPlayerQuit); slot++) {
         // Row per participating slot -- connected, retired mid-race, or finished -- rather than
         // vanilla's 0..activeCount-1.
         if (((swrMultiplayer_IsPlayerActive_t *) swrMultiplayer_IsPlayerActive_ADDR)(slot) == 0 &&
-            multiplayer_aPlayerQuit[slot] == 0 && multiplayer_aPlayerFinished[slot] == 0)
+            swrMultiplayer_aPlayerQuit[slot] == 0 && swrMultiplayer_aPlayerFinished[slot] == 0)
             continue;
 
         swrUI_unk *element = ((swrUI_CreateRaceResultRow_t *) swrUI_CreateRaceResultRow_ADDR)(slot);
@@ -560,7 +560,7 @@ int swrMultiplayer_ApplyPlayerName_delta(void *message) {
 }
 
 int swrMultiplayer_ApplyRacerPick_delta(void *message) {
-    // Writes multiplayer_racer1_id[slot] and swrRace_UnlockDataBase[slot*0x50] unchecked.
+    // Writes swrMultiplayer_aRacerIds[slot] and swrRace_UnlockDataBase[slot*0x50] unchecked.
     const int slot = mp_msg_int(message, MP_MSG_SENDER_SLOT);
     if (!mp_slot_in_range(slot)) {
         fprintf(hook_log, "[swrMultiplayer_delta] dropped racer-pick: slot %d out of range\n", slot);

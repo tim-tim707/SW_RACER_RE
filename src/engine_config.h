@@ -378,7 +378,7 @@
 #define SWR_SHOP_LIST_CAPACITY (35) // uiUpgradeInfos2 entries
 #define SWR_HANGAR_ICON_COUNT (8) // uiUpgradeInfos entries
 #define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
-#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
+#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // swrObjHang_cameraPlacements row of junkyard slot 0
 #define SWR_JUNKYARD_PART_COUNT (7) // parts swrObjHang_GenerateJunkyardStock scatters over the slots
 
 // swrRace_UpdatePartMenuLayout (0x0043dba0): part-icon glide duration (seconds)

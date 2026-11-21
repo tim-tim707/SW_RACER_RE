@@ -449,7 +449,7 @@ swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCam
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 swrSprite_drawStateWord 0x004c3db8 int # low 16 bits of the swrSprite_SetDrawStateWord_Maybe argument; no reader found
-maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
+swrObjHang_cameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
 swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; swrRace_RequestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
@@ -517,7 +517,7 @@ stdMath_TanTable 0x004cd8e8 float[4096]
 swrControl_forceStrength 0x004b493c float # Force strength option as a gain (-1 off, 0.6, 0.8, 1.0); .data default 100.0
 wuRegistry_lpClass 0x004d55cc char[]
 
-multiplayer_enabled 0x004d5e00 int
+swrMultiplayer_enabled 0x004d5e00 int
 sithMulti_playerListVerified 0x004d5e04 int # set once swrMultiplayer_VerifyPlayerList found every listed DPID in the DirectPlay session; cleared by sithMulti_JoinSessionAndCreatePlayer
 
 sithMessage_g_localPlayerId 0x004d5e08 int
@@ -610,7 +610,7 @@ swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
 swrUI_unk4_ptr 0x004d878c swrUI_unk*
 swrUI_unk5_ptr 0x004d8790 swrUI_unk*
 
-multiplayer_in_mp 0x004d87a0 int
+swrMultiplayer_inMp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
 
@@ -644,8 +644,8 @@ swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
 swrMultiplayer_chatLines 0x004eb188 char*[15] # heap copies of the visible chat lines (swrMultiplayer_AddChatMessage)
 swrMultiplayer_chatCaret 0x004eb1c4 int # caret index into swrMultiplayer_chatInput (>= 4, past the prefix)
 
-multiplayer_isHost 0x004eb1c8 int
-multiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
+swrMultiplayer_isHost 0x004eb1c8 int
+swrMultiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
 swrMultiplayer_sessionResetUnk 0x004eb1d0 int # only swrMultiplayer_ResetSession writes it (0); no reader
 swrMultiplayer_quitState 0x004eb1d4 int # swrMultiplayer_ApplyPlayerQuit skips the quit broadcast when 2; only ResetSession writes it (0)
 swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' when a net race ends
@@ -654,7 +654,7 @@ swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetR
 swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
-multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
+swrMultiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 swrMultiplayer_sessionSeed 0x004eb1f4 int # random DPSESSIONDESC2.dwUser1 picked by swrMultiplayer_CreateSession; no reader found
 swrMultiplayer_joinLocked 0x004eb1f8 int # while set, swrMultiplayer_ApplyPlayerJoin only admits the reserved DPID; cleared by ResetSession
 swrMultiplayer_reservedDpid 0x004eb1fc DPID # the one DPID admitted while swrMultiplayer_joinLocked is set
@@ -668,12 +668,12 @@ swrMultiplayer_chatX 0x004eb224 int
 swrMultiplayer_chatY 0x004eb228 int
 swrMultiplayer_chatSkipNextKey 0x004eb22c int # swallows the key that opened the chat input
 
-multiplayer_sync_timer_ms 0x004eb230 int
+swrMultiplayer_syncTimerMs 0x004eb230 int
 
-multiplayer_race_button_toggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
+swrMultiplayer_aRaceButtonToggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
 swrMultiplayer_menuEvent 0x004eb234 int # last value sent by swrMultiplayer_SendMenuEvent; re-sent when the host broadcasts a menu reset
 
-multiplayer_track_change_permission 0x004eb388 int
+swrMultiplayer_trackChangePermission 0x004eb388 int
 swrMultiplayer_joinedSessionIndex 0x004eb38c int # join page: list index of the session joined; re-polled by swrUI_Menu_MpRaceSetup / swrMultiplayer_JoinGame
 
 stdComm_IPX_connectionIndex 0x004eb390 int
@@ -847,8 +847,8 @@ swrObjHang_courseShownPlanet 0x0050c134 char # planet whose holo/sprite the cour
 swrObjHang_courseShownCircuit 0x0050c17c char # circuit whose track grid is drawn; circuit input only acts while it matches hang->circuitIdx
 
 swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose in the results intro; drifts down at 100 units/s
-alpha_unk 0x0050c2e8 float
-gamma_unk 0x0050c2ec float
+swrObjHang_orbitPitch 0x0050c2e8 float
+swrObjHang_orbitYaw 0x0050c2ec float
 
 swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrObjHang_MainMenu)
 
@@ -1673,8 +1673,8 @@ swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
 swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 rdModel_lastVertexLoad 0x00e996a0 Vtx* # last gSPVertex source (minus the mesh's vertex_base_offset) seen by rdModel_ConvertSwrModelMesh; write-only
-translation_unk 0x00e996c0 rdVector3
-rotation_unk 0x00e996cc rdVector3
+swrViewport_viewTranslation 0x00e996c0 rdVector3
+swrViewport_viewRotation 0x00e996cc rdVector3
 swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetRenderState / swrScene_ResetViewDefaults; no readers found
 
 GameSettingFlags 0x00e996dc int
@@ -1932,34 +1932,15 @@ swrMultiplayer_aRemoteFlags1 0x00ea01a0 int[20] # remote pod flags1 from 'pods' 
 swrMultiplayer_aRemoteStateTime 0x00ea0200 int[20] # timeGetTime() when the slot's last state packet arrived; F3 extrapolates from it
 swrMultiplayer_chatInputOpen 0x00ea0250 int # chat input line is open and capturing keys
 
-multiplayer_racer1_id 0x00ea0260 int
-multiplayer_racer2_id 0x00ea0264 int
-multiplayer_racer3_id 0x00ea0268 int
-multiplayer_racer4_id 0x00ea026c int
-multiplayer_racer5_id 0x00ea0270 int
-multiplayer_racer6_id 0x00ea0274 int
-multiplayer_racer7_id 0x00ea0278 int
-multiplayer_racer8_id 0x00ea027c int
-multiplayer_racer9_id 0x00ea0280 int
-multiplayer_racer10_id 0x00ea0284 int
-multiplayer_racer11_id 0x00ea0288 int
-multiplayer_racer12_id 0x00ea028c int
-multiplayer_racer13_id 0x00ea0290 int
-multiplayer_racer14_id 0x00ea0294 int
-multiplayer_racer15_id 0x00ea0298 int
-multiplayer_racer16_id 0x00ea029c int
-multiplayer_racer17_id 0x00ea02a0 int
-multiplayer_racer18_id 0x00ea02a4 int
-multiplayer_racer19_id 0x00ea02a8 int
-multiplayer_racer20_id 0x00ea02ac int
-multiplayer_track_select 0x00ea02b0 swrRace_TRACK
-multiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
+swrMultiplayer_aRacerIds 0x00ea0260 int[20] # per-slot selected racer id (swrMultiplayer_GetRacerId), broadcast with the race settings
+swrMultiplayer_trackSelect 0x00ea02b0 swrRace_TRACK
+swrMultiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
 
-multiplayer_laps 0x00ea02b8 int
-multiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
+swrMultiplayer_laps 0x00ea02b8 int
+swrMultiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
 swrMultiplayer_raceBegin 0x00ea0320 int[10] # head of the host's 'Begn' payload (swrObjHang_StartRace) as last broadcast by swrMultiplayer_BroadcastRoster
 
-multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
+swrMultiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
 
 # Remote racer race-progress state, indexed by the racer's net slot (score->time_unk read as int);
 # consumed by swrRace_LapCompletion for 'REMO' pods. Capacity matches the 20-racer roster.
@@ -1972,7 +1953,7 @@ swrMultiplayer_remotePodTransform 0x00ea0720 rdMatrix44 # slot n at + n * sizeof
 swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from state packets
 swrMultiplayer_aLocalPodTransform 0x00ec76a0 rdMatrix44[20] # this machine's pod transforms by net slot, published by swrMultiplayer_PublishPodState
 
-multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
+swrMultiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 swrMultiplayer_rosterPilots 0x00ea0540 int[20] # per-slot pilot id from the roster message (swrMultiplayer_ApplyRoster); no reader
 swrMultiplayer_message 0x00ec7ba0 tSithMessage # shared in/out buffer: every sender builds here, swrMultiplayer_PumpPackets receives here
 

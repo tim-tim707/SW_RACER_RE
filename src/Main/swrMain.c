@@ -113,7 +113,7 @@ void swrMain_ProcessDebugKeys(void)
         if (DebugMenuState == 2) {
             if (stdControl_ReadKey(DIK_LCONTROL, NULL) == 0 && stdControl_ReadKey(DIK_RCONTROL, NULL) == 0) {
                 if (stdControl_ReadKey(DIK_MULTIPLY, NULL) != 0 && stdControl_ReadKey(DIK_T, NULL) != 0) {
-                    if (multiplayer_enabled != 0)
+                    if (swrMultiplayer_enabled != 0)
                         goto unmodified_keys;
                     if (swrMain_debugKeyHeld != 0)
                         goto show_notice;
@@ -121,7 +121,7 @@ void swrMain_ProcessDebugKeys(void)
                     swrSound_PlayUISound(0x2c);
                     swrMain_debugKeyHeld = 1;
                 } else {
-                    if (stdControl_ReadKey(DIK_I, NULL) == 0 || stdControl_ReadKey(DIK_F, NULL) == 0 || stdControl_ReadKey(DIK_L, NULL) == 0 || stdControl_ReadKey(DIK_Y, NULL) == 0 || multiplayer_enabled != 0)
+                    if (stdControl_ReadKey(DIK_I, NULL) == 0 || stdControl_ReadKey(DIK_F, NULL) == 0 || stdControl_ReadKey(DIK_L, NULL) == 0 || stdControl_ReadKey(DIK_Y, NULL) == 0 || swrMultiplayer_enabled != 0)
                         goto unmodified_keys;
                     if (swrMain_debugKeyHeld != 0)
                         goto show_notice;
@@ -134,7 +134,7 @@ void swrMain_ProcessDebugKeys(void)
                     goto unmodified_keys;
                 if (swrMain_debugKeyHeld != 0)
                     goto show_notice;
-                if (multiplayer_enabled == 0) {
+                if (swrMultiplayer_enabled == 0) {
                     swrRace_DebugFlag ^= swrRace_DEBUGFLAG_INVINCIBILITY;
                     swrSound_PlayUISound(0x28);
                 }
@@ -197,7 +197,7 @@ void swrMain_ProcessDebugKeys(void)
                 if (swrMain_debugKeyHeld != 0)
                     goto show_notice;
                 swrMain_debugKeyHeld = 1;
-                if (multiplayer_enabled == 0) {
+                if (swrMultiplayer_enabled == 0) {
                     if (mirrorOn != 0) {
                         GameSettingFlags |= GAME_SETTING_MIRROR;
                         g_objHang2->bMirror = g_objHang2->bMirror == 0;
@@ -249,7 +249,7 @@ void swrMain_ProcessDebugKeys(void)
                 page = swrUI_GetCurrentPage();
                 if (swrControl_uiInputActive != 0 || page == NULL || page->id != swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS)
                     swrConfig_WriteForceFeedbackConfig("current");
-            } else if (stdControl_ReadKey(DIK_Q, NULL) != 0 && multiplayer_enabled != 0) {
+            } else if (stdControl_ReadKey(DIK_Q, NULL) != 0 && swrMultiplayer_enabled != 0) {
                 if (swrMain_debugKeyHeld != 0)
                     goto show_notice;
                 swrMain_debugKeyHeld = 1;
@@ -292,14 +292,14 @@ void swrMain_UpdateNetworkTick(void)
 {
     DWORD now = timeGetTime();
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
-    if (now > (DWORD)(multiplayer_sync_timer_ms + Main_nut_delay_ms)) {
+    if (now > (DWORD)(swrMultiplayer_syncTimerMs + Main_nut_delay_ms)) {
         if (swrMultiplayer_networkTick != 0)
             swrMultiplayer_InRace();
         if (swrMultiplayer_racerListPageActive != 0)
             swrMultiplayer_UpdatePlayerListItems();
-        multiplayer_sync_timer_ms = now;
+        swrMultiplayer_syncTimerMs = now;
     }
     if (swrMultiplayer_chatEnabled != 0) {
         swrMultiplayer_TickRacerListOverlay();

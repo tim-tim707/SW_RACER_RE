@@ -127,21 +127,21 @@ void swrObjHang_MainMenu_delta(swrObjHang *hang) {
         swrObjHang_orbitDistance = (float) fVar9;
         rdVector_Normalize3Acc(&local_6c);
         fVar9 = stdMath_ArcTan2(-local_6c.x, local_6c.y);
-        gamma_unk = fVar9;
+        swrObjHang_orbitYaw = fVar9;
         fVar9 = stdMath_ArcSin(local_6c.z);
-        alpha_unk = fVar9;
+        swrObjHang_orbitPitch = fVar9;
 
-        if (gamma_unk < 0.0) {
-            gamma_unk += 360.0;
+        if (swrObjHang_orbitYaw < 0.0) {
+            swrObjHang_orbitYaw += 360.0;
         }
-        if (gamma_unk > 360.0) {
-            gamma_unk -= 360.0;
+        if (swrObjHang_orbitYaw > 360.0) {
+            swrObjHang_orbitYaw -= 360.0;
         }
-        if (alpha_unk < -90.0) {
-            alpha_unk += 180.0;
+        if (swrObjHang_orbitPitch < -90.0) {
+            swrObjHang_orbitPitch += 180.0;
         }
-        if (alpha_unk > 90.0) {
-            alpha_unk -= 180.0;
+        if (swrObjHang_orbitPitch > 90.0) {
+            swrObjHang_orbitPitch -= 180.0;
         }
 
         cVar7 = 1;
@@ -254,20 +254,20 @@ void swrObjHang_MainMenu_delta(swrObjHang *hang) {
             swrObjHang_cameraMoveMode = 0;
             if (swrControl_aPlayerAxisX[i] > 0.1f || swrControl_aPlayerAxisX[i] < -0.1) {
                 bVar1 = true;
-                gamma_unk = gamma_unk - swrControl_aPlayerAxisX[i] * swrRace_fdeltaTimeSecs * 105.0;
+                swrObjHang_orbitYaw = swrObjHang_orbitYaw - swrControl_aPlayerAxisX[i] * swrRace_fdeltaTimeSecs * 105.0;
             }
             if (swrControl_aPlayerAxisY[i] > 0.1 || swrControl_aPlayerAxisY[i] < -0.1) {
-                alpha_unk = alpha_unk - swrControl_aPlayerAxisY[i] * swrRace_fdeltaTimeSecs * -67.5;
-                if (alpha_unk > 45.0) {
-                    alpha_unk = 45.0;
+                swrObjHang_orbitPitch = swrObjHang_orbitPitch - swrControl_aPlayerAxisY[i] * swrRace_fdeltaTimeSecs * -67.5;
+                if (swrObjHang_orbitPitch > 45.0) {
+                    swrObjHang_orbitPitch = 45.0;
                 }
-                if (alpha_unk < -45.0) {
-                    alpha_unk = -45.0;
+                if (swrObjHang_orbitPitch < -45.0) {
+                    swrObjHang_orbitPitch = -45.0;
                 }
                 bVar1 = true;
             }
             if (bVar1) {
-                rdMatrix_SetRotation44(&local_40, gamma_unk, alpha_unk, 0);
+                rdMatrix_SetRotation44(&local_40, swrObjHang_orbitYaw, swrObjHang_orbitPitch, 0);
                 rdVector_Scale3Add3((rdVector3 *) &swrObjHang_holoCameraMatrix.vD,
                                     (rdVector3 *) &swrObjHang_cameraMatrix.vD,
                                     -swrObjHang_orbitDistance, (rdVector3 *) &local_40.vB);
@@ -448,7 +448,7 @@ void HandleCircuits_delta(swrObjHang *hang) {
         swrRace_MenuMaxSelection = UnlockedSlotCount(swrRace_UnlockDataBase[circuitId + 1],
                                                      g_aTracksInCircuits[circuitId]);
     }
-    if (multiplayer_enabled && (circuitId < '\x03')) {
+    if (swrMultiplayer_enabled && (circuitId < '\x03')) {
         swrRace_MenuMaxSelection = g_aTracksInCircuits[circuitId];
     }
     if (swrRace_MenuSelectedItem >= swrRace_MenuMaxSelection) {
@@ -878,7 +878,7 @@ LAB_0043b5c4:
             if (swrControl_menuAcceptPressedEdge != 0 &&
                 (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) &&
                 hang->track_index >= 0) {
-                if (multiplayer_enabled != 0) {
+                if (swrMultiplayer_enabled != 0) {
                     FUN_004118b0();
                     return;
                 }
@@ -893,7 +893,7 @@ LAB_0043b5c4:
                 return;
             }
             if ((swrControl_cancelPressedEdge != 0) && (swrObjHang_menuAcceptLock == 0)) {
-                if (multiplayer_enabled) {
+                if (swrMultiplayer_enabled) {
                     FUN_004118b0();
                     return;
                 }
@@ -935,7 +935,7 @@ LAB_0043b5c4:
         }
 
         if (hang->track_index >= 0) {
-            multiplayer_track_select = (int) hang->track_index;
+            swrMultiplayer_trackSelect = (int) hang->track_index;
             if (!swrMultiplayer_IsMultiplayerEnabled() || swrMultiplayer_IsHost() != 0) {
                 g_LoadTrackModel = Track.trackID;
                 FUN_0041e5a0();
@@ -1515,7 +1515,7 @@ bool swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char tr
         return true;
 
     uint8_t tracksBitMask = swrRace_UnlockDataBase[circuitIdx + 1];
-    if ((multiplayer_enabled != 0) && (circuitIdx < '\x03')) {
+    if ((swrMultiplayer_enabled != 0) && (circuitIdx < '\x03')) {
         return true;
     }
     if (!hang->isTournamentMode) {

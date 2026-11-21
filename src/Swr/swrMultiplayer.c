@@ -36,7 +36,7 @@
 // 0x00412640
 void swrMultiplayer_SetInMultiplayer(int bInMultiplayer)
 {
-    multiplayer_in_mp = bInMultiplayer;
+    swrMultiplayer_inMp = bInMultiplayer;
 }
 
 // 0x00404a70
@@ -48,7 +48,7 @@ int swrMultiplayer_VerifyPlayerList(void* message)
     unsigned int i;
     DPID id;
 
-    if (multiplayer_isHost != 0 || sithMulti_playerListVerified != 0)
+    if (swrMultiplayer_isHost != 0 || sithMulti_playerListVerified != 0)
         return 1;
 
     stdComm_UpdatePlayers(0);
@@ -144,7 +144,7 @@ void swrMultiplayer_SetNetworkTick(int value)
 // 0x0041c4d0
 int swrMultiplayer_GetRacerId(int playerIndex)
 {
-    return (&multiplayer_racer1_id)[playerIndex];
+    return swrMultiplayer_aRacerIds[playerIndex];
 }
 
 // 0x0041c4f0
@@ -193,7 +193,7 @@ unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionN
     settings.user2 = 1;
     settings.user1 = swrMultiplayer_sessionSeed;
 
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         res = swrMultiplayer_SetSessionDesc(&settings);
         if (res != 0) {
             stdComm_Close();
@@ -205,8 +205,8 @@ unsigned int swrMultiplayer_CreateSession(wchar_t* playerName, wchar_t* sessionN
             return res;
     }
 
-    multiplayer_isHost = 1;
-    multiplayer_inSession = 1;
+    swrMultiplayer_isHost = 1;
+    swrMultiplayer_inSession = 1;
     sithMulti_g_serverUnk = 0;
     sithMulti_g_serverId = sithMessage_g_localPlayerId;
     stdComm_UpdatePlayers(0);
@@ -226,14 +226,14 @@ void swrMultiplayer_InitPlayerStatus(int slot)
     swrMultiplayer_ReadyStatus* status;
     int* payload;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     status = &swrMultiplayer_aReadyStatus[slot];
     status->state = swrMultiplayer_READY_IDLE;
     status->readyMask = 0;
     status->sent = 0;
     status->state = swrMultiplayer_READY_WAITING;
-    if (multiplayer_isHost != 0) {
+    if (swrMultiplayer_isHost != 0) {
         payload = (int*)swrMultiplayer_message.data;
         payload[0] = slot;
         swrMultiplayer_message.length = 0;
@@ -248,7 +248,7 @@ void swrMultiplayer_SetPlayerStatusBit(int slot, int value)
 {
     swrMultiplayer_ReadyStatus* status;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     status = &swrMultiplayer_aReadyStatus[slot];
     if (status->state == swrMultiplayer_READY_IDLE)
@@ -262,7 +262,7 @@ void swrMultiplayer_SetPlayerStatusBit(int slot, int value)
 // 0x0041d640
 int swrMultiplayer_PollPlayerStatus(int player)
 {
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         swrMultiplayer_PumpPackets();
         swrMultiplayer_UpdateReadyState(player);
         if (swrMultiplayer_aReadyStatus[player].state != swrMultiplayer_READY_IDLE) {
@@ -277,13 +277,13 @@ int swrMultiplayer_PollPlayerStatus(int player)
 // 0x0041d6b0
 int swrMultiplayer_IsMultiplayerEnabled(void)
 {
-    return multiplayer_enabled;
+    return swrMultiplayer_enabled;
 }
 
 // 0x0041d6c0
 int swrMultiplayer_IsHost(void)
 {
-    return multiplayer_isHost;
+    return swrMultiplayer_isHost;
 }
 
 // 0x0041da00
@@ -357,7 +357,7 @@ void swrMultiplayer_RacerPick(int a)
     swrMultiplayer_message.callbackId = swrMultiplayer_MSG_RACER_PICK;
     swrMultiplayer_message.dataSize = 8;
     sithMessage_SendMessage(&swrMultiplayer_message, sithMulti_g_serverId, sithMessage_STREAM_NET, 0);
-    (&multiplayer_racer1_id)[playerNumber] = a;
+    swrMultiplayer_aRacerIds[playerNumber] = a;
     swrUI_BroadcastToWindows(swrMultiplayer_MSG_RACER_PICK, (int)swrMultiplayer_message.data);
 }
 
@@ -366,7 +366,7 @@ void swrMultiplayer_BroadcastPlayerState(void)
 {
     int* payload = (int*)swrMultiplayer_message.data;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     payload[0] = swrObjHang_someState;
     payload[1] = swrMultiplayer_hangSyncUnk1;
@@ -382,10 +382,10 @@ void swrMultiplayer_BroadcastPlayerState(void)
 // 0x0041e660
 void swrMultiplayer_BroadcastRaceReset(void)
 {
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
-    memset(multiplayer_aPlayerQuit, 0, sizeof(multiplayer_aPlayerQuit));
-    memset(multiplayer_aPlayerFinished, 0, sizeof(multiplayer_aPlayerFinished));
+    memset(swrMultiplayer_aPlayerQuit, 0, sizeof(swrMultiplayer_aPlayerQuit));
+    memset(swrMultiplayer_aPlayerFinished, 0, sizeof(swrMultiplayer_aPlayerFinished));
     swrMultiplayer_ignoreEvents = 0;
     swrMultiplayer_message.length = 0;
     swrMultiplayer_message.callbackId = swrMultiplayer_MSG_RACE_RESET;
@@ -446,7 +446,7 @@ void swrMultiplayer_UpdateRacerSelectUI(swrUI_unk* page, swrUI_unk* list)
     } else {
         swrUI_DisableElement(swrUI_GetById(page, SWR_UI_ID_MP_PODRACER));
         element = swrUI_GetById(page, SWR_UI_ID_MP_BOOT);
-        if (multiplayer_track_change_permission != 0 && multiplayer_race_button_toggle[slot] != 0)
+        if (swrMultiplayer_trackChangePermission != 0 && swrMultiplayer_aRaceButtonToggle[slot] != 0)
             swrUI_EnableElement(element);
         else
             swrUI_DisableElement(element);
@@ -550,7 +550,7 @@ void swrMultiplayer_BroadcastRoster(int hang, void* roster)
     int* payload;
     int i;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     g_objHang1 = (swrObjHang*)hang;
     // ApplyRosterRequest passes swrMultiplayer_raceBegin itself (self-copy, rep movsd in the EXE)
@@ -589,7 +589,7 @@ void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...)
     int count;
     int i;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
 
     payload = (int*)swrMultiplayer_message.data;
@@ -613,7 +613,7 @@ void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...)
     case 'rejn':
         break;
     case 'fini':
-        multiplayer_aPlayerFinished[playerNumber] = 1;
+        swrMultiplayer_aPlayerFinished[playerNumber] = 1;
         break;
     case 'flam':
     case 'hell':
@@ -640,7 +640,7 @@ void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...)
         }
         break;
     case 'quit':
-        multiplayer_aPlayerQuit[playerNumber] = 1;
+        swrMultiplayer_aPlayerQuit[playerNumber] = 1;
         swrMultiplayer_aPodStatus[playerNumber][0] = SWR_MP_POD_STATUS_PARKED;
         swrMultiplayer_aPodStatus[playerNumber][1] = 0;
         swrMultiplayer_aPodStatus[playerNumber][2] = 0;
@@ -669,9 +669,9 @@ void swrMultiplayer_SendEvent(DPID to, unsigned int flags, int eventMagic, ...)
     sithMessage_SendMessage(&swrMultiplayer_message, to, sithMessage_STREAM_NET, flags);
 
     if (eventMagic == 'quit') {
-        if (multiplayer_isHost != 0 || swrMultiplayer_proxyPlayer == playerNumber)
+        if (swrMultiplayer_isHost != 0 || swrMultiplayer_proxyPlayer == playerNumber)
             swrMultiplayer_SendProxy();
-        multiplayer_aPlayerQuit[playerNumber] = 1;
+        swrMultiplayer_aPlayerQuit[playerNumber] = 1;
         sprintf(text, swrText_Translate("/MONDOTEXT_H_0500/%s has left the race."), swrMultiplayer_GetPlayerNameAscii(playerNumber));
         swrMultiplayer_PostChatMessage(text);
     }
@@ -689,7 +689,7 @@ DPID swrMultiplayer_GetPlayerDpid(unsigned int playerNum)
 void swrMultiplayer_SetRaceButtonToggle(swrUI_unk* page, int* pair)
 {
     // pair[0] = player slot, pair[1] = ready flag
-    multiplayer_race_button_toggle[pair[0]] = pair[1];
+    swrMultiplayer_aRaceButtonToggle[pair[0]] = pair[1];
     swrMultiplayer_UpdateStartButtonState(page);
 }
 
@@ -701,7 +701,7 @@ void swrMultiplayer_UpdateStartButtonState(swrUI_unk* page)
 
     // Scans every slot, not just sithPlayer_g_numPlayers
     for (int i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
-        if ((sithPlayer_g_aPlayers[i].flags & SITH_PLAYER_JOINEDGAME) != 0 && multiplayer_race_button_toggle[i] != 0)
+        if ((sithPlayer_g_aPlayers[i].flags & SITH_PLAYER_JOINEDGAME) != 0 && swrMultiplayer_aRaceButtonToggle[i] != 0)
             ready++;
     }
     button = swrUI_GetById(page, swrUI_WINDOW_MP_RACE_BUTTON);
@@ -740,7 +740,7 @@ void swrMultiplayer_UpdatePlayerListItems(void)
     list = swrUI_GetById(NULL, SWR_UI_ID_MP_RESULTS_LIST);
     for (row = list->next; row != NULL; row = row->next2) {
         slot = row->result_player_slot;
-        if (multiplayer_aPlayerQuit[slot] == 0) {
+        if (swrMultiplayer_aPlayerQuit[slot] == 0) {
             // raw dword copies: slots 2/3 hold float times in an int array
             row->result_lap = swrMultiplayer_aPodStatus[slot][1];
             row->result_current_time = *(float*)&swrMultiplayer_aPodStatus[slot][2];
@@ -774,9 +774,9 @@ void swrMultiplayer_JoinGame(swrUI_unk* page)
     char* message;
     HRESULT hr;
 
-    multiplayer_rejoinPending = 0;
+    swrMultiplayer_rejoinPending = 0;
     sithMessage_CloseGame();
-    multiplayer_track_change_permission = 0;
+    swrMultiplayer_trackChangePermission = 0;
     swrMultiplayer_EntryTextToWchar(playerName, swrUI_GetById(NULL, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated);
     memset(password, 0, 0x100 * sizeof(wchar_t));
     text = swrUI_GetById(NULL, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
@@ -1019,19 +1019,19 @@ void swrMultiplayer_ResetRaceSettings(void)
     int i;
 
     for (i = 0; i < SWR_MAX_RACERS; i++)
-        (&multiplayer_racer1_id)[i] = i;
-    multiplayer_track_select = swrRace_TRACK_BOONTA_TRAINING_COURSE;
-    multiplayer_numAiRacers = 0;
-    multiplayer_laps = 3;
-    multiplayer_raceSettingsUnk = 10000;
+        swrMultiplayer_aRacerIds[i] = i;
+    swrMultiplayer_trackSelect = swrRace_TRACK_BOONTA_TRAINING_COURSE;
+    swrMultiplayer_numAiRacers = 0;
+    swrMultiplayer_laps = 3;
+    swrMultiplayer_raceSettingsUnk = 10000;
 }
 
 // 0x0041c760
 void swrMultiplayer_ClearHostState(void)
 {
-    multiplayer_inSession = 1;
+    swrMultiplayer_inSession = 1;
     sithMulti_g_serverId = 0;
-    multiplayer_isHost = 0;
+    swrMultiplayer_isHost = 0;
 }
 
 // 0x0041c870
@@ -1061,7 +1061,7 @@ void swrMultiplayer_SendProxy(void)
 
     // no break: every eligible player gets the event and the last one keeps the proxy role
     for (i = 0; i < swrMultiplayer_MAX_PLAYERS; i++) {
-        if (swrMultiplayer_IsPlayerActive(i) != 0 && i != playerNumber && multiplayer_aPlayerQuit[i] == 0) {
+        if (swrMultiplayer_IsPlayerActive(i) != 0 && i != playerNumber && swrMultiplayer_aPlayerQuit[i] == 0) {
             swrMultiplayer_proxyPlayer = i;
             swrMultiplayer_SendEvent(swrMultiplayer_GetPlayerDpid(i), sithMessage_SEND_GUARANTEED, 'prxy');
             swrMultiplayer_MarkAiPodsRemote();
@@ -1090,7 +1090,7 @@ void swrMultiplayer_TakeOverPodAsAi(int playerIndex)
 {
     swrRace* pod;
 
-    if (multiplayer_isHost != 0 || swrMultiplayer_proxyPlayer != -1) {
+    if (swrMultiplayer_isHost != 0 || swrMultiplayer_proxyPlayer != -1) {
         pod = swrScores[playerIndex].obj_test_ptr;
         if (pod != NULL) {
             pod->flags0 = (pod->flags0 & ~swrObjTest_FLAG0_REMOTE) | swrObjTest_FLAG0_AI;
@@ -1106,8 +1106,8 @@ void swrMultiplayer_BecomeHost(DPID newHost)
     char text[1024];
     int playerNum;
 
-    multiplayer_track_change_permission = 1;
-    multiplayer_isHost = 1;
+    swrMultiplayer_trackChangePermission = 1;
+    swrMultiplayer_isHost = 1;
     swrMultiplayer_SendEvent(SITH_MESSAGE_TO_ALL, sithMessage_SEND_GUARANTEED, 'ctrl');
     playerNum = sithMulti_GetPlayerNum(newHost);
     sprintf(text, swrText_Translate("/MONDOTEXT_H_0425/%s is now the host."), swrMultiplayer_GetPlayerNameAscii(playerNum));
@@ -1318,7 +1318,7 @@ void swrMultiplayer_OnPlayerJoined(DPID player)
     int playerNum;
 
     playerNum = sithMulti_GetPlayerNum(player);
-    if (multiplayer_isHost != 0) {
+    if (swrMultiplayer_isHost != 0) {
         sprintf(text, swrText_Translate("/MONDOTEXT_H_0424/%s has joined the game."), swrMultiplayer_GetPlayerNameAscii(playerNum));
         swrMultiplayer_PostChatMessage(text);
     }
@@ -1332,7 +1332,7 @@ void swrMultiplayer_SendChatMessage(char* text, int target, int sender)
     int* payload = (int*)swrMultiplayer_message.data;
     unsigned int length;
 
-    if (multiplayer_enabled == 0 || text == NULL)
+    if (swrMultiplayer_enabled == 0 || text == NULL)
         return;
 
     length = strlen(text) + 1;
@@ -1384,7 +1384,7 @@ int swrMultiplayer_ApplyEvent(void* message)
         break;
     case 'fini':
         swrScoresPtr[sender].flag |= swrScore_FLAG_FINISHED;
-        multiplayer_aPlayerFinished[sender] = 1;
+        swrMultiplayer_aPlayerFinished[sender] = 1;
         break;
     case 'hell':
         pod = swrScores[args[0]].obj_test_ptr;
@@ -1409,17 +1409,17 @@ int swrMultiplayer_ApplyEvent(void* message)
             swrMultiplayer_TakeOverPodAsAi(args[1 + i]);
         break;
     case 'quit':
-        multiplayer_aPlayerQuit[sender] = 1;
+        swrMultiplayer_aPlayerQuit[sender] = 1;
         swrMultiplayer_aPodStatus[sender][0] = SWR_MP_POD_STATUS_PARKED;
         swrMultiplayer_aPodStatus[sender][1] = 0;
         swrMultiplayer_aPodStatus[sender][2] = 0;
         swrMultiplayer_aPodStatus[sender][3] = 0;
-        if (multiplayer_isHost != 0)
+        if (swrMultiplayer_isHost != 0)
             swrMultiplayer_TakeOverPodAsAi(sender);
         break;
     case 'rejn':
         swrUI_BroadcastToWindows(swrMultiplayer_UIEVENT_REJOIN, 0);
-        multiplayer_rejoinPending = 1;
+        swrMultiplayer_rejoinPending = 1;
         break;
     case 'taun':
         swrSound_PlaySfxThrottled(args[0], args[1], args[2], (rdVector3*)&((rdMatrix44*)((char*)&swrMultiplayer_remotePodTransform + sender * sizeof(swrRace)))->vD);
@@ -1638,7 +1638,7 @@ int swrMultiplayer_BuildRaceSetupUI(void)
     swrUI_NewLabel(page, SWR_UI_ID_MP_TRACK_NAME, 0, wuRegistry_lpClass, 0x172, 0x9b, 0, 0);
     swrUI_NewLabel(page, 0, 6, swrText_Translate("/MONDOTEXT_H_0414/~sLaps"), 0x138, 0xb9, 0, 0);
     element = swrUI_NewNumberField(page, SWR_UI_ID_MP_LAPS, 0x172, 0xaf, 200, swrUI_SLIDER_SHOW_NUMBER, 0);
-    swrUI_SetNumberValue(element, multiplayer_laps);
+    swrUI_SetNumberValue(element, swrMultiplayer_laps);
     // 0x40004 kept literal: the 0x40000 bit is unconfirmed on 3-patch boxes
     swrUI_New3PatchBox(page, SWR_UI_ID_MP_SETUP_TAB, 6, NULL, 0x14a, 0x32, 0xdc, swrUI_3PATCH_LARGE_TAB, 0, 0x40004, 0);
 
@@ -1850,7 +1850,7 @@ int swrMultiplayer_PumpPackets(void)
         type = swrMultiplayer_message.callbackId;
         if (sithMulti_GetPlayerNum(swrMultiplayer_message.idFrom) < 0 && type != swrMultiplayer_MSG_PLAYER_NAME && type != swrMultiplayer_MSG_PLAYER_JOIN && type != swrMultiplayer_MSG_ACK && type != swrMultiplayer_MSG_PLAYER_LIST) {
             // unknown sender outside the join handshake
-            if (multiplayer_isHost != 0)
+            if (swrMultiplayer_isHost != 0)
                 swrMultiplayer_SendPlayerQuit(swrMultiplayer_message.idFrom);
             continue;
         }
@@ -1870,7 +1870,7 @@ void swrMultiplayer_SendMenuEvent(int value)
 {
     int* payload;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     payload = (int*)swrMultiplayer_message.data;
     payload[0] = playerNumber;
@@ -1885,7 +1885,7 @@ void swrMultiplayer_SendMenuEvent(int value)
 // 0x0041c450
 void swrMultiplayer_BroadcastMenuReset(void)
 {
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     swrMultiplayer_message.length = 0;
     swrMultiplayer_message.callbackId = swrMultiplayer_MSG_MENU_RESET;
@@ -1939,7 +1939,7 @@ int swrMultiplayer_ReplyPing(void* message)
 // 0x0041d2a0
 void swrMultiplayer_SendPlayerQuit(DPID player)
 {
-    if (multiplayer_isHost == 0)
+    if (swrMultiplayer_isHost == 0)
         return;
     ((DPID*)swrMultiplayer_message.data)[0] = player;
     swrMultiplayer_message.dataSize = 4;
@@ -1955,7 +1955,7 @@ void swrMultiplayer_SendReadyFlag(int player, int ready)
     int* payload;
     int localPlayer = playerNumber;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     status = &swrMultiplayer_aReadyStatus[player];
     if (status->state == swrMultiplayer_READY_IDLE)
@@ -1965,7 +1965,7 @@ void swrMultiplayer_SendReadyFlag(int player, int ready)
     } else {
         status->readyMask |= 1u << playerNumber;
     }
-    if (multiplayer_isHost == 0) {
+    if (swrMultiplayer_isHost == 0) {
         payload = (int*)swrMultiplayer_message.data;
         payload[0] = player;
         payload[1] = localPlayer;
@@ -1985,7 +1985,7 @@ int swrMultiplayer_ApplyReadyFlag(void* message)
     swrMultiplayer_ReadyStatus* status;
     int slot;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return 1;
     slot = payload[0];
     status = &swrMultiplayer_aReadyStatus[slot];
@@ -2005,7 +2005,7 @@ int swrMultiplayer_ApplyReadyMask(void* message)
 {
     int slot = ((int*)((tSithMessage*)message)->data)[0];
 
-    if (multiplayer_enabled != 0 && swrMultiplayer_aReadyStatus[slot].state != swrMultiplayer_READY_IDLE)
+    if (swrMultiplayer_enabled != 0 && swrMultiplayer_aReadyStatus[slot].state != swrMultiplayer_READY_IDLE)
         swrMultiplayer_SendReadyFlag(slot, (swrMultiplayer_aReadyStatus[slot].readyMask >> playerNumber) & 1);
     return 1;
 }
@@ -2015,7 +2015,7 @@ int swrMultiplayer_ApplyReadyState(void* message)
 {
     int* payload = (int*)((tSithMessage*)message)->data;
 
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         // faithful: payload[1] (the sender's all-ready flag) is ignored
         swrMultiplayer_aReadyStatus[payload[0]].state = swrMultiplayer_READY_ALL;
         swrMultiplayer_aReadyStatus[payload[0]].readyMask = payload[2];
@@ -2038,10 +2038,10 @@ int swrMultiplayer_ApplyRacerPick(void* message)
     int slot;
     int pick;
 
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         slot = payload[0];
         pick = payload[1];
-        (&multiplayer_racer1_id)[slot] = pick;
+        swrMultiplayer_aRacerIds[slot] = pick;
         swrRace_aProfiles[slot].pilotId = (uint8_t)pick;
         swrUI_BroadcastToWindows(swrMultiplayer_MSG_RACER_PICK, (int)payload);
     }
@@ -2051,8 +2051,8 @@ int swrMultiplayer_ApplyRacerPick(void* message)
 // 0x0041e6c0
 int swrMultiplayer_ApplyRaceReset(void)
 {
-    memset(multiplayer_aPlayerQuit, 0, sizeof(multiplayer_aPlayerQuit));
-    memset(multiplayer_aPlayerFinished, 0, sizeof(multiplayer_aPlayerFinished));
+    memset(swrMultiplayer_aPlayerQuit, 0, sizeof(swrMultiplayer_aPlayerQuit));
+    memset(swrMultiplayer_aPlayerFinished, 0, sizeof(swrMultiplayer_aPlayerFinished));
     swrMultiplayer_ignoreEvents = 0;
     swrMultiplayer_SendMenuEvent(0);
     swrObjHang_ReturnToMultiplayerLobby();
@@ -2075,7 +2075,7 @@ void swrMultiplayer_UpdateReadyState(int slot)
     prevState = status->state;
     if (allReady)
         status->state = swrMultiplayer_READY_ALL;
-    if (status->state != prevState && multiplayer_isHost != 0) {
+    if (status->state != prevState && swrMultiplayer_isHost != 0) {
         payload = (int*)swrMultiplayer_message.data;
         payload[2] = status->readyMask;
         payload[1] = status->state == swrMultiplayer_READY_ALL;
@@ -2098,7 +2098,7 @@ int swrMultiplayer_ApplyPlayerStates(int message)
     int col;
     int row;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return 1;
     count = *payload++;
     while (count > 0) {
@@ -2159,7 +2159,7 @@ int swrMultiplayer_ApplyAllRacerPicks(void* message)
     int* payload = (int*)((tSithMessage*)message)->data;
     int i;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return 1;
     for (i = sithPlayer_g_numPlayers; i > 0; i--) {
         swrRace_aProfiles[payload[0]].pilotId = (uint8_t)payload[1];
@@ -2201,13 +2201,13 @@ void swrMultiplayer_BroadcastRaceSettings(void)
 {
     int* payload = (int*)swrMultiplayer_message.data;
 
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
-    memcpy(payload, &multiplayer_racer1_id, swrMultiplayer_MAX_PLAYERS * sizeof(int));
-    payload[20] = multiplayer_track_select;
-    payload[21] = multiplayer_numAiRacers;
-    payload[22] = multiplayer_laps;
-    payload[23] = multiplayer_raceSettingsUnk;
+    memcpy(payload, swrMultiplayer_aRacerIds, swrMultiplayer_MAX_PLAYERS * sizeof(int));
+    payload[20] = swrMultiplayer_trackSelect;
+    payload[21] = swrMultiplayer_numAiRacers;
+    payload[22] = swrMultiplayer_laps;
+    payload[23] = swrMultiplayer_raceSettingsUnk;
     swrMultiplayer_message.length = 0;
     swrMultiplayer_message.callbackId = swrMultiplayer_MSG_LOBBY_STATE;
     swrMultiplayer_message.dataSize = 0x60;
@@ -2218,7 +2218,7 @@ void swrMultiplayer_BroadcastRaceSettings(void)
 // 0x0041c390
 void swrMultiplayer_SendRacerSelection(void)
 {
-    if (multiplayer_enabled == 0)
+    if (swrMultiplayer_enabled == 0)
         return;
     ((int*)swrMultiplayer_message.data)[0] = playerNumber;
     swrMultiplayer_message.length = 0;
@@ -2233,11 +2233,11 @@ int swrMultiplayer_ApplyLobbyState(void* message)
     tSithMessage* msg = (tSithMessage*)message;
     int* payload = (int*)msg->data;
 
-    memcpy(&multiplayer_racer1_id, payload, swrMultiplayer_MAX_PLAYERS * sizeof(int));
-    multiplayer_track_select = payload[20];
-    multiplayer_numAiRacers = payload[21];
-    multiplayer_laps = payload[22];
-    multiplayer_raceSettingsUnk = payload[23];
+    memcpy(swrMultiplayer_aRacerIds, payload, swrMultiplayer_MAX_PLAYERS * sizeof(int));
+    swrMultiplayer_trackSelect = payload[20];
+    swrMultiplayer_numAiRacers = payload[21];
+    swrMultiplayer_laps = payload[22];
+    swrMultiplayer_raceSettingsUnk = payload[23];
     swrUI_BroadcastToWindows(msg->callbackId, (int)msg->data);
     return 1;
 }

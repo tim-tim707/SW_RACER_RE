@@ -3086,7 +3086,7 @@ extern "C" void init_renderer_hooks() {
     // Multiplayer: draw player names above pods instead of the position number. The wrapper on
     // swrPlayerHUD_RenderDistanceText (hooked by address; not reimplemented) reuses the game's own
     // projection/occlusion/fade and only redirects the text it draws -- via swrText_CreateTextEntry2
-    // -- to the racer's name. Single-player is untouched (redirect only when multiplayer_enabled).
+    // -- to the racer's name. Single-player is untouched (redirect only when swrMultiplayer_enabled).
     hook_function("swrPlayerHUD_RenderDistanceText", (uint32_t) swrPlayerHUD_RenderDistanceText_ADDR,
                   (uint8_t *) swrPlayerHUD_RenderDistanceText_delta);
     // swrText_CreateTextEntry2 is reimplemented (already registered in hook_generated.c), so a plain

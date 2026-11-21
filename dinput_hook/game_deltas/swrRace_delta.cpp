@@ -116,7 +116,7 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
 typedef void(__cdecl* swrRace_ResolvePodCollision_t)(swrRace* player);
 
 void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
-    if (imgui_state.mp_disable_collision && multiplayer_enabled != 0 && player != nullptr) {
+    if (imgui_state.mp_disable_collision && swrMultiplayer_enabled != 0 && player != nullptr) {
         // Mirror the original's "no pod nearby" outcome: it always clears speedLoss before the
         // collision test, so do the same here instead of leaving a stale value from a prior hit.
         player->speedLoss = 0.0f;
