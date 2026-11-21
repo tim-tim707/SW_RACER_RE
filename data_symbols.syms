@@ -156,10 +156,11 @@ Main_fullscreen_unk 0x004b79f8 int = 1
 Window_bCDCheckEnabled 0x004b79fc int = 1 # Window_CDCheck only validates the install CD when set
 
 Main_display_intro_scene 0x004b7a00 int = 1
-swrObjHang_cinematicFiles 0x004b7a08 char*[10] # PlanetTAT/A/B/C/D/E/F/J.znm, Goldie.znm, TextCrawl.znm; indexed by planet
+swrObjHang_cinematicFiles 0x004b7a08 char*[11] # PlanetTAT/A/B/C/D/E/F/J.znm, Goldie.znm, TextCrawl.znm, IntroScene.znm; indexed by planet
 
 swrMainDisplay_currentDevice 0x004b7a34 int
 swrMain_GuiAdvanceFunction 0x004b7a38 void*
+swrMain2_firstFrame 0x004b7a3c int = 1 # swrMain_RunFrame flags for the next GUI frame; cleared after the first one
 
 swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
@@ -673,11 +674,16 @@ multiplayer_race_button_toggle 0x004eb238 int[20] # per-slot ready flag; swrMult
 swrMultiplayer_menuEvent 0x004eb234 int # last value sent by swrMultiplayer_SendMenuEvent; re-sent when the host broadcasts a menu reset
 
 multiplayer_track_change_permission 0x004eb388 int
+swrMultiplayer_joinedSessionIndex 0x004eb38c int # join page: list index of the session joined; re-polled by swrUI_Menu_MpRaceSetup / swrMultiplayer_JoinGame
 
 stdComm_IPX_connectionIndex 0x004eb390 int
 stdComm_bInitted 0x004eb394 int
 swrMulti_Initialized 0x004eb398 int
 swrMultiplayer_menuOverlayActive 0x004eb39c int # nonzero while the MP race-setup/join overlay owns input (hangar menus ignore accept/cancel)
+swrMultiplayer_bootedFromGame 0x004eb3a4 int # set when the host drops us (race setup PLAYER_QUIT); the join page shows the 'booted' dialog once
+swrMultiplayer_joinDialogReason 0x004eb3a8 int # why the join page's last dialog opened (0xe booted, DPERR code, -1); written only
+swrMultiplayer_sessionsFound 0x004eb3ac int # join page: a session enumeration returned at least one game
+swrMultiplayer_playerListDirty 0x004eb3b0 int # race setup: rebuild the player list on the next refresh timer
 
 playerNumber 0x004eb3b4 int
 sithPlayer_g_numPlayers 0x004eb3b8 int # count of entries in sithPlayer_g_aPlayers (loop bound in sithMulti_GetPlayerNum)
@@ -746,6 +752,11 @@ swrMain_introMoviesPending 0x0050b5c4 int # set to play the 3 startup Smush movi
 swrMainDisplay_windowed 0x0050b5c8 int
 swrDisplay_SkipNextFrameUpdate 0x0050b5cc int
 Window_Active 0x0050b5d0 int
+swrMain2_fpsHudFps 0x0050b5d4 float # frames/sec shown by the Ctrl+F11 debug HUD, resampled about once a second
+swrMain2_fpsFrameCount 0x0050b5d8 int
+swrMain2_fpsSampleFrameCount 0x0050b5dc int
+swrMain2_fpsNowMs 0x0050b5e0 DWORD
+swrMain2_fpsSampleMs 0x0050b5e4 DWORD
 
 # Sfx cooldown timers (count down each frame; > 0 means still on cooldown) + the recent-sfx ring
 # write index. swrSound_IsSfxOnCooldown / swrSound_PushRecentSfx.

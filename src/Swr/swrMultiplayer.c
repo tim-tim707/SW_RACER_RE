@@ -753,6 +753,61 @@ void swrMultiplayer_UpdatePlayerListItems(void)
     swrUI_SortListItems(list);
 }
 
+// Widen a join-page entry's text, clamped to 0x100 chars; dst holds 0x101 wchar_t.
+static void swrMultiplayer_EntryTextToWchar(wchar_t* dst, char* text)
+{
+    int len = strlen(text);
+
+    if (len > 0x100)
+        len = 0x100;
+    stdString_CharToWchar(dst, text, len);
+    dst[len] = L'\0';
+}
+
+// 0x00420d90
+void swrMultiplayer_JoinGame(swrUI_unk* page)
+{
+    // the EXE's buffers are 0x100 wchar_t, one short of the clamp's terminator
+    wchar_t playerName[0x101];
+    wchar_t password[0x101];
+    char* text;
+    char* message;
+    HRESULT hr;
+
+    multiplayer_rejoinPending = 0;
+    sithMessage_CloseGame();
+    multiplayer_track_change_permission = 0;
+    swrMultiplayer_EntryTextToWchar(playerName, swrUI_GetById(NULL, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated);
+    memset(password, 0, 0x100 * sizeof(wchar_t));
+    text = swrUI_GetById(NULL, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
+    if (text != NULL)
+        swrMultiplayer_EntryTextToWchar(password, text);
+
+    hr = sithMulti_JoinSessionAndCreatePlayer(swrMultiplayer_joinedSessionIndex, playerName, password);
+    if (hr == DP_OK) {
+        swrMultiplayer_ResetSession();
+        swrMultiplayer_ClearHostState();
+        swrMultiplayer_InitMessaging();
+        swrMultiplayer_SendPlayerJoin(sithMulti_g_serverId);
+        return;
+    }
+
+    if (hr == DPERR_NONEWPLAYERS)
+        message = "/MONDOTEXT_H_0408/Your join request has been denied.";
+    else if (hr == DPERR_INVALIDPASSWORD)
+        message = "/MONDOTEXT_H_0409/Your password is invalid.";
+    else
+        message = "/MONDOTEXT_H_0410/An unknown network error has occurred.";
+    swrUI_ShowConfirmDialog(page, -1, -1, swrText_Translate("/MONDOTEXT_H_0407/Error"), swrText_Translate(message), swrText_Translate("/MONDOTEXT_H_0406/OK"), NULL, NULL, 1);
+    swrMultiplayer_Shutdown();
+    stdComm_Shutdown();
+    swrMultiplayer_menuOverlayActive = 0;
+    swrObjHang_SetHangar2State(swrObjHang_STATE_SPLASH);
+    swrUI_RunCallbacks2(page, 0);
+    swrUI_ResetPageStack();
+    swrUI_PushMenuPage(swrUI_WINDOW_SPLASH);
+}
+
 // 0x00420f70
 int swrMultiplayer_IsPlayerActive(int playerIndex)
 {
@@ -1058,7 +1113,7 @@ void swrMultiplayer_BecomeHost(DPID newHost)
     sprintf(text, swrText_Translate("/MONDOTEXT_H_0425/%s is now the host."), swrMultiplayer_GetPlayerNameAscii(playerNum));
     swrMultiplayer_PostChatMessage(text);
     swrMultiplayer_BroadcastRaceSettings();
-    swrUI_BroadcastToWindows(0x40, playerNum);
+    swrUI_BroadcastToWindows(swrMultiplayer_UIEVENT_BECAME_HOST, playerNum);
 }
 
 // 0x0041cb20
@@ -1268,7 +1323,7 @@ void swrMultiplayer_OnPlayerJoined(DPID player)
         swrMultiplayer_PostChatMessage(text);
     }
     swrMultiplayer_aRejoinRequested[playerNum] = 0;
-    swrUI_BroadcastToWindows(0x3f, playerNum);
+    swrUI_BroadcastToWindows(swrMultiplayer_UIEVENT_PLAYER_JOINED, playerNum);
 }
 
 // 0x0041d0c0
@@ -1363,7 +1418,7 @@ int swrMultiplayer_ApplyEvent(void* message)
             swrMultiplayer_TakeOverPodAsAi(sender);
         break;
     case 'rejn':
-        swrUI_BroadcastToWindows(0x41, 0);
+        swrUI_BroadcastToWindows(swrMultiplayer_UIEVENT_REJOIN, 0);
         multiplayer_rejoinPending = 1;
         break;
     case 'taun':

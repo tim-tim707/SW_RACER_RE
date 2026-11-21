@@ -561,7 +561,7 @@ void swrRace_UpdateSplineOrientation(swrRace* player, rdVector3* pos);
 // Pod-to-pod collision: finds a nearby pod and resolves the 2D collision (push apart + DeathSpeed).
 void swrRace_ResolvePodCollision(swrRace* player);
 
-void swrRace_TriggerHandler(int player, int a, char b);
+void swrRace_TriggerHandler(swrObjTrig* trig, swrRace* player, char fromNetwork);
 
 float swrRace_LapProgress(swrSplineCursor* cursor);
 
