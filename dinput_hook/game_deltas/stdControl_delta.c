@@ -49,14 +49,6 @@ const char *swrControl_FindKeyName_delta(int id, char otherId) {
     return (const char *) 0;
 }
 
-// One parsed binding: {input code, action} + type flags. 0xff in the flags byte terminates
-// a device's table. Matches the 0xc-byte on-disk-into-memory layout the game uses.
-typedef struct {
-    unsigned int flags; // low byte: 0x04 axis, 0x08 button/key, 0x10/0x20 axis range +/-, 0xff term
-    int input;          // key/button/axis code (stdConfig_getKeymap_id); -1 = unresolved
-    int action;         // control action id (swrControl_ParseFunctionName); -1 = none
-} swrControlBinding;
-
 // Game globals the loader touches that are not yet in the generated header. Addressed here
 // with the same _ADDR convention the function hooks use (no raw hex in the body below).
 #define swrControl_bindingCounts_ADDR (0x004d5e20)  // int[3]: [0]=joystick [1]=mouse [2]=keyboard
@@ -126,7 +118,7 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
             if (_stricmp(stdConffile_g_entry.aArgs[0].argName, "end.") == 0)
                 break;
 
-            swrControlBinding line = {0, 0, -1};
+            swrControlBinding line = {.flags = 0, .input = 0, .action = -1};
             int skip = 0;
             for (int i = 0; i < stdConffile_g_entry.numArgs; i++) {
                 char *name = stdConffile_g_entry.aArgs[i].argName;
@@ -223,7 +215,7 @@ int stdConfFile_readAndApplyConf_delta(int deviceFilter, char *configName, int u
     // Vanilla appends a fixed keyboard entry (pause) and 0xff-terminates each device table.
     if ((deviceFilter < 0 || deviceFilter == 2) && counts[2] < swrControl_bindingsPerDevice_MAX) {
         int idx = counts[2];
-        swrControlBinding pause = {0xa, 1, 0xa};
+        swrControlBinding pause = {.flags = 0xa, .input = 1, .action = 0xa};
         tables[2][idx] = pause;
         counts[2] = idx + 1;
     }
