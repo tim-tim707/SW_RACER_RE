@@ -57,6 +57,16 @@ void swrRace_PoddAnimateVariousThings_delta(swrRace* player) {
     if (!nodes)
         return;
 
+    // Neva Kee's pod has fused engines and no energy binder, but the game still places and draws
+    // the binder beam (partNodes 6..9: the two beam transforms and their scale matrices) somewhere
+    // off in the level. swrRace_UpdateEnergyBinder toggles those nodes' visibility from inside the
+    // original above, so hide them here, after it, every frame.
+    constexpr int kPilotNevaKee = 0xe;// score_ptr->pilotId 0xe = Neva Kee (fused engines)
+    if (player->score_ptr && player->score_ptr->pilotId && *player->score_ptr->pilotId == kPilotNevaKee)
+        for (int i = 6; i <= 9; i++)
+            if (nodes[i])
+                nodes[i]->flags_1 &= ~0x2u;// 0x2 = visible
+
     // The game only runs its cable deformer on cables 10/11, but 4-engine pods (e.g. Ben
     // Quadinaros) also have cables 12/13 to the extra engines. Register all four so they render
     // as the same rebuilt tube and stay visually consistent; the extra pair is null on 2-engine
