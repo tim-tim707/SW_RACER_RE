@@ -106,7 +106,7 @@ typedef enum GameSettingFlag
     GAME_SETTING_UNK_200 = 0x200, // swrScene_Init skips latching its first argument when set
     GAME_SETTING_UNK_400 = 0x400, // swrScene_ResetRenderState also enables viewport 1
     GAME_SETTING_UNK_800 = 0x800, // cleared by swrScene_LoadObjects
-    GAME_SETTING_UNK_1000 = 0x1000, // resetInRaceInputBuffer clears local record 0 every frame while set
+    GAME_SETTING_UNK_1000 = 0x1000, // swrRace_ResetInRaceInputBuffer clears local record 0 every frame while set
     GAME_SETTING_UNK_2000 = 0x2000, // passed to rdModel_SetForceFlatNormals_Maybe for every scene mesh
     GAME_SETTING_MIRROR = 0x4000, // mirror-mode: steering + screen projection are flipped
 } GameSettingFlag;
@@ -276,7 +276,7 @@ typedef enum swrPauseState
     swrPauseState_NONE = 0,
     swrPauseState_PAUSED = 1, // pause menu fully shown
     swrPauseState_OPENING = 2, // menu sliding in (InRace_PauseMenu_ScrollInOut 0 -> 1)
-    swrPauseState_CLOSING = 3, // requestUnpause: sliding out; endPause once the scroll reaches 0
+    swrPauseState_CLOSING = 3, // swrRace_RequestUnpause: sliding out; swrRace_EndPause once the scroll reaches 0
 } swrPauseState;
 
 // swrObjHang_pitDroidSpots: where a pit droid works on the look-at-vehicle pod
@@ -291,7 +291,7 @@ typedef enum swrObjHang_PIT_DROID_SPOT
 typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial)
 {
     swrRace_INRACE_INPUT_RESPAWN = 0x2000, // swrRace_CheckResetInput -> swrObjTest_FLAG0_RESPAWN
-    // stick bits derived by updateInRaceInputBitsets from the record's axis shorts
+    // stick bits derived by swrRace_UpdateInRaceInputBitsets from the record's axis shorts
     swrRace_INRACE_INPUT_Y_POS = 0x4000, // y > SWR_CONTROL_RECORD_AXIS_FULL
     swrRace_INRACE_INPUT_Y_NEG = 0x8000,
     swrRace_INRACE_INPUT_X_NEG = 0x10000,
@@ -307,7 +307,7 @@ typedef enum swrRace_INRACE_INPUT // inRaceLocalPlayerInputBitset3 bits (partial
 // swrRace_DebugFlag bits (only the ones named so far).
 typedef enum swrRace_DEBUGFLAG
 {
-    swrRace_DEBUGFLAG_DEV = 0x1, // pause screen shows "Version: GNOME 000" (updatePauseMenu) and accepts the debug-menu unlock sequence (swrRace_UpdateInRaceMenu)
+    swrRace_DEBUGFLAG_DEV = 0x1, // pause screen shows "Version: GNOME 000" (swrRace_UpdatePauseMenu) and accepts the debug-menu unlock sequence (swrRace_UpdateInRaceMenu)
     swrRace_DEBUGFLAG_EDIT_VEHICLE_STATS = 0x2, // "Edit Vehicle Stats" row on the Game Cheats page
     swrRace_DEBUGFLAG_INVINCIBILITY = 0x4, // "Invincibility" toggle row
     swrRace_DEBUGFLAG_AI_TUNING = 0x8, // AI Level / AI SPREAD / Death SpeedMin / SpeedDrop rows
@@ -439,7 +439,7 @@ typedef enum swrObjTest_FLAG1
     swrObjTest_FLAG1_REMOTE_PUBLISHED = swrObjTest_FLAG1_REMOTE_SYNCED | swrObjTest_FLAG1_IMMUNITY,
 } swrObjTest_FLAG1;
 
-// miniMapDotTypes: what swrObjJdge's minimap plotted (AddDotToMiniMap), drawn by RenderMiniMapDotsAndCrosses
+// miniMapDotTypes: what swrObjJdge's minimap plotted (swrSprite_AddDotToMiniMap), drawn by swrSprite_RenderMiniMapDotsAndCrosses
 typedef enum swrMiniMapDot
 {
     swrMiniMapDot_TRACK = 0, // track spline point ('.')
@@ -497,7 +497,7 @@ typedef enum swrModel_NodeType
     NODE_IS_TRANSFORMED = 0x8000, // 0xD0..
 } swrModel_NodeType;
 
-// ReadRLEData: TGA RLE packet header byte
+// swrSprite_ReadTgaRLEData: TGA RLE packet header byte
 typedef enum SWR_TGA_RLE
 {
     SWR_TGA_RLE_COUNT_MASK = 0x7f, // element count - 1
@@ -749,7 +749,7 @@ typedef enum swrRace_EXPLODE_SIDE
 
 typedef enum swrRender_FRAME_CLEAR_FLAG
 {
-    swrRender_FRAME_CLEAR_COLOR = 0x2, // clear the frame to the SetClearColor colour (read at 0x00483db4)
+    swrRender_FRAME_CLEAR_COLOR = 0x2, // clear the frame to the swrRender_SetClearColor colour (read at 0x00483db4)
 } swrRender_FRAME_CLEAR_FLAG;
 
 typedef enum HangCameraState

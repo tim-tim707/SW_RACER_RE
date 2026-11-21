@@ -129,7 +129,7 @@ int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDispla
     swrMainDisplayMode.rasterInfo.height = wuRegistry_GetInt("Display Height", SWR_DISPLAY_DEFAULT_HEIGHT);
     swrMainDisplayMode.rasterInfo.colorInfo.bpp = SWR_DISPLAY_BPP;
     swrMainDisplayMode.rasterInfo.colorInfo.colorMode = T_STDCOLOR_RGB;
-    displaySettings->videoModeIndex = FindMatchingVideoMode(swrMainDisplayMode, displaySettings);
+    displaySettings->videoModeIndex = swrDisplay_FindMatchingVideoMode(swrMainDisplayMode, displaySettings);
     swrMainDisplayMode = info->aModes[displaySettings->videoModeIndex];
     displaySettings->geometryMode = RD_GEOMETRY_FULL;
     displaySettings->lightMode = RD_LIGHTING_GOURAUD;
@@ -142,7 +142,7 @@ int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDispla
 }
 
 // 0x004243C0
-int FindMatchingVideoMode(StdVideoMode mode, swrMainDisplaySettings* displaySettings)
+int swrDisplay_FindMatchingVideoMode(StdVideoMode mode, swrMainDisplaySettings* displaySettings)
 {
     StdDisplayInfo* info = &Main_drawDevices->aDisplayInfos[displaySettings->currentDevice];
     unsigned int i;

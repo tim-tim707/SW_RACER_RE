@@ -44,7 +44,7 @@
 #define swrSound_SetReverb_ADDR (0x004269f0)
 
 // High-level SFX playback. A (category, id) pair is resolved to a bank index,
-// then played 3D-positionally (distance-attenuated) via playASoundImpl.
+// then played 3D-positionally (distance-attenuated) via swrSound_RequestVoice.
 #define swrSound_PlaySpatialRange_ADDR (0x00426d10)
 #define swrSound_PlaySpatial_ADDR (0x00426d80)
 // Per-frame swrSound_Update gated on the sfx/music volume settings being non-zero.
@@ -196,7 +196,7 @@ int swrSound_ResolveSfxId(int category, int variant, int id);
 
 // Throttled one-shot SFX: skip if voices are disabled, the (category, variant) is on
 // cooldown, the sound was recently played, or it is already active on a channel; otherwise
-// resolve, play (positional via PlaySpatialRange if position != NULL, else playASound), and
+// resolve, play (positional via PlaySpatialRange if position != NULL, else swrSound_Play2D), and
 // record the play. Guards announcer / one-shot lines against spamming.
 void swrSound_PlaySfxThrottled(int category, int variant, int id, rdVector3* position);
 // True if (category, variant) is still within its post-play cooldown window.
@@ -250,7 +250,7 @@ void swrSound_ResetRequestedVoices(void);
 void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress, float speed);
 
 // Play a sound 3D-positionally: attenuate gain by distance from the listener,
-// cull if out of range, then dispatch to playASoundImpl.
+// cull if out of range, then dispatch to swrSound_RequestVoice.
 void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, rdVector3* position, int param6, unsigned int flags);
 
 // As swrSound_PlaySpatial, but with explicit min/max audible distances.

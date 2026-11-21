@@ -358,7 +358,7 @@ void render_collision_overlay(const swrViewport &vp, const swrModel_Node *root_n
     std::vector<CollisionVert> collision_verts;
     if (imgui_state.show_collision) {
         // Track collision lives under the track model (root child 3). flags_2 mask mirrors
-        // LoadTrackModels: bit 0x2 plus a track-select bit from planet_track_number
+        // swrObjJdge_LoadTrackModels: bit 0x2 plus a track-select bit from planet_track_number
         // (0x10/0x20/0x40 for tracks 0/1/2; track 3 reuses 0x10).
         const swrObjJdge *jdge = (const swrObjJdge *) swrEvent_GetItem('Jdge', 0);
         if (jdge) {

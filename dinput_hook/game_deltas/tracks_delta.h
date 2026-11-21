@@ -37,13 +37,13 @@ void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang);
 
 char *swrUI_GetTrackNameFromId_delta(int trackId);
 
-bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
+bool swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
 
-int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
+int swrObjHang_VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 
 void swrObjHang_InitTrackSprites_delta(swrObjHang *hang_, int initTracks);
 
-void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx);
+void swrObjHang_DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx);
 
 #ifdef __cplusplus
 }

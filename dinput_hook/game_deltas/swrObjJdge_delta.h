@@ -103,7 +103,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge);
 // real seconds) and returns the current 0..1 bar extension. Bars snap in over the pre-race binder
 // cinematic, slide out ~7s into the binder-ignition orbit (or on a skip press), and return for the
 // victory lap (sliding out on the button that ends it). Drawn under the HUD text by
-// DrawTextEntries_delta (renderer_hook.cpp). C linkage for the renderer's C++ caller.
+// swrText_DrawEntries1_delta (renderer_hook.cpp). C linkage for the renderer's C++ caller.
 #ifdef __cplusplus
 extern "C" {
 #endif

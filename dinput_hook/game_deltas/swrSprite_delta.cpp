@@ -111,7 +111,7 @@ static void ui_apply_text_recip(int enabled) {
 
 // The in-race minimap radar is positioned around a design-space anchor constant (swrObjJdge_minimapAnchorX),
 // read ONLY by swrObjJdge_DrawRaceHUD (screen X = racerRelX - anchor, so the radar centers at -anchor).
-// Detouring the minimap draw to shift the dots corrupts the radar (RenderMiniMapDotsAndCrosses has a
+// Detouring the minimap draw to shift the dots corrupts the radar (swrSprite_RenderMiniMapDotsAndCrosses has a
 // non-standard calling convention), so instead shift the anchor itself: the game then computes AND
 // draws the dots at the shifted position through its own un-hooked path. Same .rdata VirtualProtect
 // pattern as the text recip; the radar draws at ui_sprite_scale (the patched text recip), so the
@@ -144,7 +144,7 @@ static void ui_apply_radar_anchor(int enabled) {
     }
 }
 
-// UpdateSunAndLensFlareSprites2 gates the lens-flare chain -- and fades the sun glow -- on the sun's
+// swrSprite_UpdateSunAndLensFlareForSun gates the lens-flare chain -- and fades the sun glow -- on the sun's
 // distance from screen center, measured in RAW FRAMEBUFFER PIXELS then scaled by
 // lensFlare_screenCenterDistScale (vanilla 0.0125 == 1/80). The resulting radii (flare shows within
 // <=160px, glow-fade within <=80px) were tuned for the 640x480 framebuffer. At higher resolutions the
@@ -179,7 +179,7 @@ static void ui_apply_flare_center_dist_scale(void) {
                    g_orig_flare_dist_scale * (UI_DESIGN_H / (float) swrDisplay_screenHeight));
 }
 
-// UpdateLightStreakSprites tilts each anamorphic light streak by angle = (pivotX - screenX) * scale,
+// swrSprite_UpdateLightStreakSprites tilts each anamorphic light streak by angle = (pivotX - screenX) * scale,
 // where screenX is the streak's projected position in RAW FRAMEBUFFER PIXELS but pivotX (160.0) and
 // scale (0.33333) are tuned for a 640px-wide screen. At higher framebuffer widths the pixel span
 // grows while the constants do not, so the angle is over-driven and the streaks tilt to extreme
@@ -205,13 +205,13 @@ static void ui_apply_light_streak_rotation(void) {
     ui_patch_float(&lightStreak_rotationScale, g_orig_streak_rot_scale / w_ratio);
 }
 
-// UpdateLightStreakSprites only spawns a streak when its light source is within
+// swrSprite_UpdateLightStreakSprites only spawns a streak when its light source is within
 // swrPlayerHUD_lightStreakParam world units of the camera. The game uses 1500.0 on most tracks and
 // already bumps this to 10000.0 for Ord Ibanna (swrObjJdge_InitTrack), where distant lights read as
 // streaks. Push the reach further still -- ~3x that far value -- so streaks appear from far-off bright
 // sources on every track. Forced every frame because the game re-asserts 1500.0 at race
 // start/teardown; ui_patch_float no-ops once the value already matches. Writable .data; read only by
-// UpdateLightStreakSprites.
+// swrSprite_UpdateLightStreakSprites.
 static const float kLightStreakFarDistance = 30000.0f;
 
 static void ui_apply_light_streak_distance(void) {

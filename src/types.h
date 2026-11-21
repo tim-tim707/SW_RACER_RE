@@ -1235,7 +1235,7 @@ extern "C"
 
     // One mixer voice (0x44 bytes). There are 8 voices; the live A3D-backed state
     // is mirrored at DAT_00e67e40 and the requested state at DAT_00e68060 (source
-    // field = DAT_00e68080). playASoundImpl fills a free voice; swrSound_Update
+    // field = DAT_00e68080). swrSound_RequestVoice fills a free voice; swrSound_Update
     // reconciles requested -> live each frame. See swrSound_ResetChannel.
     typedef struct swrSound
     {
@@ -3230,7 +3230,7 @@ extern "C"
         short axisX;
         short axisY;
         char actions[16]; // SWR_CONTROL_NUM_RECORD_ACTIONS
-        int unk14; // cleared only by resetInRaceInputBuffer
+        int unk14; // cleared only by swrRace_ResetInRaceInputBuffer
     } swrControl_InRaceInputRecord; // sizeof(0x18)
 
     typedef struct StdControlAxis
@@ -3428,7 +3428,7 @@ extern "C"
 
     // Galaxy-map planet entry (0x5c bytes). The 8 entries at swrPlanetTable are populated by
     // swrObjHang_Init (names via swrText_Translate; sun/moon ranges; rotation state randomized) and
-    // consumed by DrawHoloPlanet. The sun/moon sprite range indexes a separate per-sprite pool.
+    // consumed by swrObjHang_DrawHoloPlanet. The sun/moon sprite range indexes a separate per-sprite pool.
     typedef struct swrPlanetInfo
     {
         int sunMoonSpriteStart; // 0x00 first index into the sun/moon sprite pool for this planet
@@ -3442,12 +3442,12 @@ extern "C"
     } swrPlanetInfo; // sizeof(0x5c)
 
     // One galaxy-map sun/moon (swrObjHang_holoMoons); swrPlanetInfo.sunMoonSpriteStart..End index it.
-    // DrawHoloPlanet places it at the planet + orbit.x * sin(angle) along the camera right axis,
+    // swrObjHang_DrawHoloPlanet places it at the planet + orbit.x * sin(angle) along the camera right axis,
     // orbit.y * cos(angle) along camera up and orbit.z * cos(angle) along camera forward.
     typedef struct swrHoloMoon
     {
         rdVector3 orbit; // 0x00
-        float angle; // 0x0c degrees; DrawHoloPlanet advances it twice per frame
+        float angle; // 0x0c degrees; swrObjHang_DrawHoloPlanet advances it twice per frame
         float speed; // 0x10
         float scale; // 0x14 model scale; also the draw-order key in swrObjHang_OrderHoloRacerIcons
     } swrHoloMoon; // sizeof(0x18)

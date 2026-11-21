@@ -57,13 +57,13 @@ void swrMain_ProcessDebugKeys(void)
             goto show_notice;
         swrMain_debugKeyHeld = 1;
         swrRace_ReplaceBullseyeWithCyYunga();
-        playUISound(-1);
+        swrSound_PlayUISound(-1);
     } else if (stdControl_ReadKey(DIK_RCONTROL, NULL) != 0 && stdControl_ReadKey(DIK_N, NULL) != 0 && stdControl_ReadKey(DIK_K, NULL) != 0 && g_objHang2->menuScreen == swrObjHang_STATE_SELECT_VEHICLE) {
         if (swrMain_debugKeyHeld != 0)
             goto show_notice;
         swrMain_debugKeyHeld = 1;
         swrRace_ReplaceMarsGuoWithJinnReeso();
-        playUISound(0x2d);
+        swrSound_PlayUISound(0x2d);
     } else if (stdControl_ReadKey(DIK_F1, NULL) != 0) {
         if (swrMain_debugKeyHeld != 0)
             goto show_notice;
@@ -93,7 +93,7 @@ void swrMain_ProcessDebugKeys(void)
         swrMain_debugKeyHeld = 1;
         jdge = (swrObjJdge*)swrEvent_GetItem('Jdge', 0);
         if (jdge != NULL) {
-            playUISound(0x46);
+            swrSound_PlayUISound(0x46);
             if (numLocalPlayers < 2) {
                 jdge->hud_mode++;
                 if (jdge->hud_mode > swrObjJdge_HUDMODE_OFF)
@@ -118,7 +118,7 @@ void swrMain_ProcessDebugKeys(void)
                     if (swrMain_debugKeyHeld != 0)
                         goto show_notice;
                     swr_FastMode ^= 1;
-                    playUISound(0x2c);
+                    swrSound_PlayUISound(0x2c);
                     swrMain_debugKeyHeld = 1;
                 } else {
                     if (stdControl_ReadKey(DIK_I, NULL) == 0 || stdControl_ReadKey(DIK_F, NULL) == 0 || stdControl_ReadKey(DIK_L, NULL) == 0 || stdControl_ReadKey(DIK_Y, NULL) == 0 || multiplayer_enabled != 0)
@@ -126,7 +126,7 @@ void swrMain_ProcessDebugKeys(void)
                     if (swrMain_debugKeyHeld != 0)
                         goto show_notice;
                     swrRace_DebugFlag ^= swrRace_DEBUGFLAG_IFLY;
-                    playUISound(0x2b);
+                    swrSound_PlayUISound(0x2b);
                     swrMain_debugKeyHeld = 1;
                 }
             } else {
@@ -136,7 +136,7 @@ void swrMain_ProcessDebugKeys(void)
                     goto show_notice;
                 if (multiplayer_enabled == 0) {
                     swrRace_DebugFlag ^= swrRace_DEBUGFLAG_INVINCIBILITY;
-                    playUISound(0x28);
+                    swrSound_PlayUISound(0x28);
                 }
                 swrMain_debugKeyHeld = 1;
             }
@@ -147,7 +147,7 @@ void swrMain_ProcessDebugKeys(void)
                 if (stdControl_ReadKey(DIK_F7, NULL) != 0) {
                     if (swrMain_debugKeyHeld != 0)
                         goto show_notice;
-                    playUISound(0x46);
+                    swrSound_PlayUISound(0x46);
                     swrMultiplayer_OpenChatInput();
                     swrMain_debugKeyHeld = 1;
                 } else if (stdControl_ReadKey(DIK_F5, NULL) != 0 || stdControl_ReadKey(DIK_F6, NULL) != 0) {
@@ -184,7 +184,7 @@ void swrMain_ProcessDebugKeys(void)
                         swrControl_StopAllForceEffects(1);
                     swrConfig_FORCE_ENABLED = 0;
                 }
-                playUISound(0x46);
+                swrSound_PlayUISound(0x46);
                 swrConfig_joystick_enabled = swrConfig_joystick_enabled == 0;
                 if (swrControl_uiInputActive == 0)
                     swrConfig_RefreshMappingMenu(swrConfig_DEVICE_JOYSTICK, swrUI_GetById(NULL, swrUI_WINDOW_JOYSTICK_SETTINGS));
@@ -201,11 +201,11 @@ void swrMain_ProcessDebugKeys(void)
                     if (mirrorOn != 0) {
                         GameSettingFlags |= GAME_SETTING_MIRROR;
                         g_objHang2->bMirror = g_objHang2->bMirror == 0;
-                        playUISound(0x2e);
+                        swrSound_PlayUISound(0x2e);
                     } else {
                         GameSettingFlags &= ~GAME_SETTING_MIRROR;
                         g_objHang2->bMirror = g_objHang2->bMirror == 0;
-                        playUISound(0x2f);
+                        swrSound_PlayUISound(0x2f);
                     }
                 }
             } else if (stdControl_ReadKey(DIK_M, NULL) != 0) {
@@ -217,7 +217,7 @@ void swrMain_ProcessDebugKeys(void)
                     goto done;
                 }
                 swrMain_AppendDebugNotice(swrText_Translate(swrConfig_mouse_enabled == 0 ? "/MONDOTEXT_H_0365/Mouse ENABLED\n" : "/MONDOTEXT_H_0366/Mouse DISABLED\n"));
-                playUISound(0x46);
+                swrSound_PlayUISound(0x46);
                 swrConfig_mouse_enabled = swrConfig_mouse_enabled == 0;
                 if (swrControl_uiInputActive == 0)
                     swrConfig_RefreshMappingMenu(swrConfig_DEVICE_MOUSE, swrUI_GetById(NULL, swrUI_WINDOW_MOUSE_SETTINGS));
@@ -242,7 +242,7 @@ void swrMain_ProcessDebugKeys(void)
                     swrMain_AppendDebugNotice(swrText_Translate("/MONDOTEXT_H_0370/Force Feedback DISABLED\n"));
                     swrControl_StopAllForceEffects(1);
                 }
-                playUISound(0x46);
+                swrSound_PlayUISound(0x46);
                 if (swrConfig_FORCE_ENABLED != 0 || (swrConfig_FORCE_ENABLED = 1, Main_force_feedback == 0))
                     swrConfig_FORCE_ENABLED = 0;
                 swrConfig_RefreshForceFeedbackMenu(swrUI_GetById(NULL, swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS));
@@ -573,14 +573,14 @@ void swrMain_RunFrame(short flags, short phase)
         swr_noop2();
         swr_noop4();
         swr_noop2();
-        updateInRaceInputBitsets();
+        swrRace_UpdateInRaceInputBitsets();
         swr_noop2();
         swrRace_IncrementFrameTimer();
         swr_noop4();
         swrSound_UpdateDelayedSfx();
         swrSound_UpdateMusic();
         swrObjJdge_PollPause();
-        if (GetPauseState() == 0) {
+        if (swrRace_GetPauseState() == 0) {
             swrModel_UpdateAnimations();
             swrEvent_CallAllF0();
             swr_noop4();
@@ -589,7 +589,7 @@ void swrMain_RunFrame(short flags, short phase)
             swr_noop4();
             swrEvent_CallAllF3();
         } else {
-            updatePauseMenu();
+            swrRace_UpdatePauseMenu();
         }
         swrViewport_UpdateCameras();
         swr_noop4();
@@ -617,7 +617,7 @@ void swrMain_UpdateInRaceLoopSfx(void)
     if (swrMain_inRaceLoopSfxDisabled != 0 || swrMain_inRaceLoopSfxId < 0)
         return;
     freq = (int)((float)swrMain_inRaceLoopSfxBaseFreq * swrMain_inRaceLoopSfxFreqScale);
-    if (GetPauseState() != 0)
-        freq = (int)((float)freq / (GetPauseMenuScrollInOut() + 1.0f));
-    playASound2(swrMain_inRaceLoopSfxId, 7, 0.25f, (float)freq, 1);
+    if (swrRace_GetPauseState() != 0)
+        freq = (int)((float)freq / (swrRace_GetPauseMenuScrollInOut() + 1.0f));
+    swrSound_Play2DMinVolume(swrMain_inRaceLoopSfxId, 7, 0.25f, (float)freq, 1);
 }

@@ -11,7 +11,7 @@
 //     -> swrPlayerHUD_RenderViewport(viewport, secondaryPass)
 //          if (InRaceSpritesEnabled)  // HUD orchestrator enable, set by swrPlayerHUD_Enable
 //              -> FUN_0042c1a0            (target indicators -- not yet named)
-//              -> UpdateLightStreakSprites     (light-streak motion-blur sprites, see swrModel.h)
+//              -> swrSprite_UpdateLightStreakSprites     (light-streak motion-blur sprites, see swrModel.h)
 //              -> swrPlayerHUD_RenderWorldSprites
 //              -> swrWeather_RenderParticles   (see swrWeather.h)
 //              -> swrPlayerHUD_RenderDistanceText
@@ -30,8 +30,8 @@
 #define swrPlayerHUD_RenderDistanceText_ADDR (0x0042c510)
 
 // NOTE: 0x0042c800 (the light-streak motion-blur updater) is declared as
-// UpdateLightStreakSprites in swrModel.h, alongside the rest of the light-streak
-// family (InitLightStreak / ResetLightStreakSprites / SetLightStreakSpriteIDs).
+// swrSprite_UpdateLightStreakSprites in swrModel.h, alongside the rest of the light-streak
+// family (swrSprite_InitLightStreak / swrSprite_ResetLightStreakSprites / swrSprite_SetLightStreakSpriteIDs).
 
 #define swrPlayerHUD_RenderWorldSprites_ADDR (0x0042cb00)
 

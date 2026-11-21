@@ -833,7 +833,7 @@ void swrUI_SelectListItem(swrUI_unk* item, int bSelect)
         for (sibling = list->next; sibling != NULL; sibling = sibling->next2) {
             if (((uint8_t)sibling->widget_class & swrUI_CLASS_LIST_ITEM) != swrUI_CLASS_LIST_ITEM)
                 continue;
-            playUISound(0x46);
+            swrSound_PlayUISound(0x46);
             if ((list->item_flags & swrUI_LIST_NO_SELECTION_FRAME) == 0 && ((uint8_t)sibling->widget_class & 3) != 3) {
                 swrUI_AddSprite(sibling, 0, 0, NULL, 0, 0);
                 swrUI_AddSprite(sibling, 1, 0, NULL, 0, 0);
@@ -2187,7 +2187,7 @@ int swrUI_ButtonProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param != NULL && swrUI_muteNextButtonHoverSound == 0) {
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
             swrUI_UpdateElementColor(ui);
             return swrUI_DefaultElementProc(ui, msg, param, param2);
         }
@@ -2202,7 +2202,7 @@ int swrUI_ButtonProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
     case swrUI_MSG_MOUSE_UP:
         if (swrUI_ElementContainsPoint(ui, (int)param, param2))
             swrUI_SetHighlightState(1, ui, 0, 1, 1);
-        playUISound(0x54);
+        swrSound_PlayUISound(0x54);
         return swrUI_DefaultElementProc(ui, msg, param, param2);
     case swrUI_MSG_MOUSE2_DOWN:
         swrUI_SetHighlightState(2, ui, 1, 0, 1);
@@ -2236,9 +2236,9 @@ int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param == NULL || ((uint8_t)ui->widget_class & swrUI_CLASS_LIST_ITEM) != 0)
-            playUISound(0x48);
+            swrSound_PlayUISound(0x48);
         else
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         // fallthrough
     case swrUI_MSG_FOCUS_CHANGED:
         swrUI_UpdateElementColor(ui);
@@ -2886,7 +2886,7 @@ void swrUI_DrawCaret(void)
 
 // Decodes count TGA RLE elements of elementSize bytes into dest; -1 when a packet header can't be read.
 // 0x00418700
-int ReadRLEData(void* file, void* dest, int elementSize, int count)
+int swrSprite_ReadTgaRLEData(void* file, void* dest, int elementSize, int count)
 {
     uint8_t* out = (uint8_t*)dest;
     uint8_t packet;
@@ -3742,7 +3742,7 @@ void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
     minusKey = MapVirtualKeyA(SWR_SCANCODE_MINUS, MAPVK_VSC_TO_VK);
     plusKey = MapVirtualKeyA(SWR_SCANCODE_EQUALS, MAPVK_VSC_TO_VK);
     if (key == VK_SUBTRACT || key == minusKey) {
-        playUISound(0x48);
+        swrSound_PlayUISound(0x48);
         step = (unsigned int)slider->slider_step;
         if (step < (unsigned int)slider->slider_percent) {
             slider->slider_percent -= step;
@@ -3758,7 +3758,7 @@ void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
         swrUI_BuildSliderSprites(slider, 1);
     }
     if (key == VK_ADD || key == plusKey) {
-        playUISound(0x48);
+        swrSound_PlayUISound(0x48);
         step = (unsigned int)slider->slider_step;
         if ((unsigned int)slider->slider_percent < 100 - step) {
             slider->slider_percent += step;
@@ -4919,13 +4919,13 @@ void swrUI_Front_SyncTrackSelection(swrObjHang* hang)
     for (int track = 0; track < g_aTracksInCircuits[(int)hang->circuitIdx]; track++) {
         if (g_aTrackIDs[hang->circuitIdx * SWR_TRACKS_PER_CIRCUIT + track] == hang->track_index)
             return;
-        if (isTrackPlayable(hang, hang->circuitIdx, (char)track))
+        if (swrObjHang_IsTrackPlayable(hang, hang->circuitIdx, (char)track))
             swrRace_MenuSelectedItem++;
     }
 }
 
 // 0x00440550
-void playUISound(int soundId)
+void swrSound_PlayUISound(int soundId)
 {
     int loop = 0;
     float pitch = 0.125f;
@@ -4953,7 +4953,7 @@ void playUISound(int soundId)
         loop = 0;
         break;
     }
-    playASound(soundId, 6, pitch, gain, loop);
+    swrSound_Play2D(soundId, 6, pitch, gain, loop);
 }
 
 // 0x00440c10
@@ -4966,7 +4966,7 @@ void swrObjHang_SelectCreditsTracks(swrObjHang* hang)
     swrRace_creditsMode = 1;
     hang->flag |= swrObjHang_FLAG_CREDITS_PLAYLIST;
     // Menu input bit 0x4 is unidentified; held with the CRD profile it seeds the playlist with the current track.
-    if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0) {
+    if (swrUtils_Compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0) {
         swrObjHang_creditsTracks[0] = hang->track_index;
         count = 1;
         useBeatTracks = 1;
@@ -5394,7 +5394,7 @@ int swrUI_FramedTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
         if (swrSprite_IsInsideBBox((swrSprite_BBox*)&ui->x, (int)param, param2) && (ui->has_option_value == 0 || swrUI_FindCheckedGroupItem(ui) != ui)) {
             swrUI_ToggleChecked(ui);
             swrUI_SetHighlightState(1, ui, 0, 1, 1);
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
         }
     } else if (msg == swrUI_MSG_UPDATE) {
         if (ui->flags & swrUI_CHECK_CIRCLE_UNK) {
@@ -5649,7 +5649,7 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
         swrUI_RunCallbacksScreenText(ui, buffer, 0);
         break;
     case VK_RETURN:
-        playUISound(0x46);
+        swrSound_PlayUISound(0x46);
         swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
         swrUI_RunCallbacks(ui, swrUI_MSG_SET_EDITING, 0, ui->id);
         swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_COMMITTED, ui->id, (int)ui->str_allocated);
@@ -5661,7 +5661,7 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
             ui->caret_pos = strlen(ui->str_allocated);
         break;
     case VK_ESCAPE:
-        playUISound(0x47);
+        swrSound_PlayUISound(0x47);
         swrUI_RunCallbacksScreenText(ui, swrUI_textEntryOriginalText, ui->text_flags);
         swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
         swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_CANCELLED, ui->id, (int)ui->str_allocated);
@@ -5747,7 +5747,7 @@ int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int para
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param != NULL) {
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
             swrUI_BuildSliderSprites(ui, 1);
         } else {
             swrUI_BuildSliderSprites(ui, 0);
@@ -6114,7 +6114,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
                 if (swrUI_configSelectedFile != NULL)
                     swrUI_GetAllocatedString(swrUI_configNameEntry, name, sizeof(name));
                 if (name[0] == '\0') {
-                    playUISound(-1);
+                    swrSound_PlayUISound(-1);
                     swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0542/                       No file selected."), 2.0f);
                     return 0;
                 }
@@ -6144,10 +6144,10 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         if (id == SWR_UI_ID_FILE_REMOVE) {
             if (swrUI_configSelectedIsPreset != 0) {
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 notice = "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name.";
             } else if (swrUI_configSelectedFile == NULL) {
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 notice = "/MONDOTEXT_H_0542/                       No file selected.";
             } else {
                 swrUI_ShowConfirmDialog(swrUI_configFilesPage, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0533/Are you sure you want to delete this configuration?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 0);
@@ -6160,7 +6160,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         return 0;
     case swrUI_MSG_TEXT_ENTRY_COMMITTED:
         if (swrUI_configNameEntry->str_allocated[0] == '\0') {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0008/\t            Enter a filename or press ESC."), 2.0f);
             swrUI_noticeDurationUnused = 2.1f;
             swrUI_SetFocusedElement(swrUI_configNameEntry);
@@ -6169,7 +6169,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         swrUI_configSelectedFile = swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated);
         if (swrUI_configSelectedFile != NULL) {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
             swrText_ShowTimedMessage(swrText_Translate(swrUI_configSelectedIsPreset != 0 ? "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name." : "/MONDOTEXT_H_0534/                     Filename already exists."), 2.0f);
             swrUI_noticeDurationUnused = 2.1f;
@@ -6417,7 +6417,7 @@ int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swr
                 swrUI_forceFeedbackMissingShown = 1;
                 swrUI_noticeDurationUnused = 2.1f;
                 swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0042/~nNo Force Feedback device detected."), 2.0f);
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 swrUI_SetChecked(ui2, swrControl_forceFeedbackAvailable);
             }
             return 0;
@@ -6469,7 +6469,7 @@ int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swr
         swrSound_StopVoiceById(0x6d);
         slider = swrUI_GetById(swrUI_audioSettingsPage, 0x273e);
         sound_sfx_volume = (unsigned int)(slider->slider_percent * 255) / 100;
-        playASound(0x6d, 6, 0.25f, 1.0f, 0);
+        swrSound_Play2D(0x6d, 6, 0.25f, 1.0f, 0);
         swrUI_sfxVolumeChanged = 0;
     }
     if (swrUI_musicVolumeChanged != 0) {

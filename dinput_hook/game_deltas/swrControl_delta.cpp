@@ -316,7 +316,7 @@ static void rumble_set(float left, float right) {
 #define RACE_F0_SCRAPE_L 0x10000000
 #define RACE_F0_SCRAPE_R 0x20000000
 // swrEvent_GetItem('Jdge', 0) is non-null only while a race runs -- the game's own in-race test
-// (see pollPauseInput). currentPlayer_Test is set at race init and NEVER cleared, so it goes stale.
+// (see swrRace_PollPauseInput). currentPlayer_Test is set at race init and NEVER cleared, so it goes stale.
 #define JDGE_EVENT 0x4a646765
 // The earthquake is a track trigger whose handler sends a 'Shak' camera-shake to the cMan.
 // Reading the resulting cMan shake state proved unreliable, so drive off the trigger id.

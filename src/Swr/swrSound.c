@@ -2,9 +2,9 @@
 
 #include "types.h"
 #include "globals.h"
-#include "swr.h"      // swr_noop2, playASound
+#include "swr.h"      // swr_noop2, swrSound_Play2D
 #include "swrEvent.h" // swrEvent_GetEventCount
-#include "swrObj.h"   // NumLocalPlayers
+#include "swrObj.h"   // swrObjJdge_NumLocalPlayers
 #include "swrConfig.h"
 #include "swrUI.h"
 #include "swrCam.h"
@@ -1170,7 +1170,7 @@ void swrSound_UpdateDelayedSfx(void)
     int id;
 
     // a pause menu sliding in drops the pending sfx
-    if (GetPauseMenuScrollInOut() > 0.0f)
+    if (swrRace_GetPauseMenuScrollInOut() > 0.0f)
         swrSound_delayedSfxId = -1;
     id = swrSound_delayedSfxId;
     id = swrSound_TickCooldowns(swrSound_sfxCategoryCooldown, sizeof(swrSound_sfxCategoryCooldown) / sizeof(swrSound_sfxCategoryCooldown[0]), id);
@@ -1573,7 +1573,7 @@ void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress
         if (swrSound_ambientCallTimer <= 0.0f) {
             int roll = swrUtils_Rand();
             swrSound_ambientCallTimer = (float)roll * SWR_CTL_RAND_NORM * 20.0f - -10.0f;
-            playASound(0x24, 6, 0.25f, 1.0f, 0);
+            swrSound_Play2D(0x24, 6, 0.25f, 1.0f, 0);
         }
     }
     if (trackNumber == 3) {
@@ -1612,7 +1612,7 @@ void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress
                     if (swrSound_cueRetriggerTimer <= 0.0f) {
                         int roll = swrUtils_Rand();
                         swrSound_cueRetriggerTimer = (float)roll * SWR_CTL_RAND_NORM * 10.0f - -5.0f;
-                        playASound(cue->soundId, 6, 0.25f, 1.0f, 0);
+                        swrSound_Play2D(cue->soundId, 6, 0.25f, 1.0f, 0);
                     }
                 } else {
                     // fade in over the first quarter of the range, out over the last
@@ -1625,7 +1625,7 @@ void swrSound_UpdateEngineAudio(int planetId, int trackNumber, float lapProgress
                     if (cue->soundId == 5)
                         gain = gain * 0.8f;
                     if (gain > 0.0f)
-                        playASound(cue->soundId, 6, 0.25f, gain, 1);
+                        swrSound_Play2D(cue->soundId, 6, 0.25f, gain, 1);
                 }
             }
         }
@@ -1681,7 +1681,7 @@ void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, r
         }
         if (i == 9 && Sound_enabled_3d != 0) {
             if (gain > 0.0f)
-                playASoundImpl(soundId, param2, param3, gain, -999, param6, param6 != 0 ? 0 : flags, (int*)position);
+                swrSound_RequestVoice(soundId, param2, param3, gain, -999, param6, param6 != 0 ? 0 : flags, (int*)position);
             return;
         }
     }
@@ -1706,7 +1706,7 @@ void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, r
 
     pan = 0.0f;
     if ((GameSettingFlags & GAME_SETTING_STEREO_PAN) != 0) {
-        ProjectPointOntoPlane(&listenerPlane.x, position, &offset);
+        rdMath_ProjectPointOntoPlane(&listenerPlane.x, position, &offset);
         offset.x = offset.x - listener.vD.x;
         offset.y = offset.y - listener.vD.y;
         offset.z = offset.z - listener.vD.z;
@@ -1723,7 +1723,7 @@ void swrSound_PlaySpatial(int soundId, short param2, float param3, float gain, r
     if (volume <= 0.0f)
         return;
     // faithful: the voice is positioned at rdVector_sound_pos, not at position
-    playASoundImpl(soundId, param2, param3, volume, (short)(int)(pan * 45.0f - -64.0f), param6, 0, (int*)&rdVector_sound_pos);
+    swrSound_RequestVoice(soundId, param2, param3, volume, (short)(int)(pan * 45.0f - -64.0f), param6, 0, (int*)&rdVector_sound_pos);
 }
 
 // 0x00426d10
@@ -1740,12 +1740,12 @@ void swrSound_PlaySpatialRange(int soundId, short param2, float param3, float ga
 
 // Resolves and plays a one-shot sfx, throttled: skips it if its category/variant is on cooldown,
 // recently played (except the cat-6 id-0x27 exception), or already live on a voice. Plays 2D
-// (playASound) or 3D-positional (PlaySpatialRange) depending on `position`, then arms the cooldown.
+// (swrSound_Play2D) or 3D-positional (PlaySpatialRange) depending on `position`, then arms the cooldown.
 // 0x00427410
 void swrSound_PlaySfxThrottled(int category, int variant, int id, rdVector3* position)
 {
     if (0 < swrEvent_GetEventCount('Test')) {
-        if (NumLocalPlayers() == 0)
+        if (swrObjJdge_NumLocalPlayers() == 0)
             return;
         if (swrRace_voices_enabled == 0)
             return;
@@ -1768,7 +1768,7 @@ void swrSound_PlaySfxThrottled(int category, int variant, int id, rdVector3* pos
 
     swrSound_PushRecentSfx((short) resolved);
     if (position == NULL)
-        playASound(resolved, 7, 0.25f, 1.0f, 0);
+        swrSound_Play2D(resolved, 7, 0.25f, 1.0f, 0);
     else
         swrSound_PlaySpatialRange(resolved, 7, 0.25f, 1.0f, position, 0, 1, 15.0f, 20000.0f);
     swrSound_MarkSfxPlayed(category, variant, resolved, id);
@@ -2171,8 +2171,8 @@ void swrSound_UpdateMusic(void)
     int isLoopCue;
 
     swrSound_SetMasterGain(1.0f - (float)(uint8_t)swrSprite_unk1_a * 0.003921569f);
-    volume = 1.0f - GetPauseMenuScrollInOut() * 0.9f;
-    if (GetPauseMenuScrollInOut() > 0.0f)
+    volume = 1.0f - swrRace_GetPauseMenuScrollInOut() * 0.9f;
+    if (swrRace_GetPauseMenuScrollInOut() > 0.0f)
         volume = 0.1f;
     volume = volume * swrSound_musicGain;
     swrSound_musicSecondsTruncated = (int)((double)swrSound_musicSecondsTruncated + swrRace_deltaTimeSecs);
@@ -2185,15 +2185,15 @@ void swrSound_UpdateMusic(void)
         if (swrSound_musicStartDelay <= 0.0f && !isLoopCue) {
             swrSound_musicStartDelay = 0.0f;
             volume = 1.0f;
-            playASound(swrSound_currentMusicId, 7, 0.25f, 1.0f, 0);
+            swrSound_Play2D(swrSound_currentMusicId, 7, 0.25f, 1.0f, 0);
         }
     }
-    if (isLoopCue && swrSound_musicStartDelay <= 0.0f && GetPauseMenuScrollInOut() == 0.0f) {
+    if (isLoopCue && swrSound_musicStartDelay <= 0.0f && swrRace_GetPauseMenuScrollInOut() == 0.0f) {
         if (swrSound_musicElapsed < 9.0f) {
             volume = (9.0f - swrSound_musicElapsed) * 0.5f;
             if (volume > 1.0f)
                 volume = 1.0f;
-            playASound(swrSound_currentMusicId, 7, 0.25f, volume, 1);
+            swrSound_Play2D(swrSound_currentMusicId, 7, 0.25f, volume, 1);
         } else {
             swrSound_currentMusicId = -1;
         }
@@ -2203,7 +2203,7 @@ void swrSound_UpdateMusic(void)
     if (swrSound_musicFadeMode == 1) {
         swrSound_musicGain = 1.0f;
         if (swrSound_queuedMusicId >= 0)
-            playASound(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
+            swrSound_Play2D(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
         swrSound_SetMusicFade(3);
     } else if (swrSound_musicFadeMode > 1 && swrSound_musicFadeMode <= 3) {
         fade = swrSound_musicFadeRate * swrRace_deltaTimeSecs + swrSound_musicGain;
@@ -2211,7 +2211,7 @@ void swrSound_UpdateMusic(void)
         if (fade <= 0.0f)
             swrSound_SetMusicFade(0);
         else if (swrSound_queuedMusicId >= 0)
-            playASound(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
+            swrSound_Play2D(swrSound_queuedMusicId, 7, 0.25f, volume, 1);
     }
 }
 
@@ -2316,7 +2316,7 @@ void swrSound_PreloadSfx(int category, int variant, int id)
     int resolved;
 
     if (0 < swrEvent_GetEventCount('Test')) {
-        if (NumLocalPlayers() == 0)
+        if (swrObjJdge_NumLocalPlayers() == 0)
             return;
         if (swrRace_voices_enabled == 0)
             return;
@@ -2333,7 +2333,7 @@ void swrSound_PreloadSfx(int category, int variant, int id)
 // 0x00427ad0
 unsigned int swrSound_SelectPlanetIntroMusic(unsigned int planet)
 {
-    if (swrEvent_GetEventCount('Test') > 0 && NumLocalPlayers() == 0)
+    if (swrEvent_GetEventCount('Test') > 0 && swrObjJdge_NumLocalPlayers() == 0)
         return 0;
 
     swrSound_musicElapsed = 0.0f;

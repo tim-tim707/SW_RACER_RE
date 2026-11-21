@@ -129,7 +129,7 @@ void swrViewport_UpdateCameras()
                 lookAt.z = (spread * SWR_CAM_LOOKAHEAD_SCALE - -1.0) * source.vB.z + lookAt.z;
             }
         }
-        BuildLookAtTransform((rdVector3*)&cam->transform.vD, &lookAt, &cam->transform, &lookFrom, lookFrom.yaw_roll_pitch.z);
+        rdMatrix_BuildLookAtTransform((rdVector3*)&cam->transform.vD, &lookAt, &cam->transform, &lookFrom, lookFrom.yaw_roll_pitch.z);
         if (cam->behaviorType == 3) {
             if (cam->sourceType == 0) {
                 *(rdMatrix44*)cam->matrixSource = cam->transform;
@@ -527,7 +527,7 @@ void swrViewport_Setup(int viewportIndex)
     worldMatrix.vD.z = 0.0;
     rdMatrix_BuildViewMatrix(&viewMatrix, &worldMatrix);
     rdMatrix_Multiply44(&mvpMatrix, &viewMatrix, &vp->clipMat);
-    SetModelMVPAndTranslation(&mvpMatrix, &translation);
+    swrViewport_SetModelMVPAndTranslation(&mvpMatrix, &translation);
     if (vp->unk13c > 0.0)
         vp->unk130 = (short)(65536.0 / vp->unk13c);
 }

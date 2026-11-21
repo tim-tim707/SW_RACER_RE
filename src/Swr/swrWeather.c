@@ -162,7 +162,7 @@ void swrWeather_RenderParticles(void* viewport)
             }
         }
         swrSprite_SetDim(spriteId, size, size);
-        if (GetPauseState() != 0) {
+        if (swrRace_GetPauseState() != 0) {
             a = (uint8_t)(int)((float)alpha * SWRWEATHER_PAUSED_ALPHA_SCALE);
         } else {
             a = (uint8_t)alpha;

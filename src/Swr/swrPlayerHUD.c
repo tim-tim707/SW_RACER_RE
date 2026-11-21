@@ -51,7 +51,7 @@ void swrPlayerHUD_RenderDistanceText(void* viewport, bool secondaryPass)
             alpha = (SWR_HUD_WORLD_SPRITE_MAX_DIST - dist) * 255.0f * SWR_HUD_RACER_LABEL_FADE_SCALE;
         if (alpha > SWR_HUD_RACER_LABEL_MAX_ALPHA)
             alpha = SWR_HUD_RACER_LABEL_MAX_ALPHA;
-        if (GetPauseState() != 0)
+        if (swrRace_GetPauseState() != 0)
             alpha = alpha * 0.5f;
 
         swrViewport_ProjectToScreen((swrViewport*)viewport, (rdVector4*)worldPos, &screenX, &screenY, &screenZ, &depth, 0);
@@ -143,7 +143,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
     int i;
 
     if (numLocalPlayers > 1) {
-        DisableIngameSprites();
+        swrSprite_DisableIngameSprites();
         return;
     }
 
@@ -181,7 +181,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
         a = 0xff;
         if (planetId == 0) {
             rdVector_Set3(&sunPos, -360.0f, 512.0f, 200.0f);
-            SetSunSprite(1, 0x40, &sunPos.x, 0.90000004f, 0xff, 0xdc, 0xbe, 0xff);
+            swrSprite_SetSunSprite(1, 0x40, &sunPos.x, 0.90000004f, 0xff, 0xdc, 0xbe, 0xff);
             swrObjJdge_SetupLensFlareSprites(1, 0x49, 0.90000004f);
             rdVector_Set3(&sunPos, -220.0f, 512.0f, 260.0f);
             sunScale = 1.2f;
@@ -232,7 +232,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
             g = 0xff;
             b = 0xff;
         }
-        SetSunSprite(0, 0x3f, &sunPos.x, sunScale, r, g, b, a);
+        swrSprite_SetSunSprite(0, 0x3f, &sunPos.x, sunScale, r, g, b, a);
         swrObjJdge_SetupLensFlareSprites(0, 0x41, sunScale);
     }
 
@@ -263,7 +263,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
             } else if (trackNumber == 2) {
                 swrWeather_SetVelocity(20.0f, 60.0f);
                 swrWeather_SetParticleCap(40);
-                SetSunSpriteAlpha(0, 0x80);
+                swrSprite_SetSunSpriteAlpha(0, 0x80);
             }
         } else {
             swrWeather_SetColor(0xff, 0xff, 0xff, 40);
@@ -290,7 +290,7 @@ void swrPlayerHUD_SetupTrackOverlay(int planetId, int trackNumber)
             swrSprite_NewSprite(0x97 + i, star);
             swrSprite_SetFlag(0x97 + i, 0x1f00);
             swrSprite_UnsetFlag(0x97 + i, 1);
-            SetLightStreakSpriteIDs(i, 0x8d + i, 0x97 + i);
+            swrSprite_SetLightStreakSpriteIDs(i, 0x8d + i, 0x97 + i);
         }
     }
 }
@@ -410,15 +410,15 @@ void swrPlayerHUD_LoadRaceHUD(int hudType, int weatherLevel, int racerData)
     for (i = 0; i < judge->num_players; i++)
         swrSprite_NewSprite(i + 0x2b, swrSprite_LoadTextureById(((swrRacerData*)swrScoresPtr[i].pilotId)->hudSpriteId));
     swrPlayerHUD_SetupTrackOverlay(hudType, weatherLevel);
-    SetPlanetIdAndTrackNumber(hudType, weatherLevel);
+    swrObjJdge_SetPlanetIdAndTrackNumber(hudType, weatherLevel);
 }
 
 // 0x0042d490
 void swrPlayerHUD_RenderViewport(void* viewport, bool secondaryPass)
 {
     if (InRaceSpritesEnabled != 0) {
-        UpdateSunAndLensFlareSprites((swrViewport*)viewport);
-        UpdateLightStreakSprites((swrViewport*)viewport);
+        swrSprite_UpdateSunAndLensFlareSprites((swrViewport*)viewport);
+        swrSprite_UpdateLightStreakSprites((swrViewport*)viewport);
         swrPlayerHUD_RenderWorldSprites(viewport);
         swrWeather_RenderParticles(viewport);
         swrPlayerHUD_RenderDistanceText(viewport, secondaryPass);
@@ -602,7 +602,7 @@ void swrPlayerHUD_RenderAllViewports(void)
             fog = &swrPlayerHUD_viewportFog[i];
             if (fog->enabled != 0) {
                 rdModel_SetFogEnabled(1);
-                SetFogParameters(fog->start, 1000, fog->r, fog->g, fog->b, 0xff);
+                swrRender_SetFogParameters(fog->start, 1000, fog->r, fog->g, fog->b, 0xff);
             } else {
                 rdModel_SetFogEnabled(0);
             }
@@ -630,9 +630,9 @@ void swrPlayerHUD_RenderAllViewports(void)
         swrSprite_DrawSprites(2);
         // the original also passes the size of the last viewport's display list (in Gfx), which the callee ignores
         swrRace_DrawDebugPosition(swrRace_DebugLevel);
-        DrawTextEntries();
+        swrText_DrawEntries1();
         swrSprite_DrawSprites(3);
-        DrawTextEntries2();
+        swrText_DrawEntries2();
     }
     swrScene_UpdatePaletteScroll();
     swrSprite_ResetDirtyRects();

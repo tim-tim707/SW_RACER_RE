@@ -10,7 +10,7 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrEvent.h> // swrEvent_GetItem/AllocateAndLoadObjs/FreeObjs (Toss pool)
 #include <Swr/swrModel.h> // swrModel_NodeInit / swrModel_NodeModifyFlags (dust-kick nodes)
-#include <swr.h>          // playASound
+#include <swr.h>          // swrSound_Play2D
 #include <globals.h>      // someRootNodeChildNodes
 #include <types_enums.h>  // swrObjTest_FLAG0_LOCAL, MODELID_dustkick1_vlec
 
@@ -128,7 +128,7 @@ void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
 // --- Ground dust/splash effect: fix the AI-full-LOD contention -------------------------------------
 // swrRace_PoddAnimateVariousThings -> swrRace_SpawnGroundDustKick spawns the ground dust/splash
 // trail. Each spawn takes a Toss entity from a FIXED 16-slot pool (swrEvent_AllocObj) and, on
-// swamp/soft terrain, plays the splash sound (playASound id 0x45). That path only runs for full-model
+// swamp/soft terrain, plays the splash sound (swrSound_Play2D id 0x45). That path only runs for full-model
 // pods, so in vanilla only the local player triggers it. With ai_full_lod every AI pod is a full
 // model and runs it too, which (a) drains the shared Toss pool so the player's (and everyone's) trail
 // keeps gapping/restarting, and (b) hammers the single shared splash voice at full, non-spatial
@@ -157,16 +157,16 @@ static int count_free_toss_slots() {
     return free_slots;
 }
 
-// playASound is dormant (reverse-hooked); the original .text runs and is reached via its address.
-typedef void(__cdecl* playASound_t)(int, short, float, float, int);
+// swrSound_Play2D is dormant (reverse-hooked); the original .text runs and is reached via its address.
+typedef void(__cdecl* swrSound_Play2D_t)(int, short, float, float, int);
 
-void __cdecl playASound_delta(int sound_id, short priority, float volume, float pitch, int flags) {
+void __cdecl swrSound_Play2D_delta(int sound_id, short priority, float volume, float pitch, int flags) {
     // Drop the ground-dust splash sound while a non-local pod is spawning its dust kick (flag set by
     // swrRace_SpawnGroundDustKick_delta below). Only the local player's splash should be heard;
     // AI/remote splashes play non-spatially and restart the player's looping voice.
     if (g_suppress_dust_splash_sound && sound_id == DUST_SPLASH_SOUND_ID)
         return;
-    hook_call_original((playASound_t) playASound_ADDR, sound_id, priority, volume, pitch, flags);
+    hook_call_original((swrSound_Play2D_t) swrSound_Play2D_ADDR, sound_id, priority, volume, pitch, flags);
 }
 
 typedef void(__cdecl* swrRace_SpawnGroundDustKick_t)(swrRace*, float*, float, float, float,

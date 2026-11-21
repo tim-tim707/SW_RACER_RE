@@ -1419,7 +1419,7 @@ void swrModel_LoadAllLightStreaks(swrModel_Header* header)
             position.x = *(float*)&cursor[1];
             position.y = *(float*)&cursor[2];
             position.z = *(float*)&cursor[3];
-            InitLightStreak(index, &position);
+            swrSprite_InitLightStreak(index, &position);
             cursor += 4;
         } else {
             cursor++;
@@ -1578,14 +1578,14 @@ void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int x, int y, float siz
 }
 
 // 0x0042C400
-void ResetPlayerSpriteValues()
+void swrSprite_ResetPlayerSpriteValues()
 {
     for (int i = 0; i < 20; i++)
         player_sprite_unknown_values[i] = -9999;
 }
 
 // 0x0042C420
-void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value)
+void swrSprite_SetPlayerPositionOnMap(int player_id, const rdVector3* position, int unknown_value)
 {
     player_sprite_unknown_values[player_id] = unknown_value;
     player_sprite_positions_on_map[player_id].x = position->x;
@@ -1594,7 +1594,7 @@ void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int 
 }
 
 // 0x0042bb50
-void UpdateSunAndLensFlareSprites2(int screenX, int screenY, int sun)
+void swrSprite_UpdateSunAndLensFlareForSun(int screenX, int screenY, int sun)
 {
     int coverage = sun_occlusionCoverage[sun];
     int dx, dy;
@@ -1634,14 +1634,14 @@ void UpdateSunAndLensFlareSprites2(int screenX, int screenY, int sun)
     swrSprite_SetVisible(sunSpriteIds[sun], 1);
     swrSprite_SetPosF(sunSpriteIds[sun], screenX, screenY);
     swrSprite_SetDim(sunSpriteIds[sun], size, size);
-    if (GetPauseState() != 0)
-        alpha = (int)(255.0f - GetPauseMenuScrollInOut() * 150.0f);
+    if (swrRace_GetPauseState() != 0)
+        alpha = (int)(255.0f - swrRace_GetPauseMenuScrollInOut() * 150.0f);
     else
         alpha = 255;
     swrSprite_SetColor(sunSpriteIds[sun], sunSpriteColors[sun * 4], sunSpriteColors[sun * 4 + 1], sunSpriteColors[sun * 4 + 2], alpha * (signed char)sunSpriteColors[sun * 4 + 3] / 255);
 
     if (dist <= 2.0f && swrRace_GetLensFlareEnabled() != 0) {
-        scroll = GetPauseMenuScrollInOut();
+        scroll = swrRace_GetPauseMenuScrollInOut();
         intensity = sunSpriteColors[sun * 4 + 3] * 0.003921569f * (float)((2.0f - dist) * 0.5f * visibility * (1.0f - scroll * 0.6f));
         for (i = 0; i < 8; i++) {
             int flareIndex = sun * 8 + i;
@@ -1659,7 +1659,7 @@ void UpdateSunAndLensFlareSprites2(int screenX, int screenY, int sun)
 }
 
 // 0x0042c1a0
-void UpdateSunAndLensFlareSprites(swrViewport* viewport)
+void swrSprite_UpdateSunAndLensFlareSprites(swrViewport* viewport)
 {
     int anySun;
     int sun;
@@ -1682,14 +1682,14 @@ void UpdateSunAndLensFlareSprites(swrViewport* viewport)
         swrViewport_ProjectToScreen(viewport, (rdVector4*)&sun_sprite_position[sun], &x, &y, &z, &depth, 1);
         sun_screenX[sun] = (int)x;
         sun_screenY[sun] = (int)y;
-        UpdateSunAndLensFlareSprites2(sun_screenX[sun], sun_screenY[sun], sun);
+        swrSprite_UpdateSunAndLensFlareForSun(sun_screenX[sun], sun_screenY[sun], sun);
     }
     if (anySun)
         swrSprite_SetColor(SWR_SPRITE_ID_SUN_GLARE, 0xff, 0xff, 200, (int)(sun_maxFlareBrightness * 0.9));
 }
 
 // 0x0042c3e0
-void ResetSunAndLensFlareSprites(void)
+void swrSprite_ResetSunAndLensFlareSprites(void)
 {
     int i;
 
@@ -1700,7 +1700,7 @@ void ResetSunAndLensFlareSprites(void)
 }
 
 // 0x0042c2e0
-void SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
+void swrSprite_SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
     if (index < 0 || index >= 2)
         return;
@@ -1719,7 +1719,7 @@ void SetSunSprite(int index, int spriteId, float* position, float scale, unsigne
 }
 
 // 0x0042c380
-void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b)
+void swrSprite_SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b)
 {
     if (sunIndex < 0 || sunIndex >= 2 || flareIndex < 0 || flareIndex >= 8)
         return;
@@ -1733,7 +1733,7 @@ void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread
 }
 
 // 0x0042C460
-void ResetLightStreakSprites()
+void swrSprite_ResetLightStreakSprites()
 {
     for (int i = 0; i < 10; i++) {
         lightStreakSpriteIDs2[i] = -1;
@@ -1744,13 +1744,13 @@ void ResetLightStreakSprites()
 }
 
 // 0x0042c500
-void ResetWorldSpriteCount(void)
+void swrSprite_ResetWorldSpriteCount(void)
 {
     swrPlayerHUD_worldSpriteCount = 0;
 }
 
 // 0x0042C490
-void InitLightStreak(int index, rdVector3* position)
+void swrSprite_InitLightStreak(int index, rdVector3* position)
 {
     if (index < 40) {
         light_streak_positions[index].x = position->x;
@@ -1762,7 +1762,7 @@ void InitLightStreak(int index, rdVector3* position)
 }
 
 // 0x0042C4E0
-void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
+void swrSprite_SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2)
 {
     if (index < 10) {
         lightStreakSpriteIDs1[index] = sprite_id1;
@@ -1779,7 +1779,7 @@ void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g
 }
 
 // 0x0042C800
-void UpdateLightStreakSprites(swrViewport* a1)
+void swrSprite_UpdateLightStreakSprites(swrViewport* a1)
 {
     int i;
     int slot;
@@ -1799,7 +1799,7 @@ void UpdateLightStreakSprites(swrViewport* a1)
             continue;
         if (!(rdVector_Dist3(&light_streak_positions[i], &rdVector_model_translation) < swrPlayerHUD_lightStreakParam))
             continue;
-        alpha = GetPauseState() != 0 ? 128.0f : 255.0f;
+        alpha = swrRace_GetPauseState() != 0 ? 128.0f : 255.0f;
         swrViewport_ProjectToScreen(a1, (rdVector4*)&light_streak_positions[i], &screenX, &screenY, &depth, &w, 0);
         if (!(screenX > 0.0f))
             continue;
@@ -1838,7 +1838,7 @@ void UpdateLightStreakSprites(swrViewport* a1)
 }
 
 // 0x0042D510
-void DisableIngameSprites()
+void swrSprite_DisableIngameSprites()
 {
     InRaceSpritesEnabled = 0;
 }
@@ -1898,7 +1898,7 @@ swrModel_Material* swrModel_NodeFindFirstMaterial(swrModel_Node* node)
 // Basis for a part placed at origin + direction * length, with its forward (vB) pointing against
 // direction and vA as close to `up` as possible (world Z when direction is near-parallel to up).
 // 0x00481100
-void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length)
+void rdMatrix_BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length)
 {
     out->vD.x = 0.0f;
     out->vD.y = 0.0f;
@@ -1927,7 +1927,7 @@ void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* dire
 }
 
 // 0x00481220
-void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll)
+void rdMatrix_BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll)
 {
     rdVector3 dir;
     float len;
@@ -2650,7 +2650,7 @@ float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, floa
 
     rdMath_CalcSurfaceNormal2(&normal, (rdVector3*)a, (rdVector3*)b, (rdVector3*)c);
     behind = (query[0] - a[0]) * normal.x + (query[2] - a[2]) * normal.z + (query[1] - a[1]) * normal.y < 0.0f;
-    ProjectPointOntoPlane(&normal.x, (rdVector3*)query, (rdVector3*)outPoint);
+    rdMath_ProjectPointOntoPlane(&normal.x, (rdVector3*)query, (rdVector3*)outPoint);
     distSq = (query[2] - outPoint[2]) * (query[2] - outPoint[2]) + (query[1] - outPoint[1]) * (query[1] - outPoint[1]) + (query[0] - outPoint[0]) * (query[0] - outPoint[0]);
     if (maxDistSq > 0.0f && distSq > maxDistSq)
         return -1.0f;
@@ -2666,9 +2666,9 @@ float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, floa
     edgeCA.z = a[2] - c[2];
     if (swrModel_PointInTriangle2(outPoint, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
         // the edge buffers are reused for the closest point on each edge
-        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)a, (rdVector3*)b, &edgeAB);
-        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)b, (rdVector3*)c, &edgeBC);
-        ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)c, (rdVector3*)a, &edgeCA);
+        rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)a, (rdVector3*)b, &edgeAB);
+        rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)b, (rdVector3*)c, &edgeBC);
+        rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)c, (rdVector3*)a, &edgeCA);
         distSq = (query[2] - edgeAB.z) * (query[2] - edgeAB.z) + (query[1] - edgeAB.y) * (query[1] - edgeAB.y) + (query[0] - edgeAB.x) * (query[0] - edgeAB.x);
         outPoint[0] = edgeAB.x;
         outPoint[1] = edgeAB.y;
@@ -2730,9 +2730,9 @@ void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, floa
 {
     rdVector3 onAB, onBC, onCA;
 
-    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)a, (rdVector3*)b, &onAB);
-    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)b, (rdVector3*)c, &onBC);
-    ClosestPointOnSegment((rdVector3*)point, (rdVector3*)c, (rdVector3*)a, &onCA);
+    rdMath_ClosestPointOnSegment((rdVector3*)point, (rdVector3*)a, (rdVector3*)b, &onAB);
+    rdMath_ClosestPointOnSegment((rdVector3*)point, (rdVector3*)b, (rdVector3*)c, &onBC);
+    rdMath_ClosestPointOnSegment((rdVector3*)point, (rdVector3*)c, (rdVector3*)a, &onCA);
 
     float best = distSq3(center, &onAB.x);
     rdVector3 closest = onAB;
@@ -2751,7 +2751,7 @@ void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, floa
 }
 
 // 0x00441710
-void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist)
+void rdMath_IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist)
 {
     rdVector3 dir;
     dir.x = segEnd->x - segStart->x;
@@ -2776,7 +2776,7 @@ static int sweepSlabSide(const float* v)
 
 static void slabCut(rdVector3* out, float* from, float* to, float planeDist)
 {
-    IntersectSegmentPlane(out, (rdVector3*)from, (rdVector3*)to, &swrModel_collisionSweepAxis, planeDist);
+    rdMath_IntersectSegmentPlane(out, (rdVector3*)from, (rdVector3*)to, &swrModel_collisionSweepAxis, planeDist);
 }
 
 // Swept-sphere variant: the sphere is a capsule along swrModel_collisionSweepAxis, limited to the
@@ -2934,7 +2934,7 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
             return;
         behind = 1;
     }
-    ProjectPointOntoPlane(faceNormal, (rdVector3*)point, &closest);
+    rdMath_ProjectPointOntoPlane(faceNormal, (rdVector3*)point, &closest);
     float distSq = distSq3(point, &closest.x);
     if (swrModel_collisionSphereRadiusSq < distSq)
         return;
@@ -2950,9 +2950,9 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
     edgeCA.z = a[2] - c[2];
     if (swrModel_PointInTriangle(&closest.x, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
         // the edge vectors are reused as the per-edge closest points
-        ClosestPointOnSegment(&closest, (rdVector3*)a, (rdVector3*)b, &edgeAB);
-        ClosestPointOnSegment(&closest, (rdVector3*)b, (rdVector3*)c, &edgeBC);
-        ClosestPointOnSegment(&closest, (rdVector3*)c, (rdVector3*)a, &edgeCA);
+        rdMath_ClosestPointOnSegment(&closest, (rdVector3*)a, (rdVector3*)b, &edgeAB);
+        rdMath_ClosestPointOnSegment(&closest, (rdVector3*)b, (rdVector3*)c, &edgeBC);
+        rdMath_ClosestPointOnSegment(&closest, (rdVector3*)c, (rdVector3*)a, &edgeCA);
         distSq = distSq3(point, &edgeAB.x);
         closest = edgeAB;
         float d = distSq3(point, &edgeBC.x);
@@ -2994,7 +2994,7 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
 // 0x00442470
-float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
+float rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
     float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
     if (denom >= -0.0001 && denom <= 0.0001)
@@ -3029,7 +3029,7 @@ void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, flo
     }
 
     rdVector3 hit;
-    float t = IntersectRayPlane(plane, ray, &hit);
+    float t = rdMath_IntersectRayPlane(plane, ray, &hit);
     if (t < 0.0f || swrModel_collisionResultDist <= t)
         return;
 
@@ -3768,7 +3768,7 @@ float swrModel_CollideRayWithMesh(swrModel_Mesh* mesh, float* ray, float* outPoi
 }
 
 // 0x0042c2d0
-void SetSunSpriteAlpha(int index, unsigned char alpha)
+void swrSprite_SetSunSpriteAlpha(int index, unsigned char alpha)
 {
     sunSpriteColors[index * 4 + 3] = alpha;
 }
@@ -4098,7 +4098,7 @@ void swrModel_TransformPointAndDir(rdVector3* outPoint, rdVector3* outDir, swrMo
 }
 
 // 0x00482e60
-float DistanceToNearestViewportCamera(rdVector3* point)
+float swrViewport_DistanceToNearestCamera(rdVector3* point)
 {
     if (swrRender_cameraCount < 1)
         return -1.0f;

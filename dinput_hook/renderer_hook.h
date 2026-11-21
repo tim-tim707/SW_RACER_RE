@@ -22,7 +22,7 @@ extern "C" int stdDisplay_Update_Hook();
 extern "C" void init_renderer_hooks();
 // Lets ProjectToScreen place the caller's points up to a viewport off-screen.
 extern "C" void renderer_SetOffscreenProjection(int active);
-extern "C" void UpdateLightStreakSprites_offscreen(swrViewport *vp);
+extern "C" void swrSprite_UpdateLightStreakSprites_offscreen(swrViewport *vp);
 
 // Drop a GL texture name from the LOD-deswizzle "already done" set when its texture is freed, so a
 // reused name (after a track reload) is unscrambled again. Called from std3D_ClearTexture_delta.

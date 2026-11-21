@@ -2114,7 +2114,7 @@ static void __cdecl swrPlayerHUD_SampleOcclusion_delta(void) {
     }
 }
 
-// UpdateLightStreakSprites (0x0042c800). Faithful except: the anchor may sit up to a viewport
+// swrSprite_UpdateLightStreakSprites (0x0042c800). Faithful except: the anchor may sit up to a viewport
 // off-screen (vanilla requires 0 < x < w, 0 < y < h), and the occlusion sample pixel (read by
 // swrPlayerHUD_SampleOcclusion without bounds checks) is clamped onto the screen.
 typedef void(__cdecl *swrSprite_SetVisible_t)(short, int);
@@ -2122,7 +2122,7 @@ typedef void(__cdecl *swrSprite_SetPosF_t)(short, short, short);
 typedef void(__cdecl *swrSprite_SetRotation_t)(short, float);
 typedef void(__cdecl *swrSprite_SetDim_t)(short, float, float);
 typedef void(__cdecl *swrSprite_SetColor_t)(short, uint8_t, uint8_t, uint8_t, uint8_t);
-typedef int(__cdecl *GetPauseState_t)(void);
+typedef int(__cdecl *swrRace_GetPauseState_t)(void);
 
 // @0x004ac5ec..0x004ac5f4
 static const float LIGHT_STREAK_NO_DEPTH = -1000.0f;// light_streak_depth_values: not sampled
@@ -2133,7 +2133,7 @@ static const float LIGHT_STREAK_MAX_SIZE = 2.0f;
 static const uint8_t LIGHT_STREAK_ALPHA = 255;
 static const uint8_t LIGHT_STREAK_PAUSED_ALPHA = 128;
 
-extern "C" void UpdateLightStreakSprites_offscreen(swrViewport *vp) {
+extern "C" void swrSprite_UpdateLightStreakSprites_offscreen(swrViewport *vp) {
     const auto set_visible = (swrSprite_SetVisible_t) swrSprite_SetVisible_ADDR;
     const auto set_pos = (swrSprite_SetPosF_t) swrSprite_SetPosF_ADDR;
     const auto set_rotation = (swrSprite_SetRotation_t) swrSprite_SetRotation_ADDR;
@@ -2156,7 +2156,7 @@ extern "C" void UpdateLightStreakSprites_offscreen(swrViewport *vp) {
               swrPlayerHUD_lightStreakParam))
             continue;
 
-        const uint8_t alpha = ((GetPauseState_t) GetPauseState_ADDR)() == 0
+        const uint8_t alpha = ((swrRace_GetPauseState_t) swrRace_GetPauseState_ADDR)() == 0
                                   ? LIGHT_STREAK_ALPHA
                                   : LIGHT_STREAK_PAUSED_ALPHA;
         float x, y, z, depth;
@@ -2451,7 +2451,7 @@ static void swrObjcMan_UpdateDeathCamera_delta(swrObjcMan *cman) {
 
 // --- cinematic letterbox draw -----------------------------------------------------------------
 // The bar geometry + state machine live in swrObjJdge_UpdateLetterbox (swrObjJdge_delta.cpp); this is
-// just the GL draw, injected at the HUD text flush (DrawTextEntries) so the bars sit OVER the 3D
+// just the GL draw, injected at the HUD text flush (swrText_DrawEntries1) so the bars sit OVER the 3D
 // scene / HUD sprites but UNDER the lap/total-time text. The GLFW context is core 4.5 (no fixed-
 // function), so the bars are two triangles per bar in NDC through a tiny inline solid-black shader.
 // Self-contained (no asset-file shaders): compiled once, minimal GL state saved/restored.
@@ -2517,7 +2517,7 @@ static void draw_letterbox_bars(float frac) {
 }
 
 // swrPlayerHUD_RenderAllViewports draws sprite pass 2 (HUD), text, then pass 3 (sun, flares,
-// weather, light streaks) on top. DrawTextEntries_delta reorders to pass 3, [flush, bars], pass 2,
+// weather, light streaks) on top. swrText_DrawEntries1_delta reorders to pass 3, [flush, bars], pass 2,
 // text. Sprites queue in rdCache until end of frame, hence the flush before the bars.
 typedef void(__cdecl *swrSprite_DrawSprites_t)(int);
 static bool g_sprite_pass2_deferred = false;
@@ -2571,11 +2571,11 @@ static void __cdecl swrSprite_Draw_delta(int *arg0, swrSpriteTexture *tex, RdMat
     }
 }
 
-// Hooked on DrawTextEntries (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
+// Hooked on swrText_DrawEntries1 (the once-per-frame HUD text flush in swrPlayerHUD_RenderAllViewports,
 // run at full-screen viewport 0). Advance the letterbox one frame with a real-time dt and draw the
 // bars, THEN let the original draw the text on top -- so the lap/total-time readouts stay readable
 // over the bars during the victory lap.
-extern "C" void DrawTextEntries_delta(void) {
+extern "C" void swrText_DrawEntries1_delta(void) {
     // Freecam hides the HUD while flying; it can't take this hook itself because the letterbox
     // bars below ride on it too (one hook_replace key, last write wins).
     if (freecam_HudHidden()) {
@@ -2606,7 +2606,7 @@ extern "C" void DrawTextEntries_delta(void) {
         draw_letterbox_bars(frac);
     }
     draw_deferred_sprite_pass2();
-    hook_call_original(DrawTextEntries);
+    hook_call_original(swrText_DrawEntries1);
 }
 
 extern "C" void init_renderer_hooks() {
@@ -2654,8 +2654,8 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrUI_ProcessMouse_delta);
     hook_function("swrUI_UpdatePlayerMenuInput", (uint32_t) swrUI_UpdatePlayerMenuInput_ADDR,
                   (uint8_t *) swrUI_UpdatePlayerMenuInput_delta);
-    hook_function("updateInRaceInputBitsets", (uint32_t) updateInRaceInputBitsets_ADDR,
-                  (uint8_t *) updateInRaceInputBitsets_delta);
+    hook_function("swrRace_UpdateInRaceInputBitsets", (uint32_t) swrRace_UpdateInRaceInputBitsets_ADDR,
+                  (uint8_t *) swrRace_UpdateInRaceInputBitsets_delta);
     hook_function("swrObjHang_UpdateTauntScene", (uint32_t) swrObjHang_UpdateTauntScene_ADDR,
                   (uint8_t *) swrObjHang_UpdateTauntScene_delta);
 #endif
@@ -2962,10 +2962,10 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrUI_Front_HandleCircuits", (uint32_t) swrUI_Front_HandleCircuits_ADDR,
                   (uint8_t *) HandleCircuits_delta);
-    hook_function("isTrackPlayable", (uint32_t) isTrackPlayable_ADDR,
-                  (uint8_t *) isTrackPlayable_delta);
-    hook_function("VerifySelectedTrack", (uint32_t) VerifySelectedTrack_ADDR,
-                  (uint8_t *) VerifySelectedTrack_delta);
+    hook_function("swrObjHang_IsTrackPlayable", (uint32_t) swrObjHang_IsTrackPlayable_ADDR,
+                  (uint8_t *) swrObjHang_IsTrackPlayable_delta);
+    hook_function("swrObjHang_VerifySelectedTrack", (uint32_t) swrObjHang_VerifySelectedTrack_ADDR,
+                  (uint8_t *) swrObjHang_VerifySelectedTrack_delta);
 
     hook_function("swrUI_Front_GetTrackNameFromId", (uint32_t) swrUI_Front_GetTrackNameFromId_ADDR,
                   (uint8_t *) swrUI_GetTrackNameFromId_delta);
@@ -3126,7 +3126,7 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_SpawnGroundDustKick",
                   (uint32_t) swrRace_SpawnGroundDustKick_ADDR,
                   (uint8_t *) swrRace_SpawnGroundDustKick_delta);
-    hook_function("playASound", (uint32_t) playASound_ADDR, (uint8_t *) playASound_delta);
+    hook_function("swrSound_Play2D", (uint32_t) swrSound_Play2D_ADDR, (uint8_t *) swrSound_Play2D_delta);
     // Enlarge the dust-kick Toss pool so full-LOD AI dust doesn't starve the player's trail.
     hook_function("swrObjToss_AddDustKickModelsToScene",
                   (uint32_t) swrObjToss_AddDustKickModelsToScene_ADDR,
@@ -3200,8 +3200,8 @@ extern "C" void init_renderer_hooks() {
 
     // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
     // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
-    hook_function("DrawTextEntries", (uint32_t) DrawTextEntries, (uint8_t *) DrawTextEntries_ADDR);
-    hook_replace(DrawTextEntries, DrawTextEntries_delta);
+    hook_function("swrText_DrawEntries1", (uint32_t) swrText_DrawEntries1, (uint8_t *) swrText_DrawEntries1_ADDR);
+    hook_replace(swrText_DrawEntries1, swrText_DrawEntries1_delta);
     hook_function("swrSprite_DrawSprites", (uint32_t) swrSprite_DrawSprites_ADDR,
                   (uint8_t *) swrSprite_DrawSprites_delta);
     hook_function("swrSprite_Draw", (uint32_t) swrSprite_Draw_ADDR, (uint8_t *) swrSprite_Draw_delta);
@@ -3228,7 +3228,7 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrObjHang_CourseInfoMenu_delta);
     hook_function("swrObjHang_MainMenu", (uint32_t) swrObjHang_MainMenu_ADDR,
                   (uint8_t *) swrObjHang_MainMenu_delta);
-    hook_function("DrawTracks", (uint32_t) DrawTracks_ADDR, (uint8_t *) DrawTracks_delta);
+    hook_function("swrObjHang_DrawTracks", (uint32_t) swrObjHang_DrawTracks_ADDR, (uint8_t *) swrObjHang_DrawTracks_delta);
 
     // swrModel_LoadFromId is already hooked for model replacement
     hook_function("swrSpline_LoadSplineById", (uint32_t) swrSpline_LoadSplineById,

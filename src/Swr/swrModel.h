@@ -43,24 +43,24 @@
 #define swrModel_MeshMaterialSetColors_ADDR (0x0042B5E0)
 #define swrModel_NodeSetColorsOnAllMaterials_ADDR (0x0042B640)
 #define swrSprite_UpdateLensFlareSpriteSettings_ADDR (0x0042BA20)
-#define UpdateSunAndLensFlareSprites2_ADDR (0x0042BB50)
-#define UpdateSunAndLensFlareSprites_ADDR (0x0042C1A0)
-#define SetSunSpriteAlpha_ADDR (0x0042c2d0)
-#define SetSunSprite_ADDR (0x0042c2e0)
-#define SetLensFlareSprite_ADDR (0x0042c380)
-#define ResetSunAndLensFlareSprites_ADDR (0x0042c3e0)
+#define swrSprite_UpdateSunAndLensFlareForSun_ADDR (0x0042BB50)
+#define swrSprite_UpdateSunAndLensFlareSprites_ADDR (0x0042C1A0)
+#define swrSprite_SetSunSpriteAlpha_ADDR (0x0042c2d0)
+#define swrSprite_SetSunSprite_ADDR (0x0042c2e0)
+#define swrSprite_SetLensFlareSprite_ADDR (0x0042c380)
+#define swrSprite_ResetSunAndLensFlareSprites_ADDR (0x0042c3e0)
 
-#define ResetPlayerSpriteValues_ADDR (0x0042C400)
-#define SetPlayerSpritePositionOnMap_ADDR (0x0042C420)
-#define ResetLightStreakSprites_ADDR (0x0042C460)
-#define InitLightStreak_ADDR (0x0042C490)
-#define SetLightStreakSpriteIDs_ADDR (0x0042C4E0)
-#define ResetWorldSpriteCount_ADDR (0x0042c500)
+#define swrSprite_ResetPlayerSpriteValues_ADDR (0x0042C400)
+#define swrSprite_SetPlayerPositionOnMap_ADDR (0x0042C420)
+#define swrSprite_ResetLightStreakSprites_ADDR (0x0042C460)
+#define swrSprite_InitLightStreak_ADDR (0x0042C490)
+#define swrSprite_SetLightStreakSpriteIDs_ADDR (0x0042C4E0)
+#define swrSprite_ResetWorldSpriteCount_ADDR (0x0042c500)
 
 #define swrText_CreateTextEntry2_ADDR (0x0042C7A0)
-#define UpdateLightStreakSprites_ADDR (0x0042C800)
+#define swrSprite_UpdateLightStreakSprites_ADDR (0x0042C800)
 
-#define DisableIngameSprites_ADDR (0x0042D510)
+#define swrSprite_DisableIngameSprites_ADDR (0x0042D510)
 
 #define swrModel_NodeSetRotationByEulerAngles_ADDR (0x004315F0)
 #define swrModel_NodeSetTranslation_ADDR (0x00431620)
@@ -93,10 +93,10 @@
 #define swrModel_PointInTriangle_ADDR (0x00441040)
 #define swrModel_RecordClosestHit_ADDR (0x00441390)
 #define swrModel_TestTriangleEdges_ADDR (0x004414e0)
-#define IntersectSegmentPlane_ADDR (0x00441710)
+#define rdMath_IntersectSegmentPlane_ADDR (0x00441710)
 #define swrModel_ClipAndTestTriangle_ADDR (0x00441810)
 #define swrModel_CollideSphereTriangle_ADDR (0x00442090)
-#define IntersectRayPlane_ADDR (0x00442470)
+#define rdMath_IntersectRayPlane_ADDR (0x00442470)
 #define swrModel_CollideRayTriangle_ADDR (0x00442550)
 
 #define swrModel_MeshCollisionFaceCallbackIndexed_ADDR (0x00442720)
@@ -194,14 +194,14 @@
 #define swrModel_FxAnimGetState_Maybe_ADDR (0x0046d690)
 #define swrRace_ApplyPartSinkOffset_ADDR (0x0046d6a0)
 #define swrMath_StepTowardClamped_ADDR (0x0046d730)
-#define BuildBasisFromDirection_ADDR (0x00481100)
-#define BuildLookAtTransform_ADDR (0x00481220)
+#define rdMatrix_BuildBasisFromDirection_ADDR (0x00481100)
+#define rdMatrix_BuildLookAtTransform_ADDR (0x00481220)
 #define swrModel_ComputeNodeWorldMatrix_ADDR (0x004816f0)
 #define swrModel_ComputeNodeChainMatrix_ADDR (0x004819b0)
 #define swrModel_DeformPoddConnectionMesh_ADDR (0x00481c30)
 #define swrModel_TransformPointAndDir_ADDR (0x00482dd0)
 #define swrViewport_AdvanceFrameParity_ADDR (0x00482e20)
-#define DistanceToNearestViewportCamera_ADDR (0x00482e60)
+#define swrViewport_DistanceToNearestCamera_ADDR (0x00482e60)
 
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize);
 
@@ -244,33 +244,33 @@ swrModel_MeshMaterial* swrModel_NodeFindFirstMeshMaterial(swrModel_Node* node);
 void swrModel_MeshMaterialSetColors(swrModel_MeshMaterial* a1, int16_t a2, int16_t a3, int16_t a4, int16_t a5_G, int16_t a6, int16_t a7);
 void swrModel_NodeSetColorsOnAllMaterials(swrModel_Node* a1_pJdge0x10, int a2, int a3, int a4, int a5_G, int a6, int a7);
 void swrSprite_UpdateLensFlareSpriteSettings(int16_t id, int x, int y, float size, float spread, float intensity, uint8_t r, uint8_t g, uint8_t b);
-void UpdateSunAndLensFlareSprites2(int screenX, int screenY, int sun);
-void UpdateSunAndLensFlareSprites(swrViewport* viewport);
+void swrSprite_UpdateSunAndLensFlareForSun(int screenX, int screenY, int sun);
+void swrSprite_UpdateSunAndLensFlareSprites(swrViewport* viewport);
 
 // Sets just the alpha component of a sun sprite's color.
-void SetSunSpriteAlpha(int index, unsigned char alpha);
+void swrSprite_SetSunSpriteAlpha(int index, unsigned char alpha);
 
 // Stores the sprite id, world position, clamp values, and rgba color for a sun sprite.
-void SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+void swrSprite_SetSunSprite(int index, int spriteId, float* position, float scale, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
 // Stores the sprite id, params, and rgb color for a lens-flare sprite of a sun.
-void SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b);
+void swrSprite_SetLensFlareSprite(int sunIndex, int flareIndex, int spriteId, float spread, float size, unsigned char r, unsigned char g, unsigned char b);
 
 // Resets all lens-flare and sun sprite ids to clear the sprite state.
-void ResetSunAndLensFlareSprites(void);
-void ResetPlayerSpriteValues();
-void SetPlayerSpritePositionOnMap(int player_id, const rdVector3* position, int unknown_value);
-void ResetLightStreakSprites();
-void InitLightStreak(int index, rdVector3* position);
-void SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
+void swrSprite_ResetSunAndLensFlareSprites(void);
+void swrSprite_ResetPlayerSpriteValues();
+void swrSprite_SetPlayerPositionOnMap(int player_id, const rdVector3* position, int unknown_value);
+void swrSprite_ResetLightStreakSprites();
+void swrSprite_InitLightStreak(int index, rdVector3* position);
+void swrSprite_SetLightStreakSpriteIDs(int index, int sprite_id1, int sprite_id2);
 
 // Clears the world-sprite occlusion count sampled by the HUD.
-void ResetWorldSpriteCount(void);
+void swrSprite_ResetWorldSpriteCount(void);
 
 void swrText_CreateTextEntry2(int16_t screen_x, int16_t screen_y, char r, char g, char b, char a, char* screenText);
-void UpdateLightStreakSprites(swrViewport* a1);
+void swrSprite_UpdateLightStreakSprites(swrViewport* a1);
 
-void DisableIngameSprites();
+void swrSprite_DisableIngameSprites();
 
 void swrModel_NodeSetRotationByEulerAngles(swrModel_NodeTransformed* node, float rot_x, float rot_y, float rot_z);
 void swrModel_NodeSetTranslation(swrModel_NodeTransformed* node, float x, float y, float z);
@@ -312,11 +312,11 @@ void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, floa
 void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* center, float* normal);
 
 // Solves and writes the intersection point of a segment with a plane.
-void IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist);
+void rdMath_IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist);
 void swrModel_ClipAndTestTriangle(float* closest, float* a, float* b, float* c, float* center, float distSq, float* normal);
 void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point);
 // ray = {origin[3], dir[3], maxDist} (the swrModel_collisionRay* globals laid out contiguously)
-float IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
+float rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint);
 void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray);
 
 void swrModel_MeshCollisionFaceCallbackIndexed(swrModel_CollisionVertex* vertices, int16_t primitive_type, uint16_t* indices);
@@ -420,10 +420,10 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
 float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal);
 
 // Builds an orthonormal basis and offset origin from a direction and up vector.
-void BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);
+void rdMatrix_BuildBasisFromDirection(rdMatrix44* out, rdVector3* origin, rdVector3* direction, rdVector3* up, float length);
 
 // Builds a yaw/pitch/roll look-at orientation and writes both the transform struct and matrix.
-void BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll);
+void rdMatrix_BuildLookAtTransform(rdVector3* from, rdVector3* to, rdMatrix44* outMatrix, swrTranslationRotation* outTR, float roll);
 
 void swrModel_NodeSetLodDistances(swrModel_NodeLODSelector* node, float* a2);
 void swrModel_SetupFaceNormal(rdVector3* vertices, RdFace* face, int i0, int i1, int i2); // rdMath_CalcSurfaceNormal + store the 3 vertex indices
@@ -470,5 +470,5 @@ void swrModel_ComputeNodeWorldMatrix(swrModel_Node* target, float* outMatrix, sw
 void swrModel_ComputeNodeChainMatrix(swrModel_Node** nodeList, rdMatrix44* outMatrix);
 
 // Returns the distance from a point to the nearest point in a global set, or a default when empty (best guess).
-float DistanceToNearestViewportCamera(rdVector3* point);
+float swrViewport_DistanceToNearestCamera(rdVector3* point);
 #endif // SWRMODEL_H

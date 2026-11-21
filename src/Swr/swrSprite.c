@@ -116,7 +116,7 @@ swrSpriteTexture* swrSprite_GetTextureFromTGA(char* filename_tga, int id)
     if (header[2] < SWR_TGA_IMAGE_TYPE_RLE_FIRST)
         stdPlatform_hostServices_ptr->fileRead(file, pixels, size);
     else
-        ReadRLEData(file, pixels, bytesPerPixel, height * width);
+        swrSprite_ReadTgaRLEData(file, pixels, bytesPerPixel, height * width);
     stdPlatform_hostServices_ptr->fileClose(file);
 
     tex->page_table = page;
@@ -1985,7 +1985,7 @@ void swrSprite_GetUIScale(float* out_xscale, float* out_yscale)
 }
 
 // 0x0044FEF0
-int AddDotToMiniMap(char type, short x, short y)
+int swrSprite_AddDotToMiniMap(char type, short x, short y)
 {
     if (numMiniMapPositions >= SWR_MINIMAP_MAX_DOTS)
         return numMiniMapPositions;
@@ -1997,7 +1997,7 @@ int AddDotToMiniMap(char type, short x, short y)
 }
 
 // 0x0044FF30
-void RenderMiniMapDotsAndCrosses()
+void swrSprite_RenderMiniMapDotsAndCrosses()
 {
     float trackFlicker;
     float markerFlicker;
@@ -2006,7 +2006,7 @@ void RenderMiniMapDotsAndCrosses()
     char prevType;
     int i;
 
-    if (GetPauseState() == 0) {
+    if (swrRace_GetPauseState() == 0) {
         trackFlicker = swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
         markerFlicker = swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
     } else {

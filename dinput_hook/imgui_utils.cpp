@@ -178,7 +178,7 @@ static void draw_screen_fade_overlay() {
 
 // The cinematic letterbox (black bars over the pre-race binder cinematic + victory lap) is drawn in
 // the GAME layer, not here: an ImGui overlay always composites on top of the finished frame, so it
-// would sit over the HUD text. Instead DrawTextEntries_delta (renderer_hook.cpp) draws the bars just
+// would sit over the HUD text. Instead swrText_DrawEntries1_delta (renderer_hook.cpp) draws the bars just
 // before the HUD text flush, so the lap/total-time readouts render on top of the bars. The toggle +
 // persistence still live here; the state machine + draw live in swrObjJdge_delta / renderer_hook.
 
@@ -1766,7 +1766,7 @@ static void panel_audio() {
     }
 
     // SFX and music volume are 0..255 bytes in the save image -- the same values the in-game Audio
-    // menu sliders write, consumed by playASoundImpl and persisted with the profile in tgfd.dat.
+    // menu sliders write, consumed by swrSound_RequestVoice and persisted with the profile in tgfd.dat.
     // Present them as 0..100%.
     // 0% doubles as the music on/off switch: at 0 playback is stopped (not just silent), and
     // moving off 0 re-arms it.

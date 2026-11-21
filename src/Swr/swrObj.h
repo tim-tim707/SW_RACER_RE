@@ -15,7 +15,7 @@
 #define swrObjHang_UpdateLoadScreen_ADDR (0x00434ea0)
 #define swrObjHang_UpdateLegalScreen_ADDR (0x00434ec0)
 #define swrObjHang_UpdateSplashScreen_ADDR (0x00435240)
-#define DrawTracks_ADDR (0x004360e0)
+#define swrObjHang_DrawTracks_ADDR (0x004360e0)
 #define swrObjHang_UpdateEnterName_ADDR (0x004367c0)
 #define swrObjHang_UpdateMainMenu_ADDR (0x00436860)
 #define swrObjHang_UpdateWattoShop_ADDR (0x004376c0)
@@ -31,34 +31,34 @@
 #define swrObjHang_UpdateHoloBillboardMatrix_ADDR (0x0043e210)
 #define swrObjHang_FadeOutAndAdvance_ADDR (0x0043e330)
 #define swrObjHang_UpdateFadeIn_ADDR (0x0043e490)
-#define UpdateUICameraPlacements_ADDR (0x0043e5b0)
+#define swrObjHang_UpdateUICameraPlacements_ADDR (0x0043e5b0)
 #define swrObjHang_UpdatePitDroidAnims_ADDR (0x0043e620)
-#define ComputeModelViewBounds_ADDR (0x0043e6f0)
+#define swrObjHang_ComputeModelViewBounds_ADDR (0x0043e6f0)
 #define swrObjHang_LoadShopPartModels_ADDR (0x0043e840)
 #define swrObjHang_CycleInspectCamera_ADDR (0x0043f770)
 #define swrObjHang_AimHoloCamera_ADDR (0x0043f8e0)
 #define swrObjHang_UpdateHoloCameraTarget_ADDR (0x0043fbc0)
 #define swrObjHang_SwapSelectedPart_ADDR (0x00440800)
 #define swrUI_DebugInitialsMatch_ADDR (0x00440990)
-#define compare3Chars_ADDR (0x004409d0)
-#define GetRequiredPlaceToProceed_ADDR (0x00440a00)
-#define isTrackUnlocked_ADDR (0x00440a20)
-#define isTrackPlayable_ADDR (0x00440aa0)
-#define VerifySelectedTrack_ADDR (0x00440af0)
+#define swrUtils_Compare3Chars_ADDR (0x004409d0)
+#define swrObjHang_GetRequiredPlaceToProceed_ADDR (0x00440a00)
+#define swrObjHang_IsTrackUnlocked_ADDR (0x00440a20)
+#define swrObjHang_IsTrackPlayable_ADDR (0x00440aa0)
+#define swrObjHang_VerifySelectedTrack_ADDR (0x00440af0)
 #define swrObjHang_IsCameraMoving_ADDR (0x00440b50)
-#define resetInRaceInputBuffer_ADDR (0x00440d90)
+#define swrRace_ResetInRaceInputBuffer_ADDR (0x00440d90)
 #define swrObjHang_IsExtraSplashPageEnabled_ADDR (0x00440de0)
-#define updateInRaceInputBitsets_ADDR (0x00440df0)
+#define swrRace_UpdateInRaceInputBitsets_ADDR (0x00440df0)
 #define swrModel_SetRaycastIgnoreFacing_ADDR (0x00441010)
 #define swrObjJdge_PollPause_ADDR (0x00445680)
-#define GetPauseState_ADDR (0x00445690)
-#define GetPauseMenuScrollInOut_ADDR (0x004456a0)
-#define requestPause_ADDR (0x004456B0)
-#define endPause_ADDR (0x00445730)
-#define requestUnpause_ADDR (0x00445780)
-#define enablePause_ADDR (0x004457b0)
-#define pollPauseInput_ADDR (0x004457d0)
-#define updatePauseMenu_ADDR (0x00445860)
+#define swrRace_GetPauseState_ADDR (0x00445690)
+#define swrRace_GetPauseMenuScrollInOut_ADDR (0x004456a0)
+#define swrRace_RequestPause_ADDR (0x004456B0)
+#define swrRace_EndPause_ADDR (0x00445730)
+#define swrRace_RequestUnpause_ADDR (0x00445780)
+#define swrRace_EnablePause_ADDR (0x004457b0)
+#define swrRace_PollPauseInput_ADDR (0x004457d0)
+#define swrRace_UpdatePauseMenu_ADDR (0x00445860)
 #define swrViewport_InitRenderDefaults_ADDR (0x00445960)
 #define swrObj_Free_ADDR (0x00450e30)
 #define swrObjcMan_UpdatePreRaceSweepTimer_ADDR (0x00451020)
@@ -77,7 +77,7 @@
 #define swrObjcMan_UpdateSplineCamera_ADDR (0x004533a0)
 #define swrObjcMan_UpdateFogAndViewport_ADDR (0x004538d0)
 #define swrObjcMan_UpdateCamera_ADDR (0x00453e00)
-#define DrawTerrainTypeDebugText_ADDR (0x00454060)
+#define swrObjcMan_DrawTerrainTypeDebugText_ADDR (0x00454060)
 #define swrObjcMan_F3_ADDR (0x004542e0)
 #define swrObjcMan_F4_ADDR (0x004543f0)
 #define swrObjScene_ResetViewports_ADDR (0x00454920)
@@ -88,8 +88,8 @@
 #define swrObjHang_InitSceneRootNode_ADDR (0x00454D10)
 #define swrObjHang_SetMenuState_ADDR (0x00454d40)
 #define swrObjHang_OrderHoloRacerIcons_ADDR (0x004565e0)
-#define DrawHoloPlanet_ADDR (0x00456800)
-#define DrawTrackPreview_ADDR (0x00456c70)
+#define swrObjHang_DrawHoloPlanet_ADDR (0x00456800)
+#define swrObjHang_DrawTrackPreview_ADDR (0x00456c70)
 #define swrObjHang_PositionHoloNode_ADDR (0x00457140)
 #define swrObjHang_AnimateTransitionNode_ADDR (0x00457350)
 #define swrObjHang_LoadScreen_ADDR (0x00457410)
@@ -127,16 +127,16 @@
 #define swrObjHang_ComputeUpgradedStats_ADDR (0x0045cf60)
 #define swrObjJdge_Clear_ADDR (0x0045d0b0)
 #define swrObjJdge_ScrollCredits_ADDR (0x0045d130)
-#define NumLocalPlayers_ADDR (0x0045D350)
+#define swrObjJdge_NumLocalPlayers_ADDR (0x0045D350)
 #define swrRace_GetLapProgressIfAvailable_ADDR (0x0045D390)
-#define GetLocalPlayerNumberFromScore_ADDR (0x0045D3D0)
+#define swrRace_GetLocalPlayerNumberFromScore_ADDR (0x0045D3D0)
 #define swrObjJdge_GetRacerProgress_ADDR (0x0045d410)
 #define swrObjJdge_GetRacerRankValue_ADDR (0x0045d480)
 #define swrObjJdge_UpdateStandings_ADDR (0x0045d4a0)
 #define swrObjJdge_UpdateViewportLayout_ADDR (0x0045dad0)
 #define swrObjJdge_TeardownRace_ADDR (0x0045dd80)
 #define swrObjJdge_StartPostRaceSequence_ADDR (0x0045dfe0)
-#define KeyDownForPlayer1Or2_ADDR (0x0045E120)
+#define swrObjJdge_KeyDownForPlayer1Or2_ADDR (0x0045E120)
 #define swrObjJdge_CycleHudMode_ADDR (0x0045e1a0)
 #define swrObjJdge_F0_ADDR (0x0045e200)
 #define swrObjJdge_UpdateSplineGuideNodes_ADDR (0x0045e970)
@@ -153,23 +153,23 @@
 #define swrObjJdge_UpdateMinimap_ADDR (0x004634a0)
 #define swrObjJdge_F3_ADDR (0x00463580)
 #define swrObjJdge_F4_ADDR (0x00463a50)
-#define SetPlanetIdAndTrackNumber_ADDR (0x00463FF0)
+#define swrObjJdge_SetPlanetIdAndTrackNumber_ADDR (0x00463FF0)
 #define swrObjJdge_SetupTrackEnvironment_ADDR (0x00464b90)
 #define swrModel_LoadBeamAndSparkModels_ADDR (0x004651a0)
 #define swrObjJdge_AddTriggersToScene_ADDR (0x004651F0)
 #define swrObjToss_AddDustKickModelsToScene_ADDR (0x00465230)
 #define swrObjSmok_AddFireballModelsToScene_ADDR (0x00465310)
-#define AddFireballToModelScene_ADDR (0x004653F0)
-#define GetTrackModelRoot_ADDR (0x00465500)
-#define LoadTrackModels_ADDR (0x00465510)
+#define swrObjJdge_AddFireballToModelScene_ADDR (0x004653F0)
+#define swrObjJdge_GetTrackModelRoot_ADDR (0x00465500)
+#define swrObjJdge_LoadTrackModels_ADDR (0x00465510)
 #define swrObjJdge_GetSpawnTransform_ADDR (0x00465840)
 #define swrObjJdge_SpawnRacer_ADDR (0x00465980)
 #define swrObjJdge_InitSplineCursor_ADDR (0x00465CB0)
-#define LoadTrackSpline_ADDR (0x00465D00)
+#define swrObjJdge_LoadTrackSpline_ADDR (0x00465D00)
 #define swrObjJdge_SetupStartingGrid_ADDR (0x00465d50)
-#define InitPrimaryLight_ADDR (0x00466370)
+#define swrObjJdge_InitPrimaryLight_ADDR (0x00466370)
 #define swrObjJdge_SpawnRacers_ADDR (0x004663e0)
-#define InitAISettingsForTrack_ADDR (0x004667E0)
+#define swrObjJdge_InitAISettingsForTrack_ADDR (0x004667E0)
 #define swrObjJdge_InitTrack_ADDR (0x00466BD0)
 #define swrObjElmo_SetAnimState_ADDR (0x00466ec0)
 #define swrObjElmo_F0_ADDR (0x00467cd0)
@@ -236,7 +236,7 @@
 #define swrObjTrig_GetTriggerDescription_ADDR (0x0047E7C0)
 #define swrObjTrig_CreateAndActivateTriggerFromMultiplayerEvent_ADDR (0x0047E7E0)
 #define swrObjTrig_SendMultiplayerTriggerEvent_ADDR (0x0047E830)
-#define GetCustomStartTransform_ADDR (0x004800c0)
+#define swrObjJdge_GetCustomStartTransform_ADDR (0x004800c0)
 
 // swrScene: scene / world bootstrap (alloc asset buffer, load objects, init cameras/fog).
 #define swrScene_Startup_ADDR (0x00445a50)
@@ -298,7 +298,7 @@ void swrObjHang_ReturnToMultiplayerLobby(void);
 // Arms swrObjHang_displayPodResetFrames after a pod model (re)load.
 void swrObjHang_RequestDisplayPodReset(void);
 
-void DrawTracks(swrObjHang* hang, char circuit);
+void swrObjHang_DrawTracks(swrObjHang* hang, char circuit);
 
 // hangar front-end per-screen update handlers (dispatched by swrObjHang_F0 on swrObjHang_STATE):
 void swrObjHang_UpdateLegalScreen(swrObjHang* hang);
@@ -324,20 +324,20 @@ int swrObjHang_FadeOutAndAdvance(swrObjHang* hang);
 // Fades the black overlay sprite out after the delay frames; returns 1 once the hold frames run out.
 int swrObjHang_UpdateFadeIn(void);
 // Re-bases each UI camera placement's eye z (mode 1: eye and look-at) on a floor height; mode = low word of unk1.
-void UpdateUICameraPlacements(float time);
+void swrObjHang_UpdateUICameraPlacements(float time);
 // Swaps the selected part between the pod and the junkyard inventory (models + truguts).
 void swrObjHang_SwapSelectedPart(swrObjHang* hang);
 
 // Debug-only: true when the first 3 chars of two names match (planet-intro skip by initials).
 int swrUI_DebugInitialsMatch(char* a, char* b);
 // Returns whether the first three characters of two strings match.
-int compare3Chars(char* a, char* b);
+int swrUtils_Compare3Chars(char* a, char* b);
 // Updates the Watto-shop pit-droid Elmo animation states (idle droids vs. the focused one).
 void swrObjHang_UpdatePitDroidAnims(swrObjHang* hang);
 
 // Measures the hangar display pod's three shadow-quad AABBs (swrObjHang_displayPodBounds*) and
 // aims the inspect-vehicle camera framing at the cockpit.
-void ComputeModelViewBounds(void);
+void swrObjHang_ComputeModelViewBounds(void);
 
 // Builds the Watto/junkyard part rows from the track-unlock count and loads the part models into the shop slots.
 void swrObjHang_LoadShopPartModels(swrObjHang* hang);
@@ -362,14 +362,14 @@ void swrObjHang_UpdateResultsIntro(void);
 // State 18: holo-planet + camera cutscene into vehicle selection.
 void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang);
 
-char GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
-int isTrackUnlocked(char circuitId, char trackId);
-bool isTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
-int VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
+char swrObjHang_GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
+int swrObjHang_IsTrackUnlocked(char circuitId, char trackId);
+bool swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
+int swrObjHang_VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
 // Clear the in-race input accumulation buffer and return its base pointer.
-// Companion to updateInRaceInputBitsets.
-void* resetInRaceInputBuffer(void);
+// Companion to swrRace_UpdateInRaceInputBitsets.
+void* swrRace_ResetInRaceInputBuffer(void);
 
 // Returns swrObjHang_extraSplashPages[index] (0x50c5b0); the sole caller
 // (swrObjHang_UpdateSplashScreen) uses entry 1 to append an extra splash screen. NOT
@@ -378,25 +378,25 @@ void* resetInRaceInputBuffer(void);
 int swrObjHang_IsExtraSplashPageEnabled(int index);
 // Build the per-player rising-edge / held / released in-race input bitsets
 // (inRaceLocalPlayerInputBitset1/2/3) from the raw per-action input bytes.
-void updateInRaceInputBitsets(void);
+void swrRace_UpdateInRaceInputBitsets(void);
 
 // Sets the flag read by swrModel_CollideMeshNodeRay / CollideRayWithMesh that skips the
 // material-facing classification during raycasts (callers bracket a raycast with 1 / 0).
 void swrModel_SetRaycastIgnoreFacing(int value);
 
 void swrObjJdge_PollPause();
-int GetPauseState();
-int requestPause();
+int swrRace_GetPauseState();
+int swrRace_RequestPause();
 // In-race pause menu (pauseState / pauseDisabled state machine; pairs with the three above):
-void pollPauseInput(void); // poll the pause button each frame -> requestPause()
-void requestUnpause(void); // begin the unpause slide-out (pauseState = 3)
-void endPause(void); // finish unpausing: clear state, fire the 'All!' event, stop rumble
-void enablePause(void); // re-enable pausing (clears pauseDisabled)
-void updatePauseMenu(void); // per-frame: animate the menu slide-in/out, then update the UI
+void swrRace_PollPauseInput(void); // poll the pause button each frame -> swrRace_RequestPause()
+void swrRace_RequestUnpause(void); // begin the unpause slide-out (pauseState = 3)
+void swrRace_EndPause(void); // finish unpausing: clear state, fire the 'All!' event, stop rumble
+void swrRace_EnablePause(void); // re-enable pausing (clears pauseDisabled)
+void swrRace_UpdatePauseMenu(void); // per-frame: animate the menu slide-in/out, then update the UI
 
 // Startup-only: resets viewport render state, then disables fog.
 void swrViewport_InitRenderDefaults(void);
-float GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
+float swrRace_GetPauseMenuScrollInOut(void); // current pause-menu slide amount (InRace_PauseMenu_ScrollInOut)
 
 void swrObj_Free(swrObj* obj);
 
@@ -442,7 +442,7 @@ void swrObjcMan_UpdateSplineCamera(swrObjcMan* cman);
 // orients guideArrowNode toward guideArrowTarget and tints it.
 void swrObjcMan_UpdateSplineGuideMarker(swrObjcMan* cman);
 // Applies FOV/near/far to the viewport and updates fog color/distance and the
-// clear color each frame (swrViewport_SetCameraParameters + SetFogParameters).
+// clear color each frame (swrViewport_SetCameraParameters + swrRender_SetFogParameters).
 void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman);
 // Interpolates and applies the scene lighting (color + direction) for the pod's
 // light index, with a timed blend and a random flicker.
@@ -453,7 +453,7 @@ void swrObjcMan_LoadLightingFromBehavior(swrObjcMan* cman, swrRace* pod, void* m
 
 // Debug overlay: prints the active terrain-type flags (On/Off/Fast/Slow/...)
 // for a mesh-behavior block via swrText. Drawn from the camera update.
-void DrawTerrainTypeDebugText(void* meshBehavior);
+void swrObjcMan_DrawTerrainTypeDebugText(void* meshBehavior);
 
 void swrObjcMan_F3(swrObjcMan* cman);
 
@@ -467,9 +467,9 @@ int swrObjScene_F4(swrObjScen* scene, int* subEvents);
 void swrObjHang_InitSceneRootNode();
 void swrObjHang_SetMenuState(swrObjHang* hang, swrObjHang_STATE state);
 
-void DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale);
+void swrObjHang_DrawHoloPlanet(swrObjHang* hang, int planetIdx, float scale);
 
-void DrawTrackPreview(void* unused, int trackId, float scale);
+void swrObjHang_DrawTrackPreview(void* unused, int trackId, float scale);
 
 void swrObjHang_F0(swrObjHang* hang);
 
@@ -571,11 +571,11 @@ void swrObjHang_ComputeUpgradedStats(int podIndex, int upgradeSlot, char upgrade
 
 void swrObjJdge_Clear(swrObjJdge* jdge, int event);
 
-int NumLocalPlayers();
+int swrObjJdge_NumLocalPlayers();
 double swrRace_GetLapProgressIfAvailable();
-int GetLocalPlayerNumberFromScore(swrScore* score);
+int swrRace_GetLocalPlayerNumberFromScore(swrScore* score);
 
-int KeyDownForPlayer1Or2(int);
+int swrObjJdge_KeyDownForPlayer1Or2(int);
 
 void swrObjJdge_F0(swrObjJdge* jdge);
 
@@ -589,25 +589,25 @@ int swrObjJdge_F4(swrObjJdge* jdge, int* subEvents, int p3);
 // Sets up the eight lens-flare sprites with descending sizes and colors.
 void swrObjJdge_SetupLensFlareSprites(int sunIndex, int baseSprite, float scale);
 
-int SetPlanetIdAndTrackNumber(int, int);
+int swrObjJdge_SetPlanetIdAndTrackNumber(int, int);
 
 void swrObjJdge_AddTriggersToScene(swrObjJdge* a1);
 void swrObjToss_AddDustKickModelsToScene();
 void swrObjSmok_AddFireballModelsToScene();
-void AddFireballToModelScene();
+void swrObjJdge_AddFireballToModelScene();
 
-void LoadTrackModels(swrObjJdge* judge);
+void swrObjJdge_LoadTrackModels(swrObjJdge* judge);
 
 // Makes node's child list the single shared template node (beam/spark), bumping num_children; NULL-safe.
 void swrModel_NodeLinkSharedChild(void* record, int value);
 
 void swrObjJdge_InitSplineCursor(swrObjJdge* judge);
 
-void LoadTrackSpline(swrObjJdge*);
+void swrObjJdge_LoadTrackSpline(swrObjJdge*);
 
-void InitPrimaryLight();
+void swrObjJdge_InitPrimaryLight();
 
-void InitAISettingsForTrack(swrObjJdge*);
+void swrObjJdge_InitAISettingsForTrack(swrObjJdge*);
 
 unsigned int swrObjJdge_InitTrack(swrObjJdge* judge, swrScore* scores);
 
@@ -628,9 +628,9 @@ void swrObjJdge_SetupStartingGrid(swrObjJdge* judge);
 // Loads every racer's pod model and spawns all racers (random grid order).
 void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores);
 // Returns the loaded track model root node.
-void* GetTrackModelRoot(void);
+void* swrObjJdge_GetTrackModelRoot(void);
 // Copies the track's override start-grid transform into out if defined; returns 1 if present.
-int GetCustomStartTransform(rdMatrix44* out);
+int swrObjJdge_GetCustomStartTransform(rdMatrix44* out);
 
 // race-manager HUD / display / state helpers:
 // "3-2-1-Go" countdown lights, start-gate node colors, and countdown sounds.

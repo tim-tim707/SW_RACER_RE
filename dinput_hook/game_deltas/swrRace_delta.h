@@ -17,10 +17,10 @@ void swrRace_ResolvePodCollision_delta(swrRace* player);
 // ai_full_lod dust/splash fix (hooked by address, both dormant/reverse-hooked originals):
 // - swrRace_SpawnGroundDustKick_delta: for non-local pods, reserve Toss-pool headroom (so AI
 //   dust never starves the player's trail) and suppress the splash sound.
-// - playASound_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
+// - swrSound_Play2D_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
 void swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx, float sy,
                                              float sz, float param_6, int param_7);
-void playASound_delta(int sound_id, short priority, float volume, float pitch, int flags);
+void swrSound_Play2D_delta(int sound_id, short priority, float volume, float pitch, int flags);
 
 // Rebuilds the dust-kick Toss pool with more slots (stock is 16) so full-LOD AI dust no longer
 // starves the player's trail. Replaces swrObjToss_AddDustKickModelsToScene (hooked by address).

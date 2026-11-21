@@ -389,12 +389,12 @@ static int UnlockedSlotCount(uint8_t unlockMask, uint8_t numTracks) {
 static void SnapSelectionToPlayable(swrObjHang *hang, int circuitId, int dir) {
     const int sel = swrRace_MenuSelectedItem;
     if (sel < 0 || sel >= swrRace_MenuMaxSelection ||
-        isTrackPlayable_delta(hang, (char) circuitId, (char) sel)) {
+        swrObjHang_IsTrackPlayable_delta(hang, (char) circuitId, (char) sel)) {
         return;
     }
     for (int pass = 0; pass < 2; pass++, dir = -dir) {
         for (int i = sel + dir; i >= 0 && i < swrRace_MenuMaxSelection; i += dir) {
-            if (isTrackPlayable_delta(hang, (char) circuitId, (char) i)) {
+            if (swrObjHang_IsTrackPlayable_delta(hang, (char) circuitId, (char) i)) {
                 swrRace_MenuSelectedItem = i;
                 return;
             }
@@ -526,7 +526,7 @@ static void DrawTextBox(uint16_t PosX, uint16_t PosY, uint8_t R, uint8_t G, uint
 
 // FUN_004360e0
 // Get's called at just once place: swrObjHang_CourseSelectionMenu_delta()
-void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
+void swrObjHang_DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
     const uint8_t numTracks = GetTrackCount(circuitIdx);
     if (numTracks == 0) {
         return;
@@ -613,7 +613,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
             }
         }
 
-        const bool bIsPlayable = is_custom_circuit || isTrackPlayable(hang, circuitIdx, TrackIdx);
+        const bool bIsPlayable = is_custom_circuit || swrObjHang_IsTrackPlayable(hang, circuitIdx, TrackIdx);
         if (!bIsPlayable) {
             B = 128;
             G = 128;
@@ -627,7 +627,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
 
         char TxtTrackNum[16];
         sprintf(TxtTrackNum, "~f2~s%d", TrackIdx + 1);
-        if (is_custom_circuit || !hang->isTournamentMode || isTrackUnlocked(circuitIdx, TrackIdx)) {
+        if (is_custom_circuit || !hang->isTournamentMode || swrObjHang_IsTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw Track Number
             swrText_CreateTextEntry1(TrackPosX + 60 - (TrackIdx + 1 >= 10 ? 5 : 0), 109, R, G, B, A,
                                      TxtTrackNum);
@@ -638,7 +638,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
         }
 
         if (!is_custom_circuit && hang->isTournamentMode && Beat == 0 &&
-            !isTrackUnlocked(circuitIdx, TrackIdx)) {
+            !swrObjHang_IsTrackUnlocked(circuitIdx, TrackIdx)) {
             // Draw 4th place Text
             char *pTxt4th = swrText_Translate(g_pTxt4th);
             swrText_CreateTextEntry1(TrackPosX + 58, 111, R, G, B, A, pTxt4th);
@@ -656,7 +656,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
 
         // Draw current selection
         if (circuitIdx == hang->circuitIdx &&
-            VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem) == TrackIdx) {
+            swrObjHang_VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem) == TrackIdx) {
             swrSprite_SetVisible(imgIdx, false);
             swrSprite_SetVisible(98, true);
             swrSprite_SetPos(98, TrackPosX + 50, 89);
@@ -692,7 +692,7 @@ void swrObjHang_CourseSelectionMenu_delta(void) {
             (hang->menuScreenPrev == swrObjHang_STATE_SPLASH)) {
             swrRace_MenuSelectedItem = 0;
             if (hang->isTournamentMode) {
-                if (!isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1)) {
+                if (!swrObjHang_IsTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1)) {
                     swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
                 }
             }
@@ -719,13 +719,13 @@ void swrObjHang_CourseSelectionMenu_delta(void) {
     }
 
     if (swrRace_Transition > 0.0f && hang->track_index >= 0) {
-        DrawHoloPlanet(hang, (int) swrObjHang_courseShownPlanet, swrRace_Transition * 0.5f);
+        swrObjHang_DrawHoloPlanet(hang, (int) swrObjHang_courseShownPlanet, swrRace_Transition * 0.5f);
     }
     if (swrObjHang_courseTrackChosen != 0) {
         return;
     }
 
-    const int32_t SelectedTrackIdx = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+    const int32_t SelectedTrackIdx = swrObjHang_VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
     if (SelectedTrackIdx >= 0) {
         if (hang->circuitIdx < 4) {
             hang->track_index =
@@ -842,7 +842,7 @@ LAB_0043b5c4:
     sprintf(buffer, pTextMode);
     swrText_CreateTextEntry1(160, 24, 50, 255, 255, 255, buffer);
 
-    DrawTracks_delta(hang, swrObjHang_courseShownCircuit);
+    swrObjHang_DrawTracks_delta(hang, swrObjHang_courseShownCircuit);
     if (hang->track_index >= 0) {
         // TODO: Custom Planets?
         if (Track.PlanetIdx < 8) {
@@ -868,7 +868,7 @@ LAB_0043b5c4:
             swrRace_MenuSelectedItem != prevSelectedItem) {
             SnapSelectionToPlayable(hang, hang->circuitIdx,
                                     swrRace_MenuSelectedItem > prevSelectedItem ? 1 : -1);
-            if (!isTrackPlayable_delta(hang, hang->circuitIdx, (char) swrRace_MenuSelectedItem)) {
+            if (!swrObjHang_IsTrackPlayable_delta(hang, hang->circuitIdx, (char) swrRace_MenuSelectedItem)) {
                 swrRace_MenuSelectedItem = prevSelectedItem;
             }
         }
@@ -1007,8 +1007,8 @@ void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang) {
             swrObjHang_courseInfoItemKinds[iVar3] = 3;
             swrObjHang_courseInfoItemKinds[swrObjHang_courseInfoItemCount] = 4;
         } else {
-            int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
-            iVar6 = isTrackUnlocked(hang->circuitIdx, NumUnlockedTracks);
+            int32_t NumUnlockedTracks = swrObjHang_VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+            iVar6 = swrObjHang_IsTrackUnlocked(hang->circuitIdx, NumUnlockedTracks);
             iVar3 = swrObjHang_courseInfoItemCount;
             if (iVar6 == 0) {
                 goto LAB_0043b9b4;
@@ -1021,9 +1021,9 @@ void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang) {
 LAB_0043b9b4:
 
     swrObjHang_courseInfoItemCount = iVar3;
-    const int32_t NumUnlockedTracks = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+    const int32_t NumUnlockedTracks = swrObjHang_VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
     const uint8_t ReqPlaceToProcceed =
-        GetRequiredPlaceToProceed(hang->circuitIdx, NumUnlockedTracks);
+        swrObjHang_GetRequiredPlaceToProceed(hang->circuitIdx, NumUnlockedTracks);
 
     // PosY is the fixed base row; swrUI_Front_TextMenu offsets each entry by (i * lineHeight),
     // so PosY must NOT be advanced per row -- doing so applied the offset twice and
@@ -1167,12 +1167,12 @@ LAB_0043b9b4:
 
     TrackInfo trackInfo = GetTrackInfo(hang->track_index);
     if (swrRace_Transition > 0.0) {
-        DrawHoloPlanet(hang, trackInfo.PlanetIdx, swrRace_Transition * 0.5);
+        swrObjHang_DrawHoloPlanet(hang, trackInfo.PlanetIdx, swrRace_Transition * 0.5);
     }
 
     if (swrObjHang_courseInfoLeaving == 0 && swrObjHang_courseInfoLeaving == 0) {
         if (hang->track_index < DEFAULT_NB_TRACKS) {
-            DrawTrackPreview(hang, hang->track_index, 0.5);
+            swrObjHang_DrawTrackPreview(hang, hang->track_index, 0.5);
         }
 
         // Track Name
@@ -1247,8 +1247,8 @@ LAB_0043b9b4:
 
         // "Must place xxx or better to progress"
         if (hang->isTournamentMode) {
-            iVar6 = VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
-            iVar6 = isTrackUnlocked(hang->circuitIdx, iVar6);
+            iVar6 = swrObjHang_VerifySelectedTrack_delta(hang, swrRace_MenuSelectedItem);
+            iVar6 = swrObjHang_IsTrackUnlocked(hang->circuitIdx, iVar6);
             if (iVar6 != 0) {
                 char *pMinPlace = ReqPlaceToProcceed == 3 ? g_pTxtMinPlace3rd : g_pTxtMinPlace4th;
                 pMinPlace = swrText_Translate(pMinPlace);
@@ -1509,7 +1509,7 @@ char *swrUI_GetTrackNameFromId_delta(int trackId) {
 }
 
 // 0x00440aa0
-bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
+bool swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
     // DELTA custom circuits
     if (circuitIdx >= 4)
         return true;
@@ -1525,7 +1525,7 @@ bool isTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
 }
 
 // 0x00440af0
-int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
+int swrObjHang_VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
     bool bIsPlayable;
     uint8_t trackCount = 0;
     // DELTA
@@ -1535,7 +1535,7 @@ int VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx) {
         fflush(hook_log);
         return -1;
     }
-    while ((bIsPlayable = isTrackPlayable_delta(hang, hang->circuitIdx, trackCount),
+    while ((bIsPlayable = swrObjHang_IsTrackPlayable_delta(hang, hang->circuitIdx, trackCount),
             !bIsPlayable || (trackCount != selectedTrackIdx))) {
 
         trackCount++;
