@@ -221,6 +221,170 @@ static bool load_ttf(const char* path, Face& f) {
     return true;
 }
 
+// stbtt_GetGlyphSDF's distance pass, run over a caller-supplied outline (glyph units, y up) and
+// pixel box, so a faux-italic face can slant the outline before the field is computed. Shearing
+// the finished bitmap leaves a field that no longer measures true distance, which smeared the
+// tight crevices of condensed display faces (Anton's N / M / Y).
+static unsigned char* sdf_from_shape(stbtt_vertex* verts, int num_verts, float scale, int ix0,
+                                     int iy0, int ix1, int iy1) {
+    const float scale_x = scale, scale_y = -scale;
+    const float eps = 1.0f / 1024, eps2 = eps * eps;
+    const int w = ix1 - ix0, h = iy1 - iy0;
+    unsigned char* data = (unsigned char*) STBTT_malloc(w * h, nullptr);
+    std::vector<float> precompute((size_t) num_verts, 0.0f);
+
+    for (int i = 0, j = num_verts - 1; i < num_verts; j = i++) {
+        if (verts[i].type == STBTT_vline) {
+            float x0 = verts[i].x * scale_x, y0 = verts[i].y * scale_y;
+            float x1 = verts[j].x * scale_x, y1 = verts[j].y * scale_y;
+            float dist = sqrtf((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+            precompute[i] = (dist < eps) ? 0.0f : 1.0f / dist;
+        } else if (verts[i].type == STBTT_vcurve) {
+            float x2 = verts[j].x * scale_x, y2 = verts[j].y * scale_y;
+            float x1 = verts[i].cx * scale_x, y1 = verts[i].cy * scale_y;
+            float x0 = verts[i].x * scale_x, y0 = verts[i].y * scale_y;
+            float bx = x0 - 2 * x1 + x2, by = y0 - 2 * y1 + y2;
+            float len2 = bx * bx + by * by;
+            precompute[i] = (len2 >= eps2) ? 1.0f / len2 : 0.0f;
+        }
+    }
+
+    for (int y = iy0; y < iy1; ++y) {
+        for (int x = ix0; x < ix1; ++x) {
+            float min_dist = 999999.0f;
+            const float sx = (float) x + 0.5f;
+            const float sy = (float) y + 0.5f;
+            const int winding = stbtt__compute_crossings_x(sx / scale_x, sy / scale_y, num_verts, verts);
+
+            for (int i = 0; i < num_verts; ++i) {
+                const float x0 = verts[i].x * scale_x, y0 = verts[i].y * scale_y;
+                if (verts[i].type == STBTT_vline && precompute[i] != 0.0f) {
+                    const float x1 = verts[i - 1].x * scale_x, y1 = verts[i - 1].y * scale_y;
+                    const float d2 = (x0 - sx) * (x0 - sx) + (y0 - sy) * (y0 - sy);
+                    if (d2 < min_dist * min_dist)
+                        min_dist = sqrtf(d2);
+                    const float dist = fabsf((x1 - x0) * (y0 - sy) - (y1 - y0) * (x0 - sx)) * precompute[i];
+                    if (dist < min_dist) {
+                        const float dx = x1 - x0, dy = y1 - y0;
+                        const float t = -((x0 - sx) * dx + (y0 - sy) * dy) / (dx * dx + dy * dy);
+                        if (t >= 0.0f && t <= 1.0f)
+                            min_dist = dist;
+                    }
+                } else if (verts[i].type == STBTT_vcurve) {
+                    const float x2 = verts[i - 1].x * scale_x, y2 = verts[i - 1].y * scale_y;
+                    const float x1 = verts[i].cx * scale_x, y1 = verts[i].cy * scale_y;
+                    const float bx0 = fminf(fminf(x0, x1), x2), by0 = fminf(fminf(y0, y1), y2);
+                    const float bx1 = fmaxf(fmaxf(x0, x1), x2), by1 = fmaxf(fmaxf(y0, y1), y2);
+                    if (!(sx > bx0 - min_dist && sx < bx1 + min_dist && sy > by0 - min_dist &&
+                          sy < by1 + min_dist))
+                        continue;
+                    int num = 0;
+                    const float ax = x1 - x0, ay = y1 - y0;
+                    const float bx = x0 - 2 * x1 + x2, by = y0 - 2 * y1 + y2;
+                    const float mx = x0 - sx, my = y0 - sy;
+                    float res[3] = {0.0f, 0.0f, 0.0f};
+                    const float a_inv = precompute[i];
+                    if (a_inv == 0.0f) {
+                        const float a = 3 * (ax * bx + ay * by);
+                        const float b = 2 * (ax * ax + ay * ay) + (mx * bx + my * by);
+                        const float c = mx * ax + my * ay;
+                        if (fabsf(a) < eps2) {
+                            if (fabsf(b) >= eps2)
+                                res[num++] = -c / b;
+                        } else {
+                            const float disc = b * b - 4 * a * c;
+                            if (disc >= 0) {
+                                const float root = sqrtf(disc);
+                                res[0] = (-b - root) / (2 * a);
+                                res[1] = (-b + root) / (2 * a);
+                                num = 2;
+                            }
+                        }
+                    } else {
+                        const float b = 3 * (ax * bx + ay * by) * a_inv;
+                        const float c = (2 * (ax * ax + ay * ay) + (mx * bx + my * by)) * a_inv;
+                        const float d = (mx * ax + my * ay) * a_inv;
+                        num = stbtt__solve_cubic(b, c, d, res);
+                    }
+                    const float d2 = (x0 - sx) * (x0 - sx) + (y0 - sy) * (y0 - sy);
+                    if (d2 < min_dist * min_dist)
+                        min_dist = sqrtf(d2);
+                    for (int k = 0; k < num && k < 3; k++) {
+                        const float t = res[k];
+                        if (t < 0.0f || t > 1.0f)
+                            continue;
+                        const float it = 1.0f - t;
+                        const float px = it * it * x0 + 2 * t * it * x1 + t * t * x2;
+                        const float py = it * it * y0 + 2 * t * it * y1 + t * t * y2;
+                        const float pd2 = (px - sx) * (px - sx) + (py - sy) * (py - sy);
+                        if (pd2 < min_dist * min_dist)
+                            min_dist = sqrtf(pd2);
+                    }
+                }
+            }
+            if (winding == 0)
+                min_dist = -min_dist;
+            float val = SDF_ONEDGE + SDF_PIXEL_DIST * min_dist;
+            val = val < 0 ? 0 : (val > 255 ? 255 : val);
+            data[(y - iy0) * w + (x - ix0)] = (unsigned char) val;
+        }
+    }
+    return data;
+}
+
+// The glyph's SDF with the face's faux-italic slant applied to the outline, pivoting on the glyph
+// box's vertical centre. Free the result with stbtt_FreeSDF.
+static unsigned char* glyph_sdf(const stbtt_fontinfo* info, float scale, int glyph, float shear,
+                                int* width, int* height, int* xoff, int* yoff) {
+    if (shear == 0.0f)
+        return stbtt_GetGlyphSDF(info, scale, glyph, SDF_PADDING, SDF_ONEDGE, SDF_PIXEL_DIST, width,
+                                 height, xoff, yoff);
+    stbtt_vertex* verts = nullptr;
+    const int n = stbtt_GetGlyphShape(info, glyph, &verts);
+    if (n <= 0) {
+        stbtt_FreeShape(info, verts);
+        return nullptr;
+    }
+    int gx0, gy0, gx1, gy1;
+    stbtt_GetGlyphBox(info, glyph, &gx0, &gy0, &gx1, &gy1);
+    const float yc = (gy0 + gy1) * 0.5f;
+    auto slant = [&](stbtt_vertex_type x, stbtt_vertex_type y) {
+        return (stbtt_vertex_type) lroundf(x + shear * (y - yc));
+    };
+    float minX = 1e30f, minY = 1e30f, maxX = -1e30f, maxY = -1e30f;
+    for (int i = 0; i < n; i++) {
+        stbtt_vertex& v = verts[i];
+        v.x = slant(v.x, v.y);
+        v.cx = slant(v.cx, v.cy);
+        v.cx1 = slant(v.cx1, v.cy1);
+        minX = fminf(minX, v.x);
+        maxX = fmaxf(maxX, v.x);
+        minY = fminf(minY, v.y);
+        maxY = fmaxf(maxY, v.y);
+        if (v.type == STBTT_vcurve) {
+            minX = fminf(minX, v.cx);
+            maxX = fmaxf(maxX, v.cx);
+            minY = fminf(minY, v.cy);
+            maxY = fmaxf(maxY, v.cy);
+        }
+    }
+    const int ix0 = (int) floorf(minX * scale) - SDF_PADDING;
+    const int iy0 = (int) floorf(-maxY * scale) - SDF_PADDING;
+    const int ix1 = (int) ceilf(maxX * scale) + SDF_PADDING;
+    const int iy1 = (int) ceilf(-minY * scale) + SDF_PADDING;
+    if (ix1 - ix0 <= 2 * SDF_PADDING || iy1 - iy0 <= 2 * SDF_PADDING) {
+        stbtt_FreeShape(info, verts);
+        return nullptr;
+    }
+    unsigned char* data = sdf_from_shape(verts, n, scale, ix0, iy0, ix1, iy1);
+    stbtt_FreeShape(info, verts);
+    *width = ix1 - ix0;
+    *height = iy1 - iy0;
+    *xoff = ix0;
+    *yoff = iy0;
+    return data;
+}
+
 // Rasterize one codepoint's SDF (upright) and shelf-pack it into the atlas, filling *out.
 static void pack_glyph(Face& f, std::vector<unsigned char>& atlas, int cp, Glyph* out, int& penX,
                        int& penY, int& rowH) {
@@ -230,38 +394,17 @@ static void pack_glyph(Face& f, std::vector<unsigned char>& atlas, int cp, Glyph
     out->advance = adv * f.atlasScale;
 
     int w = 0, h = 0, xoff = 0, yoff = 0;
-    unsigned char* sdf = stbtt_GetCodepointSDF(&f.info, f.atlasScale, cp, SDF_PADDING, SDF_ONEDGE,
-                                               SDF_PIXEL_DIST, &w, &h, &xoff, &yoff);
+    // The slant is baked into the field (glyph_sdf) rather than skewing the quad: an upright quad
+    // at draw time keeps the SDF antialiasing uniform on acute corners.
+    unsigned char* sdf = glyph_sdf(&f.info, f.atlasScale, stbtt_FindGlyphIndex(&f.info, cp), f.shear,
+                                   &w, &h, &xoff, &yoff);
     if (!sdf || w <= 0 || h <= 0) {
         if (sdf)
             stbtt_FreeSDF(sdf, nullptr);
         return;// advance-only (e.g. space)
     }
-
-    // Bake the slant into the bitmap with a sub-pixel per-row shift rather than skewing the quad:
-    // an upright quad at draw time keeps the SDF antialiasing uniform on acute corners.
-    int srcW = w;
+    const int srcW = w;
     const unsigned char* src = sdf;
-    std::vector<unsigned char> sheared;
-    if (f.shear != 0.0f) {
-        int margin = (int) ceilf(h * 0.5f * f.shear) + 1;
-        int ow = w + 2 * margin;
-        sheared.assign((size_t) ow * h, 0);
-        for (int y = 0; y < h; y++) {
-            float shift = (h * 0.5f - y) * f.shear;// +right at top, -left at bottom
-            for (int ox = 0; ox < ow; ox++) {
-                float ix = ox - margin - shift;
-                int ix0 = (int) floorf(ix);
-                float frac = ix - ix0;
-                float a = (ix0 >= 0 && ix0 < w) ? sdf[y * w + ix0] : 0.0f;
-                float b = (ix0 + 1 >= 0 && ix0 + 1 < w) ? sdf[y * w + ix0 + 1] : 0.0f;
-                sheared[(size_t) y * ow + ox] = (unsigned char) (a * (1.0f - frac) + b * frac + 0.5f);
-            }
-        }
-        src = sheared.data();
-        srcW = ow;
-        xoff -= margin;
-    }
 
     if (penX + srcW + 1 > ATLAS_W) {
         penX = 0;
