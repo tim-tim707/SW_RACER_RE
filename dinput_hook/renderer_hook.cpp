@@ -3081,11 +3081,6 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrRace_SaveProfile", (uint32_t) swrRace_SaveProfile_ADDR,
                   (uint8_t *) swrRace_SaveProfile_delta);
 
-    // Randomizer AI-difficulty applier. Reimplemented function.
-    hook_function("InitAISettingsForTrack", (uint32_t) InitAISettingsForTrack,
-                  (uint8_t *) InitAISettingsForTrack_ADDR);
-    hook_replace(InitAISettingsForTrack, InitAISettingsForTrack_delta);
-
     // Randomizer pod-handling applier, before the SP roster is built. Address-only.
     hook_function("swrObjHang_BuildRosterSinglePlayer",
                   (uint32_t) swrObjHang_BuildRosterSinglePlayer_ADDR,

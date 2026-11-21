@@ -24,7 +24,7 @@ static const uint32_t STARTER_POD_MASK = 0x22e01;
 // collides with the per-circuit within-circuit shuffles (which key by circuit index 0..3).
 static const uint32_t TRACK_ORDER_CROSS_KEY = 0x100;
 
-// swrRace_ResultsMenu hardcodes Sebulba (pod 2) to only unlock on physical track 1:
+// swrObjHang_ResultsMenu hardcodes Sebulba (pod 2) to only unlock on physical track 1:
 //   if (FavoritePilot == 2 && track_index != 1) FavoritePilot = 0;   // XOR ECX,ECX @ 0x0043a2b9
 // so any other track dealt pod 2 silently grants nothing. NOPped while Track Favorites is active
 // and restored via the patch journal when it is not.
@@ -68,15 +68,13 @@ bool swrRace_SaveProfile_delta(char *playerName) {
     return hook_call_original((swrRace_SaveProfile_t *) swrRace_SaveProfile_ADDR, playerName);
 }
 
-// Runs the original InitAISettingsForTrack, then overwrites swrRace_AILevel / ai_spread with
-// per-(profile, track) values from the AI sub-stream. The AI Speed menu scale is re-applied so that
-// setting still has effect. Reimplemented function -> hook_replace.
-void InitAISettingsForTrack_delta(swrObjJdge *judge) {
-    hook_call_original(InitAISettingsForTrack, judge);
-
+// Called from ai_tuning's swrObjJdge_InitAISettingsForTrack delta after the original: overwrites
+// swrRace_AILevel / ai_spread with per-(profile, track) values from the AI sub-stream. The AI Speed
+// menu scale is re-applied so that setting still has effect.
+void randomizer_apply_ai_settings(swrObjJdge *judge) {
     // Never in multiplayer: these are shared globals and disarm is never called, so an SP-armed
     // profile would otherwise randomize AI in a later MP race.
-    if (multiplayer_enabled)
+    if (swrMultiplayer_enabled)
         return;
 
     randomizer_ensure_armed(live_profile_name());
@@ -98,7 +96,7 @@ void InitAISettingsForTrack_delta(swrObjJdge *judge) {
     swrRace_AILevel = level;
     ai_spread = spread;
 
-    // InitAISettingsForTrack forces ai_spread = 2.0 when flag & 0x20 (reverse / special event);
+    // swrObjJdge_InitAISettingsForTrack forces ai_spread = 2.0 when flag & 0x20 (reverse / special event);
     // preserve that or those races get the wrong AI field spacing.
     if ((judge->flag & 0x20) != 0)
         ai_spread = 2.0f;
@@ -190,7 +188,7 @@ void randomizer_apply_pod_handling(void) {
     randomizer_ensure_armed(live_profile_name());
     // Never in multiplayer: the table is shared and read by the MP roster builder, so an SP-armed
     // profile would leak its permutation into a later MP race and desync clients.
-    bool active = !multiplayer_enabled && randomizer_category_active(RANDOMIZER_CAT_POD_HANDLING);
+    bool active = !swrMultiplayer_enabled && randomizer_category_active(RANDOMIZER_CAT_POD_HANDLING);
 
     int perm[NUM_PODS];
     for (int i = 0; i < NUM_PODS; i++)
@@ -294,7 +292,7 @@ void swrRace_SaveCurrentProfile_delta(void) {
     hook_call_original((swrRace_SaveCurrentProfile_t *) swrRace_SaveCurrentProfile_ADDR);
 }
 
-// Winning a tournament track unlocks its FavoritePilot's pod (swrRace_ResultsMenu:
+// Winning a tournament track unlocks its FavoritePilot's pod (swrObjHang_ResultsMenu:
 // podracers_unlocked |= 1 << FavoritePilot), so randomizing FavoritePilot randomizes the reward.
 // Dealt from a shuffled 23-pod deck without replacement (with 25 tracks, only the last 2 can
 // duplicate), from one sequential stream so the deal is a stable permutation per profile.
@@ -321,7 +319,7 @@ extern "C" void randomizer_apply_track_favorite(void) {
     randomizer_ensure_armed(live_profile_name());
     bool active = randomizer_category_active(RANDOMIZER_CAT_TRACK_FAVORITE);
 
-    // Sebulba (pod 2) is gated to physical track 1 by a hardcode in swrRace_ResultsMenu; neutralize
+    // Sebulba (pod 2) is gated to physical track 1 by a hardcode in swrObjHang_ResultsMenu; neutralize
     // that guard while this category is active so a track can actually reward the pod it was dealt.
     randomizer_set_sebulba_guard_patched(active);
 
@@ -461,7 +459,7 @@ extern "C" void randomizer_apply_winnings(swrObjHang *hang) {
 }
 
 // upgradeInfos[42] (swrUpgradeInfo, 16B) is 7 categories x 6 slots; slot 0 of each (index % 6 == 0)
-// is the base part, kept vanilla. `.cost` is read by swrRace_ComputeUpgradePrices.
+// is the base part, kept vanilla. `.price` is read by swrRace_ComputeUpgradePrices.
 static const int SHOP_NUM_ENTRIES = 42;
 static const int SHOP_SLOTS_PER_CATEGORY = 6;
 
@@ -470,14 +468,14 @@ void randomizer_apply_shop_prices(void) {
     static uint32_t original[SHOP_NUM_ENTRIES];
     if (!captured) {
         for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-            original[i] = upgradeInfos[i].cost;
+            original[i] = upgradeInfos[i].price;
         captured = true;
     }
 
     randomizer_ensure_armed(live_profile_name());
     if (!randomizer_category_active(RANDOMIZER_CAT_SHOP_PRICES)) {
         for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-            upgradeInfos[i].cost = original[i];
+            upgradeInfos[i].price = original[i];
         return;
     }
 
@@ -502,9 +500,9 @@ void randomizer_apply_shop_prices(void) {
     }
 
     for (int i = 0; i < SHOP_NUM_ENTRIES; i++)
-        upgradeInfos[i].cost = original[i];// base slots (and a clean baseline)
+        upgradeInfos[i].price = original[i];// base slots (and a clean baseline)
     for (int k = 0; k < n; k++)
-        upgradeInfos[idxs[k]].cost = costs[k];
+        upgradeInfos[idxs[k]].price = costs[k];
 }
 
 // Prices are read/computed here when the shop is shown; apply the shuffle first. Address-only.

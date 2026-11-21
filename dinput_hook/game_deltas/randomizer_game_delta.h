@@ -10,7 +10,7 @@ bool swrRace_SaveProfile_delta(char *playerName);
 
 // After the original sets the track's AI difficulty, overwrite it with the profile's
 // randomized (deterministic per-track) values when the AI category is active.
-void InitAISettingsForTrack_delta(swrObjJdge *judge);
+void randomizer_apply_ai_settings(swrObjJdge *judge);
 
 // Rebuild g_aTrackIDs for the active profile: a deterministic per-circuit shuffle when
 // the track-order category is active, or the vanilla order otherwise. Called from the
