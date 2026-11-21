@@ -131,16 +131,16 @@ namespace {
         {0x00439274, 0}, // swrObjHang_UpdateInspectCamera
         {0x00439318, 0}, // swrObjHang_UpdateInspectCamera
         {0x0043933a, 0}, // swrObjHang_UpdateInspectCamera
-        {0x0043a797, 0}, // swrRace_ResultsMenu
-        {0x0043a7b5, 0}, // swrRace_ResultsMenu
-        {0x0043a87e, 0}, // swrRace_ResultsMenu
-        {0x0043a89c, 0}, // swrRace_ResultsMenu
-        {0x0043c066, 0}, // swrRace_CourseInfoMenu
-        {0x0043c072, 0}, // swrRace_CourseInfoMenu
-        {0x0043c127, 0}, // swrRace_CourseInfoMenu
-        {0x0043c137, 0}, // swrRace_CourseInfoMenu
-        {0x0043c1fa, 0}, // swrRace_CourseInfoMenu
-        {0x0043c20a, 0}, // swrRace_CourseInfoMenu
+        {0x0043a797, 0}, // swrObjHang_ResultsMenu
+        {0x0043a7b5, 0}, // swrObjHang_ResultsMenu
+        {0x0043a87e, 0}, // swrObjHang_ResultsMenu
+        {0x0043a89c, 0}, // swrObjHang_ResultsMenu
+        {0x0043c066, 0}, // swrObjHang_CourseInfoMenu
+        {0x0043c072, 0}, // swrObjHang_CourseInfoMenu
+        {0x0043c127, 0}, // swrObjHang_CourseInfoMenu
+        {0x0043c137, 0}, // swrObjHang_CourseInfoMenu
+        {0x0043c1fa, 0}, // swrObjHang_CourseInfoMenu
+        {0x0043c20a, 0}, // swrObjHang_CourseInfoMenu
         {0x0043caa0, 0}, // swrObjHang_UpdateTauntScene
         {0x0043cab9, 0}, // swrObjHang_UpdateTauntScene
         {0x0043cb0c, 0}, // swrObjHang_UpdateTauntScene
@@ -214,7 +214,7 @@ namespace {
     const uint32_t kSelIndexSites[] = {
         // SelectIndex (0xe99240) readers -- relocated table 3. swrRace_BuildPartMenuList writes the
         // buffer and is reimplemented, so its own accesses are not patched.
-        0x004192d8, // swrUI_Menu_MpSelectVehicle
+        0x004192d8, // swrUI_Menu_HangarSelectVehicle
         0x0043579b, // swrRace_SelectVehicle
         0x004357a0, // swrRace_SelectVehicle
         0x004357b6, // swrRace_SelectVehicle
@@ -268,7 +268,7 @@ namespace {
     };
 
     void seed_secret_pilot(int id, int hostId, MODELID pod, MODELID altPod, MODELID puppet,
-                           uintptr_t nameAddr, uintptr_t lastNameAddr, uint32_t unkc0,
+                           uintptr_t nameAddr, uintptr_t lastNameAddr, uint32_t lodPod,
                            const XformWrite *xform, int xformCount) {
         std::memcpy(g_podData + id * kPodDataStride, g_podData + hostId * kPodDataStride, kPodDataStride);
         std::memcpy(g_handling + id * kHandlingStride, g_handling + hostId * kHandlingStride, kHandlingStride);
@@ -285,7 +285,7 @@ namespace {
         r->puppet_modelId = puppet;
         r->name = (char *) nameAddr;
         r->lastname = (char *) lastNameAddr;
-        std::memcpy(r->unkc, &unkc0, 4);
+        std::memcpy(&r->pod_lod_modelID, &lodPod, 4);
 
         for (int i = 0; i < xformCount; i++)
             std::memcpy(g_xform + id * kXformStride + xform[i].off, &xform[i].bits, 4);
@@ -296,17 +296,17 @@ namespace {
     constexpr uintptr_t kStrReeso = 0x004c3b0c; // "Reeso"
     constexpr uintptr_t kStrCy = 0x004c3b24;    // "Cy"
     constexpr uintptr_t kStrYunga = 0x004c3b1c; // "Yunga"
-    // swrRacerData.unkc as set by the swaps (opaque per-pod id; copied verbatim from the cheat).
-    constexpr uint32_t kJinnUnkc = 0x0000012e;
-    constexpr uint32_t kCyUnkc = 0x0000012f;
+    // swrRacerData.pod_lod_modelID as set by the swaps (copied verbatim from the cheat).
+    constexpr uint32_t kJinnLodPod = 0x0000012e;
+    constexpr uint32_t kCyLodPod = 0x0000012f;
 
     void seed_secret_pilots() {
         // id 23 = Jinn Reeso (host slot 8 = Mars Guo); id 24 = Cy Yunga (host slot 22 = Bullseye).
         seed_secret_pilot(kJinnId, kJinnHostId, MODELID_jinn_reeso_pod, MODELID_alt_jinn_reeso_pod,
-                          MODELID_char_jinn_reeso_puppet, kStrJinn, kStrReeso, kJinnUnkc,
+                          MODELID_char_jinn_reeso_puppet, kStrJinn, kStrReeso, kJinnLodPod,
                           kJinnXform, (int) (sizeof(kJinnXform) / sizeof(kJinnXform[0])));
         seed_secret_pilot(kCyId, kCyHostId, MODELID_cy_yunga_pod, MODELID_alt_cy_yunga_pod,
-                          MODELID_char_cy_yunga_puppet, kStrCy, kStrYunga, kCyUnkc,
+                          MODELID_char_cy_yunga_puppet, kStrCy, kStrYunga, kCyLodPod,
                           kCyXform, (int) (sizeof(kCyXform) / sizeof(kCyXform[0])));
     }
 
@@ -330,12 +330,12 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
 
     // Only the retail roster in multiplayer: the racer id travels the wire verbatim and a peer on
     // stock SWE1R still has 23-entry tables, so an appended id reads past their end.
-    const int visibleCount = multiplayer_enabled != 0 ? kStockCount : kRosterCount;
+    const int visibleCount = swrMultiplayer_enabled != 0 ? kStockCount : kRosterCount;
 
     int count = 0;
     swrRace_MenuMaxSelection = 0;
     for (int id = 0; id < visibleCount; id++) {
-        const bool selectable = (unlockMask & (1u << id)) != 0 || multiplayer_enabled != 0;
+        const bool selectable = (unlockMask & (1u << id)) != 0 || swrMultiplayer_enabled != 0;
         if (selectable) {
             buf[count].racerId = id;
             buf[count].f0 = 0xff;
@@ -357,7 +357,7 @@ extern "C" void swrRace_BuildPartMenuList_delta(swrObjHang *hang) {
 
 // Multiplayer wire guards. The racer id is exchanged raw: swrMultiplayer_RacerPick puts the local
 // pick in message 0x33 and swrMultiplayer_ApplyRacerPick stores the received id into
-// multiplayer_racer1_id[] with NO range check, after which swrObjHang_BuildRosterMultiplayer indexes
+// swrMultiplayer_aRacerIds[] with NO range check, after which swrObjHang_BuildRosterMultiplayer indexes
 // the per-character tables with it. Outbound: never publish an appended id. Inbound: clamped to the
 // retail roster by swrMultiplayer_ApplyRacerPick_delta (swrMultiplayer_delta.cpp).
 
@@ -367,7 +367,7 @@ typedef void(swrMultiplayer_RacerPick_t)(int a);
 constexpr int kFallbackRacerId = 0;
 
 extern "C" void swrMultiplayer_RacerPick_delta(int a) {
-    if (multiplayer_enabled != 0 && (a < 0 || a >= kStockCount)) {
+    if (swrMultiplayer_enabled != 0 && (a < 0 || a >= kStockCount)) {
         fprintf(hook_log, "[%s] clamping out-of-roster racer pick %d -> %d before sending\n", kOwner,
                 a, kFallbackRacerId);
         fflush(hook_log);
