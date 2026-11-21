@@ -1,4 +1,6 @@
 #include <stdio.h>
+
+#include "hook_mode.h"
 {% for header in headers %}
 #include "{{ header }}"
 {%- endfor %}
@@ -8,12 +10,13 @@
 // the cmake build, and will autogenerate any time any of the c files in
 // src are changed
 
+// Each entry pairs our reimplementation with its retail address; hook_install() decides which the
+// game reaches (see hook_mode.h). The last argument marks `// 0xADDR HOOK` functions, always live.
 void hook_generated(FILE* hook_log)
 {
 {%- for f in functions %}
-    fprintf(hook_log, {{f.message}});
-    hook_function("{{f.name}}", (uint32_t){{f.hook_addr}}, (uint8_t *){{f.hook_dst}});
+    hook_install("{{f.name}}", (uint32_t){{f.reimpl_addr}}, (uint32_t){{f.retail_addr}}, {{f.force_reimpl}}, hook_log);
 {% endfor -%}
-    fprintf(hook_log, {{hook_complete_msg}});
-    fflush(hook_log);
+    hook_mode_log_summary(hook_log);
 }
+

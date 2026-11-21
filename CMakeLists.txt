@@ -47,6 +47,7 @@ file(GLOB SOURCES
     src/swr.c
     src/stdPlatform.c
     src/FUN.c
+    src/hook_mode.c
     # specifics
     src/Dss/*c
     src/Engine/*.c
@@ -65,6 +66,19 @@ add_dependencies(swe1r_functions generate_global_h)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(swe1r_functions PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/generated)
 target_compile_definitions(swe1r_functions PUBLIC GLFW_INCLUDE_NONE=1)
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    # Files checked bit-for-bit against retail by the verify harness. They round x87
+    # intermediates on assignment and cast (ISO semantics), so a `float` local is a spill to
+    # memory like MSVC's and `long double` stays at register width; without it GCC keeps floats
+    # in registers at will and cannot match retail rounding. Floating literals are evaluated at
+    # long double precision under this mode, so inexact ones must be written as exact hex floats.
+    set_source_files_properties(
+        src/General/stdMath.c
+        src/Primitives/rdMath.c
+        src/Primitives/rdMatrix.c
+        src/Primitives/rdVector.c
+        PROPERTIES COMPILE_OPTIONS -fexcess-precision=standard)
+endif()
 target_link_libraries(swe1r_functions PUBLIC swe1r_globals swr_memsafety winmm Comctl32 ole32 version glad glfw dxguid)
 
 # based on $SOURCES, generate the hooked functions

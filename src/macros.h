@@ -72,4 +72,14 @@ extern "C"
 #define TAG(str4) ((str4[0] << 24) | (str4[1] << 16) | (str4[2] << 8) | (str4[3] << 0))
 #endif // TAG
 
+// Marks a function verified bit-for-bit against retail (dinput_hook/reimpl_verify.cpp). GCC then
+// rounds x87 intermediates on assignment and cast, so a `float` local is a spill to memory like
+// MSVC's and `long double` stays at register width. Literals are evaluated at long double
+// precision inside such a function: write an inexact one as `(float)0.33f` or `(double)0.8`.
+#if defined(__GNUC__) && !defined(__clang__)
+#define RETAIL_FP __attribute__((optimize("excess-precision=standard")))
+#else
+#define RETAIL_FP
+#endif
+
 #endif // MACROS_H
