@@ -22,7 +22,7 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
-#include <Swr/swrRender.h>      // SetFogParameters / SetClearColor / rdModel_SetFogEnabled_Maybe
+#include <Swr/swrRender.h>      // swrRender_SetFogParameters / swrRender_SetClearColor / rdModel_SetFogEnabled
 #include <Swr/swrPlayerHUD.h>   // swrPlayerHUD_SetupTrackOverlay_ADDR (the track's own sun)
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include "stdControl_delta.h"     // stdControl_NeutralizeLostJoysticks, ClampZeroReadInterval
@@ -1404,12 +1404,12 @@ void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int m
         drawDistance = env.draw_distance;
     if (env.has_fog) {
         if (env.fog_enabled) {
-            rdModel_SetFogEnabled_Maybe(1);
-            SetFogParameters(env.fog_near, FOG_END, env.fog_rgb[0], env.fog_rgb[1], env.fog_rgb[2],
+            rdModel_SetFogEnabled(1);
+            swrRender_SetFogParameters(env.fog_near, FOG_END, env.fog_rgb[0], env.fog_rgb[1], env.fog_rgb[2],
                              FOG_ALPHA);
-            SetClearColor((short) env.fog_rgb[0], (short) env.fog_rgb[1], (short) env.fog_rgb[2]);
+            swrRender_SetClearColor((short) env.fog_rgb[0], (short) env.fog_rgb[1], (short) env.fog_rgb[2]);
         } else {
-            rdModel_SetFogEnabled_Maybe(0);
+            rdModel_SetFogEnabled(0);
         }
     }
 }

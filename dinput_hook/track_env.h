@@ -67,7 +67,7 @@ struct TrackEnv {
     int fog_near;
     int fog_rgb[3];
 
-    // What InitAISettingsForTrack decides: < 0 = inherit. level is the table value the game
+    // What swrObjJdge_InitAISettingsForTrack decides: < 0 = inherit. level is the table value the game
     // scales by 0.1 into swrRace_AILevel; script -1 is "no scripted AI", -2 inherits.
     float ai_level;
     float ai_spread_range;

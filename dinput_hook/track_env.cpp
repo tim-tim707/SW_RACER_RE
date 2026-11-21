@@ -9,7 +9,7 @@
 #include "game_deltas/swrWeather_delta.h"// swrWeather_Enable_delta / Disable_delta
 
 extern "C" {
-#include <Swr/swrModel.h> // SetSunSpriteAlpha_Maybe_ADDR, SetSunSprite_ADDR
+#include <Swr/swrModel.h> // swrSprite_SetSunSpriteAlpha_ADDR, swrSprite_SetSunSprite_ADDR
 #include <Swr/swrObj.h>   // swrObjJdge_SetupLensFlareSprites_ADDR
 #include <Swr/swrSprite.h>// swrSprite_NewSprite / SetFlag / UnsetFlag / LoadTexture_
 #include <globals.h>
@@ -201,7 +201,7 @@ void track_env_RevertTables() {
         swrSfxPreloadSets[saved.planet * NUM_TABLE_SUBTRACKS + saved.subtrack] = saved.ambient;
     }
     swrMusicPlanetIntroTable[saved.planet] = saved.intro;
-    swrPlanetIntroCinematics[saved.planet] = saved.cinematic;
+    swrObjHang_cinematicFiles[saved.planet] = saved.cinematic;
     memcpy(swrPlanetTable[saved.planet].name, saved.planet_name, sizeof(saved.planet_name));
     swrPlanetTable[saved.planet].orientationAngle = saved.holo_tilt;
     swrPlanetTable[saved.planet].spinSpeed = saved.holo_spin;
@@ -247,7 +247,7 @@ void track_env_ApplyTables(const TrackEnv &env) {
     saved.planet = env.planet;
     saved.subtrack = env.subtrack;
     saved.intro = swrMusicPlanetIntroTable[env.planet];
-    saved.cinematic = swrPlanetIntroCinematics[env.planet];
+    saved.cinematic = swrObjHang_cinematicFiles[env.planet];
     memcpy(saved.planet_name, swrPlanetTable[env.planet].name, sizeof(saved.planet_name));
     saved.holo_tilt = swrPlanetTable[env.planet].orientationAngle;
     saved.holo_spin = swrPlanetTable[env.planet].spinSpeed;
@@ -275,7 +275,7 @@ void track_env_ApplyTables(const TrackEnv &env) {
         swrMusicPlanetIntroTable[env.planet] = (int16_t) intro_music;
     if (wants_cinematic) {
         cinematic_storage = env.cutscene;
-        swrPlanetIntroCinematics[env.planet] = cinematic_storage.data();
+        swrObjHang_cinematicFiles[env.planet] = cinematic_storage.data();
     }
     if (env.has_ambient && env.subtrack < NUM_TABLE_SUBTRACKS) {
         ambient_storage.clear();
@@ -308,7 +308,7 @@ bool track_env_SkipCinematic(const char *znm_name) {
         return false;
     // Only the pre-race planet intros are the track's to skip; the startup movies are not.
     for (int planet = 0; planet < NUM_PLANETS; planet++) {
-        const char *entry = swrPlanetIntroCinematics[planet];
+        const char *entry = swrObjHang_cinematicFiles[planet];
         if (entry != nullptr && strcmp(entry, znm_name) == 0)
             return true;
     }
@@ -325,7 +325,7 @@ namespace {
     void set_sun_alpha(int alpha) {
         // Not reimplemented; the game's own routine, by address.
         typedef void(__cdecl * SetSunSpriteAlpha_t)(int index, unsigned char alpha);
-        ((SetSunSpriteAlpha_t) SetSunSpriteAlpha_Maybe_ADDR)(0, (unsigned char) alpha);
+        ((SetSunSpriteAlpha_t) swrSprite_SetSunSpriteAlpha_ADDR)(0, (unsigned char) alpha);
     }
 
     void apply_weather_stage(const TrackWeatherStage &stage) {
@@ -388,7 +388,7 @@ void track_env_WeatherOnFrame() {
 }
 
 // swrPlayerHUD_SetupTrackOverlay creates the sun sprite (0x3f) and its lens flare (0x41..0x48) for
-// every planet but Mon Gazza and Malastare, then SetSunSprite places and colours it. Neither
+// every planet but Mon Gazza and Malastare, then swrSprite_SetSunSprite places and colours it. Neither
 // setter has a body here, so both are called by address; the sprite calls have reimplemented
 // bodies. A track's own sun creates the sprites itself, since its planet may have none.
 namespace {
@@ -420,7 +420,7 @@ int track_env_TriggerPlanet(int planet_id) {
 void track_env_SunOnTrackSetup() {
     if (!current.has_sun || numLocalPlayers > 1)
         return;
-    const SetSunSprite_t set_sun = (SetSunSprite_t) SetSunSprite_ADDR;
+    const SetSunSprite_t set_sun = (SetSunSprite_t) swrSprite_SetSunSprite_ADDR;
     if (!current.sun_enabled) {
         // Alpha zero on both slots: the per-frame sprite update keeps whatever colour is set.
         float nowhere[3] = {0.0f, 0.0f, 0.0f};
@@ -431,12 +431,12 @@ void track_env_SunOnTrackSetup() {
         return;
     }
 
-    swrSprite_NewSprite(SUN_SPRITE_ID, swrSprite_LoadTexture_(swrSprite_newsun_rgb));
+    swrSprite_NewSprite(SUN_SPRITE_ID, swrSprite_LoadTextureById(swrSprite_newsun_rgb));
     swrSprite_SetFlag(SUN_SPRITE_ID, SUN_SPRITE_FLAGS_SET);
     swrSprite_UnsetFlag(SUN_SPRITE_ID, SUN_SPRITE_FLAGS_CLEARED);
     for (int i = 0; i < LENS_FLARE_SPRITE_COUNT; i++) {
         const short id = (short) (LENS_FLARE_FIRST_SPRITE_ID + i);
-        swrSprite_NewSprite(id, swrSprite_LoadTexture_(i == 0 ? swrSprite_lensflare1_rgb
+        swrSprite_NewSprite(id, swrSprite_LoadTextureById(i == 0 ? swrSprite_lensflare1_rgb
                                                                : swrSprite_newflare1_rgb));
         swrSprite_SetFlag(id, SUN_SPRITE_FLAGS_SET);
         swrSprite_UnsetFlag(id, SUN_SPRITE_FLAGS_CLEARED);
