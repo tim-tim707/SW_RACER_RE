@@ -7112,7 +7112,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
 
     swrRace_ResetCollisionHit();
     if ((player->flags1 & swrObjTest_FLAG1_FULL_RAYCAST) == 0)
-        hitDist = swrModel_CollideRayWithMesh((swrModel_Mesh*) player->splineTrackMesh, ray,
+        hitDist = swrModel_CollideRayWithMesh(player->splineTrackMesh, ray,
                                               (float*) &outPoint, (float*) &outNormal);
     else
         hitDist = -1.0f;
@@ -7181,7 +7181,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
             up->x = player->up.x;
             up->y = player->up.y;
             up->z = player->up.z;
-            player->terrainModel = player->splineTrackMesh;
+            player->terrainModel = (swrModel_Node*)player->splineTrackMesh;
             flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         }
         player->flags1 = flags1;
@@ -7244,7 +7244,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                                                  groundDist, &up->x);
         }
     } else {
-        player->terrainModel = player->splineTrackMesh;
+        player->terrainModel = (swrModel_Node*)player->splineTrackMesh;
         player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
             swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
@@ -8868,7 +8868,7 @@ void swrRace_InitFireEffects(int racer, float reset)
 }
 
 // Lap progress in [0..1): the control point's baked progress base plus segmentT scaled by the
-// segment's span (spline_progress_values). Closed tracks clamp just under 1.0 (the wrap is what
+// segment's span (swrSpline_progressTable). Closed tracks clamp just under 1.0 (the wrap is what
 // swrRace_LapCompletion detects); open tracks (swrSpline_finishNodeIdx >= 0) clamp to 1.0.
 // 0x0047f810
 float swrRace_LapProgress(swrSplineCursor* cursor)
@@ -8877,7 +8877,7 @@ float swrRace_LapProgress(swrSplineCursor* cursor)
     float progress;
 
     cp = swrSpline_getControlPoint(cursor, 0);
-    progress = cursor->segmentT * spline_progress_values[cp].y + spline_progress_values[cp].x;
+    progress = cursor->segmentT * swrSpline_progressTable[cp].y + swrSpline_progressTable[cp].x;
     if (swrSpline_finishNodeIdx < 0) {
         if (1.0f <= progress)
             progress = 0.9999f;
@@ -8947,14 +8947,14 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
 }
 
 // 0x0047f890
-swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
+swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 {
-    float sample = cursor->segmentT * 10.0f;
+    float sample = cursor->segmentT * SWR_SPLINE_SAMPLES_PER_NODE;
     if (sample < 0.0f)
         sample -= 0.999999f;
     int sampleIndex = (int)sample;
     int node = swrSpline_getControlPoint(cursor, 0);
-    return ((swrModel_Node**)&spline_progress_values[node * 5 + 0xfc].x)[sampleIndex];
+    return swrSpline_sampleMeshes[node * SWR_SPLINE_SAMPLES_PER_NODE + sampleIndex];
 }
 
 // Steps the cursor over each node plane the pod passed (segmentT += 0.01 per step). Entering node 0
@@ -9038,7 +9038,7 @@ int swrRace_UpdateSplineBinding(swrRace* player)
     float crossTime;
     int crossed;
 
-    if ((swrModel_Mesh*)player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
+    if (player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
         return 0;
 
     behavior = swrModel_MeshGetBehavior(stoodOn);

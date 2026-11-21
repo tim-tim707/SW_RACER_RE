@@ -11222,7 +11222,7 @@ void swrObjTest_UpdateControlAndMove(swrRace* player)
 
     swrRace_IntegrateMotion(player, &player->positionPrev, &newPos, (rdVector3*)&player->transform.vB);
     if (zeroG) {
-        player->terrainModel = player->splineTrackMesh;
+        player->terrainModel = (swrModel_Node*)player->splineTrackMesh;
         player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         player->surfaceSpeedFactor = 1.0f;
         player->surfaceGripFactor = 1.0f;

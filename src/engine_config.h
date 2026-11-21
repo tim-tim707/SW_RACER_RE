@@ -299,6 +299,7 @@
 #define SWR_LZSS_WINDOW_SIZE (0x1000) // swrLoader_DecompressLZSS ring buffer, placed just before the input
 #define SWR_MESH_MATERIAL_PROP_TEXTURE (2) // swrModel_MeshMaterialSetTexture property id
 #define SWR_SPLINE_MAX_SEGMENTS (250) // swrSpline_Build skips larger splines; size of its progress-order table
+#define SWR_SPLINE_SAMPLES_PER_NODE (10) // swrSpline_sampleMeshes entries per control point
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)

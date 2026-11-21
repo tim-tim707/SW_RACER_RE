@@ -565,10 +565,10 @@ void swrRace_TriggerHandler(swrObjTrig* trig, swrRace* player, char fromNetwork)
 
 float swrRace_LapProgress(swrSplineCursor* cursor);
 
-// Returns the baked track mesh at the cursor's spline sample (the spline_progress_values
-// scratch block stores 10 mesh pointers per control point, indexed by segmentT * 10). Cached into
+// Returns the baked track mesh at the cursor's spline sample (swrSpline_sampleMeshes, indexed by
+// node * SWR_SPLINE_SAMPLES_PER_NODE + segmentT * SWR_SPLINE_SAMPLES_PER_NODE). Cached into
 // player->splineTrackMesh and promoted to player->terrainModel while the ground cache is valid.
-swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor);
+swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor);
 
 bool swrRace_LapCompletion(swrRace* player, int checkCrossing);
 

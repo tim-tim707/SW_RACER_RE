@@ -1500,7 +1500,8 @@ swrModel_collisionUnkE70 0x00e98e70 int
 
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
-spline_progress_values 0x00E22A60 rdVector2[500]
+swrSpline_progressTable 0x00E22A60 rdVector2[252] # per control point: x = progress at the node, y = span to the next node
+swrSpline_sampleMeshes 0x00E23240 swrModel_Mesh*[2500] # baked track mesh under the spline, SWR_SPLINE_SAMPLES_PER_NODE per control point
 
 swrSpline_finishMatrix 0x00e25960 rdMatrix44 # spline frame at an open track's finish node (swrSpline_TraceProgress), read by swrObjJdge_GetCustomStartTransform
 

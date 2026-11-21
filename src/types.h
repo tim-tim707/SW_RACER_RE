@@ -475,8 +475,8 @@ extern "C"
         float lapComp;
         float lapCompPrev;
         float lapCompMax;
-        struct swrModel_Node* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
-        struct swrModel_Node* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
+        struct swrModel_Mesh* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
+        struct swrModel_Mesh* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
         int splineProjOut1; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
         int splineProjResult1; // 0xf8. its return value (always 0 in retail)
         int splineProjOut2; // 0xfc. out-slot of the 2nd call (always 0)
