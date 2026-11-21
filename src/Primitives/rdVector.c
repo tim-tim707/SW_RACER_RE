@@ -37,7 +37,7 @@ float rdVector_Len2(const rdVector2* v)
 float rdVector_Normalize2Acc(rdVector2* v1)
 {
     float len = rdVector_Len2(v1);
-    if (0.0001 <= len)
+    if (0x1.a36e2eb1c432dp-14 <= len) // 0.0001
     {
         v1->x = v1->x / len;
         v1->y = v1->y / len;
@@ -93,7 +93,8 @@ rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 // 0x0042f890
 float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2)
 {
-    return (v1->x * v2->x) + (v1->y * v2->y) + (v1->z * v2->z);
+    // Retail accumulates (y + z) + x.
+    return ((long double)v1->y * v2->y + (long double)v1->z * v2->z) + (long double)v1->x * v2->x;
 }
 
 // 0x0042f8c0
@@ -105,26 +106,35 @@ float rdVector_Len3(const rdVector3* v)
 // 0x0042f910
 float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
 {
-    // Ordered x, y, z to match retail, which accumulates (dx*dx + dy*dy) + dz*dz. Retail
-    // also spills dx and dy through `FST dword` and multiplies each delta by its own
-    // 32-bit copy while leaving dz at register width; that asymmetry is not reproduced
-    // here, and measurably does not need to be -- this matches retail bit for bit.
-    return (v1->x - v2->x) * (v1->x - v2->x) + (v1->y - v2->y) * (v1->y - v2->y) + (v1->z - v2->z) * (v1->z - v2->z);
+    // Retail spills dx and dy through `FST dword` and multiplies each register-width delta
+    // by its own 32-bit copy; dz is squared at register width. Sum is (dx2 + dy2) + dz2.
+    long double dx = (long double)v1->x - v2->x;
+    long double dy = (long double)v1->y - v2->y;
+    long double dz = (long double)v1->z - v2->z;
+    float dx32 = dx;
+    float dy32 = dy;
+
+    return dx * dx32 + dy * dy32 + dz * dz;
 }
 
 // 0x0042f950
 float rdVector_Dist3(const rdVector3* v1, const rdVector3* v2)
 {
-    // Same accumulation order as rdVector_DistSquared3. Retail keeps the v2 - v1 operand
-    // order here, which this already matched.
-    return stdMath_Sqrt((v2->x - v1->x) * (v2->x - v1->x) + (v2->y - v1->y) * (v2->y - v1->y) + (v2->z - v1->z) * (v2->z - v1->z));
+    // Same data flow as rdVector_DistSquared3, with the v2 - v1 operand order.
+    long double dx = (long double)v2->x - v1->x;
+    long double dy = (long double)v2->y - v1->y;
+    long double dz = (long double)v2->z - v1->z;
+    float dx32 = dx;
+    float dy32 = dy;
+
+    return stdMath_Sqrt(dx * dx32 + dy * dy32 + dz * dz);
 }
 
 // 0x0042f9b0
 float rdVector_Normalize3Acc(rdVector3* v1)
 {
     float len = rdVector_Len3(v1);
-    if (0.0001 <= len)
+    if (0x1.a36e2ep-14f <= len) // 0.0001f, the float32 at 0x004ac6a8
     {
         v1->x = v1->x / len;
         v1->y = v1->y / len;
@@ -192,12 +202,18 @@ void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
 // 0x00492440
 float rdVector_Normalize3Acc_2(rdVector3* v1)
 {
-    float len = rdVector_Len3(v1);
-    if (0.0001 <= len)
+    float len;
+    long double inv_len;
+
+    // Unlike rdVector_Normalize3Acc: inline FSQRT, only an exactly-zero length is skipped,
+    // and the components are scaled by the register-width reciprocal rather than divided.
+    len = stdMath_Sqrt(((long double)v1->y * v1->y + (long double)v1->z * v1->z) + (long double)v1->x * v1->x);
+    if (len != 0.0f)
     {
-        v1->x = v1->x / len;
-        v1->y = v1->y / len;
-        v1->z = v1->z / len;
+        inv_len = 1.0f / (long double)len;
+        v1->x = inv_len * v1->x;
+        v1->y = v1->y * inv_len;
+        v1->z = v1->z * inv_len;
     }
     return len;
 }

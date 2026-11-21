@@ -47,12 +47,26 @@ void stdMath_AddScaledValueAndClamp_i32(int* res_inout, float value, float multi
     }
 }
 
+// Retail uses the FSIN/FCOS instructions inline; the CRT sin()/cos() reduce the argument
+// differently (cos(90 deg) comes out -1.6e-16 instead of 6.1e-17).
+static long double stdMath_x87Sin(long double x)
+{
+    __asm__("fsin" : "+t"(x));
+    return x;
+}
+
+static long double stdMath_x87Cos(long double x)
+{
+    __asm__("fcos" : "+t"(x));
+    return x;
+}
+
 // 0x0042f380
 void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut)
 {
-    double angle_rad = angle_degrees * PI * 0.005555555555555556;
-    *pCosOut = cos(angle_rad);
-    *pSinOut = sin(angle_rad);
+    long double angle_rad = angle_degrees * PI * 0x1.6c16c16c16c17p-8; // 0.005555555555555556
+    *pCosOut = stdMath_x87Cos(angle_rad);
+    *pSinOut = stdMath_x87Sin(angle_rad);
     return;
 }
 
@@ -64,161 +78,145 @@ float stdMath_Tan(float angle_degrees)
     return angle_degrees / cos;
 }
 
-// 0x0042f3e0
-float stdMath_ArcSin(float angle)
+// x87 returns the result in ST0 at register width; retail ArcCos consumes it unrounded.
+static long double stdMath_ArcSinX87(float angle)
 {
-    float fVar1;
-    bool bVar2;
-    float fVar3;
-    float fVar4;
-    float fVar5;
+    bool reflected;
     float original_angle;
+    float x2_32;
+    float x7_32;
+    long double x2;
+    long double x3;
+    long double x5;
+    long double x7;
+    long double x9;
+    long double degrees;
 
-    // Every literal below is a float32 constant in .rdata (0x004ac660..0x004ac698) except
-    // the final 1/pi, which really is stored as a double at 0x004ac6a0. Ghidra prints
-    // float32 constants as shortened decimals that do not always round-trip, so these
-    // come from the stored bits: 0x004ac670 is 0.70710677f, not the 0.7071068 that was
-    // here, and 0x004ac68c is -0.16666667f, not -0.1666667. Dropping the `f` suffix makes
-    // each one a third, different value again.
-    if (0.999999f < angle)
+    // Constants are the float32s at 0x004ac660..0x004ac698; 1/pi is the double at 0x004ac6a0.
+    if (0x1.ffffdep-1f < angle) // 0.999999f
     {
         return 90.0f;
     }
-    if (angle < -0.999999f)
+    if (angle < -0x1.ffffdep-1f)
     {
         return -90.0f;
     }
-    if ((0.70710677f <= angle) || (angle <= -0.70710677f))
+    if ((0x1.6a09e6p-1f <= angle) || (angle <= -0x1.6a09e6p-1f)) // 0.70710677f
     {
         original_angle = angle;
-        bVar2 = true;
-        fVar1 = 1.0f - angle * angle;
+        reflected = true;
         if (0.0f <= angle)
-        {
-            fVar3 = stdMath_Sqrt(fVar1);
-        }
+            angle = stdMath_Sqrt(1.0f - angle * angle);
         else
-        {
-            fVar3 = stdMath_Sqrt(fVar1);
-            fVar3 = -fVar3;
-        }
-        angle = (float)fVar3;
+            angle = -stdMath_Sqrt(1.0f - angle * angle);
     }
     else
     {
-        bVar2 = false;
+        reflected = false;
     }
-    if ((0.001f <= angle) || (angle <= -0.001f))
+    if ((0x1.0624dep-10f <= angle) || (angle <= -0x1.0624dep-10f)) // 0.001f
     {
-        fVar1 = angle * angle;
-        fVar3 = angle * angle * angle;
-        fVar4 = fVar3 * fVar1;
-        fVar5 = fVar4 * fVar1;
-        // Term order follows retail's FADDP sequence, which accumulates
-        // ((x9 + x3) + x5) + x7 rather than the x7-first order the decompiler emitted.
-        //
-        // Kept as a single expression through to the degree conversion for the same
-        // reason: retail runs FSUBR / FMUL 180.0f / FMUL 1-over-pi back to back with
-        // nothing spilled between them, so `angle - sum` is never rounded to 32 bits on
-        // the way through. Both details mirror the original's data flow.
-        fVar3 = (angle - (fVar5 * fVar1 * -0.047446f + fVar3 * -0.16666667f + fVar4 * -0.075f + (float)fVar5 * -0.04464286f)) * 180.0f * 0.3183098861837907;
+        // Retail keeps the odd powers at register width and spills only x^2 and x^7 to
+        // float, reusing those copies as multiplicands. Sum is ((x9 + x3) + x5) + x7.
+        x2 = (long double)angle * angle;
+        x2_32 = x2;
+        x3 = x2 * angle;
+        x5 = x3 * x2_32;
+        x7 = x5 * x2_32;
+        x7_32 = x7;
+        x9 = x7 * x2_32;
+        degrees = (angle - (x9 * -0x1.84ad7ap-5f + x3 * -0x1.555556p-3f + x5 * -0x1.333334p-4f + x7_32 * -0x1.6db6dcp-5f)) * 180.0f * 0x1.45f306dc9c883p-2; // 0.047446f, 1/6, 0.075f, 0.04464286f, 1/pi
     }
     else
     {
-        fVar3 = angle * 180.0f * 0.3183098861837907;
+        degrees = angle * 180.0f * 0x1.45f306dc9c883p-2;
     }
-    if (bVar2)
+    if (reflected)
     {
         if (original_angle < 0.0f)
-        {
-            return -90.0f - fVar3;
-        }
-        fVar3 = 90.0f - fVar3;
+            return -90.0f - degrees;
+        return 90.0f - degrees;
     }
-    return fVar3;
+    return degrees;
+}
+
+// 0x0042f3e0
+float stdMath_ArcSin(float angle)
+{
+    return stdMath_ArcSinX87(angle);
 }
 
 // 0x0042f540
 float stdMath_ArcCos(float angle)
-
 {
-    return 90.0f - stdMath_ArcSin(angle);
+    return stdMath_ArcCosUnrounded(angle);
+}
+
+long double stdMath_ArcCosUnrounded(float angle)
+{
+    return 90.0f - stdMath_ArcSinX87(angle);
 }
 
 // 0x0042f560
 float stdMath_ArcTan2(float x1, float x2)
 {
-    float fVar1;
-    float fVar2;
-    float fVar3;
-    float fVar4;
-    float fVar5;
-    float fVar6;
-    float fVar7;
+    float abs1;
+    float abs2;
+    float t;
+    float t2_32;
+    float t7_32;
+    bool swapped;
+    long double t2;
+    long double t3;
+    long double t5;
+    long double t7;
+    long double t9;
+    long double degrees;
 
-    // The 0.0001 thresholds are float32 constants at 0x004ac6a8 / 0x004ac6ac, whose value
-    // is 9.999999747e-05 -- strictly LESS than the double 0.0001. That difference decides a
-    // branch, not just a rounding: at x2 == 0.0001f retail compares equal and evaluates the
-    // polynomial, while a double 0.0001 compares greater and takes the 90-degree early-out,
-    // which is where the 751 ULP divergence came from. Polynomial coefficients are the
-    // exact float32 values from 0x004ac6b0..0x004ac6bc; only the trailing 1/pi is a double.
-    if ((0.0001f <= x2) || (x2 < -0.0001f))
+    // The 0.0001 thresholds are the float32s at 0x004ac6a8 / 0x004ac6ac (9.999999747e-05,
+    // strictly below the double 0.0001), which decides branches at x == 0.0001f.
+    // Coefficients are the float32s at 0x004ac6b0..0x004ac6bc; 1/pi is a double.
+    if ((0x1.a36e2ep-14f <= x2) || (x2 < -0x1.a36e2ep-14f)) // 0.0001f
     {
-        if ((0.0001f <= x1) || (x1 < -0.0001f))
+        if ((0x1.a36e2ep-14f <= x1) || (x1 < -0x1.a36e2ep-14f))
         {
-            fVar2 = x1;
-            if (x1 < 0.0f)
+            abs1 = x1 < 0.0f ? -x1 : x1;
+            abs2 = x2 < 0.0f ? -x2 : x2;
+            swapped = abs2 < abs1;
+            t = swapped ? abs2 / abs1 : abs1 / abs2;
+            if ((0x1.a36e2ep-14f <= t) || (t < -0x1.a36e2ep-14f))
             {
-                fVar2 = -x1;
-            }
-            fVar4 = x2;
-            if (x2 < 0.0f)
-            {
-                fVar4 = -x2;
-            }
-            fVar1 = fVar4;
-            fVar3 = fVar2;
-            if (fVar4 < fVar2)
-            {
-                fVar1 = fVar2;
-                fVar3 = fVar4;
-            }
-            fVar3 = fVar3 / fVar1;
-            if ((0.0001f <= fVar3) || (fVar3 < -0.0001f))
-            {
-                fVar1 = fVar3 * fVar3;
-                fVar5 = fVar3 * fVar3 * fVar3;
-                fVar6 = fVar5 * fVar1;
-                fVar7 = fVar6 * fVar1;
-                fVar5 = ((((fVar3 - fVar5 * 0.33333334f) - fVar6 * -0.2f) - fVar7 * 0.14285715f) - fVar7 * fVar1 * -0.063235f) * 180.0f * 0.3183098861837907;
+                // Odd powers at register width; t^2 and t^7 spilled to float and reused.
+                t2 = (long double)t * t;
+                t2_32 = t2;
+                t3 = t2 * t;
+                t5 = t3 * t2_32;
+                t7 = t5 * t2_32;
+                t7_32 = t7;
+                t9 = t7 * t2_32;
+                degrees = ((((t - t3 * 0x1.555556p-2f) - t5 * -0x1.99999ap-3f) - t7_32 * 0x1.24924ap-3f) - t9 * -0x1.0302b4p-4f) * 180.0f * 0x1.45f306dc9c883p-2; // 1/3, 0.2f, 1/7, 0.063235f, 1/pi
             }
             else
             {
-                fVar5 = 0.0f;
+                degrees = 0.0f;
             }
-            if (fVar4 < fVar2)
-            {
-                fVar5 = 90.0f - fVar5;
-            }
+            if (swapped)
+                degrees = 90.0f - degrees;
         }
         else
         {
-            fVar5 = 0.0f;
+            degrees = 0.0f;
         }
     }
     else
     {
-        fVar5 = 90.0f;
+        degrees = 90.0f;
     }
-    if (x2 < -0.0001f)
-    {
-        fVar5 = 180.0f - fVar5;
-    }
-    if (x1 < -0.0001f)
-    {
-        fVar5 = -fVar5;
-    }
-    return fVar5;
+    if (x2 < -0x1.a36e2ep-14f)
+        degrees = 180.0f - degrees;
+    if (x1 < -0x1.a36e2ep-14f)
+        degrees = -degrees;
+    return degrees;
 }
 
 // 0x00480650
@@ -229,7 +227,7 @@ float stdMath_Decelerator(float deceleration, float time)
     // ULP away -- and written without the `f` suffix it becomes a double constant, which
     // is a third distinct value. All three disagree, so the literal has to come from the
     // stored bits rather than the decompiler's text.
-    return 1.0f - (time * 33.333336f) / (time * 33.333336f + deceleration);
+    return 1.0f - (time * 0x1.0aaaacp+5f) / (time * 0x1.0aaaacp+5f + deceleration); // 33.333336f
 }
 
 // 0x00480670
@@ -324,7 +322,7 @@ void stdMath_SinCosFast(float angle, float* pSinOut, float* pCosOut)
     } else {
         quadrant = 0;
     }
-    idx = a * ((float)STDMATH_TRIG_QUARTER / 90.0f);
+    idx = a * 0x1.6c16c2p+5f; // (float)(4096 / 90.0), stored at 0x004af6e0
     frac = idx - stdMath_fround(idx);
     i1 = stdMath_FRoundInt(idx);
     i2 = i1 + 1;
@@ -501,48 +499,27 @@ float stdMath_Sqrt_2(float f)
 // 0x0048d010
 float stdMath_ArcSin3(float x_)
 {
-    float res;
-    float taylor_1;
-    float taylor_3;
-    float taylor_2;
-    float taylor_4;
+    bool negative;
     float x;
-    float expansion;
+    float partial;
+    float res;
 
-    // Exact float32 constants from 0x004af6c8..0x004af704. The degrees-per-radian factor
-    // is 57.295784f (0x004af6f4), not the 57.29578 Ghidra printed, and the split point is
-    // 0.70710677f rather than 0.7071068.
-    if (0.0f <= x_)
+    // Exact float32 constants from 0x004af6c8..0x004af704. Retail sums the series as
+    // ((x + x^3/6) + 0.075x^5) + 0.066797x^7, spilling each partial sum to float.
+    negative = x_ < 0.0f;
+    x = negative ? -x_ : x_;
+    if (x <= 0x1.6a09e6p-1f) // 0.70710677f
     {
-        x = x_;
+        partial = stdMath_FlexPower(x, 3) / 6.0f + x;
+        partial = stdMath_FlexPower(x, 5) * 0x1.333334p-4f + partial; // 0.075f
+        res = (stdMath_FlexPower(x, 7) * 0x1.1199bcp-4f + partial) * 0x1.ca5dc4p+5f; // 0.066797f, 57.295784f
     }
     else
     {
-        x = -x_;
+        x = stdMath_Sqrt_2(1.0f - x * x);
+        partial = stdMath_FlexPower(x, 3) / 6.0f + x;
+        partial = stdMath_FlexPower(x, 5) * 0x1.333334p-4f + partial;
+        res = 90.0f - (stdMath_FlexPower(x, 7) * 0x1.1199bcp-4f + partial) * 0x1.ca5dc4p+5f;
     }
-    if (x <= 0.70710677f)
-    {
-        taylor_4 = stdMath_FlexPower(x, 3);
-        taylor_1 = stdMath_FlexPower(x, 5);
-        taylor_3 = stdMath_FlexPower(x, 7);
-        expansion = (taylor_3 * 0.066797f + taylor_1 * 0.075f + taylor_4 / 6.0f + x) * 57.295784f;
-    }
-    else
-    {
-        res = stdMath_Sqrt_2(1.0f - x * x);
-        taylor_4 = res;
-        taylor_1 = stdMath_FlexPower(taylor_4, 3);
-        taylor_3 = stdMath_FlexPower(taylor_4, 5);
-        taylor_2 = stdMath_FlexPower(taylor_4, 7);
-        expansion = 90.0f - (taylor_2 * 0.066797f + taylor_3 * 0.075f + taylor_1 / 6.0f + taylor_4) * 57.295784f;
-    }
-    if (0.0f <= x_)
-    {
-        res = expansion;
-    }
-    else
-    {
-        res = -expansion;
-    }
-    return res;
+    return negative ? -res : res;
 }

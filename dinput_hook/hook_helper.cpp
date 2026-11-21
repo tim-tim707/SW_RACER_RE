@@ -14,6 +14,10 @@
 
 #include <detours.h>
 
+extern "C" {
+#include <hook_mode.h>
+}
+
 extern "C" FILE *hook_log;
 
 std::map<void *, DebugFunctionInfo> hooks;
@@ -39,9 +43,14 @@ extern "C" void patchMemoryAccess(uint32_t address, void *newAddress) {
     PatchPointer("patchMemoryAccess", (void *) address, (uint32_t) newAddress);
 }
 
+static int delta_owned(uint32_t reimpl_addr) {
+    return hook_replacements.contains((void *) reimpl_addr);
+}
+
 extern "C" void init_hooks() {
     fprintf(hook_log, "[init_hooks]\n");
 
+    hook_mode_delta_owned = delta_owned;
     hook_generated(hook_log);
 
     fprintf(hook_log, "[init_hooks]: found %zu hooked functions.\n", hooks.size());
