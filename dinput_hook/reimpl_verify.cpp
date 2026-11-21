@@ -1970,12 +1970,16 @@ namespace {
     const int fname_part_count = (int) (sizeof(fname_parts) / sizeof(fname_parts[0]));
 
     void random_path(char *out, size_t n) {
-        out[0] = '\0';
+        std::memset(out, 0, n);
+        size_t len = 0;
         const int pieces = (int) (next_u32() % 5u);
         for (int k = 0; k < pieces; k++) {
             const char *p = fname_parts[next_u32() % (uint32_t) fname_part_count];
-            if (std::strlen(out) + std::strlen(p) + 1 < n)
-                std::strcat(out, p);
+            const size_t plen = std::strlen(p);
+            if (len + plen + 1 < n) {
+                std::memcpy(out + len, p, plen);
+                len += plen;
+            }
         }
     }
 
