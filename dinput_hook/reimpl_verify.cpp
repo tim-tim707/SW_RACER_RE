@@ -1149,9 +1149,9 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     // Pure integer arithmetic -> exact. isPrime trial-divides up to its argument, so keep the
     // range small enough that 20000 cases stay quick.
     std::fprintf(verify_log, "\nstdHashtbl\n");
-    run_u_si("stdHashtbl_CalculateHash", stdHashtbl_CalculateHash_ADDR, stdHashtbl_CalculateHash);
-    run_i_i("stdHashtbl_isPrime", stdHashtbl_isPrime_ADDR, stdHashtbl_isPrime, -50, 400);
-    run_i_i("stdHashtbl_nextPrime", stdHashtbl_nextPrime_ADDR, stdHashtbl_nextPrime, -50, 400);
+    run_u_si("stdHashTable_CalculateHash", stdHashTable_CalculateHash_ADDR, stdHashTable_CalculateHash);
+    run_i_i("stdHashTable_isPrime", stdHashTable_isPrime_ADDR, stdHashTable_isPrime, -50, 400);
+    run_i_i("stdHashTable_nextPrime", stdHashTable_nextPrime_ADDR, stdHashTable_nextPrime, -50, 400);
 
     std::fprintf(verify_log, "\nrdMatrix\n");
     run_v_m44("rdMatrix_SetIdentity44", rdMatrix_SetIdentity44_ADDR, rdMatrix_SetIdentity44, 0);
