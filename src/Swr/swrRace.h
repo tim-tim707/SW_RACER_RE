@@ -341,7 +341,7 @@ void swrRace_ApplyUpgradesToStats(PodHandlingData* pActiveStats, PodHandlingData
 
 void swrRace_CalculateUpgradedStat(PodHandlingData* podHandlingData, int upgradeCategory, int upgradeLevel, float upgradeHealth);
 
-void swrRace_UpdateTurn(float* param_1, float* param_2, float param_3, float param_4, float param_5, float param_6);
+void swrRace_UpdateTurn(float* turnRate, float* heading, float targetRate, float rateAccel, float steer, float bias);
 
 void swrRace_SetAngleFromTurnRate(float* out_tilt, float cur_turnrate, void* unused, float max_turnrate, float max_angle);
 

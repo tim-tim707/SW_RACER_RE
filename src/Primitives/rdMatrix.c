@@ -212,7 +212,7 @@ void rdMath_ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVecto
     float dy = segEnd->y - segStart->y;
     float dz = segEnd->z - segStart->z;
     float lenSq = dz * dz + dy * dy + dx * dx;
-    if (lenSq <= 0.001) {
+    if (lenSq <= 0x1.0624dd2f1a9fcp-10) { // 0.001
         *out = *segStart;
         return;
     }
@@ -444,7 +444,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
     local_24.x = fVar5;
     local_24.y = fVar1;
     fVar3 = rdVector_Len3(&local_24);
-    if (0.001 <= fVar3)
+    if (0x1.0624dd2f1a9fcp-10 <= fVar3) // 0.001
     {
         if (local_24.y / fVar3 <= 1.0)
         {
@@ -470,7 +470,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
         tr_rot->yaw_roll_pitch.z = fVar4;
         tr_rot->yaw_roll_pitch.x = 0.0;
     }
-    if (0.001 <= fVar3)
+    if (0x1.0624dd2f1a9fcp-10 <= fVar3) // 0.001
     {
         fVar5 = (local_24.z * fVar2 + local_24.y * fVar1 + local_24.x * fVar5) / fVar3;
         if (fVar5 < 1.0)
@@ -495,7 +495,7 @@ void rdMatrix_ExtractTransform(rdMatrix44* mat, swrTranslationRotation* tr_rot)
     local_c.y = local_24.x;
     local_c.z = 0.0;
     fVar5 = rdVector_Len3(&local_c);
-    if (0.001 <= fVar3)
+    if (0x1.0624dd2f1a9fcp-10 <= fVar3) // 0.001
     {
         fVar5 = (local_c.z * local_10 + local_c.y * local_14 + local_c.x * local_18) / fVar5;
         if (fVar5 < 1.0)
@@ -534,28 +534,35 @@ yaw roll pitch <=> gamma alpha beta
 
 // 0x00430e00
 void rdMatrix_BuildRotation44(rdMatrix44* out, float yaw, float roll, float pitch)
-
 {
-    float sin_alpha;
-    float cos_alpha;
-    float sin_beta;
-    float cos_beta;
-    float sin_gamma;
-    float cos_gamma;
+    float sin_roll;
+    float cos_roll;
+    float sin_pitch;
+    float cos_pitch;
+    float sin_yaw;
+    float cos_yaw;
+    float cp_cy32;
+    float sp_cy32;
+    float cp_sy32;
 
-    stdMath_SinCos(yaw, &sin_gamma, &cos_gamma);
-    stdMath_SinCos(roll, &sin_alpha, &cos_alpha);
-    stdMath_SinCos(pitch, &sin_beta, &cos_beta);
-    (out->vA).x = cos_beta * cos_gamma - sin_beta * sin_gamma * sin_alpha;
-    (out->vA).y = sin_beta * cos_gamma * sin_alpha + cos_beta * sin_gamma;
-    (out->vA).z = -(sin_beta * cos_alpha);
-    (out->vB).x = -(cos_alpha * sin_gamma);
-    (out->vB).y = cos_alpha * cos_gamma;
-    (out->vB).z = sin_alpha;
-    (out->vC).x = cos_beta * sin_gamma * sin_alpha + sin_beta * cos_gamma;
-    (out->vC).y = sin_beta * sin_gamma - cos_beta * cos_gamma * sin_alpha;
-    (out->vC).z = cos_beta * cos_alpha;
-    return;
+    stdMath_SinCos(yaw, &sin_yaw, &cos_yaw);
+    stdMath_SinCos(roll, &sin_roll, &cos_roll);
+    stdMath_SinCos(pitch, &sin_pitch, &cos_pitch);
+
+    // Retail spills cp*cy, sp*cy and cp*sy to float and adds those copies to the
+    // register-width cross terms; every other product stays at register width.
+    cp_cy32 = (long double)cos_pitch * cos_yaw;
+    sp_cy32 = (long double)sin_pitch * cos_yaw;
+    cp_sy32 = (long double)cos_pitch * sin_yaw;
+    (out->vA).x = cp_cy32 - ((long double)sin_pitch * sin_yaw) * sin_roll;
+    (out->vA).y = ((long double)sin_pitch * cos_yaw) * sin_roll + cp_sy32;
+    (out->vA).z = -((long double)sin_pitch * cos_roll);
+    (out->vB).x = -((long double)cos_roll * sin_yaw);
+    (out->vB).y = (long double)cos_roll * cos_yaw;
+    (out->vB).z = sin_roll;
+    (out->vC).x = ((long double)cos_pitch * sin_yaw) * sin_roll + sp_cy32;
+    (out->vC).y = (long double)sin_pitch * sin_yaw - ((long double)cos_pitch * cos_yaw) * sin_roll;
+    (out->vC).z = (long double)cos_pitch * cos_roll;
 }
 
 // 0x00430f10
@@ -571,13 +578,18 @@ void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float b
     stdMath_SinCos(gamma, &sin_gamma, &cos_gamma);
     stdMath_SinCos(alpha, &gamma, &cos_alpha);
     stdMath_SinCos(beta, &sin_beta, &cos_beta);
-    (out->rvec).x = cos_beta * cos_gamma - sin_beta * sin_gamma * gamma;
-    (out->rvec).y = sin_beta * cos_gamma * gamma + cos_beta * sin_gamma;
+    // Retail spills these three products to the stack and reads the rounded copies back for
+    // rvec.x/y and uvec.x; uvec.y uses the unrounded register copy of cos_beta * cos_gamma.
+    float cb_cg = cos_beta * cos_gamma;
+    float sb_cg = sin_beta * cos_gamma;
+    float cb_sg = cos_beta * sin_gamma;
+    (out->rvec).x = cb_cg - sin_beta * sin_gamma * gamma;
+    (out->rvec).y = sin_beta * cos_gamma * gamma + cb_sg;
     (out->rvec).z = -(sin_beta * cos_alpha);
     (out->lvec).x = -(cos_alpha * sin_gamma);
     (out->lvec).y = cos_alpha * cos_gamma;
     (out->lvec).z = gamma;
-    (out->uvec).x = cos_beta * sin_gamma * gamma + sin_beta * cos_gamma;
+    (out->uvec).x = cos_beta * sin_gamma * gamma + sb_cg;
     (out->uvec).y = sin_beta * sin_gamma - cos_beta * cos_gamma * gamma;
     (out->uvec).z = cos_beta * cos_alpha;
     return;
@@ -660,47 +672,72 @@ void rdMatrix_SetTranslation44(rdMatrix44* mat, float x, float y, float z)
 // 0x00431150
 void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, float y, float z)
 {
-    float fVar1;
-    float fVar2;
-    float fVar3;
-    float fVar4;
-    float fVar5;
-    float fVar6;
-    float angleRad_cos;
-    float angleRad_sin[8]; // 8 items is a compilation artifact ?
+    float s;
+    float c;
+    float xx32;
+    float yy32;
+    float w32;
+    float xxc32;
+    float yyc32;
+    float one_minus_c32;
+    float sx32;
+    float sy32;
+    float sz32;
+    float zx_omc32;
+    float zy_omc32;
+    float yx_omc32;
+    long double yy;
+    long double xxc;
+    long double yyc;
+    long double d;
+    long double yx_omc;
+    long double zx_omc;
 
-    stdMath_SinCos(angle, angleRad_sin, &angleRad_cos);
+    stdMath_SinCos(angle, &s, &c);
     // 0.999f is the float32 at 0x004ac6cc (0.9990000128746033); as a bare double literal
     // 0.999 is a slightly smaller number, and this is a branch threshold.
-    if (z < 0.999f)
+    if (z < 0x1.ff7ceep-1f) // 0.999f
     {
-        if (-0.999f < z)
+        if (-0x1.ff7ceep-1f < z)
         {
-            fVar4 = x * x;
-            fVar1 = y * y;
-            fVar2 = fVar1 * angleRad_cos;
-            fVar5 = (1.0 - fVar4) - fVar1;
-            fVar3 = fVar4 * angleRad_cos;
-            fVar6 = 1.0 - angleRad_cos;
-            (mat->vA).x = (fVar3 * fVar5 + fVar2) / (1.0 - fVar5) + fVar4;
-            fVar4 = y * x * fVar6;
-            (mat->vB).y = (fVar2 * fVar5 + fVar3) / (1.0 - fVar5) + fVar1;
-            fVar1 = z * x * fVar6;
-            fVar6 = z * y * fVar6;
-            (mat->vC).z = fVar3 + fVar2 + fVar5;
-            (mat->vA).y = angleRad_sin[0] * z + fVar4;
-            (mat->vB).x = fVar4 - angleRad_sin[0] * z;
-            (mat->vA).z = fVar1 - angleRad_sin[0] * y;
-            (mat->vC).x = angleRad_sin[0] * y + fVar1;
-            (mat->vB).z = angleRad_sin[0] * x + fVar6;
-            (mat->vC).y = fVar6 - angleRad_sin[0] * x;
+            // Spill points follow retail's x87 schedule: values named *32 are rounded to
+            // float before reuse, everything else stays at register width.
+            xx32 = (long double)x * x;
+            yy = (long double)y * y;
+            yy32 = yy;
+            w32 = (1.0f - xx32) - yy32;
+            yyc = yy * c;
+            yyc32 = yyc;
+            xxc = (long double)xx32 * c;
+            xxc32 = xxc;
+            d = 1.0f - w32;
+            (mat->vA).x = (xxc * w32 + yyc32) / d + xx32;
+            (mat->vB).y = (yyc * w32 + xxc32) / d + yy32;
+
+            one_minus_c32 = 1.0f - c;
+            yx_omc = ((long double)y * x) * one_minus_c32;
+            zx_omc = ((long double)z * x) * one_minus_c32;
+            zy_omc32 = ((long double)z * y) * one_minus_c32;
+            sx32 = (long double)s * x;
+            sy32 = (long double)s * y;
+            sz32 = (long double)s * z;
+            yx_omc32 = yx_omc;
+            zx_omc32 = zx_omc;
+
+            (mat->vC).z = (xxc32 + yyc32) + w32;
+            (mat->vA).y = sz32 + yx_omc32;
+            (mat->vB).x = yx_omc - sz32;
+            (mat->vA).z = zx_omc - sy32;
+            (mat->vC).x = sy32 + zx_omc32;
+            (mat->vB).z = (long double)s * x + zy_omc32;
+            (mat->vC).y = zy_omc32 - sx32;
         }
         else
         {
-            (mat->vA).x = angleRad_cos;
-            (mat->vB).y = angleRad_cos;
-            (mat->vA).y = -angleRad_sin[0];
-            (mat->vB).x = angleRad_sin[0];
+            (mat->vA).x = c;
+            (mat->vB).y = c;
+            (mat->vA).y = -s;
+            (mat->vB).x = s;
             (mat->vA).z = 0.0;
             (mat->vB).z = 0.0;
             (mat->vC).x = 0.0;
@@ -710,10 +747,10 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     }
     else
     {
-        (mat->vA).x = angleRad_cos;
-        (mat->vB).y = angleRad_cos;
-        (mat->vB).x = -angleRad_sin[0];
-        (mat->vA).y = angleRad_sin[0];
+        (mat->vA).x = c;
+        (mat->vB).y = c;
+        (mat->vB).x = -s;
+        (mat->vA).y = s;
         (mat->vA).z = 0.0;
         (mat->vB).z = 0.0;
         (mat->vC).x = 0.0;
@@ -727,7 +764,6 @@ void rdMatrix_BuildFromVectorAngle44(rdMatrix44* mat, float angle, float x, floa
     (mat->vB).w = 0.0;
     (mat->vC).w = 0.0;
     (mat->vD).w = 1.0;
-    return;
 }
 
 // 0x00431390
@@ -846,33 +882,26 @@ void rdMatrix_Copy44(rdMatrix44* out, const rdMatrix44* in)
 // 0x00483690
 void rdMatrix_BuildViewMatrix(rdMatrix44* viewMatrix_out, rdMatrix44* world)
 {
-    float vAx;
-    float vAz;
-    float vBz;
-    float vCx;
-    float vCz;
+    rdMatrix44* out = viewMatrix_out;
+    const rdVector4* t = &world->vD;
 
-    (viewMatrix_out->vA).x = (world->vA).x;
-    (viewMatrix_out->vB).x = (world->vA).y;
-    (viewMatrix_out->vC).x = (world->vA).z;
-    (viewMatrix_out->vA).z = -(world->vB).x;
-    (viewMatrix_out->vB).z = -(world->vB).y;
-    (viewMatrix_out->vC).z = -(world->vB).z;
-    vCx = (viewMatrix_out->vC).x;
-    vAx = (viewMatrix_out->vA).x;
-    (viewMatrix_out->vA).y = (world->vC).x;
-    (viewMatrix_out->vB).y = (world->vC).y;
-    (viewMatrix_out->vC).y = (world->vC).z;
-    vBz = (viewMatrix_out->vB).z;
-    vCz = (viewMatrix_out->vC).z;
-    vAz = (viewMatrix_out->vA).z;
-    (viewMatrix_out->vD).x = -((viewMatrix_out->vB).x * (world->vD).y + vCx * (world->vD).z + vAx * (world->vD).x);
-    (viewMatrix_out->vD).y = -((world->vD).y * (viewMatrix_out->vB).y + (world->vD).z * (viewMatrix_out->vC).y + (world->vD).x * (viewMatrix_out->vA).y);
-    (viewMatrix_out->vD).z = -(vAz * (world->vD).x + vCz * (world->vD).z + vBz * (world->vD).y);
-    (viewMatrix_out->vA).w = (world->vA).w;
-    (viewMatrix_out->vB).w = (world->vB).w;
-    (viewMatrix_out->vC).w = (world->vC).w;
-    (viewMatrix_out->vD).w = (world->vD).w;
+    (out->vA).x = (world->vA).x;
+    (out->vB).x = (world->vA).y;
+    (out->vC).x = (world->vA).z;
+    (out->vA).z = -(world->vB).x;
+    (out->vB).z = -(world->vB).y;
+    (out->vC).z = -(world->vB).z;
+    (out->vA).y = (world->vC).x;
+    (out->vB).y = (world->vC).y;
+    (out->vC).y = (world->vC).z;
+    // Per-row accumulation order follows retail: (A + C) + B, (A + C) + B, (B + C) + A.
+    (out->vD).x = -(((long double)(out->vA).x * t->x + (long double)(out->vC).x * t->z) + (long double)(out->vB).x * t->y);
+    (out->vD).y = -(((long double)t->x * (out->vA).y + (long double)t->z * (out->vC).y) + (long double)t->y * (out->vB).y);
+    (out->vD).z = -(((long double)(out->vB).z * t->y + (long double)(out->vC).z * t->z) + (long double)(out->vA).z * t->x);
+    (out->vA).w = (world->vA).w;
+    (out->vB).w = (world->vB).w;
+    (out->vC).w = (world->vC).w;
+    (out->vD).w = (world->vD).w;
 }
 
 // 0x004924b0
@@ -889,14 +918,17 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     stdMath_SinCosFast(angles->x, &sin_alpha, &cos_alpha);
     stdMath_SinCosFast(angles->y, &sin_gamma, &cos_gamma);
     stdMath_SinCosFast(angles->z, &sin_beta, &cos_beta.x);
+    // Retail spills these two products and reads the rounded copies back for rvec.y and uvec.x.
+    float sb_cg = sin_beta * cos_gamma;
+    float cb_sg = cos_beta.x * sin_gamma;
     (out->rvec).x = -(sin_beta * sin_gamma) * sin_alpha + cos_beta.x * cos_gamma;
-    (out->rvec).y = sin_beta * cos_gamma * sin_alpha + cos_beta.x * sin_gamma;
+    (out->rvec).y = sin_beta * cos_gamma * sin_alpha + cb_sg;
     (out->rvec).z = -sin_beta * cos_alpha;
     (out->lvec).x = -sin_gamma * cos_alpha;
     (out->lvec).y = cos_gamma * cos_alpha;
     (out->lvec).z = sin_alpha;
-    (out->uvec).x = cos_beta.x * sin_gamma * sin_alpha + sin_beta * cos_gamma;
-    (out->uvec).y = -sin_alpha * cos_beta.x * cos_gamma + sin_beta * sin_gamma;
+    (out->uvec).x = cos_beta.x * sin_gamma * sin_alpha + sb_cg;
+    (out->uvec).y = -sin_alpha * (cos_beta.x * cos_gamma) + sin_beta * sin_gamma;
     (out->uvec).z = cos_beta.x * cos_alpha;
     (out->scale).x = translation->x;
     (out->scale).y = translation->y;
@@ -924,21 +956,22 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     scalez = (in->scale).z;
     scalex = (in->scale).x;
 
-    (out->scale).x = -(scalex * (in->rvec).x + (in->rvec).z * scalez + (in->rvec).y * scaley);
-    (out->scale).y = -((in->lvec).z * scalez + (in->lvec).x * scalex + (in->lvec).y * scaley);
-    (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
+    (out->scale).x = -((in->rvec).y * scaley + (in->rvec).z * scalez + scalex * (in->rvec).x);
+    (out->scale).y = -((in->lvec).x * scalex + (in->lvec).y * scaley + (in->lvec).z * scalez);
+    (out->scale).z = -((in->uvec).y * scaley + (in->uvec).z * scalez + (in->uvec).x * scalex);
 }
 
 // 0x00492680 World to Camera matrix
 void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
 {
-    float lvec_normsquare;
+    // Retail spills the rvec and uvec squared lengths to float but keeps lvec's on the FPU stack.
+    long double lvec_normsquare;
     float uvec_normsquare;
     float rvec_normsquare;
 
-    rvec_normsquare = (in->rvec).x * (in->rvec).x + (in->rvec).z * (in->rvec).z + (in->rvec).y * (in->rvec).y;
-    lvec_normsquare = (in->lvec).z * (in->lvec).z + (in->lvec).y * (in->lvec).y + (in->lvec).x * (in->lvec).x;
-    uvec_normsquare = (in->uvec).z * (in->uvec).z + (in->uvec).y * (in->uvec).y + (in->uvec).x * (in->uvec).x;
+    lvec_normsquare = (in->lvec).x * (in->lvec).x + (in->lvec).y * (in->lvec).y + (in->lvec).z * (in->lvec).z;
+    uvec_normsquare = (in->uvec).x * (in->uvec).x + (in->uvec).y * (in->uvec).y + (in->uvec).z * (in->uvec).z;
+    rvec_normsquare = (in->rvec).y * (in->rvec).y + (in->rvec).z * (in->rvec).z + (in->rvec).x * (in->rvec).x;
 
     (out->rvec).x = (in->rvec).x / rvec_normsquare;
     (out->rvec).y = (in->lvec).x / lvec_normsquare;
@@ -952,7 +985,7 @@ void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
     (out->uvec).y = (in->lvec).z / lvec_normsquare;
     (out->uvec).z = (in->uvec).z / uvec_normsquare;
 
-    (out->scale).x = -((in->scale).x * (out->rvec).x + (in->scale).y * (out->lvec).x + (in->scale).z * (out->uvec).x);
+    (out->scale).x = -((in->scale).z * (out->uvec).x + (in->scale).y * (out->lvec).x + (in->scale).x * (out->rvec).x);
     (out->scale).y = -((in->scale).x * (out->rvec).y + (in->scale).y * (out->lvec).y + (in->scale).z * (out->uvec).y);
     (out->scale).z = -((in->scale).x * (out->rvec).z + (in->scale).y * (out->lvec).z + (in->scale).z * (out->uvec).z);
 }
@@ -964,6 +997,8 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
     float y_rad_sin, y_rad_cos;
     float z_rad_sin, z_rad_cos;
     rdVector3* scale;
+    float zs_yc32;
+    float zc_ys32;
 
     scale = &out->scale;
 
@@ -974,13 +1009,17 @@ void rdMatrix_BuildRotate34(rdMatrix34* out, rdVector3* rot)
     stdMath_SinCosFast(rot->x, &x_rad_sin, &x_rad_cos);
     stdMath_SinCosFast(rot->y, &y_rad_sin, &y_rad_cos);
     stdMath_SinCosFast(rot->z, &z_rad_sin, &z_rad_cos);
+    // Retail spills zs*yc and zc*ys to float and adds those copies to the register-width
+    // cross terms of rvec.y and uvec.x.
+    zs_yc32 = (long double)z_rad_sin * y_rad_cos;
+    zc_ys32 = (long double)z_rad_cos * y_rad_sin;
     out->rvec.x = -(z_rad_sin * y_rad_sin) * x_rad_sin + (z_rad_cos * y_rad_cos);
-    out->rvec.y = ((z_rad_sin * y_rad_cos) * x_rad_sin) + (z_rad_cos * y_rad_sin);
+    out->rvec.y = ((long double)z_rad_sin * y_rad_cos) * x_rad_sin + zc_ys32;
     out->rvec.z = -z_rad_sin * x_rad_cos;
     out->lvec.x = -y_rad_sin * x_rad_cos;
     out->lvec.y = (y_rad_cos * x_rad_cos);
     out->lvec.z = x_rad_sin;
-    out->uvec.x = ((z_rad_cos * y_rad_sin) * x_rad_sin) + (z_rad_sin * y_rad_cos);
+    out->uvec.x = ((long double)z_rad_cos * y_rad_sin) * x_rad_sin + zs_yc32;
     out->uvec.y = -x_rad_sin * (y_rad_cos * z_rad_cos) + (y_rad_sin * z_rad_sin);
     out->uvec.z = z_rad_cos * x_rad_cos;
     scale->x = 0.0;
@@ -997,94 +1036,86 @@ void rdMatrix_BuildTranslate34(rdMatrix34* out, rdVector3* tV)
     // END DELTA
 }
 
+// Retail squares roots with an inline FSQRT and stores the result as float.
+static float rdMatrix_x87Sqrt(float x)
+{
+    long double r = x;
+    __asm__("fsqrt" : "+t"(r));
+    return r;
+}
+
 // 0x00492960
 void rdMatrix_ExtractAngles34(rdMatrix34* in, rdVector3* out)
 {
-    float fVar1;
-    float fVar2;
-    float fVar3;
-    float fVar4;
-    float fVar5;
-    float fVar6;
-    float fVar7;
-    float fVar8;
-    float fVar9;
+    float neg_rx;
+    float neg_ry;
+    float neg_rz;
+    float lx;
+    float ly;
+    float lz;
+    float lx2_32;
+    float q32;
+    float h32;
+    float neg_ly;
+    float h2_32;
+    float r32;
 
-    fVar4 = -(in->rvec).x;
-    fVar9 = (in->lvec).x;
-    fVar2 = (in->lvec).y;
-    fVar5 = -(in->rvec).y;
-    fVar1 = (in->rvec).z;
-    fVar3 = (in->lvec).z;
-    fVar8 = fVar2 * fVar2 + fVar9 * fVar9;
-    fVar6 = stdMath_Sqrt(fVar8);
-    if (0.001 <= fVar6)
+    // Thresholds are the float32s at 0x004af940..0x004af95c (0.001f, not the double 0.001).
+    neg_rx = -(in->rvec).x;
+    neg_ry = -(in->rvec).y;
+    neg_rz = -(in->rvec).z;
+    lx = (in->lvec).x;
+    ly = (in->lvec).y;
+    lz = (in->lvec).z;
+    lx2_32 = (long double)lx * lx;
+    q32 = (long double)ly * ly + lx2_32;
+    h32 = rdMatrix_x87Sqrt(q32);
+    if (h32 < 0x1.0624dep-10f) // 0.001f
     {
-        fVar7 = stdMath_ArcSin3(fVar2 / fVar6);
-        fVar7 = 90.0 - fVar7;
-        if (0.0 < fVar9)
-        {
-            fVar7 = -fVar7;
-        }
-        out->y = fVar7;
-    }
-    else
-    {
-        fVar7 = stdMath_ArcSin3(-fVar4);
-        fVar7 = 90.0 - fVar7;
-        if (((0.0 < fVar5) && (0.0 < fVar3)) || ((fVar5 < 0.0 && (fVar3 < 0.0))))
-        {
-            fVar7 = -fVar7;
-        }
-        out->z = fVar7;
-        out->y = 0.0;
-    }
-    if (0.001 <= fVar6)
-    {
-        fVar8 = fVar8 / fVar6;
-        if (fVar8 < 1.0)
-        {
-            fVar8 = stdMath_ArcSin3(fVar8);
-            out->x = 90.0 - fVar8;
-        }
-        else
-        {
-            out->x = 0.0;
-        }
-    }
-    else
-    {
-        out->x = 90.0;
-    }
-    if (fVar3 < 0.0)
-    {
-        out->x = -out->x;
-    }
-    fVar2 = -fVar2;
-    if (0.001 <= fVar6)
-    {
-        fVar9 = (fVar2 * fVar4 + fVar5 * fVar9) / stdMath_Sqrt(fVar2 * fVar2 + fVar9 * fVar9);
-        if (fVar9 < 1.0)
-        {
-            if (-1.0 < fVar9)
-            {
-                fVar9 = stdMath_ArcSin3(fVar9);
-                out->z = 90.0 - fVar9;
-            }
-            else
-            {
-                out->z = 180.0;
-            }
-        }
-        else
-        {
-            out->z = 0.0;
-        }
-        if (-fVar1 < 0.0)
-        {
+        out->z = 90.0f - stdMath_ArcSin3(-neg_rx);
+        if (((0.0f < neg_ry) && (0.0f < lz)) || ((neg_ry < 0.0f) && (lz < 0.0f)))
             out->z = -out->z;
-        }
+        out->y = 0.0f;
     }
+    else
+    {
+        out->y = 90.0f - stdMath_ArcSin3(ly / h32);
+        if (0.0f < lx)
+            out->y = -out->y;
+    }
+    if (h32 < 0x1.0624dep-10f)
+    {
+        out->x = 90.0f;
+    }
+    else
+    {
+        r32 = q32 / h32;
+        if (r32 < 1.0f)
+            out->x = 90.0f - stdMath_ArcSin3(r32);
+        else
+            out->x = 0.0f;
+    }
+    if (lz < 0.0f)
+        out->x = -out->x;
+
+    neg_ly = -ly;
+    h2_32 = rdMatrix_x87Sqrt((long double)neg_ly * neg_ly + lx2_32);
+    if (h32 < 0x1.0624dep-10f)
+        return;
+    r32 = ((long double)neg_ry * lx + (long double)neg_ly * neg_rx) / h2_32;
+    if (r32 < 1.0f)
+    {
+        if (-1.0f < r32)
+            out->z = 90.0f - stdMath_ArcSin3(r32);
+        else
+            out->z = 180.0f;
+    }
+    else
+    {
+        out->z = 0.0f;
+    }
+    if (neg_rz < 0.0f)
+        out->z = -out->z;
 }
 
 // 0x00492b70
@@ -1121,18 +1152,19 @@ void rdMatrix_PreMultiply34(rdMatrix34* mat1, rdMatrix34* mat2)
     memcpy(&tmp, mat1, sizeof(tmp));
     memcpy(&m2, mat2, sizeof(rdMatrix34));
     // END DELTA
-    (mat1->rvec).x = tmp.rvec.x * (m2.rvec).x + (m2.rvec).z * tmp.uvec.x + (m2.rvec).y * tmp.lvec.x;
-    (mat1->rvec).y = tmp.rvec.y * (m2.rvec).x + (m2.rvec).z * tmp.uvec.y + (m2.rvec).y * tmp.lvec.y;
-    (mat1->rvec).z = tmp.rvec.z * (m2.rvec).x + (m2.rvec).z * tmp.uvec.z + (m2.rvec).y * tmp.lvec.z;
-    (mat1->lvec).x = (m2.lvec).z * tmp.uvec.x + (m2.lvec).x * tmp.rvec.x + (m2.lvec).y * tmp.lvec.x;
-    (mat1->lvec).y = (m2.lvec).z * tmp.uvec.y + (m2.lvec).x * tmp.rvec.y + (m2.lvec).y * tmp.lvec.y;
-    (mat1->lvec).z = (m2.lvec).z * tmp.uvec.z + (m2.lvec).x * tmp.rvec.z + (m2.lvec).y * tmp.lvec.z;
-    (mat1->uvec).x = (m2.uvec).x * tmp.rvec.x + (m2.uvec).y * tmp.lvec.x + (m2.uvec).z * tmp.uvec.x;
-    (mat1->uvec).y = (m2.uvec).x * tmp.rvec.y + (m2.uvec).y * tmp.lvec.y + (m2.uvec).z * tmp.uvec.y;
-    (mat1->uvec).z = (m2.uvec).x * tmp.rvec.z + (m2.uvec).y * tmp.lvec.z + (m2.uvec).z * tmp.uvec.z;
-    (mat1->scale).x = (m2.scale).x * tmp.rvec.x + (m2.scale).y * tmp.lvec.x + (m2.scale).z * tmp.uvec.x + tmp.scale.x;
-    (mat1->scale).y = (m2.scale).x * tmp.rvec.y + (m2.scale).y * tmp.lvec.y + (m2.scale).z * tmp.uvec.y + tmp.scale.y;
-    (mat1->scale).z = (m2.scale).x * tmp.rvec.z + (m2.scale).y * tmp.lvec.z + (m2.scale).z * tmp.uvec.z + tmp.scale.z;
+    // Accumulation order follows retail: a + (b + c) for rvec/uvec/scale, (a + b) + c for lvec.
+    (mat1->rvec).x = (long double)tmp.rvec.x * m2.rvec.x + ((long double)m2.rvec.y * tmp.lvec.x + (long double)m2.rvec.z * tmp.uvec.x);
+    (mat1->rvec).y = (long double)tmp.rvec.y * m2.rvec.x + ((long double)m2.rvec.y * tmp.lvec.y + (long double)m2.rvec.z * tmp.uvec.y);
+    (mat1->rvec).z = (long double)tmp.rvec.z * m2.rvec.x + ((long double)m2.rvec.y * tmp.lvec.z + (long double)m2.rvec.z * tmp.uvec.z);
+    (mat1->lvec).x = ((long double)m2.lvec.x * tmp.rvec.x + (long double)m2.lvec.y * tmp.lvec.x) + (long double)m2.lvec.z * tmp.uvec.x;
+    (mat1->lvec).y = ((long double)m2.lvec.x * tmp.rvec.y + (long double)m2.lvec.y * tmp.lvec.y) + (long double)m2.lvec.z * tmp.uvec.y;
+    (mat1->lvec).z = ((long double)m2.lvec.x * tmp.rvec.z + (long double)m2.lvec.y * tmp.lvec.z) + (long double)m2.lvec.z * tmp.uvec.z;
+    (mat1->uvec).x = (long double)m2.uvec.x * tmp.rvec.x + ((long double)m2.uvec.y * tmp.lvec.x + (long double)m2.uvec.z * tmp.uvec.x);
+    (mat1->uvec).y = (long double)m2.uvec.x * tmp.rvec.y + ((long double)m2.uvec.y * tmp.lvec.y + (long double)m2.uvec.z * tmp.uvec.y);
+    (mat1->uvec).z = (long double)m2.uvec.x * tmp.rvec.z + ((long double)m2.uvec.y * tmp.lvec.z + (long double)m2.uvec.z * tmp.uvec.z);
+    (mat1->scale).x = ((long double)m2.scale.x * tmp.rvec.x + ((long double)m2.scale.y * tmp.lvec.x + (long double)m2.scale.z * tmp.uvec.x)) + tmp.scale.x;
+    (mat1->scale).y = ((long double)m2.scale.x * tmp.rvec.y + ((long double)m2.scale.y * tmp.lvec.y + (long double)m2.scale.z * tmp.uvec.y)) + tmp.scale.y;
+    (mat1->scale).z = ((long double)m2.scale.x * tmp.rvec.z + ((long double)m2.scale.y * tmp.lvec.z + (long double)m2.scale.z * tmp.uvec.z)) + tmp.scale.z;
 }
 
 // 0x00492f40

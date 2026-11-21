@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #ifndef PI
-#define PI (3.141592653589793)
+#define PI (0x1.921fb54442d18p+1) // 3.141592653589793
 #endif // PI
 
 #define stdMath_MultiplyAddClamped_ADDR (0x00429d50)
@@ -41,6 +41,8 @@ void stdMath_SinCos(float angle_degrees, float* pSinOut, float* pCosOut);
 float stdMath_Tan(float angle_degrees);
 float stdMath_ArcSin(float angle);
 float stdMath_ArcCos(float angle);
+// stdMath_ArcCos's result as the x87 leaves it in ST0, before any caller rounds it to float.
+long double stdMath_ArcCosUnrounded(float angle);
 float stdMath_ArcTan2(float x1, float x2);
 
 float stdMath_Decelerator(float param_1, float param_2);

@@ -3,26 +3,22 @@
 // 0x004845b0
 char* stdFnames_FindMedName(char* path)
 {
-    char* pcVar1;
-    char* res;
-
-    res = strchr(path, '\\');
-
-    if (res != NULL)
+    char* res = strrchr(path, '\\');
+    if (res == NULL)
     {
-        while ((res)[1] == '\\')
-        {
-            res = res + 1;
-        }
-        return res;
+        return path;
     }
-    return path;
+    while (*res == '\\')
+    {
+        res = res + 1;
+    }
+    return res;
 }
 
 // 0x004845e0
 char* stdFnames_FindExt(char* path)
 {
-    char* result = strchr(stdFnames_FindMedName(path), '.');
+    char* result = strrchr(stdFnames_FindMedName(path), '.');
     if (result == NULL)
     {
         return NULL;
