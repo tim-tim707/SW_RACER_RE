@@ -950,7 +950,7 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
             *(float *) (sc + SCORE_LAP2) = g_lastLap[r];
         } else if (!g_lapFinished[r] && numLaps > 0 && lap >= numLaps) {
             // On finish, overwrite the de-indexed lap slots so the records save in
-            // swrRace_ResultsMenu (min over Lap1..Lap_n) records the real best lap rather than the
+            // swrObjHang_ResultsMenu (min over Lap1..Lap_n) records the real best lap rather than the
             // de-indexed 0.0; the sentinel in Lap2 makes its min loop stop after Lap1.
             g_lapFinished[r] = true;
             if (g_bestLapNum[r] > 0) {

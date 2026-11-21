@@ -27,13 +27,13 @@ extern TrackInfo g_aNewTrackInfos[MAX_NB_TRACKS];
 extern char g_aCustomTrackNames[MAX_NB_TRACKS][32];
 extern uint16_t trackCount;
 
-void swrRace_MainMenu_delta(swrObjHang *hang);
+void swrObjHang_MainMenu_delta(swrObjHang *hang);
 
 void HandleCircuits_delta(swrObjHang *hang);
 
-void swrRace_CourseSelectionMenu_delta(void);
+void swrObjHang_CourseSelectionMenu_delta(void);
 
-void swrRace_CourseInfoMenu_delta(swrObjHang *hang);
+void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang);
 
 char *swrUI_GetTrackNameFromId_delta(int trackId);
 

@@ -795,7 +795,7 @@ extern "C"
         uint8_t linkedToSave; // 0x21. 1 = swrRace_SaveCurrentProfile mirrors this profile into save slot `saveSlot`
         uint8_t saveSlot; // 0x22. save-image profile slot this profile syncs with (defaults to its own index)
         uint8_t unk23; // 0x23
-        uint8_t pilotId; // 0x24. selected pilot (stamped as record holder by swrRace_ResultsMenu; default 0 = Anakin)
+        uint8_t pilotId; // 0x24. selected pilot (stamped as record holder by swrObjHang_ResultsMenu; default 0 = Anakin)
         uint8_t tracksUnlocked[3]; // 0x25. per-circuit track-unlocked bitmask (bit N = track N; default 1)
         uint8_t circuitsCompleted; // 0x28. bit c = circuit c finished; bit 3 = invitational circuit unlocked
         uint8_t unk29; // 0x29
@@ -820,7 +820,7 @@ extern "C"
         uint8_t unk4; // 0x004. set to 1 by swrRace_InitDefaultGameData
         uint8_t sfxVolume; // 0x005. default 225 (= sound_sfx_volume)
         int16_t musicVolume; // 0x006. default 200 (= sound_music_volume)
-        uint32_t unlockFlags; // 0x008. default 3; |= 0x20 once every track is beaten 1st place (swrRace_ResultsMenu, swrRace_CheatUnlockAll)
+        uint32_t unlockFlags; // 0x008. default 3; |= 0x20 once every track is beaten 1st place (swrObjHang_ResultsMenu, swrRace_CheatUnlockAll)
         uint8_t beatTracksGlobal[4]; // 0x00c. = g_aBeatTracksGlobal, defaults {7,3,1,0}
         uint32_t pilotsUnlockedGlobal; // 0x010. union of every profile's pilot unlocks; 0 = image uninitialized (swrRace_IsGameDataUninitialized)
         swrSaveProfile profiles[4]; // 0x014. saved profile slots

@@ -221,7 +221,7 @@
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
 
-// swrRace_BuyPitdroidsMenu: truguts per extra pit droid
+// swrObjHang_BuyPitDroidsMenu: truguts per extra pit droid
 #define SWR_PITDROID_PRICE (1000)
 
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
@@ -495,7 +495,7 @@
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
 #define SWR_UI_DIALOG_RESULT_NO (1) // second button
-#define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrRace_LoadSaveConfigMenu)
+#define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrConfig_BuildConfigFilesMenu)
 // clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT (700001)

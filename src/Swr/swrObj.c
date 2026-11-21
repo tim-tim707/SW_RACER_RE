@@ -2480,7 +2480,7 @@ void swrObjHang_UpdateMainMenu(swrObjHang* hang)
         swrRace_AudioVideoSettings(hang);
         return;
     }
-    swrRace_MainMenu(hang);
+    swrObjHang_MainMenu(hang);
 }
 
 static void computeSelectedPartStats(swrObjHang* hang);
@@ -2528,7 +2528,7 @@ void swrObjHang_UpdateJunkyard(swrObjHang* hang)
 
     swrRace_DrawPartShopScreen(hang);
     if (hang->cameraState != HangCameraState__unk_3)
-        swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+        swrObjHang_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
     if ((swrObjHang_cameraMoveParity == 0 || swrObjHang_cameraMoveActive != 0) && hang->cameraState != HangCameraState__unk_3) {
         partName = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].name);
         format = swrText_Translate(g_pTxtPartNameFormat);
@@ -3207,7 +3207,7 @@ void swrObjHang_F0(swrObjHang* hang)
             break;
         case swrObjHang_STATE_POST_RACE_INFO:
             swrObjHang_ShowPartNodes(hang);
-            swrRace_ResultsMenu(hang);
+            swrObjHang_ResultsMenu(hang);
             break;
         case swrObjHang_STATE_WATTO:
             if (hang->loc_wattoo_part_model != NULL)
@@ -3225,11 +3225,11 @@ void swrObjHang_F0(swrObjHang* hang)
             break;
         case swrObjHang_STATE_SELECT_PLANET:
             swrObjHang_ShowPartNodes(hang);
-            swrRace_CourseSelectionMenu();
+            swrObjHang_CourseSelectionMenu();
             break;
         case swrObjHang_STATE_SELECT_TRACK:
             swrObjHang_ShowPartNodes(hang);
-            swrRace_CourseInfoMenu(hang);
+            swrObjHang_CourseInfoMenu(hang);
             break;
         case swrObjHang_STATE_LOAD_SCREEN:
             swrObjHang_UpdateLoadScreen(hang);
@@ -13523,9 +13523,9 @@ void swrObjHang_UpdateWattoShop(swrObjHang* hang)
 
     if (hang->cameraState == HangCameraState_CounterBuyParts) {
         swrRace_DrawPartShopScreen(hang);
-        swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+        swrObjHang_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
     } else {
-        swrRace_BuyPitdroidsMenu(hang);
+        swrObjHang_BuyPitDroidsMenu(hang);
     }
     if (swrObjHang_partDetailActive == 0 && swrObjHang_screenTransitionDir == 0 && hang->cameraState == HangCameraState_CounterBuyParts && (swrObjHang_cameraMoveMode == 0 || swrObjHang_cameraMoveMode == 5)) {
         partName = swrText_Translate((char*)upgradeInfos[(char)uiUpgradeInfos2[swrRace_MenuSelectedItem].index].name);
@@ -13976,7 +13976,7 @@ void swrObjHang_UpdateLookAtVehicle(swrObjHang* hang)
             swrObjHang_lookAtMenuFade = 0.4f;
         }
         if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
-            swrRace_HangarMenu(hang);
+            swrObjHang_LookAtVehicleMenu(hang);
         }
     } else {
         swrObjHang_lookAtMenuFade = swrObjHang_lookAtMenuFade - swrRace_fdeltaTimeSecs;

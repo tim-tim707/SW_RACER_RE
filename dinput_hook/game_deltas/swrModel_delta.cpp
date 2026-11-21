@@ -477,7 +477,7 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
 // 0x00450560 -- swrText_CreateColorlessEntry1 and 0x00450590 -- swrText_CreateColorlessFormattedEntry1.
 // Sibling wrappers that call swrText_CreateEntry DIRECTLY (NOT via swrText_CreateTextEntry1), so the
 // CreateTextEntry1 hook never sees them. The hangar screen TITLES ("SELECT VEHICLE" in
-// swrRace_SelectVehicle, "MAIN MENU" in swrRace_MainMenu) are drawn through CreateColorlessEntry1 at
+// swrRace_SelectVehicle, "MAIN MENU" in swrObjHang_MainMenu) are drawn through CreateColorlessEntry1 at
 // x=0xa0; without these hooks the titles miss the centering offset and sit left of the pillarboxed
 // UI. Apply the same shift as CreateTextEntry1.
 void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {

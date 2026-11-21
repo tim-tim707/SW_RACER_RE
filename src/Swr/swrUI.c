@@ -435,9 +435,9 @@ int swrUI_BuildMenuPages(void)
         swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 2, 4, swrText_Translate("/MONDOTEXT_H_0545/~s#"), 0x127, 0x46, 0, 0);
     }
 
-    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrRace_SelectProfileMenu);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrUI_Menu_SelectProfile);
     if (page != NULL)
-        swrRace_BuildProfileSelectMenu(page);
+        swrConfig_BuildProfileListMenu(page);
 
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_SettingsHub);
     if (page != NULL) {
@@ -453,7 +453,7 @@ int swrUI_BuildMenuPages(void)
 
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_CONFIG_FILES, (swrUI_unk_F2*)swrUI_Menu_SaveLoadConfig);
     if (page != NULL)
-        swrRace_LoadSaveConfigMenu(page);
+        swrConfig_BuildConfigFilesMenu(page);
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_JOYSTICK_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
     if (page != NULL) {
         swrConfig_BuildJoystickMenu(page);
@@ -486,7 +486,7 @@ int swrUI_BuildMenuPages(void)
     }
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_RESERVED_KEYS, (swrUI_unk_F2*)swrUI_Menu_ReservedSettings);
     if (page != NULL)
-        swrRace_ReservedSettingsMenu(page);
+        swrConfig_BuildReservedSettingsMenu(page);
 
     swrMultiplayer_BuildAllMenuScreens();
     swrUI_BuildAuxPages();
@@ -6098,7 +6098,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         return 0;
     case swrUI_MSG_ELEMENT_ACTIVATED:
-        if (id == 3) { // nav button (swrRace_LoadSaveConfigMenu)
+        if (id == 3) { // nav button (swrConfig_BuildConfigFilesMenu)
             swrUI_PopMenuPage();
             return 0;
         }
@@ -6438,7 +6438,7 @@ int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param, 
     swrUI_unk* label;
 
     if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
-        if ((unsigned int)param == 3) // nav button (swrRace_ReservedSettingsMenu)
+        if ((unsigned int)param == 3) // nav button (swrConfig_BuildReservedSettingsMenu)
             swrUI_PopMenuPage();
     } else if (swrMain_moneyHintUnlocked != 0 && msg != swrUI_MSG_DESTROY && swrUI_moneyHintShown == 0) {
         label = swrUI_NewLabel(swrUI_GetById(NULL, swrUI_WINDOW_RESERVED_KEYS), 1, 0, swrText_Translate("/MONDOTEXT_H_0334/~s  SHIFT, 4 and F4 shows you the money!, where?  You figure it out!"), 0x28, 400, 0, 0);

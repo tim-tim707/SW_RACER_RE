@@ -337,14 +337,14 @@ static bool track_has_record_slot(int trackIndex) {
     return trackIndex >= 0 && trackIndex * 2 + 1 < numSlots;
 }
 
-// swrRace_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
+// swrObjHang_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
 // skip is on, keep the results flow from ever transitioning to that scene (RESULTS_INTRO, state 17):
 // the scene sets up its pod + backdrop the instant it's entered, so skipping it at the scene handler
 // always flashes a frame. Instead pre-set the milestone bit the original uses to gate the scene, so
 // it never calls swrObjHang_SetMenuState for it -- then replicate just the pilot-unlock bookkeeping
 // that suppressed branch would have done, so beating a track's favorite pilot still unlocks its pod.
 // Everything else (standings, truguts, track unlock, name entry) runs unchanged in the original.
-void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
+void __cdecl swrObjHang_ResultsMenu_delta(swrObjHang* hang) {
     swrControl_NormalizeResultsAdvance();
     const bool skip = cutscene_skip_effective(imgui_state.skip_results);
     if (skip)
@@ -352,7 +352,7 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
     if (!track_has_record_slot(hang->track_index))
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1 |
             swrRace_RESULTSFLAG_NAME_ENTRY_P2 | swrRace_RESULTSFLAG_RECORDS_COMMITTED;
-    hook_call_original(swrRace_ResultsMenu, hang);
+    hook_call_original(swrObjHang_ResultsMenu, hang);
 
     // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
     // finish on the circuit's last track makes the original queue state 16 (the winners' podium),
@@ -382,7 +382,7 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
 
 // swrRace_CopyProfileFromSave (0x44e500), reached from boot (swrRace_InitGameData) and profile
 // load (swrRace_LoadProfile). Free-play track lists read g_aBeatTracksGlobal, which stock only
-// folds the active profile's unlocks into on the results screen (swrRace_ResultsMenu). A profile
+// folds the active profile's unlocks into on the results screen (swrObjHang_ResultsMenu). A profile
 // whose unlocks are ahead of the machine's tgfd.dat (loaded from its .sav, or after tgfd.dat was
 // recreated) therefore showed too few free-play tracks until a race finished. Fold on load too,
 // with the results screen's own rule.

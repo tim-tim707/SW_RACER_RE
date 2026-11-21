@@ -4,7 +4,7 @@ stdControl_dfKeyboard 0x0049e690 DIDATAFORMAT # c_dfDIKeyboard
 
 swrObjHang_cutsceneTimerEnd 0x004ac778 float
 
-# swrRace_ResultsMenu state. resultsMilestones bits: 0x1/0x2 = P1/P2 name-entry done, 0x4 = record
+# swrObjHang_ResultsMenu state. resultsMilestones bits: 0x1/0x2 = P1/P2 name-entry done, 0x4 = record
 # updated, 0x8 = favorite-pilot pod-unlock scene shown. localPlayerPlace = P1 finishing rank (1=1st).
 # favPilotUnlockMask = per-pilot "beaten their track" bits; unlockedPilotsMask = the persistent
 # unlocked-content mask it feeds (read by swrObjHang_LoadScreenAssets, written by CheatUnlockAll).
@@ -840,7 +840,7 @@ rdModel_CurrentMaterialSet 0x0050c0cc int
 swrObjHang_planetIntroTimer 0x0050c0d8 float
 
 swrRace_SelectedRacer 0x0050c118 int
-swrObjHang_orbitDistance 0x0050c11c float # main-menu camera orbit radius (eye to look-at), recovered on entry by swrRace_MainMenu
+swrObjHang_orbitDistance 0x0050c11c float # main-menu camera orbit radius (eye to look-at), recovered on entry by swrObjHang_MainMenu
 
 swrObjHang_courseShownPlanet 0x0050c134 char # planet whose holo/sprite the course-select screen shows; follows the cursor once the slide settles
 
@@ -850,7 +850,7 @@ swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose
 alpha_unk 0x0050c2e8 float
 gamma_unk 0x0050c2ec float
 
-swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrRace_MainMenu)
+swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrObjHang_MainMenu)
 
 g_objHang2 0x0050c454 swrObjHang*
 swrObjHang_skipTournamentIntro 0x0050c458 int # swrObjHang_F0 sets it in multiplayer; suppresses the tournament planet-intro cutscene (state 15)
@@ -858,7 +858,7 @@ swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzer
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
-swrObjHang_mainMenuChangeVehicle 0x0050c480 int # 1 after Change Vehicle was picked in swrRace_MainMenu; written only
+swrObjHang_mainMenuChangeVehicle 0x0050c480 int # 1 after Change Vehicle was picked in swrObjHang_MainMenu; written only
 swrObjHang_nameEntryStateB 0x0050c4b4 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryStateA 0x0050c4b8 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryBuffer 0x0050c4c0 int[8] # 32 bytes zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
@@ -902,7 +902,7 @@ swrObjHang_partLerpTime 0x0050c56c float
 swrObjHang_partDetailClosing 0x0050c954 int # the part detail view is closing; the selected icon glides back, then this clears
 swrObjHang_shopSwingPhase 0x0050c938 float # shop ring swing phase, advanced while left/right is held (swrObjHang_UpdateWattoShop), clamped at 1.5
 swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (left); scales the icon tilt in swrObjHang_LayoutVehicleSelectIcons
-swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
+swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrObjHang_LookAtVehicleMenu)
 swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
 swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
 swrUI_menuHorizontalDir 0x0050c970 int[4] # per local player: -1 left / 0 / +1 right, latched by swrUI_UpdatePlayerMenuInput for the left/right repeat
@@ -1845,11 +1845,11 @@ swrRace_vehicleSelectLoadedRacer 0x004c00b4 int # pod whose model is loaded in s
 swrRace_vehicleSelectShowStats 0x004c00c0 int # stats panel toggle (default 1); input bit 8 flips it
 swrRace_vehicleSelectPodScale 0x004c00b8 float # display-pod scale = swrRace_Transition * 4 (min 0.001), halved before swrRace_AnimateDisplayPod
 swrRace_vehicleSelectSaveSlot 0x0050c4a4 int # swrSaveData profile slot the pick is mirrored into (<4); an empty slot routes to name entry
-swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrRace_HangarMenu re-lays out its icons and resets the selection on the next update
+swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrObjHang_LookAtVehicleMenu re-lays out its icons and resets the selection on the next update
 swrRace_hangarMenuFrame 0x0050c538 int # frames since the hangar menu (re)initialized, saturates at 2; frame 1 builds the inspect camera placements 0x1f..0x22
-swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrRace_HangarMenu refreshes stats + inspect camera
-swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrRace_HangarMenu update, which marks the selection dirty
-swrRace_hangarVisited 0x004c0224 int # set by the first swrRace_HangarMenu update; no readers
+swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrObjHang_LookAtVehicleMenu refreshes stats + inspect camera
+swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrObjHang_LookAtVehicleMenu update, which marks the selection dirty
+swrRace_hangarVisited 0x004c0224 int # set by the first swrObjHang_LookAtVehicleMenu update; no readers
 swrObjHang_displayPodEngineREntry 0x004bfed4 int # pod-model header entry framed by inspect placement 0x1f (1, or 5 when entry 1 is empty; swrObjHang_UpdateLookAtVehicle)
 swrObjHang_displayPodEngineLEntry 0x004bfed8 int # pod-model header entry framed by inspect placement 0x22 (2, or 5 when entry 2 is empty)
 swrRace_SelectIndex 0x00e99240 swrRace_VehicleSelectEntry[23] # vehicle-select carousel (swrRace_BuildPartMenuList): unlocked pods first, rest racerId -1; 0xe992f8 ends it
@@ -2297,7 +2297,7 @@ swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written
 swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
 swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
-swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrRace_SelectProfileMenu)
+swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrUI_Menu_SelectProfile)
 swrUI_profilePrevSelectedItem 0x004d555c swrUI_unk* # previous list selection; re-picking the same item acts as OK
 swrUI_profileList 0x004d5574 swrUI_unk* # profile select: racer list
 swrUI_profileSelectedItem 0x004d5578 swrUI_unk* # selected racer list item, refreshed on every page message

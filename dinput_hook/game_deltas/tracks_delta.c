@@ -93,7 +93,7 @@ static uint16_t GetImgStartBorder(uint16_t TrackID) {
 }
 
 // 0x004368a0
-void swrRace_MainMenu_delta(swrObjHang *hang) {
+void swrObjHang_MainMenu_delta(swrObjHang *hang) {
     bool bVar1;
     float fVar2;
     char cVar3;
@@ -525,7 +525,7 @@ static void DrawTextBox(uint16_t PosX, uint16_t PosY, uint8_t R, uint8_t G, uint
 }
 
 // FUN_004360e0
-// Get's called at just once place: swrRace_CourseSelectionMenu_delta()
+// Get's called at just once place: swrObjHang_CourseSelectionMenu_delta()
 void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
     const uint8_t numTracks = GetTrackCount(circuitIdx);
     if (numTracks == 0) {
@@ -667,7 +667,7 @@ void DrawTracks_delta(swrObjHang *hang, uint8_t circuitIdx) {
 }
 
 // 0x0043b240
-void swrRace_CourseSelectionMenu_delta(void) {
+void swrObjHang_CourseSelectionMenu_delta(void) {
     char *pcVar2;
     float uVar6;
     char buffer[256];
@@ -945,7 +945,7 @@ LAB_0043b5c4:
 }
 
 // 0x0043b880
-void swrRace_CourseInfoMenu_delta(swrObjHang *hang) {
+void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang) {
     // The preview loads a stock model; drop a previous track view so it is not mapped over it.
     track_registry_ApplyForCurrentTrack();
     int8_t iVar3;

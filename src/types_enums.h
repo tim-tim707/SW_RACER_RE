@@ -177,7 +177,7 @@ typedef enum swrRace_ENGINESTATUS
 } swrRace_ENGINESTATUS;
 
 // swrRace_resultsStateFlags: one-shot latches while the results screen is up,
-// cleared when leaving it (swrRace_ResultsMenu).
+// cleared when leaving it (swrObjHang_ResultsMenu).
 typedef enum swrRace_RESULTSFLAG
 {
     swrRace_RESULTSFLAG_NAME_ENTRY_P1 = 0x1, // player 1 was sent to record name entry
@@ -198,7 +198,7 @@ typedef enum swrSaveData_UNLOCKFLAGS
 {
     swrSaveData_UNLOCK_DEFAULT_Maybe = 0x3, // fresh save image: OPTION_STEREO | OPTION_LENS_FLARES
     swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST = 0x20, // every track beaten in 1st place across all circuits
-                                                     // (swrRace_ResultsMenu); also forced by swrRace_CheatUnlockAll
+                                                     // (swrObjHang_ResultsMenu); also forced by swrRace_CheatUnlockAll
     swrSaveData_UNLOCK_RACE_STARTED = 0x40, // set by swrObjHang_StartRace and swrObjHang_SelectCreditsTracks; no reader found
     swrSaveData_OPTION_STEREO = 0x1, // A/V page "Audio: STEREO/MONO" (swrRace_AudioVideoSettings)
     swrSaveData_OPTION_LENS_FLARES = 0x2, // A/V page "Lens flares: ON/OFF"
@@ -727,7 +727,7 @@ typedef enum swrObjHang_STATE
     swrObjHang_STATE_MP_OTHER_SCREEN = 19,     // broadcast-only: MP host is on a screen other than main/planet/track
 } swrObjHang_STATE;
 
-// swrObjHang_mainMenuItems entries: one row of the hangar main menu (swrRace_MainMenu)
+// swrObjHang_mainMenuItems entries: one row of the hangar main menu (swrObjHang_MainMenu)
 typedef enum swrObjHang_MAINMENU_ITEM
 {
     swrObjHang_MAINMENU_START_RACE = 0,
@@ -1684,9 +1684,9 @@ typedef enum swrUI_WINDOW // swrUI_GetById / swrUI_PushMenuPage window ids
     swrUI_WINDOW_MOUSE_SETTINGS = 0x19,
     swrUI_WINDOW_KEYBOARD_SETTINGS = 0x1a,
     swrUI_WINDOW_FORCE_FEEDBACK_SETTINGS = 0x1b,
-    swrUI_WINDOW_RESERVED_KEYS = 0x1c, // swrRace_ReservedSettingsMenu
-    swrUI_WINDOW_CONFIG_FILES = 0x2730, // load/save settings (swrRace_LoadSaveConfigMenu)
-    swrUI_WINDOW_PROFILE_SELECT = 0x2736, // racer roster / profile select (swrRace_SelectProfileMenu)
+    swrUI_WINDOW_RESERVED_KEYS = 0x1c, // swrConfig_BuildReservedSettingsMenu
+    swrUI_WINDOW_CONFIG_FILES = 0x2730, // load/save settings (swrConfig_BuildConfigFilesMenu)
+    swrUI_WINDOW_PROFILE_SELECT = 0x2736, // racer roster / profile select (swrUI_Menu_SelectProfile)
     swrUI_WINDOW_MP_START = 0x186a5, // first multiplayer page: host / join (swrMultiplayer_BuildSessionTypeUI)
     swrUI_WINDOW_MP_CREATE_GAME = 0x186aa, // swrMultiplayer_BuildCreateGameUI
     swrUI_WINDOW_MP_JOIN_GAME = 0x186ab, // swrMultiplayer_BuildJoinGameUI

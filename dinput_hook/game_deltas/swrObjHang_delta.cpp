@@ -48,7 +48,7 @@ void swrObjHang_F0_delta(swrObjHang *hang) {
 typedef void(__cdecl *swrObjHang_UpdatePlanetSelectIntroFn)(swrObjHang *);
 typedef void(__cdecl *swrObjHang_UpdateVehicleSelectIntroFn)(swrObjHang *);
 
-// State 17: the "Pod Unlock Scene". Its toggle skip lives upstream in swrRace_ResultsMenu_delta
+// State 17: the "Pod Unlock Scene". Its toggle skip lives upstream in swrObjHang_ResultsMenu_delta
 // (swrRace_delta.cpp), which keeps the results flow from entering the scene at all. Watching it, it
 // ends on the menu-accept or cancel edge; drive that from the shared advance edge.
 typedef void(__cdecl *swrObjHang_UpdateResultsIntroFn)(swrObjHang *);

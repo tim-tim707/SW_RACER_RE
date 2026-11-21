@@ -3,12 +3,12 @@
 
 #include "types.h"
 
-#define swrRace_SelectProfileMenu_ADDR (0x00401340)
+#define swrUI_Menu_SelectProfile_ADDR (0x00401340)
 
-#define swrRace_ReservedSettingsMenu_ADDR (0x0040fb50)
+#define swrConfig_BuildReservedSettingsMenu_ADDR (0x0040fb50)
 
-#define swrRace_LoadSaveConfigMenu_ADDR (0x0040ffe0)
-#define swrRace_BuildProfileSelectMenu_ADDR (0x00410230)
+#define swrConfig_BuildConfigFilesMenu_ADDR (0x0040ffe0)
+#define swrConfig_BuildProfileListMenu_ADDR (0x00410230)
 #define swrRace_PollScreenshotKey_ADDR (0x00410430)
 
 #define swrRace_GetSelectedTrack_ADDR (0x0041c4e0)
@@ -36,23 +36,23 @@
 
 #define swrRace_SelectVehicle_ADDR (0x00435700)
 
-#define swrRace_MainMenu_ADDR (0x004368a0)
+#define swrObjHang_MainMenu_ADDR (0x004368a0)
 
 #define swrRace_AudioVideoSettings_ADDR (0x00436fa0)
 
-#define swrRace_HangarMenu_ADDR (0x004396d0)
+#define swrObjHang_LookAtVehicleMenu_ADDR (0x004396d0)
 
-#define swrRace_ResultsMenu_ADDR (0x00439ce0)
+#define swrObjHang_ResultsMenu_ADDR (0x00439ce0)
 
-#define swrRace_CourseSelectionMenu_ADDR (0x0043b240)
+#define swrObjHang_CourseSelectionMenu_ADDR (0x0043b240)
 
-#define swrRace_CourseInfoMenu_ADDR (0x0043b880)
+#define swrObjHang_CourseInfoMenu_ADDR (0x0043b880)
 
 #define swrRace_UpdatePartsHealth_ADDR (0x0043d720)
 
 #define swrRace_GenerateDefaultDataSAV_ADDR (0x0043ea00)
 
-#define swrRace_BuyPitdroidsMenu_ADDR (0x0043f380)
+#define swrObjHang_BuyPitDroidsMenu_ADDR (0x0043f380)
 
 // Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars).
 #define swrRace_BuildPartMenuList_ADDR (0x0043da10)
@@ -83,7 +83,7 @@
 #define swrRace_ReplaceMarsGuoWithJinnReeso_ADDR (0x0044B530)
 #define swrRace_ReplaceBullseyeWithCyYunga_ADDR (0x0044B5E0)
 
-#define swrRace_VehicleStatisticsSubMenu_ADDR (0x004550d0)
+#define swrObjHang_VehicleStatisticsSubMenu_ADDR (0x004550d0)
 
 #define swrRace_InRaceTimer_ADDR (0x00460950)
 
@@ -246,14 +246,14 @@
 #define swrRace_UpdateSplineOrientation_ADDR (0x0047a610)
 #define swrRace_GetTrackMeshAtCursor_ADDR (0x0047f890)
 
-int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item);
+int swrUI_Menu_SelectProfile(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item);
 
-void swrRace_ReservedSettingsMenu(swrUI_unk* page);
+void swrConfig_BuildReservedSettingsMenu(swrUI_unk* page);
 
-void swrRace_LoadSaveConfigMenu(swrUI_unk* page);
+void swrConfig_BuildConfigFilesMenu(swrUI_unk* page);
 
 // Builds the profile-select menu list with Create/Remove-Racer and Current-Player entries.
-void swrRace_BuildProfileSelectMenu(swrUI_unk* page);
+void swrConfig_BuildProfileListMenu(swrUI_unk* page);
 
 // Polls the screenshot key and, when pressed, plays a UI sound and captures a screenshot.
 void swrRace_PollScreenshotKey(void);
@@ -287,23 +287,23 @@ void swrRace_UpdateInRaceMenu(void);
 
 void swrRace_SelectVehicle(swrObjHang* hang);
 
-void swrRace_MainMenu(swrObjHang* hang);
+void swrObjHang_MainMenu(swrObjHang* hang);
 
 void swrRace_AudioVideoSettings(swrObjHang* hang);
 
 // Returns whether the lens-flare video option is enabled.
 int swrRace_GetLensFlareEnabled(void);
 
-void swrRace_HangarMenu(swrObjHang* hang);
+void swrObjHang_LookAtVehicleMenu(swrObjHang* hang);
 
 // Draws a record-holder name (32-char field, not NUL-terminated) at x/y with the given alpha.
 void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordName);
 
-void swrRace_ResultsMenu(swrObjHang* hang);
+void swrObjHang_ResultsMenu(swrObjHang* hang);
 
-void swrRace_CourseSelectionMenu(void);
+void swrObjHang_CourseSelectionMenu(void);
 
-void swrRace_CourseInfoMenu(swrObjHang* hang);
+void swrObjHang_CourseInfoMenu(swrObjHang* hang);
 
 void swrRace_UpdatePartsHealth(void);
 
@@ -312,7 +312,7 @@ void swrRace_GenerateDefaultDataSAV(int user_tgfd, int slot);
 // Computes which pod upgrades are affordable against the player's current truguts.
 void swrRace_ComputeUpgradePrices(void);
 
-void swrRace_BuyPitdroidsMenu(swrObjHang* hang);
+void swrObjHang_BuyPitDroidsMenu(swrObjHang* hang);
 
 // Part-shop + stats-menu UI (upgrade list, holographic part models, stat bars):
 void swrRace_BuildPartMenuList(swrObjHang* hang);
@@ -357,7 +357,7 @@ void swrRace_SetEngineNodeTranslation(void** nodePair, rdVector3* pos);
 void swrRace_ReplaceMarsGuoWithJinnReeso(void);
 void swrRace_ReplaceBullseyeWithCyYunga(void);
 
-void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y);
+void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y);
 
 void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge);
 

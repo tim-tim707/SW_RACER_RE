@@ -113,9 +113,9 @@ hooks_blacklist = [
     "VerifySelectedTrack",
     "swrUI_GetTrackNameFromId",
     "swrObjHang_InitTrackSprites",
-    "swrRace_CourseSelectionMenu",
-    "swrRace_CourseInfoMenu",
-    "swrRace_MainMenu",
+    "swrObjHang_CourseSelectionMenu",
+    "swrObjHang_CourseInfoMenu",
+    "swrObjHang_MainMenu",
     "swrModel_LoadFromId",
 ]
 

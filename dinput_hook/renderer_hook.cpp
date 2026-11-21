@@ -2671,11 +2671,11 @@ extern "C" void init_renderer_hooks() {
     // Cutscene auto-skip toggles ("Game" settings panel). The intro-FMV skip rides the existing
     // Window_SmushPlayCallback hook (below); these cover the hangar camera intros and the end credits.
     // Pod Unlock Scene: stop the results flow from ever entering that scene (rather than skipping it
-    // at the scene handler, which flashes) while still doing the pilot unlock. swrRace_ResultsMenu is
+    // at the scene handler, which flashes) while still doing the pilot unlock. swrObjHang_ResultsMenu is
     // reverse-hooked (no direct callers) -> safe to replace, unlike swrObjHang_SetMenuState.
-    hook_function("swrRace_ResultsMenu", (uint32_t) swrRace_ResultsMenu,
-                  (uint8_t *) swrRace_ResultsMenu_ADDR);
-    hook_replace(swrRace_ResultsMenu, swrRace_ResultsMenu_delta);
+    hook_function("swrObjHang_ResultsMenu", (uint32_t) swrObjHang_ResultsMenu,
+                  (uint8_t *) swrObjHang_ResultsMenu_ADDR);
+    hook_replace(swrObjHang_ResultsMenu, swrObjHang_ResultsMenu_delta);
     // No delta-layer callers; the src reimpl is a faithful struct copy.
     hook_function("swrRace_CopyProfileFromSave", (uint32_t) swrRace_CopyProfileFromSave,
                   (uint8_t *) swrRace_CopyProfileFromSave_ADDR);
@@ -3222,12 +3222,12 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrObjJdge_UpdateStandings", (uint32_t) swrObjJdge_UpdateStandings_ADDR,
                   (uint8_t *) swrObjJdge_UpdateStandings_delta);
 
-    hook_function("swrRace_CourseSelectionMenu", (uint32_t) swrRace_CourseSelectionMenu_ADDR,
-                  (uint8_t *) swrRace_CourseSelectionMenu_delta);
-    hook_function("swrRace_CourseInfoMenu", (uint32_t) swrRace_CourseInfoMenu_ADDR,
-                  (uint8_t *) swrRace_CourseInfoMenu_delta);
-    hook_function("swrRace_MainMenu", (uint32_t) swrRace_MainMenu_ADDR,
-                  (uint8_t *) swrRace_MainMenu_delta);
+    hook_function("swrObjHang_CourseSelectionMenu", (uint32_t) swrObjHang_CourseSelectionMenu_ADDR,
+                  (uint8_t *) swrObjHang_CourseSelectionMenu_delta);
+    hook_function("swrObjHang_CourseInfoMenu", (uint32_t) swrObjHang_CourseInfoMenu_ADDR,
+                  (uint8_t *) swrObjHang_CourseInfoMenu_delta);
+    hook_function("swrObjHang_MainMenu", (uint32_t) swrObjHang_MainMenu_ADDR,
+                  (uint8_t *) swrObjHang_MainMenu_delta);
     hook_function("DrawTracks", (uint32_t) DrawTracks_ADDR, (uint8_t *) DrawTracks_delta);
 
     // swrModel_LoadFromId is already hooked for model replacement

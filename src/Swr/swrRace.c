@@ -34,7 +34,7 @@
 #include <string.h>
 
 // 0x00401340
-int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
+int swrUI_Menu_SelectProfile(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
 {
     unsigned int id = (unsigned int)param;
     char* notice;
@@ -176,7 +176,7 @@ no_profile:
 }
 
 // 0x0040fb50
-void swrRace_ReservedSettingsMenu(swrUI_unk* page)
+void swrConfig_BuildReservedSettingsMenu(swrUI_unk* page)
 {
     static char* const keyLines[] = {
         "/MONDOTEXT_H_0326/~sCAPSLOCK       Cycle Map Indicator",
@@ -233,7 +233,7 @@ void swrRace_ReservedSettingsMenu(swrUI_unk* page)
 }
 
 // 0x0040ffe0
-void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
+void swrConfig_BuildConfigFilesMenu(swrUI_unk* page)
 {
     swrUI_unk* element;
     char title[256];
@@ -274,7 +274,7 @@ void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
 }
 
 // 0x00410230
-void swrRace_BuildProfileSelectMenu(swrUI_unk* page)
+void swrConfig_BuildProfileListMenu(swrUI_unk* page)
 {
     swrUI_unk* element;
     int listRect[4];
@@ -1250,7 +1250,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
         if (swrObjHang_vehicleStatsFade < 0.0f)
             swrObjHang_vehicleStatsFade = 0.0f;
         if (swrRace_vehicleSelectShowStats != 0)
-            swrRace_VehicleStatisticsSubMenu(hang, 105.0f, 135.0f);
+            swrObjHang_VehicleStatisticsSubMenu(hang, 105.0f, 135.0f);
     }
 
     swrText_CreateColorlessEntry1(0xa0, 0x19, swrText_Translate("/SCREENTEXT_525/~c~sSelect Vehicle"));
@@ -1410,7 +1410,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
 }
 
 // 0x004368a0
-void swrRace_MainMenu(swrObjHang* hang)
+void swrObjHang_MainMenu(swrObjHang* hang)
 {
     HangRoom targetRoom = HangRoom_None;
     rdVector3 toEye;
@@ -1728,7 +1728,7 @@ void swrRace_AudioVideoSettings(swrObjHang* hang)
 }
 
 // 0x004396d0
-void swrRace_HangarMenu(swrObjHang* hang)
+void swrObjHang_LookAtVehicleMenu(swrObjHang* hang)
 {
     char text[48];
     rdMatrix44 m;
@@ -1880,7 +1880,7 @@ void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordNam
 // guest players through name entry, commits new records into the save image, and in tournament mode
 // applies the whole progression step (prizes, unlocks, beat-place bits, podium), then autosaves.
 // 0x00439ce0
-void swrRace_ResultsMenu(swrObjHang* hang)
+void swrObjHang_ResultsMenu(swrObjHang* hang)
 {
     swrScore* scores[20]; // race order: local players first
     float bestLap[2];
@@ -2198,7 +2198,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
 }
 
 // 0x0043b240
-void swrRace_CourseSelectionMenu(void)
+void swrObjHang_CourseSelectionMenu(void)
 {
     char text[256];
     swrObjHang* hang = g_objHang2;
@@ -2363,7 +2363,7 @@ void swrRace_CourseSelectionMenu(void)
 // on the mode), draws the rows plus the hologram, preview, both save-image records and the
 // favorite pilot, then handles option cycling and the start/back transitions.
 // 0x0043b880
-void swrRace_CourseInfoMenu(swrObjHang* hang)
+void swrObjHang_CourseInfoMenu(swrObjHang* hang)
 {
     char* text;
     char* valueText;
@@ -3239,7 +3239,7 @@ void swrRace_DrawUpgradesPanel(swrObjHang* hang)
     alpha = swrObjHang_lookAtMenuFade * 2.5f * 255.0f;
     if (alpha > 254.0f)
         alpha = 254.0f;
-    swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+    swrObjHang_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
 
     if (swrRace_MenuMaxSelection + 1 > 0) {
         a = (uint8_t)(int)alpha;
@@ -3449,7 +3449,7 @@ void swrRace_UpdatePitDroidModels(void)
 }
 
 // 0x0043f380
-void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
+void swrObjHang_BuyPitDroidsMenu(swrObjHang* hang)
 {
     char price[32];
     char line[32];
@@ -3624,7 +3624,7 @@ swrModel_Node* swrRace_GetCollisionHit(void)
 // TODO: look at 0x0045cf60
 
 // Convert a pod's raw handling stats into the normalized 0..1 garage display bars
-// (consumed by swrRace_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
+// (consumed by swrObjHang_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
 // Display only: the flight model reads the raw podStats directly, never this output.
 // 0x00449330
 void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats)
@@ -4450,7 +4450,7 @@ void swrRace_SaveCurrentProfile(void)
 }
 
 // 0x004550d0
-void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
+void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
 {
     static char* const labels[] = {
         "/SCREENTEXT_403/~f4~sTraction", "/SCREENTEXT_404/~f4~sTurning", "/SCREENTEXT_405/~f4~sAccel.", "/SCREENTEXT_406/~f4~sTop Speed", "/SCREENTEXT_407/~f4~sAir Brake", "/SCREENTEXT_408/~f4~sCooling", "/SCREENTEXT_409/~f4~sRepair",
