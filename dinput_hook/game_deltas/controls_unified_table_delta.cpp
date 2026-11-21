@@ -97,7 +97,7 @@ extern FILE *hook_log; // shared hook.log stream (see other game_deltas)
 #define swrUI_AddRestoreButton_ADDR (0x00411270)
 #define swrUI_AddDefaultButton_ADDR (0x004112f0)
 #define swrUI_GetFrameTextureDim_ADDR (0x00419070)
-#define swrUI_SetSpriteSelectionBBox_Maybe_ADDR (0x004197f0)
+#define swrUI_GetListFrameInsets_ADDR (0x004197f0)
 #define swrSprite_GetTextureDimFromId_ADDR (0x00417120)
 #define SPR_EDITWINDOW_SEGMENTED (3009) // label-cell (0x400000) border sprite
 #define SPR_SEGMENT (3011)              // value-cell (0x800000) border sprite
@@ -351,7 +351,7 @@ static void build_unified(void *page, const DeviceUI &d, UnifiedRow *rows, int r
     const int rowH = sprH - 1;                                           // share the row seam
 
     int bbox[4] = {0, 0, 0, 0};
-    ((void(__cdecl *)(int *, int)) swrUI_SetSpriteSelectionBBox_Maybe_ADDR)(bbox, 0);
+    ((void(__cdecl *)(int *, int)) swrUI_GetListFrameInsets_ADDR)(bbox, 0);
     const int labelX = 0xc;                         // col0 x (kept left to stay in the 4:3 safe area)
     const int slot2X = labelX + labelCellW - 1;     // share the col0/col1 seam
     const int slot3X = slot2X + valueW - 1;         // share the col1/col2 seam
