@@ -172,9 +172,9 @@ static bool g_fast_restart_requested = false;// set by the hotkey, consumed next
 // swrObjJdge_F0_delta -- the edge must be set the same frame F0 reads it.
 static int g_skip_orbit_frames = 0;
 
-// Single-player, non-demo race: MP starts must stay in lockstep, demo playback stays vanilla.
+// Single-player race outside the end credits: MP starts must stay in lockstep, the credits stay vanilla.
 static bool is_single_player_race() {
-    return swrMultiplayer_IsMultiplayerEnabled() == 0 && swrRace_demoMode == 0;
+    return swrMultiplayer_IsMultiplayerEnabled() == 0 && swrRace_creditsMode == 0;
 }
 
 // Seconds per count while a shortened countdown is running, else 0 (vanilla).
@@ -182,7 +182,7 @@ static float countdown_speedup_secs_per_count(const swrObjJdge *jdge) {
     if ((jdge->flag & swrObjJdge_STATE_MASK) != swrObjJdge_STATE_COUNTDOWN)
         return 0.0f;
     // Timed sessions have no countdown (raceTimer starts at -1); AI-only ones are left vanilla.
-    if ((jdge->flag & (swrObjJdge_FLAG_TIMED_SESSION | swrObjJdge_FLAG_NO_LOCAL_PLAYER)) != 0)
+    if ((jdge->flag & (swrObjJdge_FLAG_NON_PAUSABLE | swrObjJdge_FLAG_SPECTATE)) != 0)
         return 0.0f;
     if (!is_single_player_race())
         return 0.0f;
