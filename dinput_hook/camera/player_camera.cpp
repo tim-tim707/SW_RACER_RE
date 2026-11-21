@@ -26,7 +26,7 @@ extern "C" {
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
 #include <Swr/swrObj.h>      // swrObjcMan_* detour targets
-#include <Swr/swrModel.h>    // BuildLookAtTransform, swrModel_NodeModifyFlags, sun / light-streak updaters
+#include <Swr/swrModel.h>    // rdMatrix_BuildLookAtTransform, swrModel_NodeModifyFlags, sun / light-streak updaters
 #include <Swr/swrPlayerHUD.h>// swrPlayerHUD_RenderWorldSprites_ADDR
 #include <globals.h>         // swrRacer_PodVisualData, g_objHang2
 }
@@ -242,7 +242,7 @@ void scale_roll(swrObjcMan *cman, float influence) {
     rdMatrix_ExtractTransform(&cman->unk20_mat, &tr);
     const float roll = tr.yaw_roll_pitch.z * influence;// .z is what UpdateCamera passes as the roll
     rdMatrix44 out;
-    BuildLookAtTransform((rdVector3 *) &cman->unk20_mat.vD, (rdVector3 *) &cman->focusTransform_mat.vD,
+    rdMatrix_BuildLookAtTransform((rdVector3 *) &cman->unk20_mat.vD, (rdVector3 *) &cman->focusTransform_mat.vD,
                          &out, &tr, roll);
     rdMatrix_Copy44(&cman->unk20_mat, &out);
 }
@@ -579,22 +579,22 @@ extern "C" void __cdecl swrObjcMan_UpdateSplineGuideMarker_delta(swrObjcMan *cma
 // group off.
 typedef void(__cdecl *WorldSpriteUpdaterFn)(swrViewport *);
 // Suns draw under the HUD here, so skip the original's fade-out as the pause menu slides in.
-extern "C" void __cdecl UpdateSunAndLensFlareSprites_delta(swrViewport *vp) {
+extern "C" void __cdecl swrSprite_UpdateSunAndLensFlareSprites_delta(swrViewport *vp) {
     const int paused = pauseState;
     const float pause_scroll = InRace_PauseMenu_ScrollInOut;
     pauseState = 0;
     InRace_PauseMenu_ScrollInOut = 0.0f;
     g_sprite_group = GROUP_SUN;
     renderer_SetOffscreenProjection(1);
-    hook_call_original((WorldSpriteUpdaterFn) UpdateSunAndLensFlareSprites_ADDR, vp);
+    hook_call_original((WorldSpriteUpdaterFn) swrSprite_UpdateSunAndLensFlareSprites_ADDR, vp);
     renderer_SetOffscreenProjection(0);
     g_sprite_group = GROUP_NONE;
     pauseState = paused;
     InRace_PauseMenu_ScrollInOut = pause_scroll;
 }
-extern "C" void __cdecl UpdateLightStreakSprites_delta(swrViewport *vp) {
+extern "C" void __cdecl swrSprite_UpdateLightStreakSprites_delta(swrViewport *vp) {
     g_sprite_group = GROUP_LIGHT_STREAKS;
-    UpdateLightStreakSprites_offscreen(vp);
+    swrSprite_UpdateLightStreakSprites_offscreen(vp);
     g_sprite_group = GROUP_NONE;
 }
 extern "C" void __cdecl swrPlayerHUD_RenderWorldSprites_delta(swrViewport *vp) {
@@ -645,10 +645,10 @@ void playercam_RegisterHooks() {
     hook_function("swrObjcMan_UpdateSplineGuideMarker",
                   (uint32_t) swrObjcMan_UpdateSplineGuideMarker_ADDR,
                   (uint8_t *) swrObjcMan_UpdateSplineGuideMarker_delta);
-    hook_function("UpdateSunAndLensFlareSprites", (uint32_t) UpdateSunAndLensFlareSprites_ADDR,
-                  (uint8_t *) UpdateSunAndLensFlareSprites_delta);
-    hook_function("UpdateLightStreakSprites", (uint32_t) UpdateLightStreakSprites_ADDR,
-                  (uint8_t *) UpdateLightStreakSprites_delta);
+    hook_function("swrSprite_UpdateSunAndLensFlareSprites", (uint32_t) swrSprite_UpdateSunAndLensFlareSprites_ADDR,
+                  (uint8_t *) swrSprite_UpdateSunAndLensFlareSprites_delta);
+    hook_function("swrSprite_UpdateLightStreakSprites", (uint32_t) swrSprite_UpdateLightStreakSprites_ADDR,
+                  (uint8_t *) swrSprite_UpdateLightStreakSprites_delta);
     hook_function("swrPlayerHUD_RenderWorldSprites", (uint32_t) swrPlayerHUD_RenderWorldSprites_ADDR,
                   (uint8_t *) swrPlayerHUD_RenderWorldSprites_delta);
 }

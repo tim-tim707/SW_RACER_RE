@@ -36,7 +36,7 @@
 extern "C" {
 #include <types.h>
 #include <globals.h>            // pauseState, inRaceLocalPlayerInputBitset1/3
-#include <Swr/swrObj.h>         // swrUI_UpdatePlayerMenuInput_ADDR, updateInRaceInputBitsets_ADDR
+#include <Swr/swrObj.h>         // swrUI_UpdatePlayerMenuInput_ADDR, swrRace_UpdateInRaceInputBitsets_ADDR
 #include <Swr/swrUI.h>          // swrUI_ProcessMouse_ADDR, swrUI_HandleKeyEvent_ADDR
 #include <Swr/swrEvent.h>       // swrEvent_GetItem_ADDR (in-race detection)
 
@@ -61,13 +61,13 @@ typedef void(__cdecl *swrObjHang_UpdateTauntSceneFn)(void *);
 // a race is running (null in menus). The game's own in-race test.
 #define JDGE_EVENT 0x4a646765
 
-// In-race action bits (read via KeyDownForPlayer1Or2 from the rising-edge bitset).
-#define INPUT_BIT_CYCLE_HUD 0x40 // swrObjJdge_CycleHudMode <- KeyDownForPlayer1Or2(0x40)
-#define INPUT_BIT_PAUSE 0x200    // swrObjJdge_CheckIfPauseRequested <- KeyDownForPlayer1Or2(0x200)
+// In-race action bits (read via swrObjJdge_KeyDownForPlayer1Or2 from the rising-edge bitset).
+#define INPUT_BIT_CYCLE_HUD 0x40 // swrObjJdge_CycleHudMode <- swrObjJdge_KeyDownForPlayer1Or2(0x40)
+#define INPUT_BIT_PAUSE 0x200    // swrObjJdge_CheckIfPauseRequested <- swrObjJdge_KeyDownForPlayer1Or2(0x200)
 
 // Menu directional bits in the in-race input bitset (the front-end menus read these:
 // vertical menus use up/down, horizontal lists use left/right). Matches the analog
-// axis thresholds in updateInRaceInputBitsets.
+// axis thresholds in swrRace_UpdateInRaceInputBitsets.
 #define MENU_BIT_UP 0x4000
 #define MENU_BIT_DOWN 0x8000
 #define MENU_BIT_LEFT 0x10000
@@ -77,8 +77,8 @@ typedef void(__cdecl *swrObjHang_UpdateTauntSceneFn)(void *);
 // up = 0x4000, down = 0x8000 (shared with MENU_BIT_*), accept/activate = 0x1.
 #define PAUSE_MENU_ACCEPT 0x1
 
-// pauseState values (written by requestPause / the pause-menu scroll): 0 = none,
-// 2 = scrolling in, 1 = fully paused, 3 = scrolling out -> endPause (resume).
+// pauseState values (written by swrRace_RequestPause / the pause-menu scroll): 0 = none,
+// 2 = scrolling in, 1 = fully paused, 3 = scrolling out -> swrRace_EndPause (resume).
 #define PAUSE_STATE_NONE 0
 #define PAUSE_STATE_PAUSED 1
 #define PAUSE_STATE_RESUMING 3
@@ -316,8 +316,8 @@ void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player) {
 // In-race system buttons: feed START / BACK into the game's rising-edge input set
 // after the original computes it, so the game's own pause / HUD-cycle logic runs
 // exactly as if the keyboard keys were pressed. Also handles START-to-resume.
-void __cdecl updateInRaceInputBitsets_delta(void) {
-    hook_call_original((updateInRaceInputBitsetsFn) updateInRaceInputBitsets_ADDR);
+void __cdecl swrRace_UpdateInRaceInputBitsets_delta(void) {
+    hook_call_original((updateInRaceInputBitsetsFn) swrRace_UpdateInRaceInputBitsets_ADDR);
     if (!imgui_state.enable_gamepad_nav)
         return;
     if (((swrEvent_GetItemFn) swrEvent_GetItem_ADDR)(JDGE_EVENT, 0) == nullptr)
@@ -325,9 +325,9 @@ void __cdecl updateInRaceInputBitsets_delta(void) {
 
     if (g_pressed & XINPUT_GAMEPAD_START) {
         if (pauseState == PAUSE_STATE_NONE)
-            inRaceLocalPlayerInputBitset1[0] |= INPUT_BIT_PAUSE;// -> requestPause
+            inRaceLocalPlayerInputBitset1[0] |= INPUT_BIT_PAUSE;// -> swrRace_RequestPause
         else if (pauseState == PAUSE_STATE_PAUSED)
-            pauseState = PAUSE_STATE_RESUMING;// scroll out -> endPause (resume)
+            pauseState = PAUSE_STATE_RESUMING;// scroll out -> swrRace_EndPause (resume)
     }
     if (g_pressed & XINPUT_GAMEPAD_BACK)
         inRaceLocalPlayerInputBitset1[0] |= INPUT_BIT_CYCLE_HUD;// -> swrObjJdge_CycleHudMode

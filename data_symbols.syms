@@ -4,7 +4,7 @@ stdControl_dfKeyboard 0x0049e690 DIDATAFORMAT # c_dfDIKeyboard
 
 swrObjHang_cutsceneTimerEnd 0x004ac778 float
 
-# swrRace_ResultsMenu state. resultsMilestones bits: 0x1/0x2 = P1/P2 name-entry done, 0x4 = record
+# swrObjHang_ResultsMenu state. resultsMilestones bits: 0x1/0x2 = P1/P2 name-entry done, 0x4 = record
 # updated, 0x8 = favorite-pilot pod-unlock scene shown. localPlayerPlace = P1 finishing rank (1=1st).
 # favPilotUnlockMask = per-pilot "beaten their track" bits; unlockedPilotsMask = the persistent
 # unlocked-content mask it feeds (read by swrObjHang_LoadScreenAssets, written by CheatUnlockAll).
@@ -225,13 +225,13 @@ swrObjJdge_singleLocalViewport 0x004b91c8 int # 1 at race teardown, 0 once InitT
 InRaceSpritesEnabled 0x004B94C0 int
 
 swrPlayerHUD_zBufferDepthScale 0x004b94b0 float[4] # 1/255, 1/65535, 1/(2^24-1), 1/2^32: raw z-buffer value -> [0,1] per depth byte count
-sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by SetSunSprite
-sunSpriteScale 0x004b94d0 float[2] # sun glow size; SetSunSprite, scaled by occlusion in UpdateSunAndLensFlareSprites2
-sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; SetSunSprite, SetSunSpriteAlpha
+sunSpriteIds 0x004b94c8 int[2] # sprite id of each sun glow (-1 = no sun); set by swrSprite_SetSunSprite
+sunSpriteScale 0x004b94d0 float[2] # sun glow size; swrSprite_SetSunSprite, scaled by occlusion in swrSprite_UpdateSunAndLensFlareForSun
+sunSpriteColors 0x004b94d8 uint8_t[8] # RGBA per sun; swrSprite_SetSunSprite, swrSprite_SetSunSpriteAlpha
 lensFlareSpriteIds 0x004B94E0 int[16]
-lensFlareSize 0x00e99780 float[16] # per flare (sun * 8 + flare) sprite size; SetLensFlareSprite
-lensFlareSpread 0x00e9a440 float[16] # per flare position along the sun-to-screen-center axis (1 = on the sun, <0 = past center); SetLensFlareSprite
-lensFlareColors 0x00e9a6a0 uint8_t[48] # RGB per flare; SetLensFlareSprite
+lensFlareSize 0x00e99780 float[16] # per flare (sun * 8 + flare) sprite size; swrSprite_SetLensFlareSprite
+lensFlareSpread 0x00e9a440 float[16] # per flare position along the sun-to-screen-center axis (1 = on the sun, <0 = past center); swrSprite_SetLensFlareSprite
+lensFlareColors 0x00e9a6a0 uint8_t[48] # RGB per flare; swrSprite_SetLensFlareSprite
 
 # The 5 bitmap fonts built by swrText_InitFonts, referenced through the 7-entry font table. Each
 # swrFont holds pageCount glyph-page swrMaterial*s at +0x08; the HD-font replacement swaps those.
@@ -412,7 +412,7 @@ swrText_timedMessageAlpha 0x004c3e44 float
 swrObjcMan_preRaceSweepTimer 0x004c3ee8 float = -1.0 # -1 idle; pre-race camera sweep clock (swrObjcMan_UpdatePreRaceSweepTimer), binder ignition sfx at 6s
 swrObjcMan_SpectatorCamModes 0x004c3ef0 int16_t[7] # auto-cycle spectator cam: mode = table[rand % 7]
 
-rdModel_frustumCullEnabled 0x004c3b98 int # 1 by default; a swrModel_NODEFLAGS5_NO_FRUSTUM_CULL node clears it for its subtree so rdModel_AddMeshGroupToScene skips AABBFrustumTest
+rdModel_frustumCullEnabled 0x004c3b98 int # 1 by default; a swrModel_NODEFLAGS5_NO_FRUSTUM_CULL node clears it for its subtree so rdModel_AddMeshGroupToScene skips rdModel_AABBFrustumTest
 rdModel_mirroredWinding 0x0050c6d0 int # seeded from the mirror-mode setting by rdModel_BuildAndDrawScene, toggled per swrModel_NODEFLAGS5_MIRRORED node
 rdModel_flatNormalsClearFlag 0x0050c0d0 int # zeroed by rdModel_SetForceFlatNormals_Maybe(nonzero); no reader in the retail binary
 numEnabledLights 0x00004C3BA0 int[12]
@@ -449,10 +449,10 @@ swrObjHang_resetCameraSlots 0x004c3fd8 int[4] # set to -1 by swrObjHang_ResetCam
 swrObjHang_localCameraSlots 0x004c3fe8 int[4] # [i] = i per local player, else -1 (swrObjHang_InitCameraAssignments); no reader in the retail binary
 
 swrSprite_drawStateWord 0x004c3db8 int # low 16 bits of the swrSprite_SetDrawStateWord_Maybe argument; no reader found
-maybeUICameraPlacements 0x004C4010 swrUICameraPlacement[40]
+swrObjHang_cameraPlacements 0x004C4010 swrUICameraPlacement[40]
 
 drawDistance 0x004c4a5c float
-swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; requestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
+swrRace_netPauseNoticeFade 0x004c4a58 float # starts -1; swrRace_RequestPause sets 1.0 in net play, the speed-dial HUD fades the "can't pause" notice
 nearClipDistance 0x004c4a60 float # per-track near clip, set by swrObjJdge_SetupTrackEnvironment
 
 swrObjJdge_tauntSoundIdsDelayed 0x004c4a68 short[24]
@@ -494,7 +494,7 @@ g_pTxtDebugPosFormat 0x004c7d40 char[1] # "~r~spos: %d,%d,%d"
 swrRace_FireTimer 0x004c7bc0 float[8] = { -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0 } # per-flame respawn timers; <= 0 re-rolls the flame (swrRace_UpdateFireEffects)
 
 swrSpline_trackLength 0x004c7be0 float
-swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, GetCustomStartTransform)
+swrSpline_finishNodeIdx 0x004c7be4 int # -1 closed-loop track, -2 open spline (CP0 has no prev; set by swrSpline_Build), >= 0 open-track finish: lap progress completes at 1.0 (swrRace_LapProgress / LapCompletion, swrObjJdge_GetCustomStartTransform)
 swrSpline_ambiguousMeshBehavior 0x004c7be8 swrModel_Behavior = { 0x8, 0, { 0, 0, 0 }, 0, 0, 0, { 0xff, 0xff, 0xff }, { 0xff, 0xff, 0xff }, 0, { 0.0f, 0.0f, -1.0f }, { 0.0f, 1.0f, 0.0f } } # assigned by swrSpline_BakeSampleTrackMesh to behaviorless meshes shared between spline paths
 swrModel_poddCableRestVertices 0x004c7c30 rdVector3[6] = { { 0.0, 0.0, 0.0 }, { 20.0, 0.0, -20.0 }, { -20.0, 0.0, -20.0 }, { 0.0, -100.0, 0.0 }, { 20.0, -100.0, -20.0 }, { -20.0, -100.0, -20.0 } } # straight pod-cable tube: two 3-vertex end rings (swrModel_DeformPoddConnectionMesh)
 swrModel_poddCableRestLights 0x004c7c78 rdVector4[6] = { { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 128.0, 128.0, 128.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 }, { 0.0, 0.0, 0.0, 255.0 } } # per-vertex light intensities matching swrModel_poddCableRestVertices
@@ -517,7 +517,7 @@ stdMath_TanTable 0x004cd8e8 float[4096]
 swrControl_forceStrength 0x004b493c float # Force strength option as a gain (-1 off, 0.6, 0.8, 1.0); .data default 100.0
 wuRegistry_lpClass 0x004d55cc char[]
 
-multiplayer_enabled 0x004d5e00 int
+swrMultiplayer_enabled 0x004d5e00 int
 sithMulti_playerListVerified 0x004d5e04 int # set once swrMultiplayer_VerifyPlayerList found every listed DPID in the DirectPlay session; cleared by sithMulti_JoinSessionAndCreatePlayer
 
 sithMessage_g_localPlayerId 0x004d5e08 int
@@ -610,7 +610,7 @@ swrSpriteTexItems 0x004d7c68 swrSpriteTexItem[149]
 swrUI_unk4_ptr 0x004d878c swrUI_unk*
 swrUI_unk5_ptr 0x004d8790 swrUI_unk*
 
-multiplayer_in_mp 0x004d87a0 int
+swrMultiplayer_inMp 0x004d87a0 int
 
 SpritesLoaded 0x004d879c int
 
@@ -644,8 +644,8 @@ swrMultiplayer_asciiNameBuffer 0x004ead88 char[32]
 swrMultiplayer_chatLines 0x004eb188 char*[15] # heap copies of the visible chat lines (swrMultiplayer_AddChatMessage)
 swrMultiplayer_chatCaret 0x004eb1c4 int # caret index into swrMultiplayer_chatInput (>= 4, past the prefix)
 
-multiplayer_isHost 0x004eb1c8 int
-multiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
+swrMultiplayer_isHost 0x004eb1c8 int
+swrMultiplayer_inSession 0x004eb1cc int # 1 after creating or joining a session, 0 after sithMulti_CloseGame
 swrMultiplayer_sessionResetUnk 0x004eb1d0 int # only swrMultiplayer_ResetSession writes it (0); no reader
 swrMultiplayer_quitState 0x004eb1d4 int # swrMultiplayer_ApplyPlayerQuit skips the quit broadcast when 2; only ResetSession writes it (0)
 swrMultiplayer_returnedFromRace 0x004eb1d8 int # set by swrObjHang_F4 'Fini' when a net race ends
@@ -654,7 +654,7 @@ swrMultiplayer_chatEnabled 0x004eb1dc int # chat overlay on (swrMultiplayer_SetR
 swrMultiplayer_networkTick 0x004eb1e0 int
 swrMultiplayer_racerListPageActive 0x004eb1e4 int # racer-list page shown (swrUI_Menu_MpRacerList); swrMain_UpdateNetworkTick refreshes its rows while set
 swrMultiplayer_ignoreEvents 0x004eb1e8 int # swrMultiplayer_ApplyEvent drops every event while set; race reset clears it
-multiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
+swrMultiplayer_rejoinPending 0x004eb1ec int # set by the 'rejn' event (host asks the last player to take a vacated slot); consumed by swrUI_Menu_MpRaceSetup's timer -> swrMultiplayer_JoinGame
 swrMultiplayer_sessionSeed 0x004eb1f4 int # random DPSESSIONDESC2.dwUser1 picked by swrMultiplayer_CreateSession; no reader found
 swrMultiplayer_joinLocked 0x004eb1f8 int # while set, swrMultiplayer_ApplyPlayerJoin only admits the reserved DPID; cleared by ResetSession
 swrMultiplayer_reservedDpid 0x004eb1fc DPID # the one DPID admitted while swrMultiplayer_joinLocked is set
@@ -668,12 +668,12 @@ swrMultiplayer_chatX 0x004eb224 int
 swrMultiplayer_chatY 0x004eb228 int
 swrMultiplayer_chatSkipNextKey 0x004eb22c int # swallows the key that opened the chat input
 
-multiplayer_sync_timer_ms 0x004eb230 int
+swrMultiplayer_syncTimerMs 0x004eb230 int
 
-multiplayer_race_button_toggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
+swrMultiplayer_aRaceButtonToggle 0x004eb238 int[20] # per-slot ready flag; swrMultiplayer_UpdateStartButtonState scans all 20
 swrMultiplayer_menuEvent 0x004eb234 int # last value sent by swrMultiplayer_SendMenuEvent; re-sent when the host broadcasts a menu reset
 
-multiplayer_track_change_permission 0x004eb388 int
+swrMultiplayer_trackChangePermission 0x004eb388 int
 swrMultiplayer_joinedSessionIndex 0x004eb38c int # join page: list index of the session joined; re-polled by swrUI_Menu_MpRaceSetup / swrMultiplayer_JoinGame
 
 stdComm_IPX_connectionIndex 0x004eb390 int
@@ -840,17 +840,17 @@ rdModel_CurrentMaterialSet 0x0050c0cc int
 swrObjHang_planetIntroTimer 0x0050c0d8 float
 
 swrRace_SelectedRacer 0x0050c118 int
-swrObjHang_orbitDistance 0x0050c11c float # main-menu camera orbit radius (eye to look-at), recovered on entry by swrRace_MainMenu
+swrObjHang_orbitDistance 0x0050c11c float # main-menu camera orbit radius (eye to look-at), recovered on entry by swrObjHang_MainMenu
 
 swrObjHang_courseShownPlanet 0x0050c134 char # planet whose holo/sprite the course-select screen shows; follows the cursor once the slide settles
 
 swrObjHang_courseShownCircuit 0x0050c17c char # circuit whose track grid is drawn; circuit input only acts while it matches hang->circuitIdx
 
 swrObjHang_resultsPodPose 0x0050c2d0 swrTranslationRotation # winning pod's pose in the results intro; drifts down at 100 units/s
-alpha_unk 0x0050c2e8 float
-gamma_unk 0x0050c2ec float
+swrObjHang_orbitPitch 0x0050c2e8 float
+swrObjHang_orbitYaw 0x0050c2ec float
 
-swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrRace_MainMenu)
+swrObjHang_mainMenuItems 0x0050c308 char[12] # swrObjHang_MAINMENU_ITEM per main-menu row, -1 padded (built by swrObjHang_MainMenu)
 
 g_objHang2 0x0050c454 swrObjHang*
 swrObjHang_skipTournamentIntro 0x0050c458 int # swrObjHang_F0 sets it in multiplayer; suppresses the tournament planet-intro cutscene (state 15)
@@ -858,7 +858,7 @@ swrObjHang_screenTransitionDir 0x0050c468 short # every access is 16-bit; nonzer
 
 swrObjHang_courseInfoItemKinds 0x0050c430 char[12] # course-info option rows top-to-bottom: 0 mirror, 1 winnings, 2 laps, 3 racers, 4 AI speed, 5 demo, 6 cutscene; -1 = unused
 
-swrObjHang_mainMenuChangeVehicle 0x0050c480 int # 1 after Change Vehicle was picked in swrRace_MainMenu; written only
+swrObjHang_mainMenuChangeVehicle 0x0050c480 int # 1 after Change Vehicle was picked in swrObjHang_MainMenu; written only
 swrObjHang_nameEntryStateB 0x0050c4b4 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryStateA 0x0050c4b8 int # zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
 swrObjHang_nameEntryBuffer 0x0050c4c0 int[8] # 32 bytes zeroed by swrObjHang_UpdateEnterName; no reader in the retail binary
@@ -902,7 +902,7 @@ swrObjHang_partLerpTime 0x0050c56c float
 swrObjHang_partDetailClosing 0x0050c954 int # the part detail view is closing; the selected icon glides back, then this clears
 swrObjHang_shopSwingPhase 0x0050c938 float # shop ring swing phase, advanced while left/right is held (swrObjHang_UpdateWattoShop), clamped at 1.5
 swrObjHang_shopSwingLean 0x0050c93c float # shop ring lean, -1 (right) .. +1 (left); scales the icon tilt in swrObjHang_LayoutVehicleSelectIcons
-swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrRace_HangarMenu)
+swrObjHang_shopFocusTypePending 0x0050c47c int # 1 = open the parts list on swrObjHang_hangarUpgradeType (set by swrObjHang_LookAtVehicleMenu)
 swrObjHang_hangarUpgradeType 0x0050c950 int # upgrade type highlighted in the hangar menu
 swrModel_tileReadOneRowUp 0x0050c96c int # while set, swrModel_ExtractTextureTile reads each tile one row higher (y - 1); only set around the greyedsplash.tga load
 swrUI_menuHorizontalDir 0x0050c970 int[4] # per local player: -1 left / 0 / +1 right, latched by swrUI_UpdatePlayerMenuInput for the left/right repeat
@@ -918,7 +918,7 @@ rdMatrixStack44_size 0x0050c5e8 int
 pauseState 0x0050C5F0 int
 pauseDisabled 0x0050C5F4 int
 
-pauseEnabledFlag 0x0050c5f8 int # set to 1 by enablePause; write-only (no readers found)
+pauseEnabledFlag 0x0050c5f8 int # set to 1 by swrRace_EnablePause; write-only (no readers found)
 swrRace_saveDefaultsUnk 0x0050c75c int # zeroed by swrRace_InitDefaultGameData next to a stripped debug call; write-only (no readers found)
 
 assetBufferModelLoaded 0x0050C600 int
@@ -1113,7 +1113,7 @@ swrObjcMan_heldFogEnabled 0x0050c89c int # last fog on/off applied (swrObjcMan_V
 swrObjcMan_heldFov 0x004c3ed8 float # last FOV passed to swrViewport_SetCameraParameters
 swrObjcMan_heldFarClip 0x004c3edc float # last far clip (fogDist, or -1)
 swrObjcMan_heldNearClip 0x004c3ee0 float # last near clip
-swrObjcMan_heldFogStart 0x004c3ee4 int # last fog start passed to SetFogParameters
+swrObjcMan_heldFogStart 0x004c3ee4 int # last fog start passed to swrRender_SetFogParameters
 swrPlayerHUD_viewportFog 0x00e226f4 swrViewportFog[4] # split-screen fog per viewport; written by swrObjcMan_UpdateFogAndViewport, applied by swrPlayerHUD_RenderAllViewports
 swrObjJdge_creditsHudCycleIndex 0x0050ca40 int
 swrObjJdge_creditsHudCycled 0x0050ca44 int
@@ -1389,9 +1389,9 @@ rdClip_face3TSrcLights 0x00df7f80 rdVector4*
 
 rdFont_bStartup 0x00df7fd0 int
 rdFont_bOpen 0x00df7fd4 int
-rdPolyline_aClipVertices 0x00df7fe0 rdVector3[80] # size = gap to rdPolyline_aVerticesCache
+rdPolyLine_aClipVertices 0x00df7fe0 rdVector3[80] # size = gap to rdPolyLine_aVerticesCache
 
-rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
+rdPolyLine_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
 
 rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 
@@ -1468,7 +1468,7 @@ swrModel_collisionContactLogCount 0x0050c5d4 int
 swrModel_collisionContactLogEnabled 0x0050c5d8 int
 swrModel_collisionNodeAllMask 0x0050c5dc int # child-node descent filter: (node flags1or2 & mask) must equal mask (swrModel_CollideNodeRecursiveRay)
 swrModel_collisionSphereAcceptBackFaces 0x004c1778 int # 1; when 0 the sphere test skips faces whose plane the center is behind
-resetInRaceInputBuffer_pendingClear 0x004c1770 int # 1 at boot; resetInRaceInputBuffer clears record 0 once, then drops it
+swrRace_inRaceInputPendingClear 0x004c1770 int # 1 at boot; swrRace_ResetInRaceInputBuffer clears record 0 once, then drops it
 swrModel_collisionAcceptFrontFaces 0x004c1774 int # accept faces the ray hits head-on (normal.dir <= 0)
 swrModel_collisionNodeAnyMask 0x004c177c int # child-node descent filter: (node flags1or2 & mask) must be nonzero (swrModel_CollideNodeRecursiveRay)
 swrRace_collisionHitNode 0x0050c5d0 swrModel_Node*
@@ -1500,9 +1500,10 @@ swrModel_collisionUnkE70 0x00e98e70 int
 
 swrRace_fdeltaTimeSecs 0x00e22a50 float
 
-spline_progress_values 0x00E22A60 rdVector2[500]
+swrSpline_progressTable 0x00E22A60 rdVector2[252] # per control point: x = progress at the node, y = span to the next node
+swrSpline_sampleMeshes 0x00E23240 swrModel_Mesh*[2500] # baked track mesh under the spline, SWR_SPLINE_SAMPLES_PER_NODE per control point
 
-swrSpline_finishMatrix 0x00e25960 rdMatrix44 # spline frame at an open track's finish node (swrSpline_TraceProgress), read by GetCustomStartTransform
+swrSpline_finishMatrix 0x00e25960 rdMatrix44 # spline frame at an open track's finish node (swrSpline_TraceProgress), read by swrObjJdge_GetCustomStartTransform
 
 swrObjTrig_SceneChildNodes 0x00E259C0 swrModel_Node*[64]
 swrObjTrig_TriggerDescriptionArray 0x00E25AC0 swrModel_TriggerDescription*[200]
@@ -1538,7 +1539,7 @@ fx_podasx_anim 0x00e28764 swrModel_Animation**
 
 someRootNodeChildNodes 0x00E287E0 swrModel_Node*[15]
 dustKickChildNodeArray2 0x00E28820 swrModel_Node*[16]
-swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (LoadTrackSpline); part of InitTrack's memory tally
+swrObjJdge_splineBufferBytes 0x00e288b4 int # asset-buffer bytes taken by the track spline (swrObjJdge_LoadTrackSpline); part of InitTrack's memory tally
 swrModel_beamTemplateNode 0x00e277e0 swrModel_Node* # beamanim_vlec root (swrModel_LoadBeamAndSparkModels); swrModel_NodeLinkSharedChild target for pod parts
 swrModel_sparkTemplateNode 0x00e28964 swrModel_Node* # first child of sparky_part's root (swrModel_LoadBeamAndSparkModels)
 swrObjJdge_duplicatePods 0x0050ca1c int # 1 when two racers in the race share a pod (swrObjJdge_SpawnRacers); passed to every swrObjJdge_SpawnRacer
@@ -1550,7 +1551,7 @@ swrObjJdge_raceBufferSlack 0x00e28760 int # SWR_RACE_BUFFER_TALLY_SIZE - bytes u
 swrObjJdge_raceBufferOtherBytes 0x00e2875c int # race-load bytes not attributed to racers, Test objs, spline or track models
 swrObjJdge_racerBufferBytes 0x00e28860 int[20] # asset-buffer bytes per spawned racer (swrObjJdge_SpawnRacers)
 swrObjJdge_testObjBufferBytes 0x00e27240 int # asset-buffer bytes of the Test objs (swrObjJdge_SpawnRacers)
-swrObjJdge_trackModelBufferBytes 0x00e289a4 int # asset-buffer bytes of the track model + animations (LoadTrackModels)
+swrObjJdge_trackModelBufferBytes 0x00e289a4 int # asset-buffer bytes of the track model + animations (swrObjJdge_LoadTrackModels)
 swrObjJdge_trackAssetStats1 0x00e289a0 int # assetBufferUnknownStats1 snapshot after the track model load
 swrObjJdge_trackAssetStats2 0x00e286d0 int # assetBufferUnknownStats2 snapshot
 swrObjJdge_trackAssetStats4 0x00e288b0 int # assetBufferUnknownStats4 snapshot
@@ -1595,7 +1596,7 @@ swrObjHang_menuRepeatDir 0x00e295e0 int # +1 / -1, direction of the last menu st
 swr_sceneElmos 0x00e29600 swrObjElmo*[151]
 
 swrRace_upgradePrice 0x00e99220 int # price of the selected shop part at its health (swrRace_ComputeUpgradePrices)
-swrObjHang_displayPodBoundsEngineL 0x00e99300 float[6] # AABB (min xyz, max xyz) of the display pod's left-engine shadow (partNodes[0x3f]); ComputeModelViewBounds, framed by swrObjHang_UpdateLookAtVehicle
+swrObjHang_displayPodBoundsEngineL 0x00e99300 float[6] # AABB (min xyz, max xyz) of the display pod's left-engine shadow (partNodes[0x3f]); swrObjHang_ComputeModelViewBounds, framed by swrObjHang_UpdateLookAtVehicle
 swrObjHang_displayPodBoundsEngineR 0x00e99320 float[6] # same for the right-engine shadow (partNodes[0x3e])
 swrObjHang_displayPodBoundsCockpit 0x00e99340 float[6] # same for the cockpit shadow (partNodes[0x40])
 swrRace_upgradeTradeInValue 0x00e9935c int # value of the installed part of the same type, credited against the price
@@ -1672,9 +1673,9 @@ swrModel_AlreadyByteSwappedMeshTextures 0x00E90980 swrModel_MaterialTexture*[]
 swrModel_AlreadyByteSwappedMeshMaterials 0x00E95300 swrModel_MeshMaterial*[]
 
 rdModel_lastVertexLoad 0x00e996a0 Vtx* # last gSPVertex source (minus the mesh's vertex_base_offset) seen by rdModel_ConvertSwrModelMesh; write-only
-translation_unk 0x00e996c0 rdVector3
-rotation_unk 0x00e996cc rdVector3
-swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetRenderState / ResetModelPreviewState_Maybe; no readers found
+swrViewport_viewTranslation 0x00e996c0 rdVector3
+swrViewport_viewRotation 0x00e996cc rdVector3
+swrViewport_cameraResetWord 0x00e996d8 int # zeroed by swrViewport_ResetRenderState / swrScene_ResetViewDefaults; no readers found
 
 GameSettingFlags 0x00e996dc int
 swrRender_frameClearFlags 0x00e996e0 short # swrRender_FRAME_CLEAR_* bits; every access is 8/16-bit
@@ -1815,14 +1816,14 @@ texture_count 0x00e9823c unsigned int
 
 InRace_PauseMenu_ScrollInOut 0x00e9824c float
 
-swrControl_aPlayerAxisY 0x00e98e80 float[4] # per-local-player menu/steer stick Y (written by updateInRaceInputBitsets; scrolls the results list; also read as pitch input by swrRace_UpdatePlayerControl + tracks_delta)
+swrControl_aPlayerAxisY 0x00e98e80 float[4] # per-local-player menu/steer stick Y (written by swrRace_UpdateInRaceInputBitsets; scrolls the results list; also read as pitch input by swrRace_UpdatePlayerControl + tracks_delta)
 
 inRaceLocalPlayerInputBitset3 0x00E98E90 int[4]
 swrControl_aPlayerAxisX 0x00e98ea0 float[4] # per-local-player steer stick X (pair of swrControl_aPlayerAxisY; also read by tracks_delta)
 
 inRaceLocalPlayerInputBitset1 0x00E98EB0 int[4]
 inRaceLocalPlayerInputBitset2 0x00E98EC0 int[4]
-inRaceLocalPlayerInputRecord 0x00e98ee0 swrControl_InRaceInputRecord[4] # per-local-player raw input; consumed by updateInRaceInputBitsets
+inRaceLocalPlayerInputRecord 0x00e98ee0 swrControl_InRaceInputRecord[4] # per-local-player raw input; consumed by swrRace_UpdateInRaceInputBitsets
 
 swrModel_meshCollisionFaceCallbackIndexed 0x00E985AC void(*)(swrModel_CollisionVertex*,int16_t,uint16_t*)
 
@@ -1845,11 +1846,11 @@ swrRace_vehicleSelectLoadedRacer 0x004c00b4 int # pod whose model is loaded in s
 swrRace_vehicleSelectShowStats 0x004c00c0 int # stats panel toggle (default 1); input bit 8 flips it
 swrRace_vehicleSelectPodScale 0x004c00b8 float # display-pod scale = swrRace_Transition * 4 (min 0.001), halved before swrRace_AnimateDisplayPod
 swrRace_vehicleSelectSaveSlot 0x0050c4a4 int # swrSaveData profile slot the pick is mirrored into (<4); an empty slot routes to name entry
-swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrRace_HangarMenu re-lays out its icons and resets the selection on the next update
+swrRace_hangarMenuReinit 0x004c0228 int # 1 (initial, and after backing out) = swrObjHang_LookAtVehicleMenu re-lays out its icons and resets the selection on the next update
 swrRace_hangarMenuFrame 0x0050c538 int # frames since the hangar menu (re)initialized, saturates at 2; frame 1 builds the inspect camera placements 0x1f..0x22
-swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrRace_HangarMenu refreshes stats + inspect camera
-swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrRace_HangarMenu update, which marks the selection dirty
-swrRace_hangarVisited 0x004c0224 int # set by the first swrRace_HangarMenu update; no readers
+swrRace_hangarSelectionDirty 0x0050c45c int # hangar upgrade selection changed; swrObjHang_LookAtVehicleMenu refreshes stats + inspect camera
+swrRace_hangarFirstVisit 0x004bfed0 int # 1 until the first swrObjHang_LookAtVehicleMenu update, which marks the selection dirty
+swrRace_hangarVisited 0x004c0224 int # set by the first swrObjHang_LookAtVehicleMenu update; no readers
 swrObjHang_displayPodEngineREntry 0x004bfed4 int # pod-model header entry framed by inspect placement 0x1f (1, or 5 when entry 1 is empty; swrObjHang_UpdateLookAtVehicle)
 swrObjHang_displayPodEngineLEntry 0x004bfed8 int # pod-model header entry framed by inspect placement 0x22 (2, or 5 when entry 2 is empty)
 swrRace_SelectIndex 0x00e99240 swrRace_VehicleSelectEntry[23] # vehicle-select carousel (swrRace_BuildPartMenuList): unlocked pods first, rest racerId -1; 0xe992f8 ends it
@@ -1870,9 +1871,9 @@ sun_occlusionSampleX 0x00e9a480 int[2] # per-sun last-frame projected screen x; 
 sun_occlusionSampleY 0x00e9a488 int[2] # per-sun last-frame projected screen y (pairs with sun_occlusionSampleX)
 sun_prevOcclusionSampleY 0x00e9a590 int[2] # sun_occlusionSampleY from the frame before
 sun_prevOcclusionSampleX 0x00e9a598 int[2] # sun_occlusionSampleX from the frame before
-sun_screenX 0x00e99c20 int[2] # per-sun projected screen x this frame (UpdateSunAndLensFlareSprites); -1000 until projected
+sun_screenX 0x00e99c20 int[2] # per-sun projected screen x this frame (swrSprite_UpdateSunAndLensFlareSprites); -1000 until projected
 sun_screenY 0x00e99c28 int[2] # per-sun projected screen y this frame
-sun_maxFlareBrightness 0x00e9a830 int # brightest sun this frame (UpdateSunAndLensFlareSprites2); 0.9x of it is the glare tint alpha
+sun_maxFlareBrightness 0x00e9a830 int # brightest sun this frame (swrSprite_UpdateSunAndLensFlareForSun); 0.9x of it is the glare tint alpha
 
 lightStreakSpriteIDs2 0x00e9a400 int[10]
 
@@ -1931,34 +1932,15 @@ swrMultiplayer_aRemoteFlags1 0x00ea01a0 int[20] # remote pod flags1 from 'pods' 
 swrMultiplayer_aRemoteStateTime 0x00ea0200 int[20] # timeGetTime() when the slot's last state packet arrived; F3 extrapolates from it
 swrMultiplayer_chatInputOpen 0x00ea0250 int # chat input line is open and capturing keys
 
-multiplayer_racer1_id 0x00ea0260 int
-multiplayer_racer2_id 0x00ea0264 int
-multiplayer_racer3_id 0x00ea0268 int
-multiplayer_racer4_id 0x00ea026c int
-multiplayer_racer5_id 0x00ea0270 int
-multiplayer_racer6_id 0x00ea0274 int
-multiplayer_racer7_id 0x00ea0278 int
-multiplayer_racer8_id 0x00ea027c int
-multiplayer_racer9_id 0x00ea0280 int
-multiplayer_racer10_id 0x00ea0284 int
-multiplayer_racer11_id 0x00ea0288 int
-multiplayer_racer12_id 0x00ea028c int
-multiplayer_racer13_id 0x00ea0290 int
-multiplayer_racer14_id 0x00ea0294 int
-multiplayer_racer15_id 0x00ea0298 int
-multiplayer_racer16_id 0x00ea029c int
-multiplayer_racer17_id 0x00ea02a0 int
-multiplayer_racer18_id 0x00ea02a4 int
-multiplayer_racer19_id 0x00ea02a8 int
-multiplayer_racer20_id 0x00ea02ac int
-multiplayer_track_select 0x00ea02b0 swrRace_TRACK
-multiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
+swrMultiplayer_aRacerIds 0x00ea0260 int[20] # per-slot selected racer id (swrMultiplayer_GetRacerId), broadcast with the race settings
+swrMultiplayer_trackSelect 0x00ea02b0 swrRace_TRACK
+swrMultiplayer_numAiRacers 0x00ea02b4 int # AI racers added to the MP roster on top of the human players (MP race setup; reset 0, broadcast with the race settings)
 
-multiplayer_laps 0x00ea02b8 int
-multiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
+swrMultiplayer_laps 0x00ea02b8 int
+swrMultiplayer_raceSettingsUnk 0x00ea02bc int # reset to 10000, sent in the race-settings broadcast (msg 0x3a) and restored by ApplyLobbyState; no other reader
 swrMultiplayer_raceBegin 0x00ea0320 int[10] # head of the host's 'Begn' payload (swrObjHang_StartRace) as last broadcast by swrMultiplayer_BroadcastRoster
 
-multiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
+swrMultiplayer_aPlayerFinished 0x00ea02c0 int[20] # per-slot: 1 once the player's 'fini' event arrived (swrMultiplayer_ApplyEvent)
 
 # Remote racer race-progress state, indexed by the racer's net slot (score->time_unk read as int);
 # consumed by swrRace_LapCompletion for 'REMO' pods. Capacity matches the 20-racer roster.
@@ -1971,7 +1953,7 @@ swrMultiplayer_remotePodTransform 0x00ea0720 rdMatrix44 # slot n at + n * sizeof
 swrMultiplayer_aRemoteSpeed 0x00ec7640 float[20] # remote pod speedValue from state packets
 swrMultiplayer_aLocalPodTransform 0x00ec76a0 rdMatrix44[20] # this machine's pod transforms by net slot, published by swrMultiplayer_PublishPodState
 
-multiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
+swrMultiplayer_aPlayerQuit 0x00ea04e0 int[20] # per-slot: 1 once the player retired via the 'quit' event; shows "Retired" in swrUI_DrawRaceResultRow
 swrMultiplayer_rosterPilots 0x00ea0540 int[20] # per-slot pilot id from the roster message (swrMultiplayer_ApplyRoster); no reader
 swrMultiplayer_message 0x00ec7ba0 tSithMessage # shared in/out buffer: every sender builds here, swrMultiplayer_PumpPackets receives here
 
@@ -2213,22 +2195,22 @@ swrViewport_force320x240Timer 0x00e9a9b8 int # frames left on the current force3
 swrRace_inRaceMenuStackDepth 0x00e9a9b4 int
 swrRace_inRaceMenuStateStack 0x00e9a9c0 int[3] # DebugMenuState history for swrRace_PopDebugMenuState; deepest path is ESC -> DEBUG_VALUES -> VEHICLE_STATS (size maybe wrong)
 
-# Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by DrawHoloPlanet.
+# Galaxy-map planet data (8 planets). Populated by swrObjHang_Init, consumed by swrObjHang_DrawHoloPlanet.
 swrPlanetTable 0x00e98f40 swrPlanetInfo[8]
 swrPlanetHoloModelNodes 0x00e299f4 void*[8]
-swrObjHang_holoMoons 0x00e293c0 swrHoloMoon[19] # sun/moon pool; DrawHoloPlanet advances all 19, swr_sceneModels[INGAME_MODELID_pln_moon_part0 + i - start] draws them
+swrObjHang_holoMoons 0x00e293c0 swrHoloMoon[19] # sun/moon pool; swrObjHang_DrawHoloPlanet advances all 19, swr_sceneModels[INGAME_MODELID_pln_moon_part0 + i - start] draws them
 swrObjHang_holoPlanetScale 0x004c45d0 float # 18.47: planet model scale on the galaxy map (planet 6, the Oovo IV asteroid, uses 1.5 instead)
 
-# AI difficulty / pacing globals (see swrRace_AI, InitAISettingsForTrack).
+# AI difficulty / pacing globals (see swrRace_AI, swrObjJdge_InitAISettingsForTrack).
 # ai_track_script: per-signature-track scripted-AI selector (1..6, -1 = none); read by swrRace_AutopilotSteer / swrRace_UpdatePlayerControl.
 ai_track_script 0x004c7084 int
 # track_spline_variant: per-track spline path variant masking nearby control-point ranges; read by swrSpline_CollectNearbyPoints.
 track_spline_variant 0x0050cb58 int
 # ai_rank_speed_factor: rank->speed coupling for the simplified pacing path in swrRace_AI; unused in the shipped game (no writer, always 0).
 ai_rank_speed_factor 0x0050cae0 float
-# lensFlare_screenCenterDistScale: multiplier turning the sun's pixel-distance-from-screen-center into the visibility metric in UpdateSunAndLensFlareSprites2 (vanilla 0.0125 = 1/80, tuned for 640x480: sun-glow-fade radius <=1.0 is 80px, lens-flare radius <=2.0 is 160px). Only read by that function; scaling it keeps both radii proportional to the framebuffer at higher resolutions.
+# lensFlare_screenCenterDistScale: multiplier turning the sun's pixel-distance-from-screen-center into the visibility metric in swrSprite_UpdateSunAndLensFlareForSun (vanilla 0.0125 = 1/80, tuned for 640x480: sun-glow-fade radius <=1.0 is 80px, lens-flare radius <=2.0 is 160px). Only read by that function; scaling it keeps both radii proportional to the framebuffer at higher resolutions.
 lensFlare_screenCenterDistScale 0x004ac5a0 float
-# lightStreak_rotationPivotX / lightStreak_rotationScale: UpdateLightStreakSprites tilts each anamorphic streak by angle = (pivotX - screenX) * scale, with screenX in framebuffer pixels. Vanilla 160.0 and 0.33333 are tuned for a 640px-wide screen; at higher widths the pixel span grows so the angle is over-driven. Both read only by that function; scale pivotX by screenWidth/640 and scale by its reciprocal to reproduce the 640px pixel->angle mapping at any width.
+# lightStreak_rotationPivotX / lightStreak_rotationScale: swrSprite_UpdateLightStreakSprites tilts each anamorphic streak by angle = (pivotX - screenX) * scale, with screenX in framebuffer pixels. Vanilla 160.0 and 0.33333 are tuned for a 640px-wide screen; at higher widths the pixel span grows so the angle is over-driven. Both read only by that function; scale pivotX by screenWidth/640 and scale by its reciprocal to reproduce the 640px pixel->angle mapping at any width.
 lightStreak_rotationPivotX 0x004ac5f8 float
 lightStreak_rotationScale 0x004ac5fc float
 swrUI_textEntryActive 0x004d87c8 int # 1 while a swrUI_TextEntryProc field has focus (Space then types instead of accepting)
@@ -2259,7 +2241,7 @@ swrControl_acceptHeldPrev 0x004d6824 int # accept held last frame
 swrObjHang_sceneViewport 0x004c3fb0 int # viewport the hangar/cantina scene renders into (1); set up by swrObjHang_SetupScreenScene
 swrObjHang_sceneCamState 0x004c3fb4 int # cam state holding rdMatrix44_unk7 for the hangar scene (3)
 swrObjHang_holoCamState 0x004c3fb8 int # cam state driven by swrObjHang_cameraMatrix / holoCameraMatrix (4); also the scene viewport camera index
-swrObjHang_trackPreviewTrack 0x004c45d4 int # track id whose preview AABB is cached (-1 = none); DrawTrackPreview recomputes on change or while the camera moves
+swrObjHang_trackPreviewTrack 0x004c45d4 int # track id whose preview AABB is cached (-1 = none); swrObjHang_DrawTrackPreview recomputes on change or while the camera moves
 swrObjHang_trackPreviewAABB 0x0050c8c8 float[6] # min xyz, max xyz of the previewed track model (swrModel_NodeComputeFirstMeshAABB; -10 fallback)
 swrText_glyphV 0x00e996fc int # current glyph quad, latched by swrText_SetupGlyph and drawn by swrText_DrawGlyph
 swrText_glyphU 0x00e99700 int
@@ -2297,7 +2279,7 @@ swrUI_configPrevSelectedFile 0x004d5550 swrUI_unk* # previous selection; written
 swrUI_configSelectedIsPreset 0x004d55a4 int # selected file is pre-installed (list item slot 0): no remove/overwrite, load joystick .map only
 swrUI_configLoadButton 0x004d55a0 swrUI_unk* # Load button, focused after a list pick; written, never read
 swrUI_moneyHintShown 0x004d55c8 int # reserved-keys page already shows the Alt+H money hint label
-swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrRace_SelectProfileMenu)
+swrUI_profileName 0x004d5510 char[32] # racer name picked/typed on the profile select page (swrUI_Menu_SelectProfile)
 swrUI_profilePrevSelectedItem 0x004d555c swrUI_unk* # previous list selection; re-picking the same item acts as OK
 swrUI_profileList 0x004d5574 swrUI_unk* # profile select: racer list
 swrUI_profileSelectedItem 0x004d5578 swrUI_unk* # selected racer list item, refreshed on every page message

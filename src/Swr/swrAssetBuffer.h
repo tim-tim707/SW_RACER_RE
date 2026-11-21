@@ -10,7 +10,7 @@
 #define swrAssetBuffer_GetNewIndex_ADDR (0x00445b60)
 #define swrAssetBuffer_CheckOverflow_ADDR (0x00445b90)
 #define swrAssetBuffer_RemainingSize_ADDR (0x00445bf0)
-#define ResetModelPreviewState_Maybe_ADDR (0x00445c00)
+#define swrScene_ResetViewDefaults_ADDR (0x00445c00)
 #define swrAssetBuffer_InvalidateTexturesBelow_ADDR (0x004475d0)
 #define swrAssetBuffer_GetStats_ADDR (0x00448d10)
 #define swrAssetBuffer_ReserveRegionA_ADDR (0x00448d40)
@@ -25,7 +25,7 @@ void swrAssetBuffer_CheckOverflow(void);
 int swrAssetBuffer_RemainingSize(void);
 
 // Resets the single-model preview scene: zeroes the preview transform, sets the background color, and configures fog (best guess).
-void ResetModelPreviewState_Maybe(void);
+void swrScene_ResetViewDefaults(void);
 void swrAssetBuffer_InvalidateTexturesBelow(char* ptr);
 void swrAssetBuffer_GetStats(int* out1, int* out2, int* out3);
 

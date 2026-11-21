@@ -178,7 +178,7 @@ static void draw_screen_fade_overlay() {
 
 // The cinematic letterbox (black bars over the pre-race binder cinematic + victory lap) is drawn in
 // the GAME layer, not here: an ImGui overlay always composites on top of the finished frame, so it
-// would sit over the HUD text. Instead DrawTextEntries_delta (renderer_hook.cpp) draws the bars just
+// would sit over the HUD text. Instead swrText_DrawEntries1_delta (renderer_hook.cpp) draws the bars just
 // before the HUD text flush, so the lap/total-time readouts render on top of the bars. The toggle +
 // persistence still live here; the state machine + draw live in swrObjJdge_delta / renderer_hook.
 
@@ -487,11 +487,11 @@ extern "C" int cutscene_should_skip_startup_movies(void) {
     return imgui_state.skip_intro_fmv ? 1 : 0;
 }
 bool cutscene_skip_effective(bool user_setting) {
-    return user_setting || multiplayer_enabled != 0;
+    return user_setting || swrMultiplayer_enabled != 0;
 }
 
 bool cutscene_restore_effective(bool user_setting) {
-    return user_setting && multiplayer_enabled == 0;
+    return user_setting && swrMultiplayer_enabled == 0;
 }
 
 extern "C" int cutscene_should_skip_prerace_cinematic(void) {
@@ -1766,7 +1766,7 @@ static void panel_audio() {
     }
 
     // SFX and music volume are 0..255 bytes in the save image -- the same values the in-game Audio
-    // menu sliders write, consumed by playASoundImpl and persisted with the profile in tgfd.dat.
+    // menu sliders write, consumed by swrSound_RequestVoice and persisted with the profile in tgfd.dat.
     // Present them as 0..100%.
     // 0% doubles as the music on/off switch: at 0 playback is stopped (not just silent), and
     // moving off 0 re-arms it.
@@ -2711,11 +2711,11 @@ static void panel_multiplayer() {
     }
 }
 
-// Pinned while in the MP menus, independent of F5. multiplayer_in_mp spans session-type page ->
-// main menu, multiplayer_enabled the in-session hangar; hang->flag bit 0 = front-end up (the judge
+// Pinned while in the MP menus, independent of F5. swrMultiplayer_inMp spans session-type page ->
+// main menu, swrMultiplayer_enabled the in-session hangar; hang->flag bit 0 = front-end up (the judge
 // slot exists outside races too, so it can't tell).
 static void draw_multiplayer_window() {
-    const bool in_mp = multiplayer_in_mp != 0 || multiplayer_enabled != 0;
+    const bool in_mp = swrMultiplayer_inMp != 0 || swrMultiplayer_enabled != 0;
     const bool in_menus = g_objHang2 != nullptr && (g_objHang2->flag & 1) != 0;
     if (!in_mp || !in_menus)
         return;

@@ -34,7 +34,7 @@
 #include <string.h>
 
 // 0x00401340
-int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
+int swrUI_Menu_SelectProfile(swrUI_unk* self, unsigned int msg, void* param, swrUI_unk* item)
 {
     unsigned int id = (unsigned int)param;
     char* notice;
@@ -87,7 +87,7 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
         return 0;
     case swrUI_MSG_TEXT_ENTRY_COMMITTED:
         if (strlen(swrUI_profileNameEntry->str_allocated) == 0) {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             notice = "/MONDOTEXT_H_0006/Please enter a racer name or ~npress ESC to cancel.";
         } else if (swrUI_FindChildByText(swrUI_profileList, swrUI_profileNameEntry->str_allocated) == NULL) {
             // passes 0x80, larger than swrUI_profileName (faithful)
@@ -101,7 +101,7 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
             swrUI_profileShowLabelPending = 1;
             return 0;
         } else {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             notice = "/MONDOTEXT_H_0007/Racer already exists.  ~nUse another name.";
         }
         swrText_ShowTimedMessage(swrText_Translate(notice), 2.0f);
@@ -148,7 +148,7 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
             sprintf(label, swrText_Translate("/MONDOTEXT_H_0002/Current Player:  %s"), swrUI_profileName);
             swrUI_RunCallbacksScreenText(swrUI_profileCurrentPlayerLabel, label, 0);
             if (!swrRace_LoadProfile(swrUI_profileName)) {
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0003/Error loading file."), 2.0f);
                 swrUI_noticeDurationUnused = 2.1f;
             }
@@ -169,14 +169,14 @@ int swrRace_SelectProfileMenu(swrUI_unk* self, unsigned int msg, void* param, sw
         return 0;
     }
 no_profile:
-    playUISound(-1);
+    swrSound_PlayUISound(-1);
     swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0004/Please select or create racer."), 2.0f);
     swrUI_noticeDurationUnused = 2.1f;
     return 0;
 }
 
 // 0x0040fb50
-void swrRace_ReservedSettingsMenu(swrUI_unk* page)
+void swrConfig_BuildReservedSettingsMenu(swrUI_unk* page)
 {
     static char* const keyLines[] = {
         "/MONDOTEXT_H_0326/~sCAPSLOCK       Cycle Map Indicator",
@@ -233,7 +233,7 @@ void swrRace_ReservedSettingsMenu(swrUI_unk* page)
 }
 
 // 0x0040ffe0
-void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
+void swrConfig_BuildConfigFilesMenu(swrUI_unk* page)
 {
     swrUI_unk* element;
     char title[256];
@@ -274,7 +274,7 @@ void swrRace_LoadSaveConfigMenu(swrUI_unk* page)
 }
 
 // 0x00410230
-void swrRace_BuildProfileSelectMenu(swrUI_unk* page)
+void swrConfig_BuildProfileListMenu(swrUI_unk* page)
 {
     swrUI_unk* element;
     int listRect[4];
@@ -314,7 +314,7 @@ void swrRace_BuildProfileSelectMenu(swrUI_unk* page)
 // 0x0041c4e0
 swrRace_TRACK swrRace_GetSelectedTrack(void)
 {
-    return multiplayer_track_select;
+    return swrMultiplayer_trackSelect;
 }
 
 // 0x00421810
@@ -898,7 +898,7 @@ void swrRace_ActivateEscMenuEntry(int index)
     if (index == 0) {
         swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_CONTINUE;
         swrControl_uiInputActive = 1;
-        requestUnpause();
+        swrRace_RequestUnpause();
     }
     if (index == 2) {
         if (swrRace_escMenuConfirmPending == 0) {
@@ -914,11 +914,11 @@ void swrRace_ActivateEscMenuEntry(int index)
         if (swrRace_escMenuConfirmPending == 0) {
             swrControl_uiInputActive = 1;
             swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_RESTART;
-            requestUnpause();
+            swrRace_RequestUnpause();
         } else if (swrRace_escMenuConfirmAction == 2) {
             swrControl_uiInputActive = 1;
             swrRace_inRaceMenuResult = swrRace_INRACEMENU_RESULT_QUIT_RACE;
-            requestUnpause();
+            swrRace_RequestUnpause();
         } else if (swrRace_escMenuConfirmAction == 3) {
             Main_Shutdown();
             exit(0);
@@ -1029,7 +1029,7 @@ void swrRace_UpdateInRaceMenu(void)
 
     if (DebugMenuState != 2 && swrObjJdge_singleLocalViewport == 0)
         swrRace_blankWorldForMenu = 1;
-    scroll = GetPauseMenuScrollInOut();
+    scroll = swrRace_GetPauseMenuScrollInOut();
     pulse = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
 
     // dev builds: input bits 0x1000, 0x800, 0x2000, 0x400 in order unlock the debug menu
@@ -1051,18 +1051,18 @@ void swrRace_UpdateInRaceMenu(void)
 
     if (scroll >= 1.0f) {
         if (DebugMenuState == 2) {
-            if (KeyDownForPlayer1Or2(0x4000)) {
+            if (swrObjJdge_KeyDownForPlayer1Or2(0x4000)) {
                 if (--swrRace_inRaceMenuCursor < 0)
                     swrRace_inRaceMenuCursor = 0;
                 else
-                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+                    swrSound_Play2D(0x55, 6, 0.25f, 1.0f, 0);
             }
-            if (KeyDownForPlayer1Or2(0x8000)) {
+            if (swrObjJdge_KeyDownForPlayer1Or2(0x8000)) {
                 swrRace_inRaceMenuCursor++;
                 if (!swrRace_GetInRaceMenuEntry(swrRace_inRaceMenuCursor, label, help, &intValue, &floatValue))
                     swrRace_inRaceMenuCursor--;
                 else
-                    playASound(0x55, 6, 0.25f, 1.0f, 0);
+                    swrSound_Play2D(0x55, 6, 0.25f, 1.0f, 0);
             }
             swrControl_uiInputActive = 0;
             if (swrControl_acceptPressedEdge != 0) {
@@ -1103,7 +1103,7 @@ void swrRace_UpdateInRaceMenu(void)
             if (inRaceLocalPlayerInputBitset1[0] & 1)
                 swrRace_ActivateInRaceMenuEntry(swrRace_inRaceMenuCursor);
             if (inRaceLocalPlayerInputBitset1[0] & 0x200)
-                requestUnpause();
+                swrRace_RequestUnpause();
             if (inRaceLocalPlayerInputBitset1[0] & 2)
                 swrRace_PopDebugMenuState();
         }
@@ -1145,7 +1145,7 @@ void swrRace_UpdateInRaceMenu(void)
         if (DebugMenuState == 2) {
             x = 0xa0;
             y = row;
-            scroll = GetPauseMenuScrollInOut();
+            scroll = swrRace_GetPauseMenuScrollInOut();
             if (scroll > 0.0f) {
                 a = scroll * 255.0f;
                 if (index == swrRace_inRaceMenuCursor) {
@@ -1200,7 +1200,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
     reload = 0;
     if (swrObjHang_menuJustEntered) {
         swrObjHang_menuJustEntered = 0;
-        UpdateUICameraPlacements(157.0f);
+        swrObjHang_UpdateUICameraPlacements(157.0f);
         swrRace_vehicleSelectEntered = 0;
         swrRace_vehicleSelectStep = 0;
         swrObjHang_settledMenuItem = 0;
@@ -1237,7 +1237,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
     if (swrRace_vehicleSelectStep == 5 && swrObjHang_StepTransition(-3.3f) == 0.0f) {
         swrObjElmo_SetAnimStateById(SWR_SCENE_SLOT_PILOT_PUPPETS, 0);
         swrRace_SaveCurrentProfile();
-        if (multiplayer_enabled != 0) {
+        if (swrMultiplayer_enabled != 0) {
             swrUI_PopMenuPage();
             return;
         }
@@ -1250,7 +1250,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
         if (swrObjHang_vehicleStatsFade < 0.0f)
             swrObjHang_vehicleStatsFade = 0.0f;
         if (swrRace_vehicleSelectShowStats != 0)
-            swrRace_VehicleStatisticsSubMenu(hang, 105.0f, 135.0f);
+            swrObjHang_VehicleStatisticsSubMenu(hang, 105.0f, 135.0f);
     }
 
     swrText_CreateColorlessEntry1(0xa0, 0x19, swrText_Translate("/SCREENTEXT_525/~c~sSelect Vehicle"));
@@ -1313,9 +1313,9 @@ void swrRace_SelectVehicle(swrObjHang* hang)
             roll = -swrObjHang_CosineEase(swrRace_PodRotationAnimation - 1440.0f, 360.0f);
         }
         rdMatrix_SetRotation44(&m, pitch, yaw, roll);
-        rdVector_Copy3((rdVector3*)&m.vD, &maybeUICameraPlacements[0x24].position2);
+        rdVector_Copy3((rdVector3*)&m.vD, &swrObjHang_cameraPlacements[0x24].position2);
         swrRace_vehicleSelectPodScale = swrRace_vehicleSelectPodScale * 0.5f;
-        rdVector_Scale3Add3_both((rdVector3*)&m.vD, 0.5f, &maybeUICameraPlacements[0x24].position2, 0.5f, &maybeUICameraPlacements[0x24].position1);
+        rdVector_Scale3Add3_both((rdVector3*)&m.vD, 0.5f, &swrObjHang_cameraPlacements[0x24].position2, 0.5f, &swrObjHang_cameraPlacements[0x24].position1);
         swrRace_AnimateDisplayPod((swrModel_Node**)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS], &m, 1, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, swrRace_vehicleSelectPodScale, -1157.0f, 0, 1.0f, 1.0f);
         if (swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node != NULL)
             swrModel_NodeModifyFlags(swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[0x3b].node, 2, 3, 0x10, 2);
@@ -1336,13 +1336,13 @@ void swrRace_SelectVehicle(swrObjHang* hang)
             swrObjHang_ComputeUpgradedStats(swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId, -1, 0, -1);
         if (swrRace_Transition >= 1.0f && swrControl_cancelPressedEdge != 0) {
             swrUI_PopMenuPage();
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             if (hang->menuScreenPrev == swrObjHang_STATE_MAIN_MENU) {
                 swrObjHang_state2 = swrObjHang_STATE_MAIN_MENU;
                 swrRace_vehicleSelectStep = 1;
                 return;
             }
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             if (hang->current_player_for_vehicle_selection > 0) {
                 swrRace_vehicleSelectStep = 1;
                 hang->current_player_for_vehicle_selection--;
@@ -1358,17 +1358,17 @@ void swrRace_SelectVehicle(swrObjHang* hang)
             return;
         }
         if (swrRace_Transition >= 1.0f && swrControl_menuAcceptPressedEdge != 0) {
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
             swrRace_vehicleSelectStep = 1;
         }
         if (swrUI_localPlayersInputPressedBitset[i] & 8) {
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
             swrRace_vehicleSelectShowStats = swrRace_vehicleSelectShowStats == 0;
         }
     }
 
     if (swrRace_vehicleSelectStep == 1) {
-        UpdateUICameraPlacements(swrRacer_PodData[swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId].float20);
+        swrObjHang_UpdateUICameraPlacements(swrRacer_PodData[swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId].float20);
         for (i = hang->current_player_for_vehicle_selection; i < hang->current_player_for_vehicle_selection + 1; i++) {
             (&hang->vehiclePlayer)[i] = (char)swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId;
             pick = swrRace_SelectIndex[swrRace_MenuSelectedItem].racerId;
@@ -1410,7 +1410,7 @@ void swrRace_SelectVehicle(swrObjHang* hang)
 }
 
 // 0x004368a0
-void swrRace_MainMenu(swrObjHang* hang)
+void swrObjHang_MainMenu(swrObjHang* hang)
 {
     HangRoom targetRoom = HangRoom_None;
     rdVector3 toEye;
@@ -1432,16 +1432,16 @@ void swrRace_MainMenu(swrObjHang* hang)
         rdVector_Sub3(&toEye, (rdVector3*)&swrObjHang_cameraMatrix.vD, (rdVector3*)&swrObjHang_holoCameraMatrix.vD);
         swrObjHang_orbitDistance = rdVector_Len3(&toEye);
         rdVector_Normalize3Acc(&toEye);
-        gamma_unk = stdMath_ArcTan2(-toEye.x, toEye.y);
-        alpha_unk = stdMath_ArcSin(toEye.z);
-        if (gamma_unk < 0.0f)
-            gamma_unk = gamma_unk - -360.0f;
-        if (gamma_unk > 360.0f)
-            gamma_unk = gamma_unk - 360.0f;
-        if (alpha_unk < -90.0f)
-            alpha_unk = alpha_unk - -180.0f;
-        if (alpha_unk > 90.0f)
-            alpha_unk = alpha_unk - 180.0f;
+        swrObjHang_orbitYaw = stdMath_ArcTan2(-toEye.x, toEye.y);
+        swrObjHang_orbitPitch = stdMath_ArcSin(toEye.z);
+        if (swrObjHang_orbitYaw < 0.0f)
+            swrObjHang_orbitYaw = swrObjHang_orbitYaw - -360.0f;
+        if (swrObjHang_orbitYaw > 360.0f)
+            swrObjHang_orbitYaw = swrObjHang_orbitYaw - 360.0f;
+        if (swrObjHang_orbitPitch < -90.0f)
+            swrObjHang_orbitPitch = swrObjHang_orbitPitch - -180.0f;
+        if (swrObjHang_orbitPitch > 90.0f)
+            swrObjHang_orbitPitch = swrObjHang_orbitPitch - 180.0f;
 
         memset(swrObjHang_mainMenuItems, -1, sizeof(swrObjHang_mainMenuItems));
         swrObjHang_mainMenuItems[0] = swrObjHang_MAINMENU_START_RACE;
@@ -1503,13 +1503,13 @@ void swrRace_MainMenu(swrObjHang* hang)
             hang->mainMenuSelection++;
             if (hang->mainMenuSelection > swrObjHang_mainMenuItemCount - 1)
                 hang->mainMenuSelection = 0;
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         }
         if (swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_UP) {
             hang->mainMenuSelection--;
             if (hang->mainMenuSelection < 0)
                 hang->mainMenuSelection = swrObjHang_mainMenuItemCount - 1;
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         }
 
         // Alt/Shift + stick orbits the camera around the pod
@@ -1519,18 +1519,18 @@ void swrRace_MainMenu(swrObjHang* hang)
             swrObjHang_cameraMoveMode = 0;
             if (swrControl_aPlayerAxisX[player] > 0.1f || swrControl_aPlayerAxisX[player] < -0.1f) {
                 moved = 1;
-                gamma_unk = gamma_unk - swrControl_aPlayerAxisX[player] * swrRace_fdeltaTimeSecs * 105.0f;
+                swrObjHang_orbitYaw = swrObjHang_orbitYaw - swrControl_aPlayerAxisX[player] * swrRace_fdeltaTimeSecs * 105.0f;
             }
             if (swrControl_aPlayerAxisY[player] > 0.1f || swrControl_aPlayerAxisY[player] < -0.1f) {
-                alpha_unk = alpha_unk - swrControl_aPlayerAxisY[player] * swrRace_fdeltaTimeSecs * -67.5f;
-                if (alpha_unk > 45.0f)
-                    alpha_unk = 45.0f;
-                if (alpha_unk < -45.0f)
-                    alpha_unk = -45.0f;
+                swrObjHang_orbitPitch = swrObjHang_orbitPitch - swrControl_aPlayerAxisY[player] * swrRace_fdeltaTimeSecs * -67.5f;
+                if (swrObjHang_orbitPitch > 45.0f)
+                    swrObjHang_orbitPitch = 45.0f;
+                if (swrObjHang_orbitPitch < -45.0f)
+                    swrObjHang_orbitPitch = -45.0f;
                 moved = 1;
             }
             if (moved) {
-                rdMatrix_SetRotation44(&orbit, gamma_unk, alpha_unk, 0.0f);
+                rdMatrix_SetRotation44(&orbit, swrObjHang_orbitYaw, swrObjHang_orbitPitch, 0.0f);
                 rdVector_Scale3Add3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, (rdVector3*)&swrObjHang_cameraMatrix.vD, -swrObjHang_orbitDistance, (rdVector3*)&orbit.vB);
                 // faithful: the distance is never changed above, so this never recomputes
                 if (swrObjHang_orbitDistance != distance)
@@ -1540,14 +1540,14 @@ void swrRace_MainMenu(swrObjHang* hang)
         }
 
         if (swrControl_cancelPressedEdge != 0) {
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             targetRoom = Cantina;
             swrObjHang_state2 = swrObjHang_STATE_SELECT_TRACK;
         }
         if (swrControl_menuAcceptPressedEdge == 0)
             continue;
 
-        playUISound(0x54);
+        swrSound_PlayUISound(0x54);
         if (hang->mainMenuSelection == 0) {
             targetRoom = HangRoom_None;
             swrControl_StopAllForceEffects(0);
@@ -1558,7 +1558,7 @@ void swrRace_MainMenu(swrObjHang* hang)
                 if (hang->isTournamentMode != 0 && (uint8_t)swrRace_UnlockDataBase[0] != g_aTrackInfos[hang->track_index].FavoritePilot && swrControl_slideButton != 0.0f && swrObjHang_skipTournamentIntro == 0)
                     swrObjHang_state2 = swrObjHang_STATE_TAUNT_SCENE;
                 swrObjHang_fadeState = -1;
-                if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0)
+                if (swrUtils_Compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0)
                     swrObjHang_SelectCreditsTracks(hang);
                 swrMultiplayer_BroadcastRaceReset();
                 return;
@@ -1677,11 +1677,11 @@ void swrRace_AudioVideoSettings(swrObjHang* hang)
 
     for (player = 0; player < hang->num_local_players; player++) {
         if (swrControl_menuAcceptPressedEdge != 0) {
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             done = 1;
         }
         if (swrControl_cancelPressedEdge != 0) {
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             done = 1;
         }
         if (done) {
@@ -1694,14 +1694,14 @@ void swrRace_AudioVideoSettings(swrObjHang* hang)
             if (swrRace_audioVideoMenuRow > swrRace_audioVideoMenuLastRow) {
                 swrRace_audioVideoMenuRow = 0;
             }
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         }
         if ((swrUI_localPlayersInputPressedBitset[player] & swrUI_INPUT_MENU_UP) != 0) {
             swrRace_audioVideoMenuRow--;
             if (swrRace_audioVideoMenuRow < 0) {
                 swrRace_audioVideoMenuRow = swrRace_audioVideoMenuLastRow;
             }
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         }
         if ((swrUI_localPlayersInputPressedBitset[player] & (swrUI_INPUT_MENU_LEFT | swrUI_INPUT_MENU_RIGHT)) != 0) {
             if (swrRace_audioVideoMenuRow == 2) {
@@ -1714,21 +1714,21 @@ void swrRace_AudioVideoSettings(swrObjHang* hang)
                 swrRace_saveData.unlockFlags ^= swrSaveData_OPTION_HIRES;
             }
             if (swrRace_audioVideoMenuRow >= 2 && swrRace_audioVideoMenuRow != 5) {
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
         }
         if (swrRace_audioVideoMenuRow == 0) {
             *musicVolume = stepMenuVolume(*musicVolume, swrUI_localPlayersInputDownBitset[player]);
-            playASound(0x9b, 6, 0.25f, 1.0f, 1);
+            swrSound_Play2D(0x9b, 6, 0.25f, 1.0f, 1);
         } else if (swrRace_audioVideoMenuRow == 1) {
             sound_sfx_volume = stepMenuVolume(sound_sfx_volume, swrUI_localPlayersInputDownBitset[player]);
-            playASound(0x4f, 6, 0.125f, 1.0f, 1);
+            swrSound_Play2D(0x4f, 6, 0.125f, 1.0f, 1);
         }
     }
 }
 
 // 0x004396d0
-void swrRace_HangarMenu(swrObjHang* hang)
+void swrObjHang_LookAtVehicleMenu(swrObjHang* hang)
 {
     char text[48];
     rdMatrix44 m;
@@ -1753,33 +1753,33 @@ void swrRace_HangarMenu(swrObjHang* hang)
         pod = swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS];
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)pod->entries[swrObjHang_displayPodEngineREntry].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x1f].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x1f].position2.x = 0.0f;
-        maybeUICameraPlacements[0x1f].position1.x = swrObjHang_displayPodBoundsEngineR[3] + 200.0f;
-        maybeUICameraPlacements[0x1f].position1.y = swrObjHang_displayPodBoundsEngineR[4] + 300.0f;
-        maybeUICameraPlacements[0x1f].position1.z = maybeUICameraPlacements[0x1f].position1.z + 200.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x1f].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x1f].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x1f].position2.x = 0.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.x = swrObjHang_displayPodBoundsEngineR[3] + 200.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.y = swrObjHang_displayPodBoundsEngineR[4] + 300.0f;
+        swrObjHang_cameraPlacements[0x1f].position1.z = swrObjHang_cameraPlacements[0x1f].position1.z + 200.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x20].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x20].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x20].position1.z = -152.0f;
-        maybeUICameraPlacements[0x20].position1.x = maybeUICameraPlacements[0x20].position1.x + 50.0f;
-        maybeUICameraPlacements[0x20].position1.y = maybeUICameraPlacements[0x20].position1.y - 300.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x20].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x20].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x20].position1.z = -152.0f;
+        swrObjHang_cameraPlacements[0x20].position1.x = swrObjHang_cameraPlacements[0x20].position1.x + 50.0f;
+        swrObjHang_cameraPlacements[0x20].position1.y = swrObjHang_cameraPlacements[0x20].position1.y - 300.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[5].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x21].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x21].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x21].position1.x = maybeUICameraPlacements[0x21].position1.x - 100.0f;
-        maybeUICameraPlacements[0x21].position1.y = maybeUICameraPlacements[0x21].position1.y - 500.0f;
-        maybeUICameraPlacements[0x21].position1.z = maybeUICameraPlacements[0x21].position1.z + 100.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x21].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x21].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x21].position1.x = swrObjHang_cameraPlacements[0x21].position1.x - 100.0f;
+        swrObjHang_cameraPlacements[0x21].position1.y = swrObjHang_cameraPlacements[0x21].position1.y - 500.0f;
+        swrObjHang_cameraPlacements[0x21].position1.z = swrObjHang_cameraPlacements[0x21].position1.z + 100.0f;
 
         swrModel_NodeGetTransform((swrModel_NodeTransformed*)swr_sceneModels[SWR_SCENE_SLOT_POD_MODELS]->entries[swrObjHang_displayPodEngineLEntry].node, &m);
-        rdVector_Copy3(&maybeUICameraPlacements[0x22].position2, (rdVector3*)&m.vD);
-        rdVector_Copy3(&maybeUICameraPlacements[0x22].position1, (rdVector3*)&m.vD);
-        maybeUICameraPlacements[0x22].position1.z = -152.0f;
-        maybeUICameraPlacements[0x22].position1.x = swrObjHang_displayPodBoundsEngineL[0] - 300.0f;
-        maybeUICameraPlacements[0x22].position1.y = swrObjHang_displayPodBoundsEngineL[4] + 300.0f;
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x22].position2, (rdVector3*)&m.vD);
+        rdVector_Copy3(&swrObjHang_cameraPlacements[0x22].position1, (rdVector3*)&m.vD);
+        swrObjHang_cameraPlacements[0x22].position1.z = -152.0f;
+        swrObjHang_cameraPlacements[0x22].position1.x = swrObjHang_displayPodBoundsEngineL[0] - 300.0f;
+        swrObjHang_cameraPlacements[0x22].position1.y = swrObjHang_displayPodBoundsEngineL[4] + 300.0f;
 
         if (swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT)
             swrObjHang_FocusMenuItem(hang, swrObjHang_hangarUpgradeType % 4 + HangCameraState_InspectUpgrades1, ~swrObjHang_STATE_LEGAL, 0);
@@ -1803,7 +1803,7 @@ void swrRace_HangarMenu(swrObjHang* hang)
     }
 
     if (swrMultiplayer_menuOverlayActive == 0 && swrControl_cancelPressedEdge != 0) {
-        playUISound(0x4d);
+        swrSound_PlayUISound(0x4d);
         swrRace_hangarMenuReinit = 1;
         swrObjHang_SetMenuState(hang, swrObjHang_STATE_MAIN_MENU);
         return;
@@ -1812,22 +1812,22 @@ void swrRace_HangarMenu(swrObjHang* hang)
     if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_LEFT) && swrObjHang_hangarUpgradeType > 0) {
         swrRace_hangarSelectionDirty = 1;
         swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType - 1;
-        playUISound(0x58);
+        swrSound_PlayUISound(0x58);
     }
     if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_RIGHT) && swrObjHang_hangarUpgradeType < SWR_UPGRADE_CATEGORY_COUNT) {
         swrRace_hangarSelectionDirty = 1;
         swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType + 1;
-        playUISound(0x58);
+        swrSound_PlayUISound(0x58);
     }
     if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_UP) && swrObjHang_hangarUpgradeType > 1) {
         swrRace_hangarSelectionDirty = 1;
         swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType - 2;
-        playUISound(0x58);
+        swrSound_PlayUISound(0x58);
     }
     if ((swrUI_localPlayersInputPressedBitset[hang->current_player_for_vehicle_selection] & swrUI_INPUT_MENU_DOWN) && swrObjHang_hangarUpgradeType <= 5) {
         swrRace_hangarSelectionDirty = 1;
         swrObjHang_hangarUpgradeType = swrObjHang_hangarUpgradeType + 2;
-        playUISound(0x58);
+        swrSound_PlayUISound(0x58);
     }
 
     if (swrRace_hangarSelectionDirty != 0 && swrObjHang_hangarUpgradeType != -1) {
@@ -1847,7 +1847,7 @@ void swrRace_HangarMenu(swrObjHang* hang)
     }
 
     if (swrMultiplayer_menuOverlayActive == 0 && swrControl_menuAcceptPressedEdge != 0 && (swrObjHang_hangarUpgradeType != SWR_UPGRADE_CATEGORY_COUNT || swrRace_nbPitDroids != 4)) {
-        playUISound(0x54);
+        swrSound_PlayUISound(0x54);
         swrObjHang_state2 = swrObjHang_STATE_WATTO;
         swrObjHang_shopFocusTypePending = 1;
         if (swrObjHang_hangarUpgradeType == SWR_UPGRADE_CATEGORY_COUNT) {
@@ -1880,7 +1880,7 @@ void swrRace_DrawRecordHolderName(float x, float y, float alpha, char* recordNam
 // guest players through name entry, commits new records into the save image, and in tournament mode
 // applies the whole progression step (prizes, unlocks, beat-place bits, podium), then autosaves.
 // 0x00439ce0
-void swrRace_ResultsMenu(swrObjHang* hang)
+void swrObjHang_ResultsMenu(swrObjHang* hang)
 {
     swrScore* scores[20]; // race order: local players first
     float bestLap[2];
@@ -2038,10 +2038,10 @@ void swrRace_ResultsMenu(swrObjHang* hang)
                     return;
                 }
             }
-            required = GetRequiredPlaceToProceed(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx);
+            required = swrObjHang_GetRequiredPlaceToProceed(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx);
             if (swrRace_resultsPlaceP1 <= required) {
                 storedPlaceBits = (swrRace_aProfiles[0].beatTrackPlace[(int)hang->circuitIdx] >> ((swrObjHang_trackInCircuitIdx & 0xf) * 2)) & 3;
-                if (isTrackUnlocked(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx) != 0) {
+                if (swrObjHang_IsTrackUnlocked(hang->circuitIdx, (char)swrObjHang_trackInCircuitIdx) != 0) {
                     // prize scales with the circuit: x1.0 / x1.5 / x2.0 / x2.5
                     gain = (int)hang->winnings.truguts[hang->WinningsID - 1][swrRace_resultsPlaceP1 - 1];
                     gain = (int)((1.0 - (double)(int)hang->circuitIdx * -0.5) * (double)gain);
@@ -2091,7 +2091,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
     if (0.0f < swrRace_resultsFanfareDelay) {
         swrRace_resultsFanfareDelay -= swrRace_fdeltaTimeSecs;
         if (swrRace_resultsFanfareDelay <= 0.0f)
-            playASound(0xb6, 7, 0.25f, 1.0f, 0);
+            swrSound_Play2D(0xb6, 7, 0.25f, 1.0f, 0);
     }
 
     // standings rows (30px apart, faded near the top/bottom edges)
@@ -2158,7 +2158,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
     for (k = 0; k < hang->num_local_players; k++) {
         if (swrControl_acceptPressedEdge != 0 || swrControl_cancelPressedEdge != 0) {
             swrUI_RunCallbacks2(swrUI_GetUI1(), 1);
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
             if (hang->isTournamentMode == 0) {
                 // multiplayer results return to the lobby flow (SELECT_PLANET - 11)
                 state2 = swrMultiplayer_IsMultiplayerEnabled() != 0 ? (swrObjHang_STATE)(swrObjHang_STATE_SELECT_PLANET - 11) : swrObjHang_STATE_SELECT_PLANET;
@@ -2198,7 +2198,7 @@ void swrRace_ResultsMenu(swrObjHang* hang)
 }
 
 // 0x0043b240
-void swrRace_CourseSelectionMenu(void)
+void swrObjHang_CourseSelectionMenu(void)
 {
     char text[256];
     swrObjHang* hang = g_objHang2;
@@ -2223,7 +2223,7 @@ void swrRace_CourseSelectionMenu(void)
         if (hang->menuScreenPrev == swrObjHang_STATE_SELECT_VEHICLE || hang->menuScreenPrev == swrObjHang_STATE_SPLASH) {
             swrRace_MenuSelectedItem = 0;
             // tournament: start on the circuit's last track when it is already unlocked
-            if (hang->isTournamentMode != 0 && isTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1) != 0)
+            if (hang->isTournamentMode != 0 && swrObjHang_IsTrackUnlocked(hang->circuitIdx, swrRace_MenuMaxSelection - 1) != 0)
                 swrRace_MenuSelectedItem = swrRace_MenuMaxSelection - 1;
         } else {
             swrUI_Front_SyncTrackSelection(hang);
@@ -2241,10 +2241,10 @@ void swrRace_CourseSelectionMenu(void)
         swrObjHang_StepTransition(3.3f);
     }
 
-    selected = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+    selected = swrObjHang_VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
     hang->track_index = (char)g_aTrackIDs[hang->circuitIdx * 7 + selected];
     if (swrRace_Transition > 0.0f)
-        DrawHoloPlanet(hang, swrObjHang_courseShownPlanet, swrRace_Transition * 0.5);
+        swrObjHang_DrawHoloPlanet(hang, swrObjHang_courseShownPlanet, swrRace_Transition * 0.5);
     if (swrObjHang_courseTrackChosen != 0)
         return;
 
@@ -2289,7 +2289,7 @@ void swrRace_CourseSelectionMenu(void)
     sprintf(text, label);
     swrText_CreateTextEntry1(0xa0, 0x18, 0x32, -1, -1, -1, text);
 
-    DrawTracks(hang, swrObjHang_courseShownCircuit);
+    swrObjHang_DrawTracks(hang, swrObjHang_courseShownCircuit);
     planetSprite = (char)g_aTrackInfos[hang->track_index].PlanetIdx + 0x45;
     swrSprite_SetVisible(planetSprite, 1);
     swrSprite_SetPos(planetSprite, 0xa0, 0x91);
@@ -2304,24 +2304,24 @@ void swrRace_CourseSelectionMenu(void)
     // faithful: the original's per-player loop bound stops after player 1
     if (swrMultiplayer_menuOverlayActive == 0) {
         if (swrControl_menuAcceptPressedEdge != 0 && (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0)) {
-            if (multiplayer_enabled != 0) {
+            if (swrMultiplayer_enabled != 0) {
                 swrUI_PopMenuPage();
                 return;
             }
             if (swrObjHang_menuAcceptLock != 0)
                 return;
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
             swrObjHang_InitTrackSprites(hang, 0);
             swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_TRACK);
             swrObjHang_courseTrackChosen = 1;
             return;
         }
         if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
-            if (multiplayer_enabled != 0) {
+            if (swrMultiplayer_enabled != 0) {
                 swrUI_PopMenuPage();
                 return;
             }
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
             if (swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_IsHost() != 0)
                 return;
             swrObjHang_InitTrackSprites(hang, 0);
@@ -2334,25 +2334,25 @@ void swrRace_CourseSelectionMenu(void)
             if (hang->circuitIdx < g_CircuitIdxMax) {
                 hang->circuitIdx++;
                 swrObjHang_settledMenuItem = -1;
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
                 swrUI_Front_HandleCircuits(hang);
             } else {
-                playUISound(0x4b);
+                swrSound_PlayUISound(0x4b);
             }
         }
         if ((swrUI_localPlayersInputPressedBitset[0] & swrUI_INPUT_MENU_UP) != 0) {
             if (hang->circuitIdx > 0) {
                 hang->circuitIdx--;
                 swrObjHang_settledMenuItem = -1;
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
                 swrUI_Front_HandleCircuits(hang);
             } else {
-                playUISound(0x4b);
+                swrSound_PlayUISound(0x4b);
             }
         }
     }
 
-    multiplayer_track_select = hang->track_index;
+    swrMultiplayer_trackSelect = hang->track_index;
     if (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) {
         g_LoadTrackModel = g_aTrackInfos[hang->track_index].trackID;
         swrMultiplayer_BroadcastPlayerState();
@@ -2363,7 +2363,7 @@ void swrRace_CourseSelectionMenu(void)
 // on the mode), draws the rows plus the hologram, preview, both save-image records and the
 // favorite pilot, then handles option cycling and the start/back transitions.
 // 0x0043b880
-void swrRace_CourseInfoMenu(swrObjHang* hang)
+void swrObjHang_CourseInfoMenu(swrObjHang* hang)
 {
     char* text;
     char* valueText;
@@ -2416,8 +2416,8 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
                 itemCount = swrObjHang_courseInfoItemCount + 1;
             }
         } else {
-            trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
-            if (isTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
+            trackInCircuit = swrObjHang_VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+            if (swrObjHang_IsTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
                 swrObjHang_courseInfoItemKinds[(int)swrObjHang_courseInfoItemCount] = 1; // winnings
                 itemCount = swrObjHang_courseInfoItemCount + 1;
             } else {
@@ -2427,8 +2427,8 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
     }
     swrObjHang_courseInfoItemCount = itemCount;
 
-    trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
-    required = GetRequiredPlaceToProceed(hang->circuitIdx, (char)trackInCircuit);
+    trackInCircuit = swrObjHang_VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+    required = swrObjHang_GetRequiredPlaceToProceed(hang->circuitIdx, (char)trackInCircuit);
 
     rowY = 0xa0;
     if (swrObjHang_courseInfoLeaving == 0 && 0 < swrObjHang_courseInfoItemCount) {
@@ -2528,10 +2528,10 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
 
     swrObjHang_StepTransition(swrObjHang_courseInfoLeaving == 0 ? 3.3f : -3.3f);
     if (0.0f < swrRace_Transition)
-        DrawHoloPlanet(hang, (int)(char)g_aTrackInfos[(int)hang->track_index].PlanetIdx, swrRace_Transition * 0.5f);
+        swrObjHang_DrawHoloPlanet(hang, (int)(char)g_aTrackInfos[(int)hang->track_index].PlanetIdx, swrRace_Transition * 0.5f);
     if (swrObjHang_courseInfoLeaving != 0)
         return;
-    DrawTrackPreview(hang, (int)hang->track_index, 0.5f);
+    swrObjHang_DrawTrackPreview(hang, (int)hang->track_index, 0.5f);
     if (swrObjHang_courseInfoLeaving != 0)
         return;
 
@@ -2589,8 +2589,8 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
     swrSprite_SetDim((short)(char)favoritePilot, 1.0f, 1.0f);
     swrSprite_SetColor((short)(char)favoritePilot, 0xff, 0xff, 0xff, 0xff);
     if (hang->isTournamentMode != 0) {
-        trackInCircuit = VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
-        if (isTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
+        trackInCircuit = swrObjHang_VerifySelectedTrack(hang, swrRace_MenuSelectedItem);
+        if (swrObjHang_IsTrackUnlocked(hang->circuitIdx, (char)trackInCircuit) != 0) {
             text = swrText_Translate(required == 3 ? g_pTxtMinPlace3rd : g_pTxtMinPlace4th);
             swrText_CreateTextEntry1(0xa0, 0x73, -0x5d, -0x42, 0x11, -1, text);
         }
@@ -2601,7 +2601,7 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
         int* pressed = swrUI_localPlayersInputPressedBitset;
         if (swrMultiplayer_menuOverlayActive == 0) {
             if (swrControl_menuAcceptPressedEdge != 0 && (swrMultiplayer_IsMultiplayerEnabled() == 0 || swrMultiplayer_IsHost() != 0) && swrObjHang_menuAcceptLock == 0) {
-                playUISound(0x54);
+                swrSound_PlayUISound(0x54);
                 if (hang->isTournamentMode == 0) {
                     if (hang->timeAttackMode != 0) {
                         hang->num_players = 1;
@@ -2622,7 +2622,7 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
                 return;
             }
             if (swrControl_cancelPressedEdge != 0 && swrObjHang_menuAcceptLock == 0) {
-                playUISound(0x4d);
+                swrSound_PlayUISound(0x4d);
                 swrObjHang_InitTrackSprites(hang, 0);
                 swrObjHang_SetMenuState(hang, swrObjHang_STATE_SELECT_PLANET);
                 return;
@@ -2631,11 +2631,11 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
         if (1 < swrObjHang_courseInfoItemCount) {
             if ((*pressed & swrUI_INPUT_MENU_UP) != 0) {
                 swrObjHang_courseInfoSelectedRow--;
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
             if ((*pressed & swrUI_INPUT_MENU_DOWN) != 0) {
                 swrObjHang_courseInfoSelectedRow++;
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
             if (swrObjHang_courseInfoSelectedRow < 0)
                 swrObjHang_courseInfoSelectedRow = swrObjHang_courseInfoItemCount - 1;
@@ -2679,7 +2679,7 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
                     hang->unk68_type++;
                     break;
                 }
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
             if ((*pressed & swrUI_INPUT_MENU_LEFT) != 0) {
                 switch (swrObjHang_courseInfoItemKinds[swrObjHang_courseInfoSelectedRow]) {
@@ -2716,7 +2716,7 @@ void swrRace_CourseInfoMenu(swrObjHang* hang)
                     hang->unk68_type--;
                     break;
                 }
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
         }
         // wrap the cycling options
@@ -2918,7 +2918,7 @@ void swrRace_BuildPartMenuList(swrObjHang* hang)
     unlocked = swrRace_aProfiles[hang->current_player_for_vehicle_selection].pilotsUnlocked | ELFSAVE_DEFAULT_PILOTS;
     count = 0;
     for (racer = 0; racer < SWR_PILOT_COUNT; racer++) {
-        if ((unlocked & (1 << racer)) != 0 || multiplayer_enabled != 0) {
+        if ((unlocked & (1 << racer)) != 0 || swrMultiplayer_enabled != 0) {
             swrRace_SelectIndex[count].racerId = racer;
             swrRace_SelectIndex[count].unk4 = 0xff;
             swrRace_SelectIndex[count].unk5 = 0;
@@ -3006,7 +3006,7 @@ void swrRace_UpdatePartMenuLayout(swrObjHang* hang)
                 rdVector_Copy3(&icon->vector3, &detailPos);
                 pullTowardEye(&icon->vector1);
             } else {
-                rdVector_Copy3(&icon->vector3, &maybeUICameraPlacements[hang->cameraState].position2);
+                rdVector_Copy3(&icon->vector3, &swrObjHang_cameraPlacements[hang->cameraState].position2);
                 if (swrObjHang_partDetailClosing != 0)
                     pullTowardEye(&icon->vector3);
             }
@@ -3164,10 +3164,10 @@ void swrRace_DrawPartShopScreen(swrObjHang* hang)
     for (player = 0; player < 4; player++) {
         if (swrObjHang_partDetailActive != 0 && (swrUI_localPlayersInputPressedBitset[player] & (swrUI_INPUT_MENU_UP | swrUI_INPUT_MENU_DOWN)) != 0) {
             if (swrRace_truguts < swrRace_upgradePrice - swrRace_upgradeTradeInValue) {
-                playUISound(0x4b);
+                swrSound_PlayUISound(0x4b);
             } else {
                 swrRace_upgradeUnaffordable = (uint16_t)(swrRace_upgradeUnaffordable == 0);
-                playUISound(0x58);
+                swrSound_PlayUISound(0x58);
             }
         }
     }
@@ -3239,7 +3239,7 @@ void swrRace_DrawUpgradesPanel(swrObjHang* hang)
     alpha = swrObjHang_lookAtMenuFade * 2.5f * 255.0f;
     if (alpha > 254.0f)
         alpha = 254.0f;
-    swrRace_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
+    swrObjHang_VehicleStatisticsSubMenu(hang, 20.0f, 135.0f);
 
     if (swrRace_MenuMaxSelection + 1 > 0) {
         a = (uint8_t)(int)alpha;
@@ -3445,11 +3445,11 @@ void swrRace_UpdatePitDroidModels(void)
     lightPos.x = 0.0f;
     lightPos.y = 0.0f;
     lightPos.z = -40000.0f;
-    SetLightColorsAndDirection2(-1, &ambient, &lightColor, &lightPos);
+    swrRender_SetLight1FromFloats(-1, &ambient, &lightColor, &lightPos);
 }
 
 // 0x0043f380
-void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
+void swrObjHang_BuyPitDroidsMenu(swrObjHang* hang)
 {
     char price[32];
     char line[32];
@@ -3500,10 +3500,10 @@ void swrRace_BuyPitdroidsMenu(swrObjHang* hang)
         if ((swrUI_localPlayersInputPressedBitset[i] & (swrUI_INPUT_MENU_UP | swrUI_INPUT_MENU_DOWN)) == 0)
             continue;
         if (swrRace_truguts < SWR_PITDROID_PRICE) {
-            playUISound(0x4b);
+            swrSound_PlayUISound(0x4b);
         } else {
             swrRace_upgradeUnaffordable = swrRace_upgradeUnaffordable == 0;
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         }
     }
     if (swrRace_truguts < SWR_PITDROID_PRICE)
@@ -3624,7 +3624,7 @@ swrModel_Node* swrRace_GetCollisionHit(void)
 // TODO: look at 0x0045cf60
 
 // Convert a pod's raw handling stats into the normalized 0..1 garage display bars
-// (consumed by swrRace_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
+// (consumed by swrObjHang_VehicleStatisticsSubMenu and swrObjHang_ComputeUpgradedStats).
 // Display only: the flight model reads the raw podStats directly, never this output.
 // 0x00449330
 void swrRace_ComputeStatBars(PodHandlingData* out_stats, PodHandlingData* stats)
@@ -4450,7 +4450,7 @@ void swrRace_SaveCurrentProfile(void)
 }
 
 // 0x004550d0
-void swrRace_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
+void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
 {
     static char* const labels[] = {
         "/SCREENTEXT_403/~f4~sTraction", "/SCREENTEXT_404/~f4~sTurning", "/SCREENTEXT_405/~f4~sAccel.", "/SCREENTEXT_406/~f4~sTop Speed", "/SCREENTEXT_407/~f4~sAir Brake", "/SCREENTEXT_408/~f4~sCooling", "/SCREENTEXT_409/~f4~sRepair",
@@ -4583,10 +4583,10 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     char buffer[256];
 
     dialY = 0xa4;
-    numLocal = NumLocalPlayers();
+    numLocal = swrObjJdge_NumLocalPlayers();
     pod = score->obj_test_ptr;
     isPlayer2 = (score == secondLocalPlayer) ? 1 : 0;
-    if (GetPauseState() == 0) {
+    if (swrRace_GetPauseState() == 0) {
         pod->vibrationMagnitude -= (float)swrRace_deltaTimeSecs;
         if (pod->vibrationMagnitude < 0.0f)
             pod->vibrationMagnitude = 0.0f;
@@ -4769,7 +4769,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
         }
     }
 
-    if (!GetPauseState()) {
+    if (!swrRace_GetPauseState()) {
         double pulse = swrRace_engineUiPulse[slot] - swrRace_deltaTimeSecs * 1.5;
         swrRace_engineUiPulse[slot] = pulse;
         if (pulse <= 0.0)
@@ -4804,7 +4804,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
         return;
     }
 
-    if (!GetPauseState()) {
+    if (!swrRace_GetPauseState()) {
         for (i = 0; i < 6; i++)
             pod->engineStatus[i] ^= swrRace_ENGINESTATUS_BLINK;
     }
@@ -5021,7 +5021,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
         if (pod->flags0 & swrObjTest_FLAG0_REPAIRING) {
             if (!leftDamaged && !rightDamaged && !anySmoking) {
                 if (swrRace_engineUiRepairTime[slot] <= 0.0f)
-                    playASound(0x46, 7, 0.25f, 1.0f, 0);
+                    swrSound_Play2D(0x46, 7, 0.25f, 1.0f, 0);
                 double repairTime = swrRace_engineUiRepairTime[slot] + swrRace_deltaTimeSecs;
                 swrRace_engineUiRepairTime[slot] = repairTime;
                 if (repairTime < 0.8f) {
@@ -5037,26 +5037,26 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
             swrRace_engineUiRepairTime[slot] = 0.0f;
         }
 
-        if (!GetPauseState()) {
+        if (!swrRace_GetPauseState()) {
             // one-shot when a fire starts (none for 2 s), then a loop after 1.8 s
             if (anyFire) {
                 if (swrRace_engineFireSfxLastTime < timetotal - 2.0) {
                     swrRace_engineFireSfxStartTime = timetotal;
-                    playASound(0x87, 7, 0.25f, 1.0f, 0);
+                    swrSound_Play2D(0x87, 7, 0.25f, 1.0f, 0);
                 }
                 if (swrRace_engineFireSfxStartTime < timetotal - (double)1.8f)
-                    playASound(0x86, 6, 0.25f, 1.0f, 1);
+                    swrSound_Play2D(0x86, 6, 0.25f, 1.0f, 1);
                 swrRace_engineFireSfxLastTime = timetotal;
             }
             if (heatSfxPitch > 0.0f)
-                playASound(0x83, 7, heatSfxVolume, heatSfxPitch, 1);
+                swrSound_Play2D(0x83, 7, heatSfxVolume, heatSfxPitch, 1);
             if ((pod->flags0 & swrObjTest_FLAG0_REPAIRING) && (leftDamaged || rightDamaged || anySmoking)) {
                 if (swrRace_engineRepairSfxLastTime < timetotal - 2.0) {
                     swrRace_engineRepairSfxStartTime = timetotal;
-                    playASound(0x85, 7, 0.25f, 1.0f, 0);
+                    swrSound_Play2D(0x85, 7, 0.25f, 1.0f, 0);
                 }
                 if (swrRace_engineRepairSfxStartTime < timetotal - (double)1.8f)
-                    playASound(0x75, 6, 0.25f, 1.0f, 1);
+                    swrSound_Play2D(0x75, 6, 0.25f, 1.0f, 1);
                 swrRace_engineRepairSfxLastTime = timetotal;
             }
         }
@@ -5130,7 +5130,7 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
     short spriteX;
     char buf[32];
 
-    numLocal = NumLocalPlayers();
+    numLocal = swrObjJdge_NumLocalPlayers();
     if (numLocal == 2) {
         if (score == firstLocalPlayer) {
             rowY = 0x69;
@@ -5551,7 +5551,7 @@ void swrRace_Tilt(swrRace* player, float b)
 // paceMultiplier) and a station-keeping offset target (aiPaceOffsetTarget, laps behind the
 // pace-setter). The smoothed multiplier is copied into speedMultiplier by swrRace_UpdateCatchup
 // and scales the pod in swrRace_UpdateSpeed. The two tuning inputs are the globals swrRace_AILevel
-// (track base level * AI Speed setting) and ai_spread, both set in InitAISettingsForTrack.
+// (track base level * AI Speed setting) and ai_spread, both set in swrObjJdge_InitAISettingsForTrack.
 // The rubberband is player-relative on three paths: the AI_SIMPLE pace-setter chases local
 // player 1 directly, tethered pods (AI_TETHER_LOCAL*) pace on their raw gap to that player,
 // and everyone else station-keeps behind the pace-setter.
@@ -5765,7 +5765,7 @@ void swrRace_UpdateCatchup(swrRace* player)
         }
     } else {
         player->paceMultiplier = 1.0f;
-        if (1 < NumLocalPlayers() && 0.0f < player->gapToLocalPlayer1) {
+        if (1 < swrObjJdge_NumLocalPlayers() && 0.0f < player->gapToLocalPlayer1) {
             float invTrackLen = 500000.0f / swrSpline_GetTrackLength();
             float boost = (player->gapToLocalPlayer1 * 100.0f) / invTrackLen + 1.0f;
             player->paceMultiplier = boost;
@@ -6233,7 +6233,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
 
     // ---- tilt / bank ----
     if ((bankLeft != 0 || bankRight != 0) && (player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
-        playASound(0x4b, 7, 0.5f, 1.0f, 1);
+        swrSound_Play2D(0x4b, 7, 0.5f, 1.0f, 1);
     }
     float tilt = (bankLeft != 0 && bankRight == 0) ? -1.0f : (bankLeft == 0 && bankRight != 0) ? 1.0f : 0.0f;
     swrRace_Tilt(player, tilt);
@@ -7112,7 +7112,7 @@ float swrRace_RaycastGround(swrRace* player, rdVector3* pos, int* outSurfaceNorm
 
     swrRace_ResetCollisionHit();
     if ((player->flags1 & swrObjTest_FLAG1_FULL_RAYCAST) == 0)
-        hitDist = swrModel_CollideRayWithMesh((swrModel_Mesh*) player->splineTrackMesh, ray,
+        hitDist = swrModel_CollideRayWithMesh(player->splineTrackMesh, ray,
                                               (float*) &outPoint, (float*) &outNormal);
     else
         hitDist = -1.0f;
@@ -7181,7 +7181,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
             up->x = player->up.x;
             up->y = player->up.y;
             up->z = player->up.z;
-            player->terrainModel = player->splineTrackMesh;
+            player->terrainModel = (swrModel_Node*)player->splineTrackMesh;
             flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         }
         player->flags1 = flags1;
@@ -7244,7 +7244,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
                                                  groundDist, &up->x);
         }
     } else {
-        player->terrainModel = player->splineTrackMesh;
+        player->terrainModel = (swrModel_Node*)player->splineTrackMesh;
         player->flags1 = player->flags1 | swrObjTest_FLAG1_GROUND_CACHED;
         if (((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) {
             swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
@@ -8033,7 +8033,7 @@ void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, fl
     if (alphaI <= 15)
         spawned = ri;
     if (spawned && playSplash)
-        playASound(0x45, 7, intensity * 0.1f * 0.25f, 1.0f, 1);
+        swrSound_Play2D(0x45, 7, intensity * 0.1f * 0.25f, 1.0f, 1);
 }
 
 // 0x00472750
@@ -8744,7 +8744,7 @@ void swrRace_TriggerHandler(swrObjTrig* trig, swrRace* player, char fromNetwork)
         if (trig->unk10_ms <= SWR_TRIG_REARM_SECS)
             return;
         trig->unk10_ms = 0.0f;
-        playASound(0x30, 7, 0.25f, 1.0f, 0);
+        swrSound_Play2D(0x30, 7, 0.25f, 1.0f, 0);
         swrRace_UpdateFireEffects(player);
         return;
 
@@ -8855,7 +8855,7 @@ void swrRace_InitFireEffects(int racer, float reset)
                 sfx = 0x6e;
                 pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
             }
-            playASound(sfx, 7, volume, pitch, 0);
+            swrSound_Play2D(sfx, 7, volume, pitch, 0);
         }
         if (swrRace_FireTimer[i] <= 0.0f) {
             volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.0800000057f + 0.1f;
@@ -8868,7 +8868,7 @@ void swrRace_InitFireEffects(int racer, float reset)
 }
 
 // Lap progress in [0..1): the control point's baked progress base plus segmentT scaled by the
-// segment's span (spline_progress_values). Closed tracks clamp just under 1.0 (the wrap is what
+// segment's span (swrSpline_progressTable). Closed tracks clamp just under 1.0 (the wrap is what
 // swrRace_LapCompletion detects); open tracks (swrSpline_finishNodeIdx >= 0) clamp to 1.0.
 // 0x0047f810
 float swrRace_LapProgress(swrSplineCursor* cursor)
@@ -8877,7 +8877,7 @@ float swrRace_LapProgress(swrSplineCursor* cursor)
     float progress;
 
     cp = swrSpline_getControlPoint(cursor, 0);
-    progress = cursor->segmentT * spline_progress_values[cp].y + spline_progress_values[cp].x;
+    progress = cursor->segmentT * swrSpline_progressTable[cp].y + swrSpline_progressTable[cp].x;
     if (swrSpline_finishNodeIdx < 0) {
         if (1.0f <= progress)
             progress = 0.9999f;
@@ -8902,13 +8902,13 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
     if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0)
         checkCrossing = 1;
     player->lapCompPrev = player->lapComp;
-    if (multiplayer_enabled != 0 && (player->flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
+    if (swrMultiplayer_enabled != 0 && (player->flags0 & swrObjTest_FLAG0_REMOTE) != 0) {
         score = player->score_ptr;
         netSlot = *(int*)&score->time_unk;
         player->lapCompMax = swrMultiplayer_aRemoteLapCompMax[netSlot];
         score->results_P1_Lap = swrMultiplayer_aRemoteLap[netSlot];
     }
-    if (multiplayer_enabled == 0 || (player->flags0 & swrObjTest_FLAG0_REMOTE) == 0)
+    if (swrMultiplayer_enabled == 0 || (player->flags0 & swrObjTest_FLAG0_REMOTE) == 0)
         player->lapComp = swrRace_LapProgress(&player->splineCursor);
     else
         player->lapComp = swrMultiplayer_aRemoteLapComp[*(int*)&player->score_ptr->time_unk];
@@ -8947,14 +8947,14 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
 }
 
 // 0x0047f890
-swrModel_Node* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
+swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 {
-    float sample = cursor->segmentT * 10.0f;
+    float sample = cursor->segmentT * SWR_SPLINE_SAMPLES_PER_NODE;
     if (sample < 0.0f)
         sample -= 0.999999f;
     int sampleIndex = (int)sample;
     int node = swrSpline_getControlPoint(cursor, 0);
-    return ((swrModel_Node**)&spline_progress_values[node * 5 + 0xfc].x)[sampleIndex];
+    return swrSpline_sampleMeshes[node * SWR_SPLINE_SAMPLES_PER_NODE + sampleIndex];
 }
 
 // Steps the cursor over each node plane the pod passed (segmentT += 0.01 per step). Entering node 0
@@ -9038,7 +9038,7 @@ int swrRace_UpdateSplineBinding(swrRace* player)
     float crossTime;
     int crossed;
 
-    if ((swrModel_Mesh*)player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
+    if (player->splineTrackMesh == stoodOn || player->splineTrackMesh == NULL || stoodOn == NULL || (player->flags1 & swrObjTest_FLAG1_GROUND_CACHED) != 0)
         return 0;
 
     behavior = swrModel_MeshGetBehavior(stoodOn);
@@ -9224,7 +9224,7 @@ void swrRace_SetupScrapeSpray(swrRace* player, float scale, float offset, rdVect
         width = jitter * width;
         length = jitter * scale;
     }
-    BuildBasisFromDirection(emitter, pos, normal, (rdVector3*)&player->transform.vB, offset);
+    rdMatrix_BuildBasisFromDirection(emitter, pos, normal, (rdVector3*)&player->transform.vB, offset);
     rdMatrix_ScaleBasis44(emitter, length, width, width, emitter);
     player->flags0 |= flag;
 }
@@ -9806,11 +9806,11 @@ void swrRace_PlayEngineSounds(swrRace* player, float gain)
     if (player->flags0 & (swrObjTest_FLAG0_RESET | swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD))
         muted = 1;
     score = player->score_ptr;
-    numLocal = NumLocalPlayers();
+    numLocal = swrObjJdge_NumLocalPlayers();
     if (numLocal == 0) {
         local = 0;
     } else {
-        local = GetLocalPlayerNumberFromScore(score);
+        local = swrRace_GetLocalPlayerNumberFromScore(score);
         if (local < 0)
             return;
     }
@@ -10205,7 +10205,7 @@ void swrRace_UpdateReflectionNode(swrRace* player)
 void swrRace_UpdateEngineSound(swrRace* player)
 {
     if (!(player->flags0 & swrObjTest_FLAG0_LOCAL) && !(player->flags1 & swrObjTest_FLAG1_FORCE_GROUND)) {
-        if (!(player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) || NumLocalPlayers() != 0) {
+        if (!(player->flags0 & swrObjTest_FLAG0_AI_SIMPLE) || swrObjJdge_NumLocalPlayers() != 0) {
             if ((double)player->lodDistance < 500.0) {
                 swrRace_aiEngineLoopPlayed = 0;
                 swrSound_PlaySpatialRange((short)((*(uint8_t*)player->score_ptr->pilotId & 1) + 0xa6 + swrRace_aiEngineLoopSoundBase), 4, 0.25f, 1.0f, (rdVector3*)&player->transform.vD, 1, 0, 10.0f, 5000.0f);
@@ -10353,10 +10353,10 @@ void swrRace_PoddAnimateEngines(swrRace* player)
     if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEBUG_KEYS) != 0 && swrRace_DebugLevel != 0 && (inRaceLocalPlayerInputBitset3[0] & 0x1000) != 0)
         hidden = 1;
     if (swrObjJdge_splitscreenActive != 0) {
-        if (NumLocalPlayers() == 0)
+        if (swrObjJdge_NumLocalPlayers() == 0)
             localPlayer = -1;
         else
-            localPlayer = GetLocalPlayerNumberFromScore(player->score_ptr);
+            localPlayer = swrRace_GetLocalPlayerNumberFromScore(player->score_ptr);
     }
 
     if (player->partNodes == NULL) {
@@ -10521,7 +10521,7 @@ void swrRace_PoddAnimateEngines(swrRace* player)
 void swrRace_PollScreenshotKey(void)
 {
     if (stdControl_ReadKey(DIK_F12, NULL) != 0 && swrRace_screenshotKeyHeld == 0) {
-        playUISound(0x46);
+        swrSound_PlayUISound(0x46);
         sithRender_MakeScreenShot("snap_");
         swrRace_screenshotKeyHeld = 1;
         return;
@@ -10557,8 +10557,8 @@ void swrRace_SetupStatsMenuLighting(void)
     rdVector_Set3(&ambient, 255.0f, 255.0f, 255.0f);
     rdVector_Set3(&color, 255.0f, 255.0f, 255.0f);
     rdVector_Set3(&direction, 0.0f, 120.0f, 0.0f);
-    SetLightColorsAndDirection2(0, &ambient, &color, &direction);
+    swrRender_SetLight1FromFloats(0, &ambient, &color, &direction);
     rdVector_Set3(&ambient, 0.0f, 0.0f, 0.0f);
     rdVector_Set3(&color, 128.0f, 128.0f, 128.0f);
-    SetLightColorsAndDirection2(1, &ambient, &color, &direction);
+    swrRender_SetLight1FromFloats(1, &ambient, &color, &direction);
 }

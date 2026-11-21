@@ -3,9 +3,9 @@
 
 #define swr_noop2_ADDR (0x00426910)
 
-#define playASoundImpl_ADDR (0x00426A00)
-#define playASound_ADDR (0x00426C80)
-#define playASound2_ADDR (0x00426CC0)
+#define swrSound_RequestVoice_ADDR (0x00426A00)
+#define swrSound_Play2D_ADDR (0x00426C80)
+#define swrSound_Play2DMinVolume_ADDR (0x00426CC0)
 
 #define swr_noop4_ADDR (0x004270c0)
 
@@ -15,9 +15,9 @@
 
 void swr_noop2(void);
 
-void  playASoundImpl(int, short, float, float, short, int, int, int *);
-void  playASound(int, short, float, float, int);
-void  playASound2(int, short, float, float, int);
+void  swrSound_RequestVoice(int, short, float, float, short, int, int, int *);
+void  swrSound_Play2D(int, short, float, float, int);
+void  swrSound_Play2DMinVolume(int, short, float, float, int);
 
 void swr_noop4(void);
 

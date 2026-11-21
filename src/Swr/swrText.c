@@ -263,7 +263,7 @@ int swrText_UnescapeString(char* dest, char* src)
 }
 
 // 0x0044fcc0
-void resetOverlayDrawQueues(void)
+void swrText_ResetOverlayDrawQueues(void)
 {
     numMiniMapPositions = 0;
     swrTextEntries1Count = 0;
@@ -510,18 +510,18 @@ void swrText_RenderEntries2(void)
 }
 
 // 0x00450280
-void DrawTextEntries()
+void swrText_DrawEntries1()
 {
     if (numMiniMapPositions < 1 && swrTextEntries1Count < 1)
         return;
     swrSprite_ResetCurrentMaterial();
     swrText_RenderEntries1();
-    RenderMiniMapDotsAndCrosses();
+    swrSprite_RenderMiniMapDotsAndCrosses();
     swr_noop2();
 }
 
 // 0x004502B0
-void DrawTextEntries2()
+void swrText_DrawEntries2()
 {
     if (swrText_timedMessageTimer <= 0.0f && swrTextEntries2Count < 1)
         return;

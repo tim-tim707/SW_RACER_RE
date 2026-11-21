@@ -1,7 +1,7 @@
 //
 // Per-category volume mixer for gameplay sound.
 //
-// Every gameplay/menu sound funnels through playASoundImpl, which only knows two levels: the SFX
+// Every gameplay/menu sound funnels through swrSound_RequestVoice, which only knows two levels: the SFX
 // byte and the music byte. We tag each request with a category (from the bank entry's name, or
 // from whichever game function is emitting it) and scale its gain before the original runs.
 // Category volumes sit on top of the existing "Sound effects volume"; music is untouched.
@@ -21,7 +21,7 @@ enum AudioMixCategory {
     AUDIO_MIX_COUNT,
 };
 
-// Registers the playASoundImpl gain hook and the context hooks. Call from init_renderer_hooks(),
+// Registers the swrSound_RequestVoice gain hook and the context hooks. Call from init_renderer_hooks(),
 // before init_hooks() applies the detours.
 void audio_mix_RegisterHooks();
 

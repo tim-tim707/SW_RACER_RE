@@ -32,7 +32,7 @@ int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix)
     polyline = thing->data.pPolyline;
     idxInfo.aVertLights = NULL;
     idxInfo.aVertIntensities = NULL;
-    idxInfo.aVertices = rdPolyline_aVerticesCache;
+    idxInfo.aVertices = rdPolyLine_aVerticesCache;
     rdMatrix_Multiply34(&viewMat, &rdCamera_pCurCamera->view_matrix, matrix);
     tipLocal.x = 0.0f;
     tipLocal.y = polyline->length;
@@ -40,36 +40,36 @@ int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix)
     rdMatrix_TransformPoint34(&tip, &tipLocal, &viewMat);
 
     // tip cap; the cap is lifted 0.001 off the line end
-    rdPolyline_aVerticesCache[0].x = tip.x - polyline->tipRadius;
-    rdPolyline_aVerticesCache[0].y = tip.y + 0.001f;
-    rdPolyline_aVerticesCache[0].z = tip.z - polyline->tipRadius;
-    rdPolyline_aVerticesCache[1].x = tip.x + polyline->tipRadius;
-    rdPolyline_aVerticesCache[1].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[1].z = tip.z - polyline->tipRadius;
-    rdPolyline_aVerticesCache[2].x = tip.x + polyline->tipRadius;
-    rdPolyline_aVerticesCache[2].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[2].z = tip.z + polyline->tipRadius;
-    rdPolyline_aVerticesCache[3].x = tip.x - polyline->tipRadius;
-    rdPolyline_aVerticesCache[3].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[3].z = tip.z + polyline->tipRadius;
+    rdPolyLine_aVerticesCache[0].x = tip.x - polyline->tipRadius;
+    rdPolyLine_aVerticesCache[0].y = tip.y + 0.001f;
+    rdPolyLine_aVerticesCache[0].z = tip.z - polyline->tipRadius;
+    rdPolyLine_aVerticesCache[1].x = tip.x + polyline->tipRadius;
+    rdPolyLine_aVerticesCache[1].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[1].z = tip.z - polyline->tipRadius;
+    rdPolyLine_aVerticesCache[2].x = tip.x + polyline->tipRadius;
+    rdPolyLine_aVerticesCache[2].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[2].z = tip.z + polyline->tipRadius;
+    rdPolyLine_aVerticesCache[3].x = tip.x - polyline->tipRadius;
+    rdPolyLine_aVerticesCache[3].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[3].z = tip.z + polyline->tipRadius;
     idxInfo.aTexVertices = polyline->apTipUVs;
-    rdPolyline_DrawFace(thing, &polyline->tipFace, rdPolyline_aVerticesCache, &idxInfo);
+    rdPolyLine_DrawFace(thing, &polyline->tipFace, rdPolyLine_aVerticesCache, &idxInfo);
 
     // base cap (faithful: also drawn with the tip face and tip UVs)
-    rdPolyline_aVerticesCache[0].x = viewMat.scale.x - polyline->baseRadius;
-    rdPolyline_aVerticesCache[0].y = viewMat.scale.y + 0.001f;
-    rdPolyline_aVerticesCache[0].z = viewMat.scale.z - polyline->baseRadius;
-    rdPolyline_aVerticesCache[1].x = viewMat.scale.x + polyline->baseRadius;
-    rdPolyline_aVerticesCache[1].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[1].z = viewMat.scale.z - polyline->baseRadius;
-    rdPolyline_aVerticesCache[2].x = viewMat.scale.x + polyline->baseRadius;
-    rdPolyline_aVerticesCache[2].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[2].z = viewMat.scale.z + polyline->baseRadius;
-    rdPolyline_aVerticesCache[3].x = viewMat.scale.x - polyline->baseRadius;
-    rdPolyline_aVerticesCache[3].y = rdPolyline_aVerticesCache[0].y;
-    rdPolyline_aVerticesCache[3].z = viewMat.scale.z + polyline->baseRadius;
+    rdPolyLine_aVerticesCache[0].x = viewMat.scale.x - polyline->baseRadius;
+    rdPolyLine_aVerticesCache[0].y = viewMat.scale.y + 0.001f;
+    rdPolyLine_aVerticesCache[0].z = viewMat.scale.z - polyline->baseRadius;
+    rdPolyLine_aVerticesCache[1].x = viewMat.scale.x + polyline->baseRadius;
+    rdPolyLine_aVerticesCache[1].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[1].z = viewMat.scale.z - polyline->baseRadius;
+    rdPolyLine_aVerticesCache[2].x = viewMat.scale.x + polyline->baseRadius;
+    rdPolyLine_aVerticesCache[2].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[2].z = viewMat.scale.z + polyline->baseRadius;
+    rdPolyLine_aVerticesCache[3].x = viewMat.scale.x - polyline->baseRadius;
+    rdPolyLine_aVerticesCache[3].y = rdPolyLine_aVerticesCache[0].y;
+    rdPolyLine_aVerticesCache[3].z = viewMat.scale.z + polyline->baseRadius;
     idxInfo.aTexVertices = polyline->apTipUVs;
-    rdPolyline_DrawFace(thing, &polyline->tipFace, rdPolyline_aVerticesCache, &idxInfo);
+    rdPolyLine_DrawFace(thing, &polyline->tipFace, rdPolyLine_aVerticesCache, &idxInfo);
 
     // edge quad, rotated about view Y to face from base to tip
     dx = tip.x - viewMat.scale.x;
@@ -89,25 +89,25 @@ int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix)
     baseRadius = polyline->baseRadius;
     lenSin = len * sinAngle;
     lenCos = len * cosAngle;
-    rdPolyline_aVerticesCache[0].x = (polyline->tipRadius * cosAngle - lenSin) + viewMat.scale.x;
-    rdPolyline_aVerticesCache[0].y = tip.y;
-    rdPolyline_aVerticesCache[0].z = polyline->tipRadius * sinAngle + lenCos + viewMat.scale.z;
-    rdPolyline_aVerticesCache[1].x = (tipRadiusNeg * cosAngle - lenSin) + viewMat.scale.x;
-    rdPolyline_aVerticesCache[1].y = tip.y;
-    rdPolyline_aVerticesCache[1].z = tipRadiusNeg * sinAngle + lenCos + viewMat.scale.z;
-    rdPolyline_aVerticesCache[2].x = baseRadiusNeg * cosAngle + viewMat.scale.x;
-    rdPolyline_aVerticesCache[2].y = viewMat.scale.y;
-    rdPolyline_aVerticesCache[2].z = baseRadiusNeg * sinAngle + viewMat.scale.z;
-    rdPolyline_aVerticesCache[3].x = baseRadius * cosAngle + viewMat.scale.x;
-    rdPolyline_aVerticesCache[3].y = viewMat.scale.y;
-    rdPolyline_aVerticesCache[3].z = baseRadius * sinAngle + viewMat.scale.z;
+    rdPolyLine_aVerticesCache[0].x = (polyline->tipRadius * cosAngle - lenSin) + viewMat.scale.x;
+    rdPolyLine_aVerticesCache[0].y = tip.y;
+    rdPolyLine_aVerticesCache[0].z = polyline->tipRadius * sinAngle + lenCos + viewMat.scale.z;
+    rdPolyLine_aVerticesCache[1].x = (tipRadiusNeg * cosAngle - lenSin) + viewMat.scale.x;
+    rdPolyLine_aVerticesCache[1].y = tip.y;
+    rdPolyLine_aVerticesCache[1].z = tipRadiusNeg * sinAngle + lenCos + viewMat.scale.z;
+    rdPolyLine_aVerticesCache[2].x = baseRadiusNeg * cosAngle + viewMat.scale.x;
+    rdPolyLine_aVerticesCache[2].y = viewMat.scale.y;
+    rdPolyLine_aVerticesCache[2].z = baseRadiusNeg * sinAngle + viewMat.scale.z;
+    rdPolyLine_aVerticesCache[3].x = baseRadius * cosAngle + viewMat.scale.x;
+    rdPolyLine_aVerticesCache[3].y = viewMat.scale.y;
+    rdPolyLine_aVerticesCache[3].z = baseRadius * sinAngle + viewMat.scale.z;
     idxInfo.aTexVertices = polyline->apEdgeUVs;
-    rdPolyline_DrawFace(thing, &polyline->edgeFace, rdPolyline_aVerticesCache, &idxInfo);
+    rdPolyLine_DrawFace(thing, &polyline->edgeFace, rdPolyLine_aVerticesCache, &idxInfo);
     return 1;
 }
 
 // 0x004941d0
-void rdPolyline_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdPrimit3* pIdxInfo)
+void rdPolyLine_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdPrimit3* pIdxInfo)
 {
     RdCacheProcEntry* entry;
     RdLightMode lightMode;
@@ -118,7 +118,7 @@ void rdPolyline_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rd
     if (entry == NULL)
         return;
 
-    clipped.aVertices = rdPolyline_aClipVertices;
+    clipped.aVertices = rdPolyLine_aClipVertices;
     clipped.unknown2 = (int)entry->aVertices;
     clipped.aTexVertices = entry->aUVCoords;
     clipped.aVertLights = entry->aVertColors;

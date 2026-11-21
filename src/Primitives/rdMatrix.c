@@ -197,7 +197,7 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
 }
 
 // 0x00480890
-void ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out)
+void rdMath_ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out)
 {
     float t = plane[3] - (point->x * plane[0] + point->y * plane[1] + point->z * plane[2]);
     out->x = point->x + t * plane[0];
@@ -206,7 +206,7 @@ void ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out)
 }
 
 // 0x004808f0
-void ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out)
+void rdMath_ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out)
 {
     float dx = segEnd->x - segStart->x;
     float dy = segEnd->y - segStart->y;

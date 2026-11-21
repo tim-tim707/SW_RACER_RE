@@ -123,7 +123,7 @@ rdMatrix44* rdMatrix44_ringBuffer_Get(void)
 }
 
 // 0x0044b690
-void SetModelMVPAndTranslation(const rdMatrix44* mvp, const rdVector3* translation)
+void swrViewport_SetModelMVPAndTranslation(const rdMatrix44* mvp, const rdVector3* translation)
 {
     rdVector_model_translation.x = translation->x;
     rdVector_model_translation.y = translation->y;

@@ -10,7 +10,7 @@ extern "C" {
 #include <Swr/swrRace.h>
 #include <Swr/swrEvent.h> // swrEvent_GetItem/AllocateAndLoadObjs/FreeObjs (Toss pool)
 #include <Swr/swrModel.h> // swrModel_NodeInit / swrModel_NodeModifyFlags (dust-kick nodes)
-#include <swr.h>          // playASound
+#include <swr.h>          // swrSound_Play2D
 #include <globals.h>      // someRootNodeChildNodes
 #include <types_enums.h>  // swrObjTest_FLAG0_LOCAL, MODELID_dustkick1_vlec
 
@@ -116,7 +116,7 @@ void __cdecl swrRace_AnimateDisplayPod_delta(swrModel_Node** nodes, void* transf
 typedef void(__cdecl* swrRace_ResolvePodCollision_t)(swrRace* player);
 
 void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
-    if (imgui_state.mp_disable_collision && multiplayer_enabled != 0 && player != nullptr) {
+    if (imgui_state.mp_disable_collision && swrMultiplayer_enabled != 0 && player != nullptr) {
         // Mirror the original's "no pod nearby" outcome: it always clears speedLoss before the
         // collision test, so do the same here instead of leaving a stale value from a prior hit.
         player->speedLoss = 0.0f;
@@ -128,7 +128,7 @@ void __cdecl swrRace_ResolvePodCollision_delta(swrRace* player) {
 // --- Ground dust/splash effect: fix the AI-full-LOD contention -------------------------------------
 // swrRace_PoddAnimateVariousThings -> swrRace_SpawnGroundDustKick spawns the ground dust/splash
 // trail. Each spawn takes a Toss entity from a FIXED 16-slot pool (swrEvent_AllocObj) and, on
-// swamp/soft terrain, plays the splash sound (playASound id 0x45). That path only runs for full-model
+// swamp/soft terrain, plays the splash sound (swrSound_Play2D id 0x45). That path only runs for full-model
 // pods, so in vanilla only the local player triggers it. With ai_full_lod every AI pod is a full
 // model and runs it too, which (a) drains the shared Toss pool so the player's (and everyone's) trail
 // keeps gapping/restarting, and (b) hammers the single shared splash voice at full, non-spatial
@@ -157,16 +157,16 @@ static int count_free_toss_slots() {
     return free_slots;
 }
 
-// playASound is dormant (reverse-hooked); the original .text runs and is reached via its address.
-typedef void(__cdecl* playASound_t)(int, short, float, float, int);
+// swrSound_Play2D is dormant (reverse-hooked); the original .text runs and is reached via its address.
+typedef void(__cdecl* swrSound_Play2D_t)(int, short, float, float, int);
 
-void __cdecl playASound_delta(int sound_id, short priority, float volume, float pitch, int flags) {
+void __cdecl swrSound_Play2D_delta(int sound_id, short priority, float volume, float pitch, int flags) {
     // Drop the ground-dust splash sound while a non-local pod is spawning its dust kick (flag set by
     // swrRace_SpawnGroundDustKick_delta below). Only the local player's splash should be heard;
     // AI/remote splashes play non-spatially and restart the player's looping voice.
     if (g_suppress_dust_splash_sound && sound_id == DUST_SPLASH_SOUND_ID)
         return;
-    hook_call_original((playASound_t) playASound_ADDR, sound_id, priority, volume, pitch, flags);
+    hook_call_original((swrSound_Play2D_t) swrSound_Play2D_ADDR, sound_id, priority, volume, pitch, flags);
 }
 
 typedef void(__cdecl* swrRace_SpawnGroundDustKick_t)(swrRace*, float*, float, float, float,
@@ -337,14 +337,14 @@ static bool track_has_record_slot(int trackIndex) {
     return trackIndex >= 0 && trackIndex * 2 + 1 < numSlots;
 }
 
-// swrRace_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
+// swrObjHang_ResultsMenu (the post-race standings, STATE_POST_RACE_INFO). When the "Pod Unlock Scene"
 // skip is on, keep the results flow from ever transitioning to that scene (RESULTS_INTRO, state 17):
 // the scene sets up its pod + backdrop the instant it's entered, so skipping it at the scene handler
 // always flashes a frame. Instead pre-set the milestone bit the original uses to gate the scene, so
 // it never calls swrObjHang_SetMenuState for it -- then replicate just the pilot-unlock bookkeeping
 // that suppressed branch would have done, so beating a track's favorite pilot still unlocks its pod.
 // Everything else (standings, truguts, track unlock, name entry) runs unchanged in the original.
-void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
+void __cdecl swrObjHang_ResultsMenu_delta(swrObjHang* hang) {
     swrControl_NormalizeResultsAdvance();
     const bool skip = cutscene_skip_effective(imgui_state.skip_results);
     if (skip)
@@ -352,7 +352,7 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
     if (!track_has_record_slot(hang->track_index))
         swrRace_resultsStateFlags |= swrRace_RESULTSFLAG_NAME_ENTRY_P1 |
             swrRace_RESULTSFLAG_NAME_ENTRY_P2 | swrRace_RESULTSFLAG_RECORDS_COMMITTED;
-    hook_call_original(swrRace_ResultsMenu, hang);
+    hook_call_original(swrObjHang_ResultsMenu, hang);
 
     // Circuit Winner Scene (state 16) clean-skip. Advancing from the tournament results with a top-3
     // finish on the circuit's last track makes the original queue state 16 (the winners' podium),
@@ -382,7 +382,7 @@ void __cdecl swrRace_ResultsMenu_delta(swrObjHang* hang) {
 
 // swrRace_CopyProfileFromSave (0x44e500), reached from boot (swrRace_InitGameData) and profile
 // load (swrRace_LoadProfile). Free-play track lists read g_aBeatTracksGlobal, which stock only
-// folds the active profile's unlocks into on the results screen (swrRace_ResultsMenu). A profile
+// folds the active profile's unlocks into on the results screen (swrObjHang_ResultsMenu). A profile
 // whose unlocks are ahead of the machine's tgfd.dat (loaded from its .sav, or after tgfd.dat was
 // recreated) therefore showed too few free-play tracks until a race finished. Fold on load too,
 // with the results screen's own rule.

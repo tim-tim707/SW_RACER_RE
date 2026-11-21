@@ -352,7 +352,7 @@ void swrMultiplayer_ClearPlayerSlot(unsigned int playerIndex);
 // --- session lifecycle + senders (complete the send side of the protocol) ---
 // Inits the MP callback/handler system (zeroes the tables, then RegisterHandlers).
 int swrMultiplayer_InitMessaging(void);
-// Returns the selected racer id for a player slot (multiplayer_racer1_id[]).
+// Returns the selected racer id for a player slot (swrMultiplayer_aRacerIds[]).
 int swrMultiplayer_GetRacerId(int playerIndex);
 // Resets the MP session state (message streams, buffers, lobby load model).
 int swrMultiplayer_ResetSession(void);

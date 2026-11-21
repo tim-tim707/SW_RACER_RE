@@ -17,7 +17,7 @@
 #include <cwchar>
 
 extern "C" {
-#include <Swr/swrObj.h>   // InitAISettingsForTrack_ADDR, NumLocalPlayers
+#include <Swr/swrObj.h>   // swrObjJdge_InitAISettingsForTrack_ADDR, swrObjJdge_NumLocalPlayers
 #include <Swr/swrRace.h>  // swrRace_UpdateCatchup_ADDR, swrRace_ApplyPodProximityForce_ADDR
 #include <Swr/swrEvent.h> // swrEvent_FindNearestObjects
 #include <Swr/swrSpline.h>// swrSpline_GetTrackLength
@@ -62,7 +62,7 @@ static const float AI_LEVEL_MAX = 2.0f;
 static const float AI_SPREAD_MIN = 2.0f;
 static const float AI_SPREAD_MAX = 200.0f;
 
-// What InitAISettingsForTrack picked for the current track, captured before we overwrite it.
+// What swrObjJdge_InitAISettingsForTrack picked for the current track, captured before we overwrite it.
 // Nothing is applied until a track load has filled these in -- the globals are meaningless in
 // the front-end, and an override placed there would be clobbered by the next load anyway.
 static bool g_track_captured = false;
@@ -283,12 +283,12 @@ void ai_tuning_RegisterPanels() {
     debug_ui_register(&g_panel_ai_racers);
 }
 
-typedef void(__cdecl *InitAISettingsForTrack_t)(swrObjJdge *judge);
+typedef void(__cdecl *swrObjJdge_InitAISettingsForTrack_t)(swrObjJdge *judge);
 typedef void(__cdecl *swrRace_UpdateCatchup_t)(swrRace *player);
 typedef void(__cdecl *swrRace_ApplyPodProximityForce_t)(swrRace *player);
 
-extern "C" void __cdecl InitAISettingsForTrack_delta(swrObjJdge *judge) {
-    hook_call_original((InitAISettingsForTrack_t) InitAISettingsForTrack_ADDR, judge);
+extern "C" void __cdecl swrObjJdge_InitAISettingsForTrack_delta(swrObjJdge *judge) {
+    hook_call_original((swrObjJdge_InitAISettingsForTrack_t) swrObjJdge_InitAISettingsForTrack_ADDR, judge);
 
     g_track_level = swrRace_AILevel;
     g_track_spread = ai_spread;
@@ -317,9 +317,9 @@ extern "C" void __cdecl swrRace_UpdateCatchup_delta(swrRace *player) {
     }
 
     // Catch-up assist for a solo human. Vanilla runs this only for a trailing splitscreen player
-    // (NumLocalPlayers() > 1, paced on the gap to local player 1); reuse the same formula against
+    // (swrObjJdge_NumLocalPlayers() > 1, paced on the gap to local player 1); reuse the same formula against
     // the gap to the race leader so it means something with one human on the grid.
-    if (local && g_cfg.player_catchup && multiplayer_enabled == 0 && NumLocalPlayers() <= 1 &&
+    if (local && g_cfg.player_catchup && swrMultiplayer_enabled == 0 && swrObjJdge_NumLocalPlayers() <= 1 &&
         player->gapToLeader > 0.0f) {
         const float trackLen = swrSpline_GetTrackLength();
         if (trackLen > 0.0f) {
@@ -380,8 +380,8 @@ extern "C" void __cdecl swrRace_ApplyPodProximityForce_delta(swrRace *player) {
 }
 
 void ai_tuning_RegisterHooks() {
-    hook_function("InitAISettingsForTrack", (uint32_t) InitAISettingsForTrack_ADDR,
-                  (uint8_t *) InitAISettingsForTrack_delta);
+    hook_function("swrObjJdge_InitAISettingsForTrack", (uint32_t) swrObjJdge_InitAISettingsForTrack_ADDR,
+                  (uint8_t *) swrObjJdge_InitAISettingsForTrack_delta);
     hook_function("swrRace_UpdateCatchup", (uint32_t) swrRace_UpdateCatchup_ADDR,
                   (uint8_t *) swrRace_UpdateCatchup_delta);
     hook_function("swrRace_ApplyPodProximityForce", (uint32_t) swrRace_ApplyPodProximityForce_ADDR,

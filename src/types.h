@@ -475,8 +475,8 @@ extern "C"
         float lapComp;
         float lapCompPrev;
         float lapCompMax;
-        struct swrModel_Node* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
-        struct swrModel_Node* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
+        struct swrModel_Mesh* splineTrackMesh; // 0xec. baked track mesh under the spline cursor (swrRace_GetTrackMeshAtCursor); raycast target when FULL_RAYCAST is clear; copied to terrainModel on the cached-ground path
+        struct swrModel_Mesh* splineTrackMeshPrev; // 0xf0. previous frame's splineTrackMesh; a change (pod crossed into the next track chunk) zeroes unk1f24
         int splineProjOut1; // 0xf4. out-slot of the 1st swrSpline_ProjectPointStub call in swrRace_UpdateRaceProgress; the stub always writes 0 (projection compiled out of retail), so 0xf4..0x100 are always zero
         int splineProjResult1; // 0xf8. its return value (always 0 in retail)
         int splineProjOut2; // 0xfc. out-slot of the 2nd call (always 0)
@@ -795,7 +795,7 @@ extern "C"
         uint8_t linkedToSave; // 0x21. 1 = swrRace_SaveCurrentProfile mirrors this profile into save slot `saveSlot`
         uint8_t saveSlot; // 0x22. save-image profile slot this profile syncs with (defaults to its own index)
         uint8_t unk23; // 0x23
-        uint8_t pilotId; // 0x24. selected pilot (stamped as record holder by swrRace_ResultsMenu; default 0 = Anakin)
+        uint8_t pilotId; // 0x24. selected pilot (stamped as record holder by swrObjHang_ResultsMenu; default 0 = Anakin)
         uint8_t tracksUnlocked[3]; // 0x25. per-circuit track-unlocked bitmask (bit N = track N; default 1)
         uint8_t circuitsCompleted; // 0x28. bit c = circuit c finished; bit 3 = invitational circuit unlocked
         uint8_t unk29; // 0x29
@@ -820,7 +820,7 @@ extern "C"
         uint8_t unk4; // 0x004. set to 1 by swrRace_InitDefaultGameData
         uint8_t sfxVolume; // 0x005. default 225 (= sound_sfx_volume)
         int16_t musicVolume; // 0x006. default 200 (= sound_music_volume)
-        uint32_t unlockFlags; // 0x008. default 3; |= 0x20 once every track is beaten 1st place (swrRace_ResultsMenu, swrRace_CheatUnlockAll)
+        uint32_t unlockFlags; // 0x008. default 3; |= 0x20 once every track is beaten 1st place (swrObjHang_ResultsMenu, swrRace_CheatUnlockAll)
         uint8_t beatTracksGlobal[4]; // 0x00c. = g_aBeatTracksGlobal, defaults {7,3,1,0}
         uint32_t pilotsUnlockedGlobal; // 0x010. union of every profile's pilot unlocks; 0 = image uninitialized (swrRace_IsGameDataUninitialized)
         swrSaveProfile profiles[4]; // 0x014. saved profile slots
@@ -1235,7 +1235,7 @@ extern "C"
 
     // One mixer voice (0x44 bytes). There are 8 voices; the live A3D-backed state
     // is mirrored at DAT_00e67e40 and the requested state at DAT_00e68060 (source
-    // field = DAT_00e68080). playASoundImpl fills a free voice; swrSound_Update
+    // field = DAT_00e68080). swrSound_RequestVoice fills a free voice; swrSound_Update
     // reconciles requested -> live each frame. See swrSound_ResetChannel.
     typedef struct swrSound
     {
@@ -3230,7 +3230,7 @@ extern "C"
         short axisX;
         short axisY;
         char actions[16]; // SWR_CONTROL_NUM_RECORD_ACTIONS
-        int unk14; // cleared only by resetInRaceInputBuffer
+        int unk14; // cleared only by swrRace_ResetInRaceInputBuffer
     } swrControl_InRaceInputRecord; // sizeof(0x18)
 
     typedef struct StdControlAxis
@@ -3428,7 +3428,7 @@ extern "C"
 
     // Galaxy-map planet entry (0x5c bytes). The 8 entries at swrPlanetTable are populated by
     // swrObjHang_Init (names via swrText_Translate; sun/moon ranges; rotation state randomized) and
-    // consumed by DrawHoloPlanet. The sun/moon sprite range indexes a separate per-sprite pool.
+    // consumed by swrObjHang_DrawHoloPlanet. The sun/moon sprite range indexes a separate per-sprite pool.
     typedef struct swrPlanetInfo
     {
         int sunMoonSpriteStart; // 0x00 first index into the sun/moon sprite pool for this planet
@@ -3442,12 +3442,12 @@ extern "C"
     } swrPlanetInfo; // sizeof(0x5c)
 
     // One galaxy-map sun/moon (swrObjHang_holoMoons); swrPlanetInfo.sunMoonSpriteStart..End index it.
-    // DrawHoloPlanet places it at the planet + orbit.x * sin(angle) along the camera right axis,
+    // swrObjHang_DrawHoloPlanet places it at the planet + orbit.x * sin(angle) along the camera right axis,
     // orbit.y * cos(angle) along camera up and orbit.z * cos(angle) along camera forward.
     typedef struct swrHoloMoon
     {
         rdVector3 orbit; // 0x00
-        float angle; // 0x0c degrees; DrawHoloPlanet advances it twice per frame
+        float angle; // 0x0c degrees; swrObjHang_DrawHoloPlanet advances it twice per frame
         float speed; // 0x10
         float scale; // 0x14 model scale; also the draw-order key in swrObjHang_OrderHoloRacerIcons
     } swrHoloMoon; // sizeof(0x18)
@@ -3565,7 +3565,7 @@ extern "C"
         uint8_t unk[8]; // 0x30
     } swrUIUpgradeInfo; // sizeof(0x38)
 
-    // One front-end camera framing, indexed by swrObjHang.cameraState out of maybeUICameraPlacements.
+    // One front-end camera framing, indexed by swrObjHang.cameraState out of swrObjHang_cameraPlacements.
     // One junkyard stock slot (swrObjHang_junkyardStock, 16 slots, rolled by swrObjHang_GenerateJunkyardStock).
     typedef struct swrJunkyardSlot
     {

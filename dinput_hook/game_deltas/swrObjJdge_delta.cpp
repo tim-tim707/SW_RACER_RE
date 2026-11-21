@@ -521,9 +521,9 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
     // Clear active weather particles so precipitation restarts clean (they regenerate per frame; no
     // asset reload). Called by address -- not reimplemented, so no linkable symbol.
     //
-    // NOTE: we deliberately do NOT call swrModel_ClearSceneAnimations, ResetLightStreakSprites,
-    // ResetSunAndLensFlareSprites or ResetPlayerSpriteValues here. In a fresh load each of those is
-    // paired with a re-setup (LoadTrackModels / the lens-flare + light-streak setup) that we skip;
+    // NOTE: we deliberately do NOT call swrModel_ClearSceneAnimations, swrSprite_ResetLightStreakSprites,
+    // swrSprite_ResetSunAndLensFlareSprites or swrSprite_ResetPlayerSpriteValues here. In a fresh load each of those is
+    // paired with a re-setup (swrObjJdge_LoadTrackModels / the lens-flare + light-streak setup) that we skip;
     // calling the reset alone leaves those subsystems un-configured (froze scene animations; broke
     // the sun/lens-flare sprites). Those sprites/animations regenerate per frame from the unchanged
     // scene, so leaving them as they were is correct for a same-track restart.
@@ -557,7 +557,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
     for (int i = 0; i < 0x14; i++)
         swrSound_ClearSfxFlag(i, 0xff0000);
 
-    InitAISettingsForTrack(jdge);
+    swrObjJdge_InitAISettingsForTrack(jdge);
     rearm_fresh_countdown(jdge);
 
     // Re-establish camera<->pod association: reset the camera manager, then re-associate each local
@@ -950,7 +950,7 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
             *(float *) (sc + SCORE_LAP2) = g_lastLap[r];
         } else if (!g_lapFinished[r] && numLaps > 0 && lap >= numLaps) {
             // On finish, overwrite the de-indexed lap slots so the records save in
-            // swrRace_ResultsMenu (min over Lap1..Lap_n) records the real best lap rather than the
+            // swrObjHang_ResultsMenu (min over Lap1..Lap_n) records the real best lap rather than the
             // de-indexed 0.0; the sentinel in Lap2 makes its min loop stop after Lap1.
             g_lapFinished[r] = true;
             if (g_bestLapNum[r] > 0) {
@@ -1162,7 +1162,7 @@ void swrObjJdge_ScrollCredits_delta(swrObjJdge *jdge, int restartScroll) {
 typedef void(__cdecl *swrViewport_SetActiveCameraFn)(short);
 
 // Cinematic letterbox state machine ("Game" settings panel). Called once per frame from the HUD text
-// draw (DrawTextEntries_delta, renderer_hook.cpp) with the real-time frame delta; returns the current
+// draw (swrText_DrawEntries1_delta, renderer_hook.cpp) with the real-time frame delta; returns the current
 // 0..1 bar extension (0 = fully retracted, 1 = fully in) which the caller draws as top/bottom bars
 // UNDER the HUD text. Behaviour:
 //   - Pre-race binder cinematic (judge low-nibble states 4 track-sweep / 5 pod-orbit): bars are
@@ -1241,7 +1241,7 @@ extern "C" float swrObjJdge_UpdateLetterbox(float dt) {
     return frac;
 }
 
-// KeyDownForPlayer1Or2's in-race bits the game's own skips test: THRUST (0x1) | Esc (0x200).
+// swrObjJdge_KeyDownForPlayer1Or2's in-race bits the game's own skips test: THRUST (0x1) | Esc (0x200).
 static const uint32_t PRERACE_SKIP_INPUT_BITS = 0x201;
 static const uint32_t VICTORY_LAP_END_INPUT_BIT = 0x1;// THRUST
 
@@ -1301,7 +1301,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     prevState = state;
 
     // Pre-race intro skip = one stage per press. The game skips state 4 (track sweep) and state 5
-    // (pod orbit / binder ignition) whenever accept is down -- KeyDownForPlayer1Or2(0x201) OR
+    // (pod orbit / binder ignition) whenever accept is down -- swrObjJdge_KeyDownForPlayer1Or2(0x201) OR
     // swrControl_acceptPressedEdge -- and state 4's skip jumps straight PAST the orbit to the
     // countdown (swrObjJdge_StartPostRaceSequence). Two problems: a key held from the race-start
     // menu press keeps that accept "down" (the in-race bitset re-latches it as a fresh press on the
@@ -1309,10 +1309,10 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     // loses the orbit. So neutralize the game's own accept-skip in both states and drive the advance
     // ourselves on a fresh skip edge only: state 4 ends the sweep (the game then advances to the
     // orbit), state 5 raises the accept edge (-> countdown). The skip_prerace_camera toggle
-    // auto-skips just the orbit. 0x201 mirrors the game's KeyDownForPlayer1Or2(0x201) skip check
+    // auto-skips just the orbit. 0x201 mirrors the game's swrObjJdge_KeyDownForPlayer1Or2(0x201) skip check
     // (pause bit 0x200 | action bit 0x1).
     if (state == 4 || state == 5) {
-        // Both local slots: KeyDownForPlayer1Or2 reads player 2's bitset too.
+        // Both local slots: swrObjJdge_KeyDownForPlayer1Or2 reads player 2's bitset too.
         inRaceLocalPlayerInputBitset1[0] &= ~PRERACE_SKIP_INPUT_BITS;
         inRaceLocalPlayerInputBitset1[1] &= ~PRERACE_SKIP_INPUT_BITS;
         swrControl_acceptPressedEdge = 0;
@@ -1332,7 +1332,7 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
         }
     }
 
-    // Victory lap (state 2): the game ends it on a THRUST or Esc press (KeyDownForPlayer1Or2(0x201))
+    // Victory lap (state 2): the game ends it on a THRUST or Esc press (swrObjJdge_KeyDownForPlayer1Or2(0x201))
     // or an accept release. Make the shared advance edge the only trigger, so it ends on the same
     // inputs as every cutscene (and as the letterbox exit, which already reads that edge): clear the
     // native inputs, then present an advance as the game's own THRUST press.

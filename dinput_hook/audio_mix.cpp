@@ -11,11 +11,11 @@
 #include <cstring>
 
 extern "C" {
-#include <swr.h>          // playASoundImpl_ADDR
-#include <Swr/swrObj.h>   // swrObjJdge_UpdateCountdownLights_ADDR, GetLocalPlayerNumberFromScore
+#include <swr.h>          // swrSound_RequestVoice_ADDR
+#include <Swr/swrObj.h>   // swrObjJdge_UpdateCountdownLights_ADDR, swrRace_GetLocalPlayerNumberFromScore
 #include <Swr/swrRace.h>  // swrRace_InRaceEngineUI_ADDR, swrRace_UpdateEngineSound_ADDR, ...
 #include <Swr/swrSound.h> // swrSound_GetEntry, swrSound_UsesMusicVolume
-#include <Swr/swrUI.h>    // playUISound_ADDR
+#include <Swr/swrUI.h>    // swrSound_PlayUISound_ADDR
 #include <globals.h>       // swrRace_voices_enabled
 }
 
@@ -90,22 +90,22 @@ static int with_context(AudioMixCategory category, uint32_t addr, Args... args) 
     return ret;
 }
 
-typedef int(__cdecl *playASoundImpl_t)(int, short, float, float, short, int, int, int *);
+typedef int(__cdecl *swrSound_RequestVoice_t)(int, short, float, float, short, int, int, int *);
 typedef int(__cdecl *InRaceEngineUI_t)(void *, int);
 typedef int(__cdecl *UpdateCountdownLights_t)(swrObjJdge *);
 typedef int(__cdecl *UpdateEngineSound_t)(swrRace *);
 typedef int(__cdecl *PlayEngineSounds_t)(swrRace *, float);
 typedef int(__cdecl *UpdateEngineAudio_t)(int, int, float *);
-typedef int(__cdecl *playUISound_t)(int);
+typedef int(__cdecl *swrSound_PlayUISound_t)(int);
 
-extern "C" int __cdecl playASoundImpl_delta(int sound_id, short priority, float pitch, float gain,
+extern "C" int __cdecl swrSound_RequestVoice_delta(int sound_id, short priority, float pitch, float gain,
                                             short pan, int looping, int track_pos, int *pos) {
     if (!swrSound_UsesMusicVolume(sound_id)) {// music ids ride the music byte; leave them
         const AudioMixCategory category = classify(sound_id);
         if (category != AUDIO_MIX_NONE)
             gain *= g_volume[category];
     }
-    return hook_call_original((playASoundImpl_t) playASoundImpl_ADDR, sound_id, priority, pitch,
+    return hook_call_original((swrSound_RequestVoice_t) swrSound_RequestVoice_ADDR, sound_id, priority, pitch,
                               gain, pan, looping, track_pos, pos);
 }
 
@@ -123,7 +123,7 @@ extern "C" int __cdecl swrObjJdge_UpdateCountdownLights_delta(swrObjJdge *jdge) 
 // the autopilot drives the victory lap, and the roster is the one thing that stays put.
 static AudioMixCategory engine_category(const swrRace *player) {
     const bool local = player != nullptr && player->score_ptr != nullptr &&
-                       GetLocalPlayerNumberFromScore(player->score_ptr) >= 0;
+                       swrRace_GetLocalPlayerNumberFromScore(player->score_ptr) >= 0;
     return local ? AUDIO_MIX_PLAYER_ENGINE : AUDIO_MIX_OPPONENT_ENGINES;
 }
 
@@ -145,13 +145,13 @@ extern "C" int __cdecl swrSound_UpdateEngineAudio_delta(int planet, int track, f
                                              planet, track, progress);
 }
 
-extern "C" int __cdecl playUISound_delta(int sound_id) {
-    return with_context<playUISound_t>(AUDIO_MIX_MENU, playUISound_ADDR, sound_id);
+extern "C" int __cdecl swrSound_PlayUISound_delta(int sound_id) {
+    return with_context<swrSound_PlayUISound_t>(AUDIO_MIX_MENU, swrSound_PlayUISound_ADDR, sound_id);
 }
 
 void audio_mix_RegisterHooks() {
-    hook_function("playASoundImpl", (uint32_t) playASoundImpl_ADDR,
-                  (uint8_t *) playASoundImpl_delta);
+    hook_function("swrSound_RequestVoice", (uint32_t) swrSound_RequestVoice_ADDR,
+                  (uint8_t *) swrSound_RequestVoice_delta);
     hook_function("swrRace_InRaceEngineUI", (uint32_t) swrRace_InRaceEngineUI_ADDR,
                   (uint8_t *) swrRace_InRaceEngineUI_delta);
     hook_function("swrObjJdge_UpdateCountdownLights",
@@ -163,7 +163,7 @@ void audio_mix_RegisterHooks() {
                   (uint8_t *) swrRace_PlayEngineSounds_delta);
     hook_function("swrSound_UpdateEngineAudio", (uint32_t) swrSound_UpdateEngineAudio_ADDR,
                   (uint8_t *) swrSound_UpdateEngineAudio_delta);
-    hook_function("playUISound", (uint32_t) playUISound_ADDR, (uint8_t *) playUISound_delta);
+    hook_function("swrSound_PlayUISound", (uint32_t) swrSound_PlayUISound_ADDR, (uint8_t *) swrSound_PlayUISound_delta);
 }
 
 void audio_mix_LoadSettings() {

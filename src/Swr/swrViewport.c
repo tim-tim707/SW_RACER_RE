@@ -129,7 +129,7 @@ void swrViewport_UpdateCameras()
                 lookAt.z = (spread * SWR_CAM_LOOKAHEAD_SCALE - -1.0) * source.vB.z + lookAt.z;
             }
         }
-        BuildLookAtTransform((rdVector3*)&cam->transform.vD, &lookAt, &cam->transform, &lookFrom, lookFrom.yaw_roll_pitch.z);
+        rdMatrix_BuildLookAtTransform((rdVector3*)&cam->transform.vD, &lookAt, &cam->transform, &lookFrom, lookFrom.yaw_roll_pitch.z);
         if (cam->behaviorType == 3) {
             if (cam->sourceType == 0) {
                 *(rdMatrix44*)cam->matrixSource = cam->transform;
@@ -154,7 +154,7 @@ void swrViewport_UpdateCameras()
             swrViewport_SetMat3(active, &view);
         }
         if (active != NULL) {
-            swrViewport_ExtractViewTransform(active, &translation_unk, &rotation_unk);
+            swrViewport_ExtractViewTransform(active, &swrViewport_viewTranslation, &swrViewport_viewRotation);
         }
         return;
     }
@@ -179,7 +179,7 @@ void swrViewport_UpdateCameras()
     }
     // the last swrViewport_Get result, NULL when the last index had no viewport
     if (viewport != NULL) {
-        swrViewport_ExtractViewTransform(viewport, &translation_unk, &rotation_unk);
+        swrViewport_ExtractViewTransform(viewport, &swrViewport_viewTranslation, &swrViewport_viewRotation);
     }
 }
 
@@ -378,12 +378,12 @@ void swrViewport_SetViewport(int viewportIndex, int x1, int y1, int x2, int y2)
 // 0x00431ba0
 void swrViewport_ResetRenderState(void)
 {
-    translation_unk.x = 0.0f;
-    translation_unk.y = 0.0f;
-    translation_unk.z = 0.0f;
-    rotation_unk.x = 0.0f;
-    rotation_unk.y = 0.0f;
-    rotation_unk.z = 0.0f;
+    swrViewport_viewTranslation.x = 0.0f;
+    swrViewport_viewTranslation.y = 0.0f;
+    swrViewport_viewTranslation.z = 0.0f;
+    swrViewport_viewRotation.x = 0.0f;
+    swrViewport_viewRotation.y = 0.0f;
+    swrViewport_viewRotation.z = 0.0f;
     swrViewport_cameraResetWord = 0;
     swrRender_frameClearFlags = 0;
     swrViewport_renderStateUnkE2 = 2;
@@ -527,7 +527,7 @@ void swrViewport_Setup(int viewportIndex)
     worldMatrix.vD.z = 0.0;
     rdMatrix_BuildViewMatrix(&viewMatrix, &worldMatrix);
     rdMatrix_Multiply44(&mvpMatrix, &viewMatrix, &vp->clipMat);
-    SetModelMVPAndTranslation(&mvpMatrix, &translation);
+    swrViewport_SetModelMVPAndTranslation(&mvpMatrix, &translation);
     if (vp->unk13c > 0.0)
         vp->unk130 = (short)(65536.0 / vp->unk13c);
 }

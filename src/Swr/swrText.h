@@ -34,14 +34,14 @@
 
 // In-race overlay: per-frame draw queues (minimap dots + 2 text-entry lists)
 // and the transient centered-message system.
-#define resetOverlayDrawQueues_ADDR (0x0044fcc0)
+#define swrText_ResetOverlayDrawQueues_ADDR (0x0044fcc0)
 #define swrText_ShowTimedMessage_ADDR (0x0044fce0)
 #define swrText_UpdateTimedMessage_ADDR (0x0044fd50)
 #define swrText_RenderEntries1_ADDR (0x00450100)
 #define swrText_RenderEntries2_ADDR (0x004501f0)
 
-#define DrawTextEntries_ADDR (0x00450280)
-#define DrawTextEntries2_ADDR (0x004502B0)
+#define swrText_DrawEntries1_ADDR (0x00450280)
+#define swrText_DrawEntries2_ADDR (0x004502B0)
 
 #define swrText_ClearEntryClipRects_ADDR (0x004502f0)
 #define swrText_SetEntryClipRect_ADDR (0x00450310)
@@ -98,14 +98,14 @@ void swrText_SetupGlyph(char c);
 void swrText_DrawGlyph(short x, short y, char style);
 
 // In-race overlay draw queues + transient centered message.
-void resetOverlayDrawQueues(void);                       // clear minimap + both text-entry queues
+void swrText_ResetOverlayDrawQueues(void);                       // clear minimap + both text-entry queues
 void swrText_ShowTimedMessage(char* text, float duration); // stage a centered message with a display TTL
 void swrText_UpdateTimedMessage(void);                   // render + fade the staged message, tick its timer
-void swrText_RenderEntries1(void);                       // render text-entry list 1 (inner of DrawTextEntries)
-void swrText_RenderEntries2(void);                       // render text-entry list 2 (inner of DrawTextEntries2)
+void swrText_RenderEntries1(void);                       // render text-entry list 1 (inner of swrText_DrawEntries1)
+void swrText_RenderEntries2(void);                       // render text-entry list 2 (inner of swrText_DrawEntries2)
 
-void DrawTextEntries();
-void DrawTextEntries2();
+void swrText_DrawEntries1();
+void swrText_DrawEntries2();
 // Per-entry clip rect (text-entry list 1).
 void swrText_ClearEntryClipRects(void);
 void swrText_SetEntryClipRect(int* rect);

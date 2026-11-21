@@ -435,9 +435,9 @@ int swrUI_BuildMenuPages(void)
         swrUI_NewLabel(page, SWR_UI_ID_DEV_PHOTO_NAME_FIRST + i + 2, 4, swrText_Translate("/MONDOTEXT_H_0545/~s#"), 0x127, 0x46, 0, 0);
     }
 
-    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrRace_SelectProfileMenu);
+    page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_PROFILE_SELECT, (swrUI_unk_F2*)swrUI_Menu_SelectProfile);
     if (page != NULL)
-        swrRace_BuildProfileSelectMenu(page);
+        swrConfig_BuildProfileListMenu(page);
 
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_SETTINGS, (swrUI_unk_F2*)swrUI_Menu_SettingsHub);
     if (page != NULL) {
@@ -453,7 +453,7 @@ int swrUI_BuildMenuPages(void)
 
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_CONFIG_FILES, (swrUI_unk_F2*)swrUI_Menu_SaveLoadConfig);
     if (page != NULL)
-        swrRace_LoadSaveConfigMenu(page);
+        swrConfig_BuildConfigFilesMenu(page);
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_JOYSTICK_SETTINGS, (swrUI_unk_F2*)swrControl_MappingsMenu);
     if (page != NULL) {
         swrConfig_BuildJoystickMenu(page);
@@ -486,7 +486,7 @@ int swrUI_BuildMenuPages(void)
     }
     page = swrUI_NewWindow(NULL, NULL, swrUI_WINDOW_RESERVED_KEYS, (swrUI_unk_F2*)swrUI_Menu_ReservedSettings);
     if (page != NULL)
-        swrRace_ReservedSettingsMenu(page);
+        swrConfig_BuildReservedSettingsMenu(page);
 
     swrMultiplayer_BuildAllMenuScreens();
     swrUI_BuildAuxPages();
@@ -594,7 +594,7 @@ void swrUI_Shutdown(void)
     swrUI_unk_ptr = NULL;
     swrSprite_FreeSprites();
     if (swrUI_elementHashtable_Maybe != NULL) {
-        stdHashtbl_Free(swrUI_elementHashtable_Maybe);
+        stdHashTable_Free(swrUI_elementHashtable_Maybe);
         swrUI_elementHashtable_Maybe = NULL;
     }
 }
@@ -833,7 +833,7 @@ void swrUI_SelectListItem(swrUI_unk* item, int bSelect)
         for (sibling = list->next; sibling != NULL; sibling = sibling->next2) {
             if (((uint8_t)sibling->widget_class & swrUI_CLASS_LIST_ITEM) != swrUI_CLASS_LIST_ITEM)
                 continue;
-            playUISound(0x46);
+            swrSound_PlayUISound(0x46);
             if ((list->item_flags & swrUI_LIST_NO_SELECTION_FRAME) == 0 && ((uint8_t)sibling->widget_class & 3) != 3) {
                 swrUI_AddSprite(sibling, 0, 0, NULL, 0, 0);
                 swrUI_AddSprite(sibling, 1, 0, NULL, 0, 0);
@@ -1767,7 +1767,7 @@ void swrUI_RenderTree(swrUI_unk* node)
     int animating = 0;
     int stepping = 0;
 
-    if (multiplayer_in_mp != 0)
+    if (swrMultiplayer_inMp != 0)
         swrUI_ResetAttractDemoTimer();
     if (node == NULL)
         node = swrUI_unk_ptr;
@@ -2187,7 +2187,7 @@ int swrUI_ButtonProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param != NULL && swrUI_muteNextButtonHoverSound == 0) {
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
             swrUI_UpdateElementColor(ui);
             return swrUI_DefaultElementProc(ui, msg, param, param2);
         }
@@ -2202,7 +2202,7 @@ int swrUI_ButtonProc(swrUI_unk* ui, unsigned int msg, void* param, int param2)
     case swrUI_MSG_MOUSE_UP:
         if (swrUI_ElementContainsPoint(ui, (int)param, param2))
             swrUI_SetHighlightState(1, ui, 0, 1, 1);
-        playUISound(0x54);
+        swrSound_PlayUISound(0x54);
         return swrUI_DefaultElementProc(ui, msg, param, param2);
     case swrUI_MSG_MOUSE2_DOWN:
         swrUI_SetHighlightState(2, ui, 1, 0, 1);
@@ -2236,9 +2236,9 @@ int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param == NULL || ((uint8_t)ui->widget_class & swrUI_CLASS_LIST_ITEM) != 0)
-            playUISound(0x48);
+            swrSound_PlayUISound(0x48);
         else
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
         // fallthrough
     case swrUI_MSG_FOCUS_CHANGED:
         swrUI_UpdateElementColor(ui);
@@ -2886,7 +2886,7 @@ void swrUI_DrawCaret(void)
 
 // Decodes count TGA RLE elements of elementSize bytes into dest; -1 when a packet header can't be read.
 // 0x00418700
-int ReadRLEData(void* file, void* dest, int elementSize, int count)
+int swrSprite_ReadTgaRLEData(void* file, void* dest, int elementSize, int count)
 {
     uint8_t* out = (uint8_t*)dest;
     uint8_t packet;
@@ -3156,8 +3156,8 @@ int swrUI_Menu_HangarSelectVehicle(swrUI_unk* self, unsigned int msg, void* para
     case swrUI_MSG_SET_ACTIVE:
         if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_VEHICLE) {
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
-            swrUI_RefreshPageButtons(self, 1, multiplayer_enabled == 0);
-            if (multiplayer_enabled != 0)
+            swrUI_RefreshPageButtons(self, 1, swrMultiplayer_enabled == 0);
+            if (swrMultiplayer_enabled != 0)
                 swrObjHang_EnterVehicleSelect();
         }
         break;
@@ -3213,8 +3213,8 @@ int swrUI_Menu_HangarSelectPlanet(swrUI_unk* self, unsigned int msg, void* param
     case swrUI_MSG_SET_ACTIVE:
         if (param_3 != NULL && self->id == swrUI_WINDOW_HANGAR_SELECT_PLANET) {
             swrUI_ReparentElement(self, swrUI_GetById(NULL, swrUI_WINDOW_HANGAR_NAV));
-            swrUI_RefreshPageButtons(self, multiplayer_enabled == 0, 1);
-            if (multiplayer_enabled != 0)
+            swrUI_RefreshPageButtons(self, swrMultiplayer_enabled == 0, 1);
+            if (swrMultiplayer_enabled != 0)
                 swrObjHang_EnterPlanetSelect();
         }
         break;
@@ -3742,7 +3742,7 @@ void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
     minusKey = MapVirtualKeyA(SWR_SCANCODE_MINUS, MAPVK_VSC_TO_VK);
     plusKey = MapVirtualKeyA(SWR_SCANCODE_EQUALS, MAPVK_VSC_TO_VK);
     if (key == VK_SUBTRACT || key == minusKey) {
-        playUISound(0x48);
+        swrSound_PlayUISound(0x48);
         step = (unsigned int)slider->slider_step;
         if (step < (unsigned int)slider->slider_percent) {
             slider->slider_percent -= step;
@@ -3758,7 +3758,7 @@ void swrUI_HandleSliderKey(swrUI_unk* slider, unsigned int key)
         swrUI_BuildSliderSprites(slider, 1);
     }
     if (key == VK_ADD || key == plusKey) {
-        playUISound(0x48);
+        swrSound_PlayUISound(0x48);
         step = (unsigned int)slider->slider_step;
         if ((unsigned int)slider->slider_percent < 100 - step) {
             slider->slider_percent += step;
@@ -3889,9 +3889,9 @@ void swrUI_DrawRaceResultRow(swrUI_unk* row)
     finished = 0;
     if (row->sort_key == SWR_UI_RACE_RESULT_RETIRED)
         retired = 1;
-    if (multiplayer_aPlayerQuit[row->result_player_slot] != 0)
+    if (swrMultiplayer_aPlayerQuit[row->result_player_slot] != 0)
         retired = 1;
-    if (multiplayer_aPlayerFinished[row->result_player_slot] != 0)
+    if (swrMultiplayer_aPlayerFinished[row->result_player_slot] != 0)
         finished = 1;
     x = row->x;
     y = row->y;
@@ -4255,11 +4255,11 @@ int swrUI_Menu_MpSessionType(swrUI_unk* self, unsigned int msg, void* param_3, s
             swrUI_PopMenuPage();
         } else if ((int)param_3 == SWR_UI_ID_MP_HOST_BUTTON) {
             stdComm_Startup();
-            multiplayer_track_change_permission = 1;
+            swrMultiplayer_trackChangePermission = 1;
             swrUI_PushMenuPage(swrUI_WINDOW_MP_CREATE_GAME);
         } else if ((int)param_3 == SWR_UI_ID_MP_JOIN_BUTTON) {
             stdComm_Startup();
-            multiplayer_track_change_permission = 0;
+            swrMultiplayer_trackChangePermission = 0;
             swrUI_PushMenuPage(swrUI_WINDOW_MP_JOIN_GAME);
         }
     }
@@ -4433,7 +4433,7 @@ int swrUI_Menu_MpJoinGame(swrUI_unk* self, unsigned int msg, void* param, swrUI_
         }
         if ((int)param != SWR_UI_ID_OK_BUTTON)
             return 0;
-        multiplayer_track_change_permission = 0;
+        swrMultiplayer_trackChangePermission = 0;
         swrUI_EntryTextToWchar(playerName, swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PLAYER_NAME)->str_allocated);
         memset(password, 0, 0x100 * sizeof(wchar_t));
         text = swrUI_GetById(self, SWR_UI_ID_MP_JOIN_PASSWORD)->str_allocated;
@@ -4519,7 +4519,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         if (param == NULL) {
             swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
             swrMultiplayer_SendMenuEvent(0);
-            multiplayer_race_button_toggle[playerNumber] = 0;
+            swrMultiplayer_aRaceButtonToggle[playerNumber] = 0;
             return 0;
         }
         swrMultiplayer_playerListDirty = 1;
@@ -4533,23 +4533,23 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         swrUI_RunCallbacksScreenText(element, buffer, 0x40000);
         swrMultiplayer_SetRacerListDisplay(0, 0, 0);
         swrUI_RunCallbacksScreenText(swrUI_GetById(self, SWR_UI_ID_MP_CHAT_ENTRY), NULL, 0);
-        if (multiplayer_track_change_permission != 0)
+        if (swrMultiplayer_trackChangePermission != 0)
             stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 1);
         swrUI_MpSetupShowTrack(self, buffer + 0x14);
-        if (multiplayer_track_change_permission == 0) {
+        if (swrMultiplayer_trackChangePermission == 0) {
             swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_TRACKS));
             swrUI_DisableElement(swrUI_GetById(self, SWR_UI_ID_MP_LAPS));
             for (i = 0; i < SWR_MAX_RACERS; i++)
-                multiplayer_race_button_toggle[i] = 0;
+                swrMultiplayer_aRaceButtonToggle[i] = 0;
             swrMultiplayer_SendRacerSelection();
         } else {
             swrUI_MpSetupEnableHostControls(self);
             swrMultiplayer_BroadcastRaceSettings();
         }
-        swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+        swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), swrMultiplayer_trackChangePermission);
         swrUI_AddTimer(self, SWR_UI_TIMER_MP_SETUP_INTERVAL_MS, SWR_UI_TIMER_MP_SETUP_REFRESH);
         swrMultiplayer_SendMenuEvent(1);
-        multiplayer_race_button_toggle[playerNumber] = 1;
+        swrMultiplayer_aRaceButtonToggle[playerNumber] = 1;
         return 0;
 
     case swrUI_MSG_BACK:
@@ -4561,7 +4561,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
     case swrUI_MSG_TIMER:
         if ((int)param != SWR_UI_TIMER_MP_SETUP_REFRESH)
             return 0;
-        if (multiplayer_rejoinPending != 0 && multiplayer_isHost == 0)
+        if (swrMultiplayer_rejoinPending != 0 && swrMultiplayer_isHost == 0)
             swrMultiplayer_JoinGame(self);
         element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
         stdComm_UpdatePlayers(swrMultiplayer_joinedSessionIndex);
@@ -4595,8 +4595,8 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             }
             swrUI_RestoreListSelection(element);
         }
-        if (multiplayer_track_change_permission != 0) {
-            multiplayer_numAiRacers = 0;
+        if (swrMultiplayer_trackChangePermission != 0) {
+            swrMultiplayer_numAiRacers = 0;
             swrMultiplayer_BroadcastRaceSettings();
         }
         element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
@@ -4618,9 +4618,9 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             return 0;
         case swrMultiplayer_UIEVENT_BECAME_HOST:
             swrUI_MpSetupEnableHostControls(self);
-            swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), multiplayer_track_change_permission);
+            swrUI_RunCallbacks2(swrUI_GetById(self, swrUI_WINDOW_MP_RACE_BUTTON), swrMultiplayer_trackChangePermission);
             swrMultiplayer_SendMenuEvent(1);
-            multiplayer_race_button_toggle[playerNumber] = 1;
+            swrMultiplayer_aRaceButtonToggle[playerNumber] = 1;
             return 0;
         case swrMultiplayer_MSG_MENU_EVENT:
             swrMultiplayer_SetRaceButtonToggle(self, (int*)ui2);
@@ -4636,7 +4636,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
             swrUI_MpSetupShowTrack(self, buffer + 0x14);
             element = swrUI_GetById(self, SWR_UI_ID_MP_LAPS);
             if (element != NULL)
-                swrUI_SetNumberValue(element, multiplayer_laps);
+                swrUI_SetNumberValue(element, swrMultiplayer_laps);
             element = swrUI_GetById(self, SWR_UI_ID_MP_PLAYER_LIST);
             if (element != NULL)
                 swrMultiplayer_UpdateRacerSelectUI(self, element);
@@ -4660,7 +4660,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
         case swrUI_WINDOW_MP_RACE_BUTTON:
             swrControl_menuAcceptGuard = 1;
             swrUI_RemoveTimer(SWR_UI_TIMER_MP_SETUP_REFRESH);
-            if (multiplayer_track_change_permission != 0)
+            if (swrMultiplayer_trackChangePermission != 0)
                 stdComm_SetSessionOpenState(NULL, SWR_MAX_RACERS, 0);
             swrUI_RefreshListSelection(swrUI_GetById(NULL, SWR_UI_ID_MP_CHAT_LIST));
             swrMultiplayer_BroadcastRaceReset();
@@ -4696,7 +4696,7 @@ int swrUI_Menu_MpRaceSetup(swrUI_unk* self, unsigned int msg, void* param, swrUI
                 value++;
             }
             swrUI_SetNumberValue(ui2, value);
-            multiplayer_laps = value;
+            swrMultiplayer_laps = value;
         }
         swrMultiplayer_BroadcastRaceSettings();
         return 0;
@@ -4752,7 +4752,7 @@ int swrUI_Initialize(void)
     uint32_t start;
     uint32_t tick;
 
-    swrUI_elementHashtable_Maybe = stdHashtbl_New(SWR_UI_ELEMENT_HASH_BUCKETS);
+    swrUI_elementHashtable_Maybe = stdHashTable_New(SWR_UI_ELEMENT_HASH_BUCKETS);
     if (swrUI_elementHashtable_Maybe == NULL)
         return 0;
 
@@ -4817,7 +4817,7 @@ void swrUI_Front_HandleCircuits(swrObjHang* hang)
         }
     }
     // multiplayer offers every track of the three main circuits
-    if (multiplayer_enabled != 0 && hang->circuitIdx < SWR_CIRCUIT_COUNT - 1) {
+    if (swrMultiplayer_enabled != 0 && hang->circuitIdx < SWR_CIRCUIT_COUNT - 1) {
         count = g_aTracksInCircuits[(int)hang->circuitIdx];
         swrRace_MenuMaxSelection = count;
     }
@@ -4919,13 +4919,13 @@ void swrUI_Front_SyncTrackSelection(swrObjHang* hang)
     for (int track = 0; track < g_aTracksInCircuits[(int)hang->circuitIdx]; track++) {
         if (g_aTrackIDs[hang->circuitIdx * SWR_TRACKS_PER_CIRCUIT + track] == hang->track_index)
             return;
-        if (isTrackPlayable(hang, hang->circuitIdx, (char)track))
+        if (swrObjHang_IsTrackPlayable(hang, hang->circuitIdx, (char)track))
             swrRace_MenuSelectedItem++;
     }
 }
 
 // 0x00440550
-void playUISound(int soundId)
+void swrSound_PlayUISound(int soundId)
 {
     int loop = 0;
     float pitch = 0.125f;
@@ -4953,7 +4953,7 @@ void playUISound(int soundId)
         loop = 0;
         break;
     }
-    playASound(soundId, 6, pitch, gain, loop);
+    swrSound_Play2D(soundId, 6, pitch, gain, loop);
 }
 
 // 0x00440c10
@@ -4966,7 +4966,7 @@ void swrObjHang_SelectCreditsTracks(swrObjHang* hang)
     swrRace_creditsMode = 1;
     hang->flag |= swrObjHang_FLAG_CREDITS_PLAYLIST;
     // Menu input bit 0x4 is unidentified; held with the CRD profile it seeds the playlist with the current track.
-    if (compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0) {
+    if (swrUtils_Compare3Chars(swrRace_aProfiles[0].name, swrObjHang_creditsCheatInitials) != 0 && (swrUI_localPlayersInputDownBitset[0] & 0x4) != 0) {
         swrObjHang_creditsTracks[0] = hang->track_index;
         count = 1;
         useBeatTracks = 1;
@@ -5183,14 +5183,14 @@ void swrUI_Front_LoadUIElements(void)
     short id;
     swrUISprite spriteId;
 
-    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
     spriteId = swrUISprite_newflare1_rgb_49;
     do
     {
         swrSprite_NewSprite(spriteId, tex);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0x90);
-    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
     spriteId = swrUISprite_lightstar_glowstreak_rgb_3;
     do
     {
@@ -5198,20 +5198,20 @@ void swrUI_Front_LoadUIElements(void)
         swrSprite_SetFlag((short)spriteId, 0x2000);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0xa2);
-    tex = swrSprite_LoadTexture_(swrSprite_window1_yellow_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_window1_yellow_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_6, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_rectangle_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_rectangle_blue_rgb);
     spriteId = swrUISprite_newflare1_rgb_7;
     do
     {
         swrSprite_NewSprite(spriteId, tex);
         spriteId = spriteId + swrUISprite_dial_lap_pos_rgb_1;
     } while ((short)spriteId < 0x5f);
-    tex = swrSprite_LoadTexture_(swrSprite_btm_light_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_btm_light_blue_rgb);
     swrSprite_NewSprite(swrUISprite_btm_light_blue_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_bluehalf_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_bluehalf_rgb);
     swrSprite_NewSprite(swrUISprite_bluehalf_rgb_0, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_window1_select_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_window1_select_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_16, tex);
     id = 0x57;
     do
@@ -5227,24 +5227,24 @@ void swrUI_Front_LoadWindowUIElements(void)
     swrSpriteTexture* tex;
     int id;
 
-    tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
     for (id = 0x90; id < 0xa2; id++) {
         swrSprite_NewSprite((short)id, tex);
         swrSprite_SetFlag((short)id, 0x2000);
     }
-    tex = swrSprite_LoadTexture_(swrSprite_sml_wdw_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_sml_wdw_blue_rgb);
     for (id = 0x62; id < 0x69; id++)
         swrSprite_NewSprite((short)id, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_sml_window_ylw_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_sml_window_ylw_rgb);
     for (id = 0x6a; id < 0x71; id++)
         swrSprite_NewSprite((short)id, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_lrg_wdw_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_lrg_wdw_blue_rgb);
     swrSprite_NewSprite(0x69, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_lrg_window_ylw_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_lrg_window_ylw_rgb);
     swrSprite_NewSprite(0x71, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_sml_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_sml_rgb);
     swrSprite_NewSprite(0x72, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_lrg_wdw_select_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_lrg_wdw_select_blue_rgb);
     swrSprite_NewSprite(0x73, tex);
     for (id = 0x62; id < 0x74; id++) {
         swrSprite_SetFlag((short)id, 0x2000);
@@ -5258,29 +5258,29 @@ void swrUI_Front_LoadPartsUIElements(void)
     swrSpriteTexture* tex;
     int id;
 
-    tex = swrSprite_LoadTexture_(swrSprite_ui_buy_dnt_buy_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_buy_dnt_buy_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_35, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_36, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_costvalue_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_costvalue_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_37, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_38, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_name_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_nw_part_name_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_39, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_price_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_nw_part_price_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_40, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_window_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_nw_part_window_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_41, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_nw_part_ylw_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_nw_part_ylw_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_42, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_name_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_old_part_name_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_43, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_replace_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_old_part_replace_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_44, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_window_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_old_part_window_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_45, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_old_part_ylw_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_old_part_ylw_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_46, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ui_vert_light_blue_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ui_vert_light_blue_rgb);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_47, tex);
     swrSprite_NewSprite(swrUISprite_newflare1_rgb_48, tex);
     id = 0x74;
@@ -5298,32 +5298,32 @@ void swrUI_Front_LoadSelectionsUIElements(void)
     swrSpriteTexture* tex;
     int id;
 
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_A_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_A_rgb);
     swrSprite_NewSprite(swrUISprite_symbol_2_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_B_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_B_rgb);
     swrSprite_NewSprite(swrUISprite_symbol_3_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_up_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_C_up_rgb);
     swrSprite_NewSprite(swrUISprite_award_third, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_down_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_C_down_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_down_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_left_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_C_left_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_left_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_C_right_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_C_right_rgb);
     swrSprite_NewSprite(swrUISprite_ctrl_C_right_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_Z_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_Z_rgb);
     swrSprite_NewSprite(swrUISprite_award_second_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_ctrl_stick_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_ctrl_stick_rgb);
     swrSprite_NewSprite(swrUISprite_award_first_rgb, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_arrow_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_lit_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_arrow_lit_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_circle_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_circle_rgb);
     swrSprite_NewSprite(swrUISprite_select_circle_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_circle_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_bars_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_bars_rgb);
     swrSprite_NewSprite(swrUISprite_select_bars_rgb, tex);
     id = 0xad;
     do
@@ -5337,16 +5337,16 @@ void swrUI_Front_LoadSelectionsUIElements(void)
         swrSprite_SetFlag((short)id, 0x8000);
         id = id + 1;
     } while (id < 0xb1);
-    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_v_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_arrow_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_arrow_lit_v_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_arrow_lit_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_arrow_lit_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_circle_v_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_circle_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_circle_v_rgb_0, tex);
     swrSprite_NewSprite(swrUISprite_select_circle_v_rgb_1, tex);
-    tex = swrSprite_LoadTexture_(swrSprite_select_bars_v_rgb);
+    tex = swrSprite_LoadTextureById(swrSprite_select_bars_v_rgb);
     swrSprite_NewSprite(swrUISprite_select_bars_v_rgb, tex);
     id = 0xb4;
     do
@@ -5394,7 +5394,7 @@ int swrUI_FramedTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
         if (swrSprite_IsInsideBBox((swrSprite_BBox*)&ui->x, (int)param, param2) && (ui->has_option_value == 0 || swrUI_FindCheckedGroupItem(ui) != ui)) {
             swrUI_ToggleChecked(ui);
             swrUI_SetHighlightState(1, ui, 0, 1, 1);
-            playUISound(0x54);
+            swrSound_PlayUISound(0x54);
         }
     } else if (msg == swrUI_MSG_UPDATE) {
         if (ui->flags & swrUI_CHECK_CIRCLE_UNK) {
@@ -5649,7 +5649,7 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
         swrUI_RunCallbacksScreenText(ui, buffer, 0);
         break;
     case VK_RETURN:
-        playUISound(0x46);
+        swrSound_PlayUISound(0x46);
         swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
         swrUI_RunCallbacks(ui, swrUI_MSG_SET_EDITING, 0, ui->id);
         swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_COMMITTED, ui->id, (int)ui->str_allocated);
@@ -5661,7 +5661,7 @@ void swrUI_HandleTextEntryKey(swrUI_unk* ui, int key)
             ui->caret_pos = strlen(ui->str_allocated);
         break;
     case VK_ESCAPE:
-        playUISound(0x47);
+        swrSound_PlayUISound(0x47);
         swrUI_RunCallbacksScreenText(ui, swrUI_textEntryOriginalText, ui->text_flags);
         swrUI_inputSuppressFlags |= swrUI_INPUT_SUPPRESS_MOUSE_FRAME;
         swrUI_RunCallbacks(ui->prev, swrUI_MSG_TEXT_ENTRY_CANCELLED, ui->id, (int)ui->str_allocated);
@@ -5747,7 +5747,7 @@ int swrUI_NumberFieldProc(swrUI_unk* ui, unsigned int msg, void* param, int para
     switch (msg) {
     case swrUI_MSG_HOVER_CHANGED:
         if (param != NULL) {
-            playUISound(0x58);
+            swrSound_PlayUISound(0x58);
             swrUI_BuildSliderSprites(ui, 1);
         } else {
             swrUI_BuildSliderSprites(ui, 0);
@@ -6098,7 +6098,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         return 0;
     case swrUI_MSG_ELEMENT_ACTIVATED:
-        if (id == 3) { // nav button (swrRace_LoadSaveConfigMenu)
+        if (id == 3) { // nav button (swrConfig_BuildConfigFilesMenu)
             swrUI_PopMenuPage();
             return 0;
         }
@@ -6114,7 +6114,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
                 if (swrUI_configSelectedFile != NULL)
                     swrUI_GetAllocatedString(swrUI_configNameEntry, name, sizeof(name));
                 if (name[0] == '\0') {
-                    playUISound(-1);
+                    swrSound_PlayUISound(-1);
                     swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0542/                       No file selected."), 2.0f);
                     return 0;
                 }
@@ -6144,10 +6144,10 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         if (id == SWR_UI_ID_FILE_REMOVE) {
             if (swrUI_configSelectedIsPreset != 0) {
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 notice = "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name.";
             } else if (swrUI_configSelectedFile == NULL) {
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 notice = "/MONDOTEXT_H_0542/                       No file selected.";
             } else {
                 swrUI_ShowConfirmDialog(swrUI_configFilesPage, -1, -1, wuRegistry_lpClass, swrText_Translate("/MONDOTEXT_H_0533/Are you sure you want to delete this configuration?"), swrText_Translate("/MONDOTEXT_H_0032/~sYes"), swrText_Translate("/MONDOTEXT_H_0033/~sNo"), NULL, 0);
@@ -6160,7 +6160,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         return 0;
     case swrUI_MSG_TEXT_ENTRY_COMMITTED:
         if (swrUI_configNameEntry->str_allocated[0] == '\0') {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0008/\t            Enter a filename or press ESC."), 2.0f);
             swrUI_noticeDurationUnused = 2.1f;
             swrUI_SetFocusedElement(swrUI_configNameEntry);
@@ -6169,7 +6169,7 @@ int swrUI_Menu_SaveLoadConfig(swrUI_unk* self, unsigned int msg, void* param, sw
         }
         swrUI_configSelectedFile = swrUI_FindChildByText(swrUI_configFileList, swrUI_configNameEntry->str_allocated);
         if (swrUI_configSelectedFile != NULL) {
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             swrUI_configSelectedIsPreset = swrUI_GetSlotValue(swrUI_configSelectedFile, 0);
             swrText_ShowTimedMessage(swrText_Translate(swrUI_configSelectedIsPreset != 0 ? "/MONDOTEXT_H_0010/This is a pre-installed, non-writable ~nfile.  Use another name." : "/MONDOTEXT_H_0534/                     Filename already exists."), 2.0f);
             swrUI_noticeDurationUnused = 2.1f;
@@ -6417,7 +6417,7 @@ int swrUI_Menu_ForceFeedback(swrUI_unk* self, unsigned int msg, void* param, swr
                 swrUI_forceFeedbackMissingShown = 1;
                 swrUI_noticeDurationUnused = 2.1f;
                 swrText_ShowTimedMessage(swrText_Translate("/MONDOTEXT_H_0042/~nNo Force Feedback device detected."), 2.0f);
-                playUISound(-1);
+                swrSound_PlayUISound(-1);
                 swrUI_SetChecked(ui2, swrControl_forceFeedbackAvailable);
             }
             return 0;
@@ -6438,7 +6438,7 @@ int swrUI_Menu_ReservedSettings(swrUI_unk* self, unsigned int msg, void* param, 
     swrUI_unk* label;
 
     if (msg == swrUI_MSG_ELEMENT_ACTIVATED) {
-        if ((unsigned int)param == 3) // nav button (swrRace_ReservedSettingsMenu)
+        if ((unsigned int)param == 3) // nav button (swrConfig_BuildReservedSettingsMenu)
             swrUI_PopMenuPage();
     } else if (swrMain_moneyHintUnlocked != 0 && msg != swrUI_MSG_DESTROY && swrUI_moneyHintShown == 0) {
         label = swrUI_NewLabel(swrUI_GetById(NULL, swrUI_WINDOW_RESERVED_KEYS), 1, 0, swrText_Translate("/MONDOTEXT_H_0334/~s  SHIFT, 4 and F4 shows you the money!, where?  You figure it out!"), 0x28, 400, 0, 0);
@@ -6469,7 +6469,7 @@ int swrUI_Menu_AudioSettings(swrUI_unk* self, unsigned int msg, void* param, swr
         swrSound_StopVoiceById(0x6d);
         slider = swrUI_GetById(swrUI_audioSettingsPage, 0x273e);
         sound_sfx_volume = (unsigned int)(slider->slider_percent * 255) / 100;
-        playASound(0x6d, 6, 0.25f, 1.0f, 0);
+        swrSound_Play2D(0x6d, 6, 0.25f, 1.0f, 0);
         swrUI_sfxVolumeChanged = 0;
     }
     if (swrUI_musicVolumeChanged != 0) {

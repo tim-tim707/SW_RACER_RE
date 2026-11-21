@@ -31,7 +31,7 @@ extern "C" {
 #include <Swr/swrUI.h>      // swrUI_HandleKeyEvent (front-end keyboard menu input)
 #include <Swr/swrPlayerHUD.h>// swrPlayerHUD_RenderViewport_ADDR (world-sprite render window)
 #include <Swr/swrSprite.h>   // swrSprite_SetVisible (record world sprites)
-#include <Swr/swrText.h>     // DrawTextEntries (HUD text)
+#include <Swr/swrText.h>     // swrText_DrawEntries1 (HUD text)
 #include <globals.h>         // swrViewport_array, swrSprite_array
 }
 
@@ -514,7 +514,7 @@ extern "C" void __cdecl freecam_ProcessInputs_delta(void) {
     std::memset(inRaceLocalPlayerInputRecord, 0, sizeof(inRaceLocalPlayerInputRecord));
     std::memset(&swrRace_ThrottleInput, 0, POD_CONTROL_INPUT_BLOCK_SIZE);
 
-    // Menus: the in-race action bitsets (read via KeyDownForPlayer1Or2 and directly) for nav, and the
+    // Menus: the in-race action bitsets (read via swrObjJdge_KeyDownForPlayer1Or2 and directly) for nav, and the
     // accept/cancel edges the front-end / hangar menus read for confirm/back.
     std::memset(inRaceLocalPlayerInputBitset1, 0, sizeof(inRaceLocalPlayerInputBitset1));
     std::memset(inRaceLocalPlayerInputBitset2, 0, sizeof(inRaceLocalPlayerInputBitset2));
@@ -534,7 +534,7 @@ extern "C" void __cdecl freecam_ProcessInputs_delta(void) {
 // which array sprites the world-sprite renderer (swrPlayerHUD_RenderViewport) makes visible each
 // frame -- the suns / lens flares / light streaks -- and, while hiding, let swrSprite_Draw2 draw only
 // those, dropping every other array sprite (gauges/minimap/lap/position/flags/labels). HUD text is
-// dropped via the DrawTextEntries hooks. (swrSprite_Draw2 / SetPosF are already delta-owned, so the
+// dropped via the swrText_DrawEntries1 hooks. (swrSprite_Draw2 / SetPosF are already delta-owned, so the
 // Draw2 filter is applied inside swrSprite_Draw2_delta via freecam_HudSpriteHidden.)
 static bool hud_hidden() {
     return g_active || playercam_HudHidden();
@@ -562,13 +562,13 @@ extern "C" void __cdecl swrSprite_SetVisible_delta(short id, int visible) {
     if (g_world_recording && visible && id >= 0 && id < 251)
         g_keep_sprite[id] = true;
 }
-extern "C" void __cdecl DrawTextEntries2_delta(void) {
+extern "C" void __cdecl swrText_DrawEntries2_delta(void) {
     if (hud_hidden())
         return;
-    hook_call_original(DrawTextEntries2);
+    hook_call_original(swrText_DrawEntries2);
 }
 
-// Whether the freecam is currently hiding the HUD. Consumed by DrawTextEntries_delta in
+// Whether the freecam is currently hiding the HUD. Consumed by swrText_DrawEntries1_delta in
 // renderer_hook.cpp, which owns that hook (it also draws the cinematic letterbox bars).
 bool freecam_HudHidden() {
     return hud_hidden();
@@ -597,7 +597,7 @@ void freecam_RegisterHooks() {
     hook_function("swrControl_ProcessInputs", (uint32_t) swrControl_ProcessInputs_ADDR,
                   (uint8_t *) freecam_ProcessInputs_delta);
     hook_replace(swrSprite_SetVisible, swrSprite_SetVisible_delta);
-    hook_replace(DrawTextEntries2, DrawTextEntries2_delta);
+    hook_replace(swrText_DrawEntries2, swrText_DrawEntries2_delta);
     hook_function("swrUI_HandleKeyEvent", (uint32_t) swrUI_HandleKeyEvent_ADDR,
                   (uint8_t *) swrUI_HandleKeyEvent_delta);
     hook_function("swrPlayerHUD_RenderViewport", (uint32_t) swrPlayerHUD_RenderViewport_ADDR,

@@ -206,7 +206,7 @@ int swrControl_MappingsMenu(swrUI_unk* page, unsigned int msg, unsigned int para
             swrUI_mappingsCaptureIdleUnused = 1;
             swrUI_noticeDurationUnused = 2.1f;
             swrText_ShowTimedMessage(swrText_Translate(swrConfig_currentInputDeviceType == swrConfig_DEVICE_JOYSTICK ? "/MONDOTEXT_H_0035/~nNO JOYSTICK DETECTED." : "/MONDOTEXT_H_0036/~nNO MOUSE DETECTED."), 2.0f);
-            playUISound(-1);
+            swrSound_PlayUISound(-1);
             swrUI_SetChecked((swrUI_unk*)widget, 0);
         }
         goto deleteBinding;
@@ -559,7 +559,7 @@ void swrControl_ProcessInputs(void)
     if (swrControl_cancelPressedEdge != 0) {
         page = swrUI_GetCurrentPage();
         if (page == NULL || page->id != swrUI_WINDOW_SPLASH) {
-            playUISound(0x4d);
+            swrSound_PlayUISound(0x4d);
         }
     }
     if (swrControl_menuAcceptGuard != 0 && g_objHang2->menuScreen != swrObjHang_STATE_MAIN_MENU && g_objHang2->menuScreen != swrObjHang_STATE_LOOK_AT_VEHICLE && g_objHang2->menuScreen != swrObjHang_STATE_POST_RACE_INFO) {
@@ -724,7 +724,7 @@ int swrControl_Startup(void)
 void swrControl_ClearDeviceState(int deviceClass)
 {
     if (deviceClass < 0) {
-        // leaves unk14 alone (only resetInRaceInputBuffer clears it)
+        // leaves unk14 alone (only swrRace_ResetInRaceInputBuffer clears it)
         memset(&inRaceLocalPlayerInputRecord[0], 0, offsetof(swrControl_InRaceInputRecord, unk14));
         memset(swrControl_buttonHeldPrev, 0, sizeof(swrControl_buttonHeldPrev));
         deviceClass = -deviceClass;

@@ -97,7 +97,7 @@ int swrSpline_ProjectPointStub(void* cursor, int* out);
 
 // ForEachSample callback (10 samples/node, from swrSpline_Build): raycasts down (then up)
 // 5000 units from the spline sample (facing check disabled), stores the hit track mesh into
-// the baked sample->mesh table (spline_progress_values scratch region), stamps mesh
+// swrSpline_sampleMeshes, stamps mesh
 // splineSampleIndex with the first sample that hit it, and marks meshes shared between
 // traversal orders as spline-ambiguous (behavior unk1 bit 8; assigns
 // swrSpline_ambiguousMeshBehavior if the mesh has none).
@@ -129,7 +129,7 @@ void swrSpline_BuildProgressTable(swrSpline* spline, float segmentLength, unsign
 // Clear the runtime progress/state arrays for one node index.
 void swrSpline_ResetNodeProgress(int nodeIndex);
 
-// Top level post-load processing (called by LoadTrackSpline): resets junction nodes, builds
+// Top level post-load processing (called by swrObjJdge_LoadTrackSpline): resets junction nodes, builds
 // the arc-length progress table (100-unit tracing), then bakes the 10-samples-per-node
 // sample->track-mesh table against the track model (+ an optional debug validation pass).
 void swrSpline_Build(swrSpline* spline, struct swrModel_Node* trackModel);

@@ -78,7 +78,7 @@
 
 #define swrModel_DoConvertTextureDataToRdMaterial_ADDR (0x00446C20)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
-#define swrSprite_LoadTexture__ADDR (0x00446fb0)
+#define swrSprite_LoadTextureById_ADDR (0x00446fb0)
 
 #define swrSprite_SetViewport_ADDR (0x0044EF70)
 #define rdProcEntry_Add2DQuad5_ADDR (0x0044EFA0)
@@ -89,8 +89,8 @@
 #define swrSprite_SetDrawStateWord_Maybe_ADDR (0x0044f630)
 #define swrSprite_GetUIScale_ADDR (0x0044F640)
 
-#define AddDotToMiniMap_ADDR (0x0044FEF0)
-#define RenderMiniMapDotsAndCrosses_ADDR (0x0044FF30)
+#define swrSprite_AddDotToMiniMap_ADDR (0x0044FEF0)
+#define swrSprite_RenderMiniMapDotsAndCrosses_ADDR (0x0044FF30)
 
 #define swrSprite_Draw1_ADDR (0x0044F670)
 
@@ -175,7 +175,7 @@ void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_typ
 void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr);
 
 swrSpriteTexture* swrSprite_LoadTexture(int index);
-swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index);
+swrSpriteTexture* swrSprite_LoadTextureById(swrSprite_NAME index);
 
 void swrSprite_SetViewport(int minX, int maxX, int minY, int maxY);
 void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, float);
@@ -192,8 +192,8 @@ void swrSprite_SetDrawStateWord2_Maybe(unsigned int value);
 // out_xscale = screenWidth / 640, out_yscale = screenHeight / 480 (independent).
 void swrSprite_GetUIScale(float* out_xscale, float* out_yscale);
 
-int AddDotToMiniMap(char type, short x, short y);
-void RenderMiniMapDotsAndCrosses();
+int swrSprite_AddDotToMiniMap(char type, short x, short y);
+void swrSprite_RenderMiniMapDotsAndCrosses();
 
 // Dirty-rectangle list: each drawn 2D overlay element registers its bounding box (expanded 1px,
 // clamped, scaled from the 320x240 virtual UI space to screen pixels) into a 31-entry table; the

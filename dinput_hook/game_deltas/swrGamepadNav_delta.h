@@ -28,7 +28,7 @@ extern "C" {
 // Registered inline in init_renderer_hooks().
 void __cdecl swrUI_ProcessMouse_delta(void);
 void __cdecl swrUI_UpdatePlayerMenuInput_delta(int player);
-void __cdecl updateInRaceInputBitsets_delta(void);
+void __cdecl swrRace_UpdateInRaceInputBitsets_delta(void);
 void __cdecl swrObjHang_UpdateTauntScene_delta(void *hang);
 
 // Per-frame poll: read the controller and latch its held / just-pressed state.

@@ -2,7 +2,7 @@
 // AI tuning -- debug-overlay control over the AI opponents.
 //
 // The vanilla AI has exactly two authored inputs, both seeded per track by
-// InitAISettingsForTrack: swrRace_AILevel (base speed multiplier, already scaled by the
+// swrObjJdge_InitAISettingsForTrack: swrRace_AILevel (base speed multiplier, already scaled by the
 // AI Speed menu setting) and ai_spread (how far apart the field paces itself). Everything
 // else the field does comes out of swrRace_AI, whose pacing is player-relative: the
 // track-favorite pace-setter chases local player 1 directly, the 1-2 AI nearest the player
@@ -26,7 +26,7 @@ extern "C" {
 // Seeds swrRace_AILevel / ai_spread / ai_track_script for the track about to start. We let it
 // run, snapshot what it chose (the panel shows those as the "track default"), then apply the
 // overrides on top.
-void InitAISettingsForTrack_delta(swrObjJdge *judge);
+void swrObjJdge_InitAISettingsForTrack_delta(swrObjJdge *judge);
 
 // Commits swrRace.speedMultiplier for one racer. We adjust the result: rubberband strength and
 // AI speed scale for AI pods, single-player catch-up assist for the local human.

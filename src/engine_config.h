@@ -98,7 +98,7 @@
 #define SWR_CONTROL_STEER_RECORD_SCALE (100.0f) // steer axes -> inRaceLocalPlayerInputRecord shorts (0x004ac328)
 #define SWR_CONTROL_STEER_RECORD_MAX (0x100)
 #define SWR_CONTROL_NUM_INPUT_RECORDS (4) // inRaceLocalPlayerInputRecord entries (one per local player)
-// updateInRaceInputBitsets: record axis short -> [-1, 1] stick value, then digital thresholds.
+// swrRace_UpdateInRaceInputBitsets: record axis short -> [-1, 1] stick value, then digital thresholds.
 #define SWR_CONTROL_RECORD_AXIS_SCALE (0.01f) // (0x004aca28)
 #define SWR_CONTROL_RECORD_AXIS_FULL (0.3) // (0x004aca30 / 0x004aca38)
 #define SWR_CONTROL_RECORD_AXIS_CENTER (0.2) // (0x004aca48 / 0x004aca40)
@@ -208,8 +208,8 @@
 #define SWR_CAM_BLEND_DEFAULT_DURATION (10.0f) // swrCam_blendDuration after swrCam_CamState_InitMatrices
 #define SWR_CAM_LOOKAHEAD_SCALE (40.0) // swrViewport_UpdateCameras behavior 4: look-ahead per |forward.z| (0x004ac510)
 #define SWR_SOUND_VOLUME_SCALE (1.0f / 255.0f) // 0..255 volume byte -> gain (0x004ac474)
-#define SWR_SOUND_GAIN_SCALE (32767.0f) // playASoundImpl: gain -> swrSound.volume (0x004ac484)
-#define SWR_SOUND_LOOPING_PRIORITY (8) // playASoundImpl voice-steal priority of looping sfx
+#define SWR_SOUND_GAIN_SCALE (32767.0f) // swrSound_RequestVoice: gain -> swrSound.volume (0x004ac484)
+#define SWR_SOUND_LOOPING_PRIORITY (8) // swrSound_RequestVoice voice-steal priority of looping sfx
 #define SWR_SOUND_PAN_POSITIONAL (-999) // swrSound.pan: 3D positional, use pos
 #define SWR_SOUND_VOICE_GAIN_SCALE (3.051851e-05f) // swrSound.volume -> SetGain, ~1/32767 (0x004acba8)
 #define SWR_SOUND_FADE_RATE (42666.666666666664) // swrSound_Update: volume units/s for voice fade-in/out (0x004acb98)
@@ -221,7 +221,7 @@
 // swrObjHang_SelectCreditsTracks (0x00440c10): length of the end-credits track playlist
 #define SWR_CREDITS_TRACK_COUNT (5)
 
-// swrRace_BuyPitdroidsMenu: truguts per extra pit droid
+// swrObjHang_BuyPitDroidsMenu: truguts per extra pit droid
 #define SWR_PITDROID_PRICE (1000)
 
 // swrScores[] capacity (0x00e29bc0); swrObjHang_BuildRosterMultiplayer clears all of them
@@ -299,6 +299,7 @@
 #define SWR_LZSS_WINDOW_SIZE (0x1000) // swrLoader_DecompressLZSS ring buffer, placed just before the input
 #define SWR_MESH_MATERIAL_PROP_TEXTURE (2) // swrModel_MeshMaterialSetTexture property id
 #define SWR_SPLINE_MAX_SEGMENTS (250) // swrSpline_Build skips larger splines; size of its progress-order table
+#define SWR_SPLINE_SAMPLES_PER_NODE (10) // swrSpline_sampleMeshes entries per control point
 
 // swrAssetBuffer_ResetToIndex (0x00445aa0): highest asset-buffer checkpoint index
 #define SWR_ASSET_BUFFER_MAX_INDEX (9)
@@ -335,7 +336,7 @@
 #define SWR_UPGRADE_LEVEL_COUNT (6) // levels per upgrade type; upgradeInfos index = type * 6 + level
 #define SWR_SHOP_STARTING_TRACKS (3) // unlocked tracks a new profile starts with; not counted toward shop unlocks
 #define SWR_SCENE_SLOT_SHOP_PARTS (0x62) // swr_sceneModels slot of the first shop/junkyard part model
-#define SWR_SCENE_SLOT_TRACK_PREVIEWS (0x62) // holotable track models, one per track id (DrawTrackPreview); same slots as the shop parts
+#define SWR_SCENE_SLOT_TRACK_PREVIEWS (0x62) // holotable track models, one per track id (swrObjHang_DrawTrackPreview); same slots as the shop parts
 #define SWR_SCENE_SLOT_INSTALLED_PARTS (0x8e) // swr_sceneModels slot of the first installed part model
 
 // swrObjHang_LoadScreenAssets (0x004586e0): swr_sceneModels / puppet slots of the hangar scenes
@@ -377,7 +378,7 @@
 #define SWR_SHOP_LIST_CAPACITY (35) // uiUpgradeInfos2 entries
 #define SWR_HANGAR_ICON_COUNT (8) // uiUpgradeInfos entries
 #define SWR_JUNKYARD_SLOT_COUNT (16) // swrObjHang_junkyardStock entries
-#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // maybeUICameraPlacements row of junkyard slot 0
+#define SWR_JUNKYARD_PLACEMENT_FIRST (4) // swrObjHang_cameraPlacements row of junkyard slot 0
 #define SWR_JUNKYARD_PART_COUNT (7) // parts swrObjHang_GenerateJunkyardStock scatters over the slots
 
 // swrRace_UpdatePartMenuLayout (0x0043dba0): part-icon glide duration (seconds)
@@ -399,7 +400,7 @@
 // swrRace_DrawStatBar (0x004557e0): first garage stat-bar sprite id
 #define SWR_STAT_BAR_SPRITE_BASE (0x90)
 #define SWR_SPRITE_ID_SUN_GLARE (-0x68) // pseudo sprite id swrSprite_SetVisible/SetColor route to the full-screen sun glare tint (swrSprite_unk2_*)
-#define SWR_SUN_OCCLUDED_COVERAGE (50) // UpdateSunAndLensFlareSprites2: sun_occlusionCoverage at or above this hides the sun and its flares
+#define SWR_SUN_OCCLUDED_COVERAGE (50) // swrSprite_UpdateSunAndLensFlareForSun: sun_occlusionCoverage at or above this hides the sun and its flares
 // swrPlayerHUD_SampleOcclusion (0x0042be60)
 #define SWR_SUN_COUNT (2) // sunSpriteIds / sun_occlusionSample* entries
 #define SWR_SUN_OFFSCREEN_X (-500) // sun_occlusionSampleX below this = sun not projected this frame
@@ -495,7 +496,7 @@
 #define SWR_UI_DIALOG_MIN_BUTTON_WIDTH (0x96) // swrUI_NewDialog
 #define SWR_UI_DIALOG_RESULT_CANCEL (0xffff) // swrUI_confirmDialogResult after Back/Escape
 #define SWR_UI_DIALOG_RESULT_NO (1) // second button
-#define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrRace_LoadSaveConfigMenu)
+#define SWR_UI_CONFIG_NAME_MAX_LENGTH (0x18) // settings-file name entry (swrConfig_BuildConfigFilesMenu)
 // clickable arrow sprites on the hangar nav-overlay pages (swrUI_BuildAuxPages); a click injects the matching swrUI_INPUT_MENU_* bit
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_LEFT (700000)
 #define SWR_UI_ID_HANGAR_VEHICLE_ARROW_RIGHT (700001)
@@ -516,7 +517,7 @@
 #define SWR_UI_DESIGN_WIDTH (640) // UI design space the swrText clip rects are given in
 #define SWR_UI_DESIGN_HEIGHT (480)
 
-// swrDisplay_SetSettingsFromRegistry (0x00424180): registry fallbacks + the only bpp FindMatchingVideoMode accepts
+// swrDisplay_SetSettingsFromRegistry (0x00424180): registry fallbacks + the only bpp swrDisplay_FindMatchingVideoMode accepts
 #define SWR_DISPLAY_DEFAULT_WIDTH (640)
 #define SWR_DISPLAY_DEFAULT_HEIGHT (480)
 #define SWR_DISPLAY_BPP (16)

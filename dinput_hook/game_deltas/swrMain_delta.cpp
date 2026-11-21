@@ -8,8 +8,8 @@
 extern "C" {
 #include <Main/swrMain.h>// swrMain_RunFrame_ADDR, swrMain_UpdateInRaceLoopSfx_ADDR
 #include <Swr/swrRace.h> // swrRace_IncrementFrameTimer_ADDR, swrRace_resultsScreenActive, swrRace_dt_raw_d
-#include <Swr/swrObj.h>  // GetPauseState_ADDR, updateInRaceInputBitsets_ADDR, swrObjJudge_PollPause_ADDR, updatePauseMenu_ADDR
-#include <Swr/swrText.h> // resetOverlayDrawQueues_ADDR
+#include <Swr/swrObj.h>  // swrRace_GetPauseState_ADDR, swrRace_UpdateInRaceInputBitsets_ADDR, swrObjJdge_PollPause_ADDR, swrRace_UpdatePauseMenu_ADDR
+#include <Swr/swrText.h> // swrText_ResetOverlayDrawQueues_ADDR
 #include <Swr/swrSound.h>// swrSound_UpdateDelayedSfx_ADDR, swrSound_UpdateMusic_ADDR
 #include <Swr/swrEvent.h>// swrEvent_CallAllF0..F3_ADDR
 #include <Swr/swrModel.h>// swrModel_UpdateAnimations_ADDR
@@ -48,21 +48,21 @@ bool s_haveLast = false;
 double s_accum = 0.0;// unspent wall-clock seconds carried between render frames
 
 // frametotal must read as ONE number for the whole frame: swrSound_Update keeps a looping voice
-// alive only while its startFrame == frametotal (or frametotal-1, stamped by playASoundImpl), so a
+// alive only while its startFrame == frametotal (or frametotal-1, stamped by swrSound_RequestVoice), so a
 // per-tick bump makes every loop reset and restart (the "broken record" stutter).
 unsigned int s_frametotalThisFrame = 0;
 
 // swrSound_Update derives 3D doppler velocity as (position - last position) / swrRace_deltaTimeSecs
 // and turns doppler off for the local pod's own voices only when the voice's position equals its
 // transform. Vanilla runs it in phase 2, where the racers/camera hold smoothed display poses while
-// looping voices carry the tick positions playASoundImpl stamped -> spiky relative velocity (engine/
+// looping voices carry the tick positions swrSound_RequestVoice stamped -> spiky relative velocity (engine/
 // wind warble) and own-pod doppler left on. While engaged it runs right after the ticks instead, on
 // tick poses with dt = the sim time those ticks covered, and not at all on tickless frames.
 bool s_soundRanAfterTicks = false;
 
 // Input is sampled per render frame but consumed per tick: press/release edges and held level are
 // OR-latched across tickless frames and handed to the FIRST tick only. bitset3 is restored after
-// the ticks because updateInRaceInputBitsets derives next frame's edges by diffing against it.
+// the ticks because swrRace_UpdateInRaceInputBitsets derives next frame's edges by diffing against it.
 int s_pressLatch[kNumLocalInputSlots] = {0, 0, 0, 0};// OR of bitset1 (just-pressed) since last tick
 int s_releaseLatch[kNumLocalInputSlots] = {0, 0, 0, 0};// OR of bitset2 (just-released) since last tick
 int s_heldLatch[kNumLocalInputSlots] = {0, 0, 0, 0}; // OR of bitset3 (held) since last tick
@@ -75,7 +75,7 @@ constexpr int kNumProcButtons = 15;// swrRace_PitchInput[1..15], set by swrContr
 float s_btnLatch[kNumProcButtons] = {0};// max of each processed button float since last tick
 float s_btnTrue[kNumProcButtons] = {0}; // true processed button floats sampled this frame
 
-// Last-built 2D overlay counts (the exact set resetOverlayDrawQueues clears). Phase-2 zeroes the
+// Last-built 2D overlay counts (the exact set swrText_ResetOverlayDrawQueues clears). Phase-2 zeroes the
 // counts but the backing arrays persist, so restoring them on a tickless frame redraws the overlay.
 int s_savedMiniMapPositions = 0;
 int s_savedTextEntries1Count = 0;
@@ -147,7 +147,7 @@ void reset_fixed_step_state() {
 // swrControl_ProcessInputs already refreshed the device snapshot (in swrMain_GuiAdvance).
 void runFrameOncePrologue() {
     ((void_fn_t) swrMain_UpdateInRaceLoopSfx_ADDR)();
-    ((void_fn_t) updateInRaceInputBitsets_ADDR)();
+    ((void_fn_t) swrRace_UpdateInRaceInputBitsets_ADDR)();
     for (int p = 0; p < kNumLocalInputSlots; p++) {
         s_trueHeld[p] = inRaceLocalPlayerInputBitset3[p];
         s_pressLatch[p] |= inRaceLocalPlayerInputBitset1[p];
@@ -161,10 +161,10 @@ void runFrameOncePrologue() {
         if (btn[i] > s_btnLatch[i])
             s_btnLatch[i] = btn[i];
     }
-    ((void_fn_t) swrObjJudge_PollPause_ADDR)();
+    ((void_fn_t) swrObjJdge_PollPause_ADDR)();
 }
 
-// One fixed-dt world-sim tick. resetOverlayDrawQueues first, or N ticks stack N copies of every
+// One fixed-dt world-sim tick. swrText_ResetOverlayDrawQueues first, or N ticks stack N copies of every
 // minimap dot. The frame timer emits the fixed dt via FastMode; its per-tick frametotal bump is
 // undone so all ticks share one frame number.
 // A fixed dt that divides a looping animation's length lands animation_time exactly on its end
@@ -198,7 +198,7 @@ void runWorldSimTick(bool firstTick) {
     ((void_fn_t) swrSound_UpdateDelayedSfx_ADDR)();
     ((void_fn_t) swrSound_UpdateMusic_ADDR)();
     smoothing_tick_begin();
-    ((void_fn_t) resetOverlayDrawQueues_ADDR)();
+    ((void_fn_t) swrText_ResetOverlayDrawQueues_ADDR)();
     ((void_fn_t) swrRace_IncrementFrameTimer_ADDR)();
     frametotal = s_frametotalThisFrame;
     float* btn = procButtons();
@@ -241,7 +241,7 @@ bool is_actively_driving() {
     const bool driving =
         currentPlayer_Test != nullptr &&
         (currentPlayer_Test->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0;
-    return driving && ((int_fn_t) GetPauseState_ADDR)() == 0 && swrGui_Stopped == 0 &&
+    return driving && ((int_fn_t) swrRace_GetPauseState_ADDR)() == 0 && swrGui_Stopped == 0 &&
            swrRace_resultsScreenActive != 0 && race_is_running();
 }
 }// namespace
@@ -294,8 +294,8 @@ void __cdecl swrMain_RunFrame_delta(short flags, short phase) {
 
         // Vanilla re-reads the pause state after PollPause: the frame pause is pressed runs the
         // pause menu instead of the world sim. Next frame the gate fails and vanilla takes over.
-        if (((int_fn_t) GetPauseState_ADDR)() != 0) {
-            ((void_fn_t) updatePauseMenu_ADDR)();
+        if (((int_fn_t) swrRace_GetPauseState_ADDR)() != 0) {
+            ((void_fn_t) swrRace_UpdatePauseMenu_ADDR)();
             ((void_fn_t) swrViewport_UpdateCameras_ADDR)();
             swr_systemTimeMs = timeGetTime();
             smoothing_reset();

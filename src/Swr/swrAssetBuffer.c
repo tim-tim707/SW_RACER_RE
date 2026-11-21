@@ -96,18 +96,18 @@ int swrAssetBuffer_RemainingSize(void)
 }
 
 // 0x00445c00
-void ResetModelPreviewState_Maybe(void)
+void swrScene_ResetViewDefaults(void)
 {
-    translation_unk.x = 0.0f;
-    translation_unk.y = 0.0f;
-    translation_unk.z = 0.0f;
-    rotation_unk.x = 0.0f;
-    rotation_unk.y = 0.0f;
-    rotation_unk.z = 0.0f;
+    swrViewport_viewTranslation.x = 0.0f;
+    swrViewport_viewTranslation.y = 0.0f;
+    swrViewport_viewTranslation.z = 0.0f;
+    swrViewport_viewRotation.x = 0.0f;
+    swrViewport_viewRotation.y = 0.0f;
+    swrViewport_viewRotation.z = 0.0f;
     swrViewport_cameraResetWord = 0;
     swrRender_frameClearFlags = swrRender_FRAME_CLEAR_COLOR;
     swrSprite_SetColor(-0x67, 0, 0, 0, 0xff);
-    SetFogParameters(996, 1000, 0xff, 0xff, 0xff, 0xff);
+    swrRender_SetFogParameters(996, 1000, 0xff, 0xff, 0xff, 0xff);
 }
 
 // 0x00448d40

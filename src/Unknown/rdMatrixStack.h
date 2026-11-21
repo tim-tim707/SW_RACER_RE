@@ -20,7 +20,7 @@ int rdMatrixStack34_modified; // 0x004c3c0c
 #define rdMatrixStack_SetField_ADDR (0x00445640)
 #define rdMatrixStack_GetField_ADDR (0x00445660)
 #define rdMatrix44_ringBuffer_Get_ADDR (0x0044b660)
-#define SetModelMVPAndTranslation_ADDR (0x0044b690)
+#define swrViewport_SetModelMVPAndTranslation_ADDR (0x0044b690)
 #define rdMatrixStack34_Push_ADDR (0x0044b750)
 #define rdMatrixStack34_PushMultiply_ADDR (0x0044b7e0)
 #define rdMatrixStack34_Peek_ADDR (0x0044b9b0)
@@ -40,7 +40,7 @@ void rdMatrixStack_SetField(int selector, int value);
 // Returns the collision-descent node mask for selector 3 / 5 (see SetField), -1 otherwise.
 int rdMatrixStack_GetField(int selector);
 rdMatrix44* rdMatrix44_ringBuffer_Get(void);
-void SetModelMVPAndTranslation(const rdMatrix44 *mvp, const rdVector3* translation);
+void swrViewport_SetModelMVPAndTranslation(const rdMatrix44 *mvp, const rdVector3* translation);
 void rdMatrixStack34_Push(const rdMatrix34* mat);
 void rdMatrixStack34_PushMultiply(const rdMatrix34 *a1);
 void rdMatrixStack34_Peek(rdMatrix34 *a1);

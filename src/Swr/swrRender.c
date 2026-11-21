@@ -127,7 +127,7 @@ void rdCamera_SetLights(int light_index, int num_lights)
 // 0-255 components scaled to 0..1 (w = 1.0). The return is the internal light_index*16 byte
 // offset left in EAX; callers ignore it.
 // 0x00409600
-float* SetLightColorsAndDirection(int light_index, short ambient_r, short ambient_g, short ambient_b, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z)
+float* swrRender_SetLight1Slot(int light_index, short ambient_r, short ambient_g, short ambient_b, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z)
 {
     lightDirection1[light_index].x = (float)(int)pos_x;
     lightDirection1[light_index].y = (float)(int)pos_y;
@@ -145,7 +145,7 @@ float* SetLightColorsAndDirection(int light_index, short ambient_r, short ambien
 
 // Copy the primary light (slot 0)'s direction/color/ambient x,y,z into slot `light_index`.
 // 0x00409700
-int SetLightColorsAndDirectionFromPrimaryLight(short light_index)
+int swrRender_CopyDefaultLightToSlot(short light_index)
 {
     lightDirection1[light_index].x = lightDirection1[0].x;
     lightDirection1[light_index].y = lightDirection1[0].y;
@@ -162,7 +162,7 @@ int SetLightColorsAndDirectionFromPrimaryLight(short light_index)
 // Set secondary-bank light `light_index`: direction from the raw position, color from 0-255
 // components (the secondary bank has no ambient term). Return is the vestigial index offset.
 // 0x00409750
-float* SetAlternativeLightColorsAndDirection(int light_index, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z)
+float* swrRender_SetLight2Slot(int light_index, short light_r, short light_g, short light_b, short pos_x, short pos_y, short pos_z)
 {
     lightDirection2[light_index].x = (float)(int)pos_x;
     lightDirection2[light_index].y = (float)(int)pos_y;
@@ -595,10 +595,10 @@ void rdModel_RevertNodeSettings(char state)
     }
 }
 
-// One clip axis of AABBFrustumTest: `side` is -1/0/1 for a corner below/inside/above the
+// One clip axis of rdModel_AABBFrustumTest: `side` is -1/0/1 for a corner below/inside/above the
 // clip range, `allInside` stays nonzero while every corner was inside, `commonSide` stays
 // -1/1 while every corner was outside on the same side (-2 = no corner seen yet).
-static void AABBFrustumTest_AccumulateAxis(int16_t side, int16_t* allInside, int16_t* commonSide)
+static void rdModel_AABBFrustumTest_AccumulateAxis(int16_t side, int16_t* allInside, int16_t* commonSide)
 {
     if (side == 0) {
         if (*allInside != 0)
@@ -613,7 +613,7 @@ static void AABBFrustumTest_AccumulateAxis(int16_t side, int16_t* allInside, int
         *commonSide = side;
 }
 
-static int16_t AABBFrustumTest_ClassifySymmetric(float c, float w)
+static int16_t rdModel_AABBFrustumTest_ClassifySymmetric(float c, float w)
 {
     if (w > 0.0f) {
         if (c > w)
@@ -631,7 +631,7 @@ static int16_t AABBFrustumTest_ClassifySymmetric(float c, float w)
 
 // Returns 0 = outside the frustum, 1 = intersecting, 2 = fully inside (only with full_test).
 // 0x0044c510
-int16_t AABBFrustumTest(float* aabb, bool full_test)
+int16_t rdModel_AABBFrustumTest(float* aabb, bool full_test)
 {
     // per clip row: each min/max component times its matrix column
     float rowX[6];
@@ -692,9 +692,9 @@ int16_t AABBFrustumTest(float* aabb, bool full_test)
         offX = ((corner >> 2) & 1) * 3;
         w = rowW[offY] + rowW[offX] + rowW[offZ] + PrecomputedMVPMatrix.vD.w;
         if (insideX != 0 || sideX != 0)
-            AABBFrustumTest_AccumulateAxis(AABBFrustumTest_ClassifySymmetric(rowX[offY] + rowX[offX] + rowX[offZ] + PrecomputedMVPMatrix.vD.x, w), &insideX, &sideX);
+            rdModel_AABBFrustumTest_AccumulateAxis(rdModel_AABBFrustumTest_ClassifySymmetric(rowX[offY] + rowX[offX] + rowX[offZ] + PrecomputedMVPMatrix.vD.x, w), &insideX, &sideX);
         if (insideY != 0 || sideY != 0)
-            AABBFrustumTest_AccumulateAxis(AABBFrustumTest_ClassifySymmetric(rowY[offY] + rowY[offX] + rowY[offZ] + PrecomputedMVPMatrix.vD.y, w), &insideY, &sideY);
+            rdModel_AABBFrustumTest_AccumulateAxis(rdModel_AABBFrustumTest_ClassifySymmetric(rowY[offY] + rowY[offX] + rowY[offZ] + PrecomputedMVPMatrix.vD.y, w), &insideY, &sideY);
         if (insideZ != 0 || sideZ != 0) {
             // depth only clips against the far plane; w <= 0 counts as behind the camera
             if (!(w > 0.0f))
@@ -703,7 +703,7 @@ int16_t AABBFrustumTest(float* aabb, bool full_test)
                 sideDepth = 1;
             else
                 sideDepth = 0;
-            AABBFrustumTest_AccumulateAxis(sideDepth, &insideZ, &sideZ);
+            rdModel_AABBFrustumTest_AccumulateAxis(sideDepth, &insideZ, &sideZ);
         }
     }
 
@@ -805,7 +805,7 @@ void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node)
     if (rdModel_frustumCullEnabled == 0)
         visibility = 2;
     else
-        visibility = AABBFrustumTest(node->aabb, true);
+        visibility = rdModel_AABBFrustumTest(node->aabb, true);
     if (visibility == 0)
         return;
 
@@ -820,7 +820,7 @@ void rdModel_AddMeshGroupToScene(swrModel_NodeMeshGroup* node)
 
     for (i = 0; i < (int)node->node.num_children; i++, hnode++) {
         mesh = node->node.children.meshes[i];
-        if (visibility != 2 && AABBFrustumTest(mesh->aabb, false) == 0)
+        if (visibility != 2 && rdModel_AABBFrustumTest(mesh->aabb, false) == 0)
             continue;
         converted = mesh->converted_mesh;
         // faithful: the call also pushes mesh->mesh_material, which the callee ignores
@@ -1308,7 +1308,7 @@ void rdModel_SetFogEnabled(int enable)
 }
 
 // 0x0044E0E0
-void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA)
+void swrRender_SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, int fogColorB, int fogColorA)
 {
     // a negative component leaves that field unchanged
     if (fogStart_ >= 0) {
@@ -1333,26 +1333,26 @@ void SetFogParameters(int fogStart_, int fogEnd_, int fogColorR, int fogColorG, 
 
 // Primary light (slot 0) from short[3] ambient/color/position arrays; position negated to a direction.
 // 0x0044E140
-void SetPrimaryLightColorsAndDirection(short* ambient_color, short* light_color, short* light_position)
+void swrRender_SetDefaultLight(short* ambient_color, short* light_color, short* light_position)
 {
-    SetLightColorsAndDirection(0, ambient_color[0], ambient_color[1], ambient_color[2], light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
+    swrRender_SetLight1Slot(0, ambient_color[0], ambient_color[1], ambient_color[2], light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
 }
 
 // Secondary light `light_index` (stored at slot light_index+1) from short[3] arrays.
 // 0x0044E190
-void SetSecondaryLightColorsAndDirection(unsigned int light_index, short* ambient_color, short* light_color, short* light_position)
+void swrRender_SetGroupLight1(unsigned int light_index, short* ambient_color, short* light_color, short* light_position)
 {
     if ((int)light_index >= 0 && (int)light_index < 0xc) {
-        SetLightColorsAndDirection(light_index + 1, ambient_color[0], ambient_color[1], ambient_color[2], light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
+        swrRender_SetLight1Slot(light_index + 1, ambient_color[0], ambient_color[1], ambient_color[2], light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
     }
 }
 
 // Copy the primary light into slot index+1 and record numEnabledLights[index] = 1.
 // 0x0044E1F0
-void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int index)
+void swrRender_SetGroupLightFromDefault(unsigned int index)
 {
     if ((int)index >= 0 && (int)index < 0xc) {
-        SetLightColorsAndDirectionFromPrimaryLight((short)index + 1);
+        swrRender_CopyDefaultLightToSlot((short)index + 1);
         numEnabledLights[index] = 1;
     }
 }
@@ -1360,7 +1360,7 @@ void SetLightColorsAndDirectionFromPrimraryLight2(unsigned int index)
 // Secondary-bank light `light_index`: light_type2 == 0 -> just record it (numEnabledLights = 1);
 // otherwise record numEnabledLights = 2 and set slot light_index+1 from the color/position arrays.
 // 0x0044E220
-void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, short* light_color, short* light_position)
+void swrRender_SetGroupLight2(int light_index, BOOL light_type2, short* light_color, short* light_position)
 {
     if (light_index >= 0 && light_index < 0xc) {
         if (light_type2 == 0) {
@@ -1368,7 +1368,7 @@ void SetAlternativeLightColorsAndDirection2(int light_index, BOOL light_type2, s
             return;
         }
         numEnabledLights[light_index] = 2;
-        SetAlternativeLightColorsAndDirection(light_index + 1, light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
+        swrRender_SetLight2Slot(light_index + 1, light_color[0], light_color[1], light_color[2], -light_position[0], -light_position[1], -light_position[2]);
     }
 }
 
@@ -1385,7 +1385,7 @@ void rdProcEntry_SetCurrentColor(int a1, int a2, uint8_t r, uint8_t g, uint8_t b
 // (straight down when the position is near-zero), truncates the float ambient/color/direction
 // to shorts, and dispatches to SetPrimary (a1 == -1) or SetSecondary. Return unused (vestigial).
 // 0x00483840
-float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position)
+float* swrRender_SetLight1FromFloats(int a1, rdVector3* ambient_color, rdVector3* light_color, rdVector3* light_position)
 {
     float dir_x;
     float dir_y;
@@ -1405,9 +1405,9 @@ float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* 
     short color[3] = { (short)(int)light_color->x, (short)(int)light_color->y, (short)(int)light_color->z };
     short direction[3] = { (short)(int)dir_x, (short)(int)dir_y, (short)(int)dir_z };
     if (a1 == -1) {
-        SetPrimaryLightColorsAndDirection(ambient, color, direction);
+        swrRender_SetDefaultLight(ambient, color, direction);
     } else {
-        SetSecondaryLightColorsAndDirection(a1, ambient, color, direction);
+        swrRender_SetGroupLight1(a1, ambient, color, direction);
     }
     return NULL;
 }
@@ -1415,7 +1415,7 @@ float* SetLightColorsAndDirection2(int a1, rdVector3* ambient_color, rdVector3* 
 // Float-input secondary-bank variant: when light_type2 is set, normalize light_position the same
 // way and truncate the float color to shorts; then defer to SetAlternative...2. Return unused.
 // 0x00483960
-float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2, float* light_color, rdVector3* light_position)
+float* swrRender_SetGroupLight2FromFloats(int light_index, BOOL light_type2, float* light_color, rdVector3* light_position)
 {
     short color[3] = { 0, 0, 0 };
     short direction[3] = { 0, 0, 0 };
@@ -1441,22 +1441,22 @@ float* SetAlternativeLightColorsAndDirection3(int light_index, BOOL light_type2,
         direction[1] = (short)(int)dir_y;
         direction[2] = (short)(int)dir_z;
     }
-    SetAlternativeLightColorsAndDirection2(light_index, light_type2, color, direction);
+    swrRender_SetGroupLight2(light_index, light_type2, color, direction);
     return NULL;
 }
 
 // Guarded wrapper: copy the primary light into slot a1+1 unless a1 == -1.
 // 0x00483A40
-int SetLightColorsAndDirectionFromPrimaryLight3(unsigned int a1)
+int swrRender_SetGroupLightFromDefaultChecked(unsigned int a1)
 {
     if (a1 != 0xffffffff) {
-        SetLightColorsAndDirectionFromPrimraryLight2(a1);
+        swrRender_SetGroupLightFromDefault(a1);
     }
     return a1;
 }
 
 // 0x00483A60
-short SetClearColor(short r, short g, short b)
+short swrRender_SetClearColor(short r, short g, short b)
 {
     backBufferClearColor[0] = r;
     backBufferClearColor[1] = g;

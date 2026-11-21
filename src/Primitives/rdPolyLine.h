@@ -4,9 +4,9 @@
 #include "types.h"
 
 #define rdPolyLine_Draw_ADDR (0x00493e80)
-#define rdPolyline_DrawFace_ADDR (0x004941d0)
+#define rdPolyLine_DrawFace_ADDR (0x004941d0)
 
 int rdPolyLine_Draw(RdThing* thing, rdMatrix34* matrix);
-void rdPolyline_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdPrimit3* pIdxInfo);
+void rdPolyLine_DrawFace(RdThing* pLine, RdFace* pFace, rdVector3* aVertices, rdPrimit3* pIdxInfo);
 
 #endif // RDPOLYLINE_H

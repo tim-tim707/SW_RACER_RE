@@ -175,7 +175,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_HandleTextEntryKey_ADDR (0x00418120) // text-entry edit handler (insert/erase/cursor/commit)
 #define swrUI_DrawCaret_ADDR (0x004184d0) // draw/blink the text caret sprite (0xfa)
 #define swrUI_GetSubstringWidth_ADDR (0x00418680)
-#define ReadRLEData_ADDR (0x00418700)
+#define swrSprite_ReadTgaRLEData_ADDR (0x00418700)
 #define swrUI_ClearGroupChecked_ADDR (0x00418b70)
 #define swrUI_ApplyListColors_ADDR (0x00418bc0) // propagate the list's 5 color sets to its items
 #define swrUI_BuildHighlightSprites_ADDR (0x00418cb0)
@@ -225,7 +225,7 @@ FUN_0041ac00  swrUI_RaceResultRowProc
 #define swrUI_Front_TextMenu_ADDR (0x0043fce0)
 #define swrUI_Front_MenuAxisHorizontal_ADDR (0x00440150)
 #define swrUI_Front_DrawRecord_ADDR (0x004403e0)
-#define playUISound_ADDR (0x00440550)
+#define swrSound_PlayUISound_ADDR (0x00440550)
 #define swrUI_Front_GetTrackNameFromId_ADDR (0x00440620)
 #define swrUI_Front_BeatEverything1stPlace_ADDR (0x00440bc0)
 #define swrObjHang_SelectCreditsTracks_ADDR (0x00440c10)
@@ -357,7 +357,7 @@ unsigned int swrUI_GetButtonRowBBox(int* bbox_out, char* label1, char* label2, c
 int swrUI_GetSubstringWidth(char* text, int font, unsigned int start, int end);
 
 // Reads RLE-compressed records from a file, expanding repeat packets and literal runs until the count is met.
-int ReadRLEData(void* file, void* dest, int elementSize, int count);
+int swrSprite_ReadTgaRLEData(void* file, void* dest, int elementSize, int count);
 // Hit-test a point against the element's bbox (+0x24).
 int swrUI_ElementContainsPoint(swrUI_unk* ui, int x, int y);
 // True when ui is the focused element.
@@ -469,7 +469,7 @@ void swrUI_Front_MenuAxisHorizontal(void* pUnused, short posY);
 void swrUI_Front_DrawRecord(swrObjHang* hang, int x, int y, float alpha, char recordKind);
 
 // Selects per-sound volume, pitch, and loop parameters by id and plays the UI sound.
-void playUISound(int soundId);
+void swrSound_PlayUISound(int soundId);
 
 char* swrUI_Front_GetTrackNameFromId(int trackId);
 

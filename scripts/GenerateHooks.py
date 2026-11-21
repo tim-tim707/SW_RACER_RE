@@ -109,13 +109,13 @@ hooks_blacklist = [
     "Window_CreateMainWindow",
     # ========== CUSTOM TRACKS ==========
     "HandleCircuits",
-    "isTrackPlayable",
-    "VerifySelectedTrack",
+    "swrObjHang_IsTrackPlayable",
+    "swrObjHang_VerifySelectedTrack",
     "swrUI_GetTrackNameFromId",
     "swrObjHang_InitTrackSprites",
-    "swrRace_CourseSelectionMenu",
-    "swrRace_CourseInfoMenu",
-    "swrRace_MainMenu",
+    "swrObjHang_CourseSelectionMenu",
+    "swrObjHang_CourseInfoMenu",
+    "swrObjHang_MainMenu",
     "swrModel_LoadFromId",
 ]
 
