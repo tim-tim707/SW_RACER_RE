@@ -295,7 +295,7 @@ void swrSprite_LoadAllSprites(void)
     swrSprite_LoadFromId(swrSprite_branch, "branch");
     swrSprite_LoadFromId(swrSprite_background, "background");
     swrSprite_NewSprite(250, swrSprite_GetTextureFromTGA("data\\images\\background.tga", 250));
-    swrSprite_NewSprite(249, swrSprite_LoadTexture_(swrSprite_d_cursor_rgb));
+    swrSprite_NewSprite(249, swrSprite_LoadTextureById(swrSprite_d_cursor_rgb));
     SpritesLoaded = 1;
 }
 
@@ -322,7 +322,7 @@ int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
             swrSprite_GetTextureFromTGA(filepath, id);
             return 1;
         }
-        texture = swrSprite_LoadTexture_(id);
+        texture = swrSprite_LoadTextureById(id);
         if (texture == NULL)
         {
             return 0;
@@ -1780,7 +1780,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
 }
 
 // 0x00446fb0 TODO: crashes on release, works fine on debug
-swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index)
+swrSpriteTexture* swrSprite_LoadTextureById(swrSprite_NAME index)
 {
     return swrSprite_LoadTexture(index);
 }

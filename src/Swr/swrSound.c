@@ -37,7 +37,7 @@ int swrSound_Startup()
     if (swrSound_Playing == 0 && swrSound_Init() == 0)
         return 0;
     swrUI_UpdateProgressBar(4);
-    swrSoundHashTable = stdHashtbl_New(SWR_SOUND_HASHTABLE_SIZE);
+    swrSoundHashTable = stdHashTable_New(SWR_SOUND_HASHTABLE_SIZE);
     if (swrSoundHashTable == NULL)
         return 0;
     swrUI_UpdateProgressBar(6);
@@ -83,7 +83,7 @@ int swrSound_Teardown(int fullShutdown)
         swrSound_TerminateThread();
     }
     if (swrSoundHashTable != NULL) {
-        stdHashtbl_Free(swrSoundHashTable);
+        stdHashTable_Free(swrSoundHashTable);
         swrSoundHashTable = NULL;
     }
     if (fullShutdown != 0)
@@ -269,21 +269,21 @@ int swrSound_IsStreamingEntry(void* entry)
 // 0x004231b0
 char* swrSound_Find(char* filename_wav)
 {
-    return (char*)stdHashtbl_Find(swrSoundHashTable, filename_wav);
+    return (char*)stdHashTable_Find(swrSoundHashTable, filename_wav);
 }
 
 // Register a sound descriptor in the hashtable, keyed by (and storing) `data`.
 // 0x004231d0
 int swrSound_Add(char* data)
 {
-    return stdHashtbl_Add(swrSoundHashTable, data, data);
+    return stdHashTable_Add(swrSoundHashTable, data, data);
 }
 
 // Remove a sound descriptor from the hashtable by name.
 // 0x004231f0
 int swrSound_Remove(char* name)
 {
-    return stdHashtbl_Remove(swrSoundHashTable, name);
+    return stdHashTable_Remove(swrSoundHashTable, name);
 }
 
 // Spin up the background streaming thread: allocate the streaming IA3dSource

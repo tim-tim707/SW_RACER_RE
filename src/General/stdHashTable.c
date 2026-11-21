@@ -8,7 +8,7 @@
 #include <string.h>
 
 // 0x0048bea0
-unsigned int stdHashtbl_CalculateHash(char* pData, int hashSize)
+unsigned int stdHashTable_CalculateHash(char* pData, int hashSize)
 {
     int hash;
     int mod;
@@ -25,7 +25,7 @@ unsigned int stdHashtbl_CalculateHash(char* pData, int hashSize)
 }
 
 // 0x0048bee0
-tHashTable* stdHashtbl_New(size_t size)
+tHashTable* stdHashTable_New(size_t size)
 {
     tHashTable* pTable;
 
@@ -36,18 +36,18 @@ tHashTable* stdHashtbl_New(size_t size)
     pTable->numNodes = 0;
     pTable->paNodes = NULL;
     pTable->hashFunc = NULL;
-    pTable->numNodes = stdHashtbl_GetPrime(size);
+    pTable->numNodes = stdHashTable_GetPrime(size);
     pTable->paNodes = (tLinkListNode*)(*stdPlatform_hostServices_ptr->alloc)(pTable->numNodes << 4);
     if (pTable->paNodes == NULL) {
         return NULL;
     }
     memset(pTable->paNodes, 0, pTable->numNodes << 4);
-    pTable->hashFunc = stdHashtbl_CalculateHash;
+    pTable->hashFunc = stdHashTable_CalculateHash;
     return pTable;
 }
 
 // 0x0048bf50
-int stdHashtbl_GetPrime(int x)
+int stdHashTable_GetPrime(int x)
 {
     int* piVar1;
     int res;
@@ -68,27 +68,27 @@ int stdHashtbl_GetPrime(int x)
     } while ((int)piVar1 < 0x4aef30);
     if (1999 < x)
     {
-        res = stdHashtbl_nextPrime(x);
+        res = stdHashTable_nextPrime(x);
     }
     return res;
 }
 
 // 0x0048bf90
-int stdHashtbl_nextPrime(int x)
+int stdHashTable_nextPrime(int x)
 {
     int isPrime;
 
-    isPrime = stdHashtbl_isPrime(x);
+    isPrime = stdHashTable_isPrime(x);
     while (isPrime == 0)
     {
         x = x + 1;
-        isPrime = stdHashtbl_isPrime(x);
+        isPrime = stdHashTable_isPrime(x);
     }
     return x;
 }
 
 // 0x0048bfc0
-int stdHashtbl_isPrime(int x)
+int stdHashTable_isPrime(int x)
 {
     int i;
 
@@ -109,7 +109,7 @@ int stdHashtbl_isPrime(int x)
 }
 
 // 0x0048c000
-tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
+tLinkListNode* stdHashTable_GetTailNode(tLinkListNode* pCur)
 {
     tLinkListNode* ptVar1;
     tLinkListNode* ptVar2;
@@ -124,7 +124,7 @@ tLinkListNode* stdHashtbl_GetTailNode(tLinkListNode* pCur)
 }
 
 // 0x0048c020
-void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
+void stdHashTable_FreeListNodes(tLinkListNode* pNode)
 {
     tLinkListNode* next;
     tLinkListNode* next_next;
@@ -140,7 +140,7 @@ void stdHashtbl_FreeListNodes(tLinkListNode* pNode)
 }
 
 // 0x0048c050
-int stdHashtbl_Free(tHashTable* pTable)
+int stdHashTable_Free(tHashTable* pTable)
 {
     int iVar1;
     int result;
@@ -151,7 +151,7 @@ int stdHashtbl_Free(tHashTable* pTable)
         iVar1 = 0;
         do
         {
-            stdHashtbl_FreeListNodes((tLinkListNode*)((int)&pTable->paNodes->prev + iVar1));
+            stdHashTable_FreeListNodes((tLinkListNode*)((int)&pTable->paNodes->prev + iVar1));
             result = result + 1;
             iVar1 = iVar1 + 0x10;
         } while (result < pTable->numNodes);
@@ -162,20 +162,20 @@ int stdHashtbl_Free(tHashTable* pTable)
 }
 
 // 0x0048c0a0 TODO: crashes on release build, works fine on debug
-int stdHashtbl_Add(tHashTable* pTable, char* pName, void* pData)
+int stdHashTable_Add(tHashTable* pTable, char* pName, void* pData)
 {
     void* pvVar1;
     unsigned int uVar2;
     tLinkListNode* ptVar3;
     tLinkListNode* pNodeToAdd;
 
-    pvVar1 = stdHashtbl_Find(pTable, pName);
+    pvVar1 = stdHashTable_Find(pTable, pName);
     if (pvVar1 != NULL)
     {
         return 0;
     }
     uVar2 = (*pTable->hashFunc)(pName, pTable->numNodes);
-    ptVar3 = stdHashtbl_GetTailNode(pTable->paNodes + uVar2);
+    ptVar3 = stdHashTable_GetTailNode(pTable->paNodes + uVar2);
     if (ptVar3->name == NULL)
     {
         ptVar3 = pTable->paNodes + uVar2;
@@ -203,11 +203,11 @@ int stdHashtbl_Add(tHashTable* pTable, char* pName, void* pData)
 }
 
 // 0x0048c160
-void* stdHashtbl_Find(tHashTable* pTable, char* pName)
+void* stdHashTable_Find(tHashTable* pTable, char* pName)
 {
     tLinkListNode* pNode;
 
-    pNode = stdHashtbl_FindNode(pTable, pName, (int*)&pName);
+    pNode = stdHashTable_FindNode(pTable, pName, (int*)&pName);
     if (pNode != NULL) {
         return pNode->data;
     }
@@ -215,7 +215,7 @@ void* stdHashtbl_Find(tHashTable* pTable, char* pName)
 }
 
 // 0x0048c190
-tLinkListNode* stdHashtbl_FindNode(tHashTable* pTable, char* pName, int* pNodeHash)
+tLinkListNode* stdHashTable_FindNode(tHashTable* pTable, char* pName, int* pNodeHash)
 {
     unsigned int hash;
     tLinkListNode* pNode;
@@ -238,13 +238,13 @@ tLinkListNode* stdHashtbl_FindNode(tHashTable* pTable, char* pName, int* pNodeHa
 }
 
 // 0x0048c210 TODO: crashes on release build, works fine on debug
-int stdHashtbl_Remove(tHashTable* pTable, char* pName)
+int stdHashTable_Remove(tHashTable* pTable, char* pName)
 {
     tLinkListNode* ptVar1;
     tLinkListNode* ptVar2;
     tLinkListNode* ptVar3;
 
-    ptVar2 = stdHashtbl_FindNode(pTable, pName, (int*)&pName);
+    ptVar2 = stdHashTable_FindNode(pTable, pName, (int*)&pName);
     if (ptVar2 == NULL)
     {
         return 0;

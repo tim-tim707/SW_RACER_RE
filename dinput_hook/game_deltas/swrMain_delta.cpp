@@ -8,7 +8,7 @@
 extern "C" {
 #include <Main/swrMain.h>// swrMain_RunFrame_ADDR, swrMain_UpdateInRaceLoopSfx_ADDR
 #include <Swr/swrRace.h> // swrRace_IncrementFrameTimer_ADDR, swrRace_resultsScreenActive, swrRace_dt_raw_d
-#include <Swr/swrObj.h>  // GetPauseState_ADDR, updateInRaceInputBitsets_ADDR, swrObjJudge_PollPause_ADDR, updatePauseMenu_ADDR
+#include <Swr/swrObj.h>  // GetPauseState_ADDR, updateInRaceInputBitsets_ADDR, swrObjJdge_PollPause_ADDR, updatePauseMenu_ADDR
 #include <Swr/swrText.h> // resetOverlayDrawQueues_ADDR
 #include <Swr/swrSound.h>// swrSound_UpdateDelayedSfx_ADDR, swrSound_UpdateMusic_ADDR
 #include <Swr/swrEvent.h>// swrEvent_CallAllF0..F3_ADDR
@@ -161,7 +161,7 @@ void runFrameOncePrologue() {
         if (btn[i] > s_btnLatch[i])
             s_btnLatch[i] = btn[i];
     }
-    ((void_fn_t) swrObjJudge_PollPause_ADDR)();
+    ((void_fn_t) swrObjJdge_PollPause_ADDR)();
 }
 
 // One fixed-dt world-sim tick. resetOverlayDrawQueues first, or N ticks stack N copies of every

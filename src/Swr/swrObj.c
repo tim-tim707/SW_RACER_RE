@@ -284,7 +284,7 @@ void updateInRaceInputBitsets(void)
 }
 
 // 0x00445680
-void swrObjJudge_PollPause()
+void swrObjJdge_PollPause()
 {
     if (pauseDisabled == 0)
         pollPauseInput();
@@ -3344,7 +3344,7 @@ void swrObjHang_LoadAllPilotSprites(void)
     id = 0;
     data = (swrRacerData*)&swrRacer_PodData[0].pilot_spriteId;
     do {
-        tex = swrSprite_LoadTexture_(data->id);
+        tex = swrSprite_LoadTextureById(data->id);
         swrSprite_NewSprite(id, tex);
         swrSprite_NewSprite(id + 0x17, tex);
         swrSprite_NewSprite(id + 0x2e, tex);
@@ -4269,14 +4269,14 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrUI_Front_LoadUIElements();
         swrUI_Front_LoadPlanetModels();
         swrUI_Front_LoadMapPartModels();
-        swrSprite_NewSprite(0x45, swrSprite_LoadTexture_(swrSprite_int_planet_tat_rgb));
-        swrSprite_NewSprite(0x46, swrSprite_LoadTexture_(swrSprite_int_planet_a_rgb));
-        swrSprite_NewSprite(0x47, swrSprite_LoadTexture_(swrSprite_int_planet_b_rgb));
-        swrSprite_NewSprite(0x48, swrSprite_LoadTexture_(swrSprite_int_planet_c_rgb));
-        swrSprite_NewSprite(0x49, swrSprite_LoadTexture_(swrSprite_int_planet_d_rgb));
-        swrSprite_NewSprite(0x4a, swrSprite_LoadTexture_(swrSprite_int_planet_e_rgb));
-        swrSprite_NewSprite(0x4b, swrSprite_LoadTexture_(swrSprite_int_planet_f_rgb));
-        swrSprite_NewSprite(0x4c, swrSprite_LoadTexture_(swrSprite_int_planet_j_rgb));
+        swrSprite_NewSprite(0x45, swrSprite_LoadTextureById(swrSprite_int_planet_tat_rgb));
+        swrSprite_NewSprite(0x46, swrSprite_LoadTextureById(swrSprite_int_planet_a_rgb));
+        swrSprite_NewSprite(0x47, swrSprite_LoadTextureById(swrSprite_int_planet_b_rgb));
+        swrSprite_NewSprite(0x48, swrSprite_LoadTextureById(swrSprite_int_planet_c_rgb));
+        swrSprite_NewSprite(0x49, swrSprite_LoadTextureById(swrSprite_int_planet_d_rgb));
+        swrSprite_NewSprite(0x4a, swrSprite_LoadTextureById(swrSprite_int_planet_e_rgb));
+        swrSprite_NewSprite(0x4b, swrSprite_LoadTextureById(swrSprite_int_planet_f_rgb));
+        swrSprite_NewSprite(0x4c, swrSprite_LoadTextureById(swrSprite_int_planet_j_rgb));
         swrModel_LoadModelIntoScene(MODELID_coin_part, -1, INGAME_MODELID_coin_part, false);
         swrObjHang_LoadAllPilotSprites();
         swrModel_LoadModelIntoScene(MODELID_flag2_part, -1, INGAME_MODELID_flag2_part, false);
@@ -4297,15 +4297,15 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrModel_LoadPuppet(MODELID_char_npc_bartender_puppet, 0x16, swrObjElmo_KIND_BARTENDER, -1.0f);
         swrModel_LoadPuppet(MODELID_char_npc_jawa_puppet, 0x17, swrObjElmo_KIND_JAWA, -1.0f);
 
-        hang->sprite_whitesquare_rgb = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        hang->sprite_whitesquare_rgb = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
         for (int i = 0; i < 4; i++)
             swrSprite_NewSprite((short)(i + 0x82), hang->sprite_whitesquare_rgb);
-        hang->award_first_rgb = swrSprite_LoadTexture_(swrSprite_award_first_rgb);
-        hang->award_second_rgb = swrSprite_LoadTexture_(swrSprite_award_second_rgb);
-        hang->award_third_rgb = swrSprite_LoadTexture_(swrSprite_award_third_rgb);
-        hang->award_wdw_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_wdw_blue_rgb);
-        hang->award_wdw_select_blue_rgb = swrSprite_LoadTexture_(swrSprite_award_window_ylw_rgb);
-        swrSprite_NewSprite(0x62, swrSprite_LoadTexture_(swrSprite_award_wdw_select_blue_rgb));
+        hang->award_first_rgb = swrSprite_LoadTextureById(swrSprite_award_first_rgb);
+        hang->award_second_rgb = swrSprite_LoadTextureById(swrSprite_award_second_rgb);
+        hang->award_third_rgb = swrSprite_LoadTextureById(swrSprite_award_third_rgb);
+        hang->award_wdw_blue_rgb = swrSprite_LoadTextureById(swrSprite_award_wdw_blue_rgb);
+        hang->award_wdw_select_blue_rgb = swrSprite_LoadTextureById(swrSprite_award_window_ylw_rgb);
+        swrSprite_NewSprite(0x62, swrSprite_LoadTextureById(swrSprite_award_wdw_select_blue_rgb));
         swrSprite_SetFlag(0x62, swrSprite_FLAG_UNK_8000);
         swrSprite_SetColor(0x62, 0x32, 0xff, 0xff, 0xfe);
         swrObjHang_CullElmoAssets(3);
@@ -4368,7 +4368,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrModel_LoadPuppet(MODELID_char_ronto_puppet, 0x14, swrObjElmo_KIND_RONTO, -1.0f);
         break;
     case swrObjHang_STATE_TAUNT_SCENE:
-        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        tex = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
         for (int k = 0; k < 2; k++) {
             swrSprite_NewSprite((short)(k + 0x82), tex);
             pilot = k == 0 ? pods[0] : (char)g_aTrackInfos[hang->track_index].FavoritePilot;
@@ -4387,7 +4387,7 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
         swrModel_LoadModelIntoScene(MODELID_loc_awards_part, -1, INGAME_MODELID_loc_awards_part, false);
         break;
     case swrObjHang_STATE_RESULTS_INTRO:
-        tex = swrSprite_LoadTexture_(swrSprite_whitesquare_rgb);
+        tex = swrSprite_LoadTextureById(swrSprite_whitesquare_rgb);
         for (int k = 0; k < 2; k++)
             swrSprite_NewSprite((short)(k + 0x82), tex);
         loadPodModel((char)g_aTrackInfos[hang->track_index].FavoritePilot, 0);

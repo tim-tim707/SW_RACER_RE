@@ -579,7 +579,7 @@ void swrMain_RunFrame(short flags, short phase)
         swr_noop4();
         swrSound_UpdateDelayedSfx();
         swrSound_UpdateMusic();
-        swrObjJudge_PollPause();
+        swrObjJdge_PollPause();
         if (GetPauseState() == 0) {
             swrModel_UpdateAnimations();
             swrEvent_CallAllF0();

@@ -1389,9 +1389,9 @@ rdClip_face3TSrcLights 0x00df7f80 rdVector4*
 
 rdFont_bStartup 0x00df7fd0 int
 rdFont_bOpen 0x00df7fd4 int
-rdPolyline_aClipVertices 0x00df7fe0 rdVector3[80] # size = gap to rdPolyline_aVerticesCache
+rdPolyLine_aClipVertices 0x00df7fe0 rdVector3[80] # size = gap to rdPolyLine_aVerticesCache
 
-rdPolyline_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
+rdPolyLine_aVerticesCache 0x00df83a0 rdVector3[4] # unk size
 
 rdParticle_aFaceVertices 0x00df8760 rdVector3[4]
 

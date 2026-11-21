@@ -78,7 +78,7 @@
 
 #define swrModel_DoConvertTextureDataToRdMaterial_ADDR (0x00446C20)
 #define swrSprite_LoadTexture_ADDR (0x00446ca0)
-#define swrSprite_LoadTexture__ADDR (0x00446fb0)
+#define swrSprite_LoadTextureById_ADDR (0x00446fb0)
 
 #define swrSprite_SetViewport_ADDR (0x0044EF70)
 #define rdProcEntry_Add2DQuad5_ADDR (0x0044EFA0)
@@ -175,7 +175,7 @@ void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_typ
 void swrModel_DoConvertTextureDataToRdMaterial(swrMaterial** texture_data_ptr, uint8_t** palette_data_ptr);
 
 swrSpriteTexture* swrSprite_LoadTexture(int index);
-swrSpriteTexture* swrSprite_LoadTexture_(swrSprite_NAME index);
+swrSpriteTexture* swrSprite_LoadTextureById(swrSprite_NAME index);
 
 void swrSprite_SetViewport(int minX, int maxX, int minY, int maxY);
 void rdProcEntry_Add2DQuad5(int, int, int, int, int, int, int, int, int, float, float);

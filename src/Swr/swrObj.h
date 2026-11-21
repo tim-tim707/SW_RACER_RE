@@ -50,7 +50,7 @@
 #define swrObjHang_IsExtraSplashPageEnabled_ADDR (0x00440de0)
 #define updateInRaceInputBitsets_ADDR (0x00440df0)
 #define swrModel_SetRaycastIgnoreFacing_ADDR (0x00441010)
-#define swrObjJudge_PollPause_ADDR (0x00445680)
+#define swrObjJdge_PollPause_ADDR (0x00445680)
 #define GetPauseState_ADDR (0x00445690)
 #define GetPauseMenuScrollInOut_ADDR (0x004456a0)
 #define requestPause_ADDR (0x004456B0)
@@ -384,7 +384,7 @@ void updateInRaceInputBitsets(void);
 // material-facing classification during raycasts (callers bracket a raycast with 1 / 0).
 void swrModel_SetRaycastIgnoreFacing(int value);
 
-void swrObjJudge_PollPause();
+void swrObjJdge_PollPause();
 int GetPauseState();
 int requestPause();
 // In-race pause menu (pauseState / pauseDisabled state machine; pairs with the three above):
