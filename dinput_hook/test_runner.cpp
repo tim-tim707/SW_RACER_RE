@@ -644,7 +644,7 @@ static void sample_telemetry(const swrRace *pod) {
                   b != nullptr ? (unsigned) b->vehicle_reaction : 0u, b != nullptr ? (unsigned) b->unk1 : 0u,
                   (unsigned) pod->collisionToggles, swrObjJdge_GetRacerProgress(firstLocalPlayer),
                   pod->engineTemp, pod->surfaceSpeedBonus, pod->surfaceSpeedFactor, pod->surfaceGripFactor,
-                  pod->groundZ, pod->fallTimer, *(const float *) pod->unk4, pod->tiltManualMult);
+                  pod->groundZ, pod->fallTimer, pod->collisionWidth, pod->tiltManualMult);
 
     // The environment: the fog and light the surface under the pod asks for (its behavior) and
     // what the pod's camera-man made of it (swrObjcMan_UpdateTerrainVisuals 0x451a80). Some of the
