@@ -495,7 +495,7 @@ extern "C" bool track_times_DrawCourseInfoRecords(swrObjHang *hang) {
         (have && record.total.run.lap_splits.size() == 1);
 
     // Otherwise the two columns the stock screen draws (swrUI_Front_DrawRecord plus the pilot
-    // blocks in swrRace_CourseInfoMenu), pilot art from the stock sprite slots.
+    // blocks in swrObjHang_CourseInfoMenu), pilot art from the stock sprite slots.
     struct Column {
         int x;
         char *label;
