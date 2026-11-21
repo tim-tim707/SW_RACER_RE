@@ -2979,10 +2979,10 @@ namespace {
     using LD_irp = long double (*)(float *, float *, rdVector3 *);
 
     void run_intersect_ray_plane() {
-        const char *name = "IntersectRayPlane";
-        if (!testable(name, IntersectRayPlane_ADDR))
+        const char *name = "rdMath_IntersectRayPlane";
+        if (!testable(name, rdMath_IntersectRayPlane_ADDR))
             return;
-        const LD_irp retail = (LD_irp) hook_retail_ptr(IntersectRayPlane_ADDR);
+        const LD_irp retail = (LD_irp) hook_retail_ptr(rdMath_IntersectRayPlane_ADDR);
         Stats s;
         stats_init(s, name);
         for (int i = 0; i < VERIFY_ITERATIONS; i++) {
@@ -3000,7 +3000,7 @@ namespace {
             }
             float ray[7] = {o.x, o.y, o.z, d.x, d.y, d.z, next_u32() % 4u ? 1.0e9f : next_float(0.0f, 2.0f)};
             rdVector3 our_p = {-9.0f, -9.0f, -9.0f}, ret_p = our_p;
-            const long double ours = IntersectRayPlane(plane, ray, &our_p);
+            const long double ours = rdMath_IntersectRayPlane(plane, ray, &our_p);
             const long double ret = retail(plane, ray, &ret_p);
             char desc[48];
             std::snprintf(desc, sizeof(desc), "case %d", i);
@@ -3072,9 +3072,9 @@ namespace {
 
     void run_triangle_suite() {
         {
-            const char *name = "ProjectPointOntoPlane";
-            if (testable(name, ProjectPointOntoPlane_ADDR)) {
-                const V_project_plane retail = (V_project_plane) hook_retail_ptr(ProjectPointOntoPlane_ADDR);
+            const char *name = "rdMath_ProjectPointOntoPlane";
+            if (testable(name, rdMath_ProjectPointOntoPlane_ADDR)) {
+                const V_project_plane retail = (V_project_plane) hook_retail_ptr(rdMath_ProjectPointOntoPlane_ADDR);
                 Stats s;
                 stats_init(s, name);
                 for (int i = 0; i < VERIFY_ITERATIONS; i++) {
@@ -3084,7 +3084,7 @@ namespace {
                     float plane[4] = {n.x, n.y, n.z, next_float(-2000.0f, 2000.0f)};
                     rdVector3 pt = random_vec3(i + 3, -2000.0f, 2000.0f);
                     rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
-                    ProjectPointOntoPlane(plane, &pt, &o);
+                    rdMath_ProjectPointOntoPlane(plane, &pt, &o);
                     retail(plane, &pt, &r);
                     char desc[48];
                     std::snprintf(desc, sizeof(desc), "case %d", i);
@@ -3094,9 +3094,9 @@ namespace {
             }
         }
         {
-            const char *name = "ClosestPointOnSegment";
-            if (testable(name, ClosestPointOnSegment_ADDR)) {
-                const V_closest_seg retail = (V_closest_seg) hook_retail_ptr(ClosestPointOnSegment_ADDR);
+            const char *name = "rdMath_ClosestPointOnSegment";
+            if (testable(name, rdMath_ClosestPointOnSegment_ADDR)) {
+                const V_closest_seg retail = (V_closest_seg) hook_retail_ptr(rdMath_ClosestPointOnSegment_ADDR);
                 Stats s;
                 stats_init(s, name);
                 for (int i = 0; i < VERIFY_ITERATIONS; i++) {
@@ -3107,7 +3107,7 @@ namespace {
                     rdVector3 a1 = {a0.x + d.x, a0.y + d.y, a0.z + d.z};
                     rdVector3 pt = near_point(i, a0, a1, a0);
                     rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
-                    ClosestPointOnSegment(&pt, &a0, &a1, &o);
+                    rdMath_ClosestPointOnSegment(&pt, &a0, &a1, &o);
                     retail(&pt, &a0, &a1, &r);
                     char desc[48];
                     std::snprintf(desc, sizeof(desc), "case %d", i);
@@ -3718,7 +3718,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
 
     std::fprintf(verify_log, "\nswrUtils / swrObjHang\n");
     run_rand_float();
-    run_f_ff("swrObjHang_CosineEase", swrObjHang_EaseSine_Maybe_ADDR, swrObjHang_CosineEase,
+    run_f_ff("swrObjHang_CosineEase", swrObjHang_CosineEase_ADDR, swrObjHang_CosineEase,
              -10.0f, 10.0f, 0);
     std::fprintf(verify_log, "\nST0 callers\n");
     run_add_light();
