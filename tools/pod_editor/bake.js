@@ -399,6 +399,35 @@ function addExtraCables(m, log) {
   }
 }
 
+// A short fingerprint of a model's mask + data: "<mask bytes>.<data bytes>-<FNV-1a 32>" (hex). The mod
+// computes the same (model_fingerprint, model_replacement.cpp); a baked model is stamped with its base
+// model's, so the mod can tell when a model built on other game data doesn't fit this game.
+function fingerprint(mask, data) {
+  let h = 2166136261 >>> 0;
+  for (const a of [mask, data]) for (let i = 0; i < a.length; i++) { h ^= a[i]; h = Math.imul(h, 16777619) >>> 0; }
+  return mask.length.toString(16) + '.' + data.length.toString(16) + '-' + h.toString(16).padStart(8, '0');
+}
+// A model block (the out_modelblock.bin layout: [count][count x (mask offset, model offset)][end],
+// then each model's mask + data) holding only the given models, { id: { mask, data } }: the models a
+// pod export carries ("baseModels"), so Build bakes against exactly what the export was made from.
+function blockFromBase(models) {
+  const ids = Object.keys(models).map(Number), count = ids.length ? Math.max(...ids) + 1 : 0;
+  let size = 4 + 8 * count + 4;
+  for (const id of ids) size += models[id].mask.length + models[id].data.length;
+  const out = new Uint8Array(size), dv = new DataView(out.buffer);
+  dv.setUint32(0, count);
+  let pos = 4 + 8 * count + 4;
+  for (let id = 0; id < count; id++) {
+    const m = models[id];
+    dv.setUint32(4 + 8 * id, pos);
+    if (m) { out.set(m.mask, pos); pos += m.mask.length; }
+    dv.setUint32(8 + 8 * id, pos);
+    if (m) { out.set(m.data, pos); pos += m.data.length; }
+  }
+  dv.setUint32(4 + 8 * count, pos);
+  return out;
+}
+
 // Every pod model's meshes (file offsets), once per model block.
 const podIndexCache = new WeakMap();
 function podIndex(block) {
@@ -433,6 +462,15 @@ function resolveKeys(block, keys, exportKeys = []) {
     if (best) { const [id, sh] = best.split('/').map(Number); out.set(k, { model: id, off: pk.off - sh }); }
   }
   return out;
+}
+// The export keys ("<model>:<offset>") whose mesh is not among that model's meshes in this block: an
+// export made from other model data than the block (a baked or edited model was loaded in game).
+function exportMismatch(block, keys) {
+  const idx = podIndex(block);
+  return keys.filter(k => k.includes(':')).filter(k => {
+    const { model, off } = parseKey(k), e = idx.get(model);
+    return !!e && !e.meshes.has(off);// (models that aren't pod models, e.g. effects, aren't checked)
+  });
 }
 // The pod's models (from its export keys): { alt, pod } block ids (pod = the 'Podd' model).
 function podModels(block, exportKeys) {
@@ -502,9 +540,15 @@ function bakePod(block, editsText, exportKeys = []) {
     const r = bakeModel(m, mid, groups, mid === cableModel && extraCables, log, mid === cableModel ? trails : [],
                         hidesPerModel.get(mid) || new Map(), mid === podId ? altAnims : []);
     if (r.altSpins) altAnims.push(...r.altSpins);
-    models.push({ modelId: mid, ...r });
+    models.push({ modelId: mid, baseFp: fingerprint(...readBlockEntry(block, mid)), ...r });
   }
   return { models, resolved, log };
+}
+
+// A mesh the stock model doesn't have where the export put it: almost always an export made while
+// this pod's baked model was loaded in game (its meshes sit at other offsets).
+function notInGroup(mid, mesh) {
+  return `Mesh ${mid + ':' + hex(mesh)} is not in the stock model ${mid}. The pod export was most likely made while this pod's baked model was loaded in game: delete replacement_models/${mid}.bin in the SWEP1R Pod Editor folder on your Desktop, restart the game, export the pod again, then open your edits on the new export.`;
 }
 
 // One model: its spin groups (meshes by file offset) and maybe the extra cable pair.
@@ -519,7 +563,7 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   // 0) Hidden faces leave their meshes for good. Spin selections in the same meshes are renumbered
   // to the faces that are left.
   for (const [mesh, hid] of hides) {
-    if (!meshToGroup.has(mesh)) throw new BakeError(`Mesh ${mid + ':' + hex(mesh)} is not in a mesh group of this model.`);
+    if (!meshToGroup.has(mesh)) throw new BakeError(notInGroup(mid, mesh));
     const { tris, hasNormals } = decodeMesh(m, mesh);
     if ([...hid].some(t => t < 0 || t >= tris.length))
       throw new BakeError(`Mesh ${mid + ':' + hex(mesh)}: the hide group names faces past its ${tris.length} faces (export from different game data?).`);
@@ -542,10 +586,10 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   spinGroups.forEach((sg, si) => {
     const offs = sg.meshes;
     for (const [mesh, tris] of offs) {
-      if (!meshToGroup.has(mesh)) throw new BakeError(`Mesh ${mid + ':' + hex(mesh)} is not in a mesh group of this model.`);
+      if (!meshToGroup.has(mesh)) throw new BakeError(notInGroup(mid, mesh));
       const total = m.meshTriangles(mesh);
       if ([...tris].some(t => t < 0 || t >= total))
-        throw new BakeError(`Mesh ${mid + ':' + hex(mesh)}: the spin group names faces past its ${total} faces (export from different game data?).`);
+        throw new BakeError(`Mesh ${mid + ':' + hex(mesh)}: the spin group names faces past its ${total} faces in the stock model, so the pod export doesn't match the game's stock models. It was most likely made while a baked model of this pod was loaded (yours, or the export came from another PC that had one): delete replacement_models/${mid}.bin in the SWEP1R Pod Editor folder on your Desktop, restart the game, export the pod yourself, then select the faces again on that export.`);
       if (meshOwner.has(mesh) && meshOwner.get(mesh) !== si)
         throw new BakeError(`Mesh ${mid + ':' + hex(mesh)} has faces in two spin groups: give each mesh's faces to one spin group.`);
       meshOwner.set(mesh, si);
@@ -767,5 +811,6 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   return { bytes: out, keyShift: shift, triRemap, spinNodes, trailNodes, altSpins };
 }
 
-(typeof window !== 'undefined' ? window : globalThis).PodBake = { bakePod, resolveKeys, podModels, BakeError, Model, readBlockEntry };
+(typeof window !== 'undefined' ? window : globalThis).PodBake = { bakePod, resolveKeys, podModels, BakeError, Model, readBlockEntry,
+                                                                 fingerprint, blockFromBase, exportMismatch };
 })();

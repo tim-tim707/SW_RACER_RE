@@ -3,9 +3,11 @@
 #include "custom_tracks.h"// SWR_MODELBLOCK_PATH_PTR
 #include "game_deltas/pod_edits.h"// pod_workspace (the pod editor's baked models)
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
 #include <regex>
 #include <windows.h>// MoveFileExW
 #include <string>
@@ -24,6 +26,7 @@ namespace fs = std::filesystem;
 
 
 static std::map<int, fs::path> replacement_models;
+static std::map<int, std::string> skipped_replacements;
 static bool loaded_replacement_models_at_least_once = false;
 
 static const char *saved_modelblock_path = nullptr;
@@ -53,6 +56,7 @@ static std::vector<fs::file_time_type> folder_stamps() {
 void refresh_replacement_models() {
     loaded_replacement_models_at_least_once = true;
     replacement_models.clear();
+    skipped_replacements.clear();
     scanned_stamps = folder_stamps();
 
     const static std::regex file_regex("([0-9]+)\\.bin");
@@ -68,6 +72,28 @@ void refresh_replacement_models() {
             std::smatch match;
             if (std::regex_match(filename, match, file_regex)) {
                 const int id = std::stoi(match.str(1));
+                // A model built by the pod editor carries <id>.base: the fingerprint of the base model it
+                // was built from. If this game's base model for that id is different (the file came from
+                // other game data), it would load as garbage or not at all: leave it out and say so.
+                {
+                    std::ifstream stamp(fs::path(entry.path()).replace_extension(L".base"));
+                    std::string want;
+                    if (stamp && std::getline(stamp, want)) {
+                        while (!want.empty() && (want.back() == '\r' || want.back() == ' '))
+                            want.pop_back();
+                        std::vector<uint8_t> mask, data;
+                        if (!want.empty() && read_base_model(id, mask, data)) {
+                            const std::string have = model_fingerprint(mask, data);
+                            if (have != want) {
+                                skipped_replacements[id] = "built on a different version of model " + std::to_string(id) +
+                                                           " (" + want + ") than this game has (" + have + ")";
+                                fprintf(hook_log, "[model_replacement] ignoring %ls: %s\n", entry.path().c_str(),
+                                        skipped_replacements[id].c_str());
+                                continue;
+                            }
+                        }
+                    }
+                }
                 replacement_models[id] = entry.path();
                 fprintf(hook_log, "[model_replacement] found replacement for model %d: %ls\n", id,
                         entry.path().c_str());
@@ -147,13 +173,27 @@ bool try_prepare_loose_model(MODELID *model_id) {
     // write the assembled block next to the replacements, using a relative path under the
     // game dir (matches how custom tracks point the loader at a file, and avoids any
     // absolute-path quirks in the game's old CRT fopen).
+    // The folder may not exist (a game folder without the mod's assets/ folder): make it.
     temp_block_path_storage = "./assets/replacement_models/.loose_model_cache.bin";
+    std::error_code dir_ec;
+    fs::create_directories(fs::path(temp_block_path_storage).parent_path(), dir_ec);
     FILE *out = fopen(temp_block_path_storage.c_str(), "wb");
     if (!out) {
-        fprintf(hook_log, "[model_replacement] could not write temp block %s\n",
-                temp_block_path_storage.c_str());
-        fflush(hook_log);
-        return false;
+        const int err = errno;
+        fprintf(hook_log, "[model_replacement] could not write temp block %s (%s)\n", temp_block_path_storage.c_str(),
+                strerror(err));
+        // Still no (a read-only game folder?): the pod editor's workspace on the Desktop, by full path.
+        if (!pod_workspace().empty()) {
+            temp_block_path_storage = (pod_workspace() / L".loose_model_cache.bin").generic_string();
+            out = fopen(temp_block_path_storage.c_str(), "wb");
+            if (out)
+                fprintf(hook_log, "[model_replacement] using %s for the temp block instead\n", temp_block_path_storage.c_str());
+        }
+        if (!out) {
+            fprintf(hook_log, "[model_replacement] could not write the temp block anywhere: model replacement is off\n");
+            fflush(hook_log);
+            return false;
+        }
     }
     fwrite(block.data(), 1, block.size(), out);
     fclose(out);
@@ -219,6 +259,51 @@ namespace {
         return true;
     }
 }// namespace
+
+bool read_base_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data) {
+    std::error_code ec;
+    const char *path = fs::exists(MODELBLOCK_ORIGINAL_PATH, ec) ? MODELBLOCK_ORIGINAL_PATH : MODELBLOCK_PATH;
+    FILE *f = fopen(path, "rb");
+    if (!f)
+        return false;
+    bool ok = false;
+    uint8_t head[4];
+    if (id >= 0 && fread(head, 1, 4, f) == 4 && (uint32_t) id < be32(head)) {
+        uint8_t w[12];
+        if (fseek(f, 4 + 8 * id, SEEK_SET) == 0 && fread(w, 1, 12, f) == 12) {
+            const uint32_t mask_off = be32(w), model_off = be32(w + 4), end = be32(w + 8);
+            if (model_off >= mask_off && end >= model_off && end - mask_off < (64u << 20)) {
+                mask.resize(model_off - mask_off);
+                data.resize(end - model_off);
+                ok = fseek(f, (long) mask_off, SEEK_SET) == 0 && fread(mask.data(), 1, mask.size(), f) == mask.size() &&
+                     fread(data.data(), 1, data.size(), f) == data.size();
+            }
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
+std::string model_fingerprint(const std::vector<uint8_t> &mask, const std::vector<uint8_t> &data) {
+    uint32_t h = 2166136261u;
+    for (uint8_t b: mask) {
+        h ^= b;
+        h *= 16777619u;
+    }
+    for (uint8_t b: data) {
+        h ^= b;
+        h *= 16777619u;
+    }
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%x.%x-%08x", (unsigned) mask.size(), (unsigned) data.size(), h);
+    return buf;
+}
+
+const std::map<int, std::string> &skipped_replacement_models() {
+    if (!loaded_replacement_models_at_least_once || folder_stamps() != scanned_stamps)
+        refresh_replacement_models();
+    return skipped_replacements;
+}
 
 const std::map<int, fs::path> &current_replacement_models() {
     if (!loaded_replacement_models_at_least_once || folder_stamps() != scanned_stamps)

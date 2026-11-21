@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -171,6 +172,18 @@ namespace {
             return;
         }
         fprintf(f, "{\"format\":\"swr-pod-export-1\",\"model\":\"%s\",", name);
+        // Baked models in use while exporting: their meshes sit at other offsets than the stock
+        // models the editor's Build reads, so the editor warns and won't build from this export.
+        {
+            fputs("\"baked\":[", f);
+            bool first = true;
+            for (const auto& [id, path]: current_replacement_models()) {
+                fprintf(f, "%s%d", first ? "" : ",", id);
+                first = false;
+            }
+            std::error_code bec;
+            fprintf(f, "],\"bakedBlock\":%s,", std::filesystem::exists(MODELBLOCK_ORIGINAL_PATH, bec) ? "true" : "false");
+        }
         auto local = [&](const rdMatrix44& m, float out[3]) {
             const float p[3] = {m.vD.x, m.vD.y, m.vD.z};
             xf(inv_pod, p, out);
@@ -235,6 +248,26 @@ namespace {
 
         // Meshes: positions in the pod's frame, plus the mesh->pod matrix (row-vector convention:
         // p_pod = p_mesh * localToPod) so the editor can store pivots in the mesh's own frame.
+        // The base models (the stock block's entries, as the editor's Build reads them) the meshes
+        // below sit in: Build bakes against these, so it never disagrees with the export.
+        {
+            std::set<int> ids;
+            for (const ExMesh& m: g_ex)
+                if (m.file_off >= 0)
+                    ids.insert(m.model);
+            fputs("\"baseModels\":{", f);
+            bool first_base = true;
+            for (const int id: ids) {
+                std::vector<uint8_t> mask, data;
+                if (!read_base_model(id, mask, data))
+                    continue;
+                const std::string fp = model_fingerprint(mask, data);
+                fprintf(f, "%s\"%d\":{\"fp\":\"%s\",\"mask\":\"%s\",\"data\":\"%s\"}", first_base ? "" : ",", id,
+                        fp.c_str(), base64(mask.data(), mask.size()).c_str(), base64(data.data(), data.size()).c_str());
+                first_base = false;
+            }
+            fputs("},", f);
+        }
         fputs("\"meshes\":[", f);
         for (size_t i = 0; i < g_ex.size(); i++) {
             const ExMesh& m = g_ex[i];
@@ -311,6 +344,9 @@ namespace {
         std::error_code ec;
         const bool written = std::filesystem::exists(MODELBLOCK_ORIGINAL_PATH, ec);
         ImGui::TextWrapped("Baked / replacement models: %s", repl.empty() ? "none" : ids.c_str());
+        ImGui::TextDisabled("Loaded: %zu baked pod animation(s)", pod_edits_baked_anim_count());
+        for (const auto& [id, why]: skipped_replacement_models())
+            ImGui::TextColored(ImVec4(1.0f, 0.65f, 0.3f, 1.0f), "Model %d ignored: %s", id, why.c_str());
         ImGui::TextDisabled(written ? "out_modelblock.bin holds written models (stock copy kept)."
                                     : "out_modelblock.bin is the stock one.");
         if (ImGui::Button("Write into out_modelblock.bin")) {
@@ -426,8 +462,15 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
         e += 2 + e[1].value;
     if (e->value != kTagAnim)
         return;
-    for (e++; e->animation != nullptr; e++)
+    int n = 0;
+    for (e++; e->animation != nullptr; e++, n++)
         g_pod_anims.push_back({e->animation, asset_begin});
+    if (n > 0)
+        fprintf(hook_log, "[PodEdits] pod model with %d baked animation(s) loaded\n", n);
+}
+
+size_t pod_edits_baked_anim_count() {
+    return g_pod_anims.size();
 }
 
 void pod_edits_drop_models_from(const char* asset_begin) {

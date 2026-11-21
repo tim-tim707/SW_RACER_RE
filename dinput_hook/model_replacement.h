@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <map>
+#include <string>
+#include <vector>
 
 #include "types.h"
 
@@ -47,3 +50,16 @@ bool restore_original_modelblock(std::string &msg);
 
 // The replacement models found (model id -> file), rescanned when their folders change.
 const std::map<int, std::filesystem::path> &current_replacement_models();
+
+// Stock model `id` as the pod editor's Build reads it: the kept stock block
+// (out_modelblock.original.bin) if there is one, else the game's block. False if unreadable.
+bool read_base_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data);
+
+// A short fingerprint of a model's mask + data ("<mask bytes>.<data bytes>-<FNV-1a>", hex). Build
+// stamps each model it bakes with its base model's, in <id>.base next to <id>.bin; the pod editor's
+// JavaScript (bake.js, fingerprint) computes the same.
+std::string model_fingerprint(const std::vector<uint8_t> &mask, const std::vector<uint8_t> &data);
+
+// Replacement models left out because their <id>.base stamp doesn't match this game's base model
+// for that id (built on other game data, e.g. sent over by another player): id -> why.
+const std::map<int, std::string> &skipped_replacement_models();

@@ -508,6 +508,16 @@ def add_extra_cables(m):
         print(f'  extra cable: part slot {dst_slot} = copy of cable {src_slot} ({src:#x} -> {node:#x}, under {owner:#x})')
 
 
+def fingerprint(mask, data):
+    """A short fingerprint of a model's mask + data ("<mask bytes>.<data bytes>-<FNV-1a 32>", hex), the
+    same as bake.js and the mod compute. A baked model is stamped with its base model's (<id>.base),
+    so the mod can tell when a model built on other game data doesn't fit this game."""
+    h = 2166136261
+    for b in bytes(mask) + bytes(data):
+        h = ((h ^ b) * 16777619) & 0xFFFFFFFF
+    return f'{len(mask):x}.{len(data):x}-{h:08x}'
+
+
 def read_block_entry(block, model_id):
     mask_off, model_off, end = struct.unpack_from('>III', block, 8 * model_id + 4)
     return block[mask_off:model_off], block[model_off:end]
@@ -669,6 +679,7 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
         open(path, 'wb').write(out)
         print(f'wrote {path} ({len(out)} bytes)')
         written.append(path)
+        open(os.path.join(out_dir, f'{mid}.base'), 'w').write(fingerprint(*read_block_entry(block, mid)) + '\n')
         fmt = lambda v: f'{round(v * 1e4) / 1e4:g}'
         if bake_model.trail_nodes:
             print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod places them:')

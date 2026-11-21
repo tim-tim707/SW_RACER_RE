@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <vector>
 
@@ -33,6 +34,7 @@ void pod_edits_export_end_frame(bool in_race);
 // drops them from the scene's animation list after the pods load) and switched on, and outside races
 // switched off (no spinning in the racer-select preview).
 void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end);// after a model loads
+size_t pod_edits_baked_anim_count();                      // baked pod animations loaded (for the panel)
 void pod_edits_drop_models_from(const char* asset_begin);// the asset buffer rewound
 void pod_edits_animations_frame(bool in_race);           // once per frame, before the scene is drawn
 

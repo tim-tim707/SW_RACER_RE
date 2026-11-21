@@ -147,6 +147,8 @@
     </div>
     <div id="buildResult" style="display:none; border-radius:6px; padding:6px 8px; margin:4px 0; font-size:12px; white-space:pre-wrap"></div>
     <div class="row">
+      <button id="btnUndo" disabled title="Undo (Ctrl+Z)">↶ Undo</button>
+      <button id="btnRedo" disabled title="Redo (Ctrl+Y or Ctrl+Shift+Z)">↷ Redo</button>
       <button id="btnSave" disabled>Save edits (.txt)</button>
       <button id="btnCopy" disabled>Copy</button>
     </div>
@@ -1107,7 +1109,11 @@ function loadExport(json) {
   fxInit(json);
   renderLayout(); renderFx();
   refreshAll(); markDirty(false);
+  historyReset();
+  prepareBase(json);
   setStatus('Loaded ' + json.model);
+  const bw = bakedExportWarning(json);
+  if (bw) { setStatus(bw); buildReport('error', bw); }
 }
 
 function buildPartsList() {
@@ -1617,11 +1623,55 @@ function ranges(set) {
   for (let i = 0; i < a.length; ) { let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; out.push(a[i] === a[j] ? `${a[i]}` : `${a[i]}-${a[j]}`); i = j + 1; }
   return out.join(',');
 }
+// ---- face signatures: edits find their faces by shape, not by number ---------------------------------
+// A face's number depends on the exact model file it was made from, and so does a mesh's file offset
+// (a baked or edited copy of the pod shifts both). So the edits file also carries each edited face's
+// shape: a hash of its corner positions in the mesh's own frame, and a hash of the whole mesh. On
+// load, edits whose numbers don't fit this export are matched up by those hashes instead.
+const hx8 = n => (n >>> 0).toString(16).padStart(8, '0');
+function faceHash(base, t) {
+  const o = t * 9, q = v => Math.round(v * 100) | 0, vs = [];
+  for (let k = 0; k < 3; k++) vs.push([q(base[o + 3 * k]), q(base[o + 3 * k + 1]), q(base[o + 3 * k + 2])]);
+  vs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);// corner order doesn't matter
+  let h = 2166136261 >>> 0;
+  for (const v of vs) for (const c of v) h = Math.imul(h ^ c, 16777619) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  return h >>> 0;
+}
+function sigOf(mi) {
+  const m = state.meshes[mi];
+  if (m.sig) return m.sig;
+  const faces = new Array(m.tris);
+  for (let t = 0; t < m.tris; t++) faces[t] = faceHash(m.base, t);
+  let h = (2166136261 ^ m.tris) >>> 0;
+  for (const f of faces.slice().sort((a, b) => a - b)) h = Math.imul(h ^ f, 16777619) >>> 0;
+  return m.sig = { faces, mesh: hx8(h) };
+}
+function facesigLine(m, mi, set) {
+  const sig = sigOf(mi);
+  return `facesig ${m.key} ${sig.mesh} ${[...set].filter(f => f < m.tris).sort((a, b) => a - b).map(f => f + ':' + hx8(sig.faces[f])).join(',')}`;
+}
+// The export's own copies of the pod's base models (the mod puts them in the export): Build bakes
+// against exactly these, and their fingerprints go into the edits and the built models' stamps.
+function prepareBase(json) {
+  state.baseBlock = null; state.baseFps = null; state.baseFpBad = new Set();
+  if (!json.baseModels || !window.PodBake) return;
+  const dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0)), models = {}, fps = {};
+  try {
+    for (const [id, b] of Object.entries(json.baseModels)) {
+      const mask = dec(b.mask), data = dec(b.data), fp = window.PodBake.fingerprint(mask, data);
+      models[id] = { mask, data }; fps[id] = fp;
+      if (b.fp && b.fp !== fp) { state.baseFpBad.add(String(id)); console.warn(`model ${id}: the export's fingerprint ${b.fp} differs from the one computed here (${fp})`); }
+    }
+    state.baseBlock = window.PodBake.blockFromBase(models); state.baseFps = fps;
+  } catch (err) { console.warn('could not read the export\'s base models', err); }
+}
 function buildEditsText() {
   const p = state.pod; const L = [];
   L.push(`# SW_RACER_RE pod edits for ${p.model} (made with tools/pod_editor/pod_editor.html)`);
   L.push(`# Put this file in <game>/assets/pod_edits/${p.model}.txt`);
   L.push(`# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)`);
+  for (const [id, fp] of Object.entries(state.baseFps || {})) L.push(`basemodel ${id} ${fp}`);
   for (const g of state.groups) {
     L.push(`# ${g.type}: ${g.name}`);
     for (const [mi, set] of g.tris) {
@@ -1647,6 +1697,7 @@ function buildEditsText() {
         // same way in game).
         L.push(`spin ${m.key} ${fmt(g.rpm * meshSense(m))} ${pv.map(fmt).join(' ')} ${ax.map(fmt).join(' ')} ${ranges(set)}${tail}`);
       } else L.push(`hide ${m.key} ${ranges(set)}`);
+      L.push(facesigLine(m, mi, set));
     }
   }
   if (RUNTIME_EDITS) {
@@ -1727,11 +1778,62 @@ function loadEdits(text) {
   state.layout.pairMirror = [true, true];
   fxInit(state.pod);
   const fxSeen = {};
-  let name = null, missing = 0;
+  let name = null, missing = 0, gi = -1, rematched = 0, droppedFaces = 0;
+  // Face signatures ("facesig") and base model stamps ("basemodel") the edits were saved with.
+  const sigs = new Map(), fileBase = new Map();
+  {
+    let g0 = -1;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (line.startsWith('#')) { if (/^#\s*(spin|hide):/.test(line)) g0++; continue; }
+      const t = line.split(/\s+/);
+      if (t[0] === 'facesig' && t.length >= 4) {
+        const faces = new Map();
+        for (const pr of t[3].split(',')) { const [i, h] = pr.split(':'); if (h !== undefined) faces.set(+i, h); }
+        const k = g0 + '|' + t[1].toLowerCase(), old = sigs.get(k);
+        if (old) for (const [i, h] of faces) old.faces.set(i, h); else sigs.set(k, { mesh: t[2], faces });
+      } else if (t[0] === 'basemodel' && t.length >= 3) fileBase.set(t[1], t[2]);
+    }
+  }
+  const keyOff = k => parseInt(k.slice(k.indexOf(':') + 1), 16);
+  // The faces of one spin / hide line in this export: where its numbers say if they fit (each face's
+  // shape agrees with the signature), else wherever that shape is -- the mesh with the same shape (or,
+  // failing that, the one holding most of the faces) and its faces by their shapes.
+  const resolveLine = (key, faces) => {
+    key = key.toLowerCase();
+    const mi0 = byKey.get(key), sig = sigs.get(gi + '|' + key);
+    if (!sig) return mi0 === undefined ? null : { mi: mi0, faces };
+    if (mi0 !== undefined) {
+      const fh = sigOf(mi0).faces;
+      if ([...faces].every(f => f < fh.length && hx8(fh[f]) === sig.faces.get(f))) return { mi: mi0, faces };
+    }
+    let cand = state.meshes.map((_, i) => i).filter(i => sigOf(i).mesh === sig.mesh);
+    if (!cand.length) {
+      const want = new Set(sig.faces.values());
+      let best = -1, bestN = 0;
+      state.meshes.forEach((_, i) => { let n = 0; for (const h of sigOf(i).faces) if (want.has(hx8(h))) n++; if (n > bestN) { bestN = n; best = i; } });
+      if (best >= 0 && bestN >= Math.max(1, Math.ceil(0.6 * sig.faces.size))) cand = [best];
+    }
+    if (!cand.length) return null;
+    const model = key.split(':')[0], same = cand.filter(i => state.meshes[i].key.split(':')[0] === model);
+    const pool = (same.length ? same : cand).sort((a, b) => Math.abs(keyOff(state.meshes[a].key) - keyOff(key)) - Math.abs(keyOff(state.meshes[b].key) - keyOff(key)));
+    const mi = pool[0], byHash = new Map();
+    sigOf(mi).faces.forEach((h, i) => { const k = hx8(h); if (!byHash.has(k)) byHash.set(k, []); byHash.get(k).push(i); });
+    const used = new Set(), out = new Set();
+    let drop = 0;
+    for (const f of [...faces].sort((a, b) => a - b)) {
+      const idx = (byHash.get(sig.faces.get(f)) || []).find(i => !used.has(i));
+      if (idx === undefined) drop++; else { used.add(idx); out.add(idx); }
+    }
+    if (!out.size) return null;
+    rematched++; droppedFaces += drop;
+    return { mi, faces: out };
+  };
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
-    if (line.startsWith('#')) { const m = line.match(/^#\s*(spin|hide):\s*(.*)$/); if (m) name = m[2]; continue; }
+    if (line.startsWith('#')) { const m = line.match(/^#\s*(spin|hide):\s*(.*)$/); if (m) { name = m[2]; gi++; } continue; }
     const t = line.split(/\s+/); if (!t[0]) continue;
+    if (t[0] === 'facesig' || t[0] === 'basemodel') continue;
     if (t[0] === 'cables' && t[1] === 'extra') { state.layout.extra = true; state.layout.fromText = true; continue; }
     if (t[0] === 'exhaustscale') {
       const v = t.slice(1, 4).map(Number);
@@ -1788,7 +1890,11 @@ function loadEdits(text) {
       if (LAYOUT[k] && v.length === 3 && v.every(Number.isFinite)) { state.layout.cur[k] = v; state.layout.set[k] = true; state.layout.fromText = true; }
       continue;
     }
-    const mi = byKey.get((t[1] || '').toLowerCase());
+    let mi = byKey.get((t[1] || '').toLowerCase()), lineFaces = null;
+    if (t[0] === 'spin' || t[0] === 'hide') {
+      const r = resolveLine(t[1] || '', parseRanges(t[0] === 'spin' ? t[9] : t[2]));
+      if (r) { mi = r.mi; lineFaces = r.faces; } else mi = undefined;
+    }
     if (mi === undefined) { missing++; continue; }
     const m = state.meshes[mi];
     if (t[0] === 'spin') {
@@ -1817,11 +1923,11 @@ function loadEdits(text) {
           g.cut.angle = +(Math.atan2(dot(cut.u, v), dot(cut.u, u)) * 180 / Math.PI).toFixed(2);
         }
       }
-      g.tris.set(mi, parseRanges(t[9]));
+      g.tris.set(mi, lineFaces);
     } else if (t[0] === 'hide') {
       let g = state.groups.find(g => g.type === 'hide' && g.name === name);
       if (!g) state.groups.push(g = { id: state.nextId++, type: 'hide', name: name || 'Hide ' + (state.groups.length + 1), tris: new Map(), pivot: [0,0,0], axis: [0,0,1], rpm: 0 });
-      g.tris.set(mi, parseRanges(t[2]));
+      g.tris.set(mi, lineFaces);
     }
   }
   state.active = state.groups.length ? 0 : -1;
@@ -1835,16 +1941,84 @@ function loadEdits(text) {
   }
   renderLayout(); drawLayout(); renderFx(); drawFx();
   refreshAll(); markDirty(false);
-  setStatus(`Loaded edits: ${state.groups.length} groups` + (missing ? ` · ${missing} lines for meshes not in this export were skipped` : ''));
+  // What was different between these edits and this export, said plainly.
+  const diffBase = [...fileBase].filter(([id, fp]) => state.baseFps && state.baseFps[id] && state.baseFps[id] !== fp).map(([id]) => id);
+  setStatus(`Loaded edits: ${state.groups.length} groups` +
+    (rematched ? ` · ${rematched} line${rematched > 1 ? 's' : ''} matched up by shape (the faces are numbered differently in this export)` : '') +
+    (droppedFaces ? ` · ${droppedFaces} face${droppedFaces > 1 ? 's' : ''} had no match` : '') +
+    (missing ? ` · ${missing} line${missing > 1 ? 's' : ''} could not be placed: no mesh of that shape in this export, so it is another version of this pod than the edits were made on` : '') +
+    (diffBase.length && (missing || rematched) ? ` (model ${diffBase.join(', ')} differs)` : ''));
 }
 
 let dirty = false;
 function markDirty(v = true) {
   dirty = v;
+  if (v) historySchedule();
   document.getElementById('btnSave').disabled = !state.pod;
   document.getElementById('btnCopy').disabled = !state.pod;
   document.getElementById('btnBuild').disabled = !state.pod;
 }
+// ---- undo / redo: snapshots of the edits (the same text Save writes), taken once a change settles
+// (a drag or a typed value), and loaded back with loadEdits.
+const editHistory = { list: [], at: -1, timer: 0, muted: false, max: 200 };
+const anyDragging = () => moverDragging || layoutDragging || fxDragging;
+function historyButtons() {
+  document.getElementById('btnUndo').disabled = !(editHistory.at > 0 || editHistory.timer);
+  document.getElementById('btnRedo').disabled = !(editHistory.at < editHistory.list.length - 1);
+}
+function historyReset() {
+  clearTimeout(editHistory.timer); editHistory.timer = 0;
+  editHistory.list = state.pod ? [buildEditsText()] : []; editHistory.at = editHistory.list.length - 1;
+  historyButtons();
+}
+function historyCommit() {
+  clearTimeout(editHistory.timer); editHistory.timer = 0;
+  if (!state.pod || editHistory.at < 0) return;
+  const text = buildEditsText();
+  if (text !== editHistory.list[editHistory.at]) {
+    editHistory.list.length = editHistory.at + 1;// a new change drops the redo steps
+    editHistory.list.push(text);
+    if (editHistory.list.length > editHistory.max) editHistory.list.shift();
+    editHistory.at = editHistory.list.length - 1;
+  }
+  historyButtons();
+}
+function historySchedule() {
+  if (editHistory.muted || editHistory.at < 0) return;
+  clearTimeout(editHistory.timer);
+  const tick = () => { if (anyDragging()) editHistory.timer = setTimeout(tick, 150); else historyCommit(); };
+  editHistory.timer = setTimeout(tick, 250);
+  historyButtons();
+}
+function historyGo(step) {
+  if (!state.pod || anyDragging()) return;
+  if (editHistory.timer) historyCommit();// a change still settling counts as a step first
+  const to = editHistory.at + step;
+  if (to < 0 || to >= editHistory.list.length) return;
+  const active = state.active;
+  editHistory.muted = true;
+  try {
+    loadEdits(editHistory.list[to]);
+    editHistory.at = to;
+    if (active >= 0 && active < state.groups.length) state.active = active;
+    refreshAll();
+    markDirty(true);
+  } finally { editHistory.muted = false; }
+  historyButtons();
+  setStatus(`${step < 0 ? 'Undo' : 'Redo'} (${editHistory.at} of ${editHistory.list.length - 1})`);
+}
+document.getElementById('btnUndo').onclick = () => historyGo(-1);
+document.getElementById('btnRedo').onclick = () => historyGo(1);
+window.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k !== 'z' && k !== 'y') return;
+  // A text / number box keeps its own undo while it is being typed in.
+  const t = e.target;
+  if (t && (t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'range'].includes(t.type)) || t.isContentEditable)) return;
+  e.preventDefault();
+  historyGo(k === 'y' || e.shiftKey ? 1 : -1);
+});
 document.getElementById('btnSave').onclick = () => {
   const blob = new Blob([buildEditsText()], { type: 'text/plain' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = state.pod.model + '.txt'; a.click();
@@ -1953,18 +2127,45 @@ function buildReport(kind, text, details) {
   box.textContent = text + (details && details.length ? '\n\n' + details.join('\n') : '');
   setStatus(text);
 }
+// An export made while this pod's baked models were loaded in game: its meshes are at the baked
+// models' offsets, which the stock models Build reads don't have.
+function bakedExportWarning(json) {
+  if (!json) return null;
+  const ids = new Set(json.meshes.map(m => String(m.key).split(':')[0]));
+  const baked = (json.baked || []).filter(id => ids.has(String(id)));
+  if (!baked.length && !json.bakedBlock) {
+    // Older mods didn't record baked models: the export's own base models say if its meshes fit.
+    if (state.baseBlock && window.PodBake) {
+      const keys = json.meshes.map(m => String(m.key)), miss = window.PodBake.exportMismatch(state.baseBlock, keys);
+      if (miss.length > Math.max(2, keys.length * 0.2))
+        return `${miss.length} of this export's ${keys.length} meshes (e.g. ${miss[0]}) are not in the model data it came with: it was made while a baked or edited version of this pod was loaded in game, so Build can’t use it. Remove that pod's replacement_models/<id>.bin in the SWEP1R Pod Editor folder on your Desktop (and Restore original if you wrote models into out_modelblock.bin), restart the game, export the pod again, then open your edits on the new export.`;
+    }
+    return null;
+  }
+  return 'This export was made while ' + (baked.length ? 'this pod’s baked model' + (baked.length > 1 ? 's (' : ' (') + baked.join(', ') + ')' : 'baked models written into out_modelblock.bin') +
+    (baked.length === 1 ? ' was' : ' were') + ' loaded in game, so Build can’t use it. Delete ' + (baked.length ? baked.map(id => 'replacement_models/' + id + '.bin').join(', ') + ' in the SWEP1R Pod Editor folder on your Desktop' : 'them with Mods › Pod Editor › Restore original') +
+    ', restart the game, export the pod again, then open your edits (the .txt in pod_edits/source) on the new export.';
+}
 async function buildAndInstall(e) {
   if (!bakePod) { buildReport('error', 'Build needs bake.js next to pod_editor.html (tools/pod_editor/bake.js).'); return; }
+  { const bw = bakedExportWarning(state.pod); if (bw) { buildReport('error', bw); return; } }
   const btn = document.getElementById('btnBuild'); btn.disabled = true;
   try {
     const fsApi = typeof showDirectoryPicker === 'function';
     let dir = null, block, out = [];
+    // The export carries its own copy of the pod's base models: bake against those (they are what
+    // the export was made from). Older exports don't: read the model block from the folder.
+    const embedded = !!state.baseBlock;
     if (fsApi) {
       const picked = await gameDirHandle(e && e.shiftKey);
       dir = picked.dir; out = picked.layout.out;
-      buildReport('info', 'Reading the game models…');
-      block = new Uint8Array(await (await picked.layout.block.getFile()).arrayBuffer());
-    } else {
+      if (embedded) block = state.baseBlock;
+      else {
+        buildReport('info', 'Reading the game models…');
+        block = new Uint8Array(await (await picked.layout.block.getFile()).arrayBuffer());
+      }
+    } else if (embedded) block = state.baseBlock;
+    else {
       buildReport('info', 'Pick out_modelblock.bin (Desktop\\SWEP1R Pod Editor, or the game\'s data\\lev01).');
       const inp = document.getElementById('fileBlock');
       const file = await new Promise(res => { inp.onchange = () => res(inp.files[0]); inp.click(); });
@@ -1989,11 +2190,20 @@ async function buildAndInstall(e) {
     const written = [];
     const put = async (path, data) => { await writeFile(dir, [...out, ...path], data); written.push([...out, ...path].join('/')); };
     if (dir) {
-      for (const r of baked ? baked.models : []) await put(['replacement_models', r.modelId + '.bin'], r.bytes);
+      for (const r of baked ? baked.models : []) {
+        await put(['replacement_models', r.modelId + '.bin'], r.bytes);
+        // The stamp: which base model this was built from (the mod ignores the model on a game whose
+        // base model for that id is a different one). Left out if the export's own fingerprint
+        // disagrees with the one computed here (then the mod's check can't be trusted).
+        if (!state.baseFpBad.has(String(r.modelId))) await put(['replacement_models', r.modelId + '.base'], r.baseFp + '\n');
+      }
       await put(['pod_edits', 'source', model + '.txt'], full);
       if (runtime) await put(['pod_edits', model + '.txt'], runtime);
     } else {
-      for (const r of baked ? baked.models : []) download(r.modelId + '.bin', r.bytes);
+      for (const r of baked ? baked.models : []) {
+        download(r.modelId + '.bin', r.bytes);
+        if (!state.baseFpBad.has(String(r.modelId))) download(r.modelId + '.base', r.baseFp + '\n');
+      }
       download(model + '.txt', runtime || full);
     }
     dirty = false;
@@ -2017,7 +2227,7 @@ function setStatus(s) { document.getElementById('status').textContent = s; }
 async function openFile(file) {
   try {
     const text = await file.text();
-    if (file.name.toLowerCase().endsWith('.txt')) loadEdits(text); else loadExport(JSON.parse(text));
+    if (file.name.toLowerCase().endsWith('.txt')) { loadEdits(text); historyReset(); } else loadExport(JSON.parse(text));
   } catch (err) { setStatus('Could not open ' + file.name + ': ' + err.message); console.error(err); }
 }
 document.getElementById('btnOpen').onclick = () => document.getElementById('fileExport').click();
