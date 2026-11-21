@@ -53,7 +53,7 @@ static int clamp_int(int v, int lo, int hi) {
 }
 
 static TfpsContext current_context() {
-    if (multiplayer_enabled != 0 || multiplayer_in_mp != 0)
+    if (swrMultiplayer_enabled != 0 || swrMultiplayer_inMp != 0)
         return TFPS_CONTEXT_MULTIPLAYER;
     if (g_objHang2 != nullptr && g_objHang2->isTournamentMode != 0)
         return TFPS_CONTEXT_TOURNAMENT;
@@ -92,7 +92,7 @@ static float upgraded_anti_skid(int pod, TractionPart part) {
 }
 
 static swrScore *local_score() {
-    if (multiplayer_enabled != 0) {
+    if (swrMultiplayer_enabled != 0) {
         if (playerNumber < 0 || playerNumber >= 20)
             return nullptr;
         swrScore *score = &swrScores[playerNumber];
@@ -118,7 +118,7 @@ static void apply_traction_live() {
     const TfpsContext ctx = current_context();
     if (ctx == TFPS_CONTEXT_TOURNAMENT)
         return;
-    if (ctx == TFPS_CONTEXT_MULTIPLAYER && multiplayer_enabled == 0)
+    if (ctx == TFPS_CONTEXT_MULTIPLAYER && swrMultiplayer_enabled == 0)
         return;
 
     swrScore *score = local_score();
@@ -139,7 +139,7 @@ void *swrObjHang_BuildRosterSinglePlayer_delta(swrObjHang *hang, int *out) {
         (swrObjHang_BuildRosterSinglePlayer_t *) swrObjHang_BuildRosterSinglePlayer_ADDR, hang,
         out);
 
-    if (!imgui_state.freeplay_traction_override || multiplayer_enabled != 0)
+    if (!imgui_state.freeplay_traction_override || swrMultiplayer_enabled != 0)
         return result;
     if (hang == nullptr || hang->isTournamentMode != 0)
         return result;
