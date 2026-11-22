@@ -578,13 +578,18 @@ void rdMatrix_BuildRotation33(rdMatrix33* out, float gamma, float alpha, float b
     stdMath_SinCos(gamma, &sin_gamma, &cos_gamma);
     stdMath_SinCos(alpha, &gamma, &cos_alpha);
     stdMath_SinCos(beta, &sin_beta, &cos_beta);
-    (out->rvec).x = cos_beta * cos_gamma - sin_beta * sin_gamma * gamma;
-    (out->rvec).y = sin_beta * cos_gamma * gamma + cos_beta * sin_gamma;
+    // Retail spills these three products to the stack and reads the rounded copies back for
+    // rvec.x/y and uvec.x; uvec.y uses the unrounded register copy of cos_beta * cos_gamma.
+    float cb_cg = cos_beta * cos_gamma;
+    float sb_cg = sin_beta * cos_gamma;
+    float cb_sg = cos_beta * sin_gamma;
+    (out->rvec).x = cb_cg - sin_beta * sin_gamma * gamma;
+    (out->rvec).y = sin_beta * cos_gamma * gamma + cb_sg;
     (out->rvec).z = -(sin_beta * cos_alpha);
     (out->lvec).x = -(cos_alpha * sin_gamma);
     (out->lvec).y = cos_alpha * cos_gamma;
     (out->lvec).z = gamma;
-    (out->uvec).x = cos_beta * sin_gamma * gamma + sin_beta * cos_gamma;
+    (out->uvec).x = cos_beta * sin_gamma * gamma + sb_cg;
     (out->uvec).y = sin_beta * sin_gamma - cos_beta * cos_gamma * gamma;
     (out->uvec).z = cos_beta * cos_alpha;
     return;
@@ -913,14 +918,17 @@ void rdMatrix_BuildRotation34(rdMatrix34* out, rdVector3* angles, rdVector3* tra
     stdMath_SinCosFast(angles->x, &sin_alpha, &cos_alpha);
     stdMath_SinCosFast(angles->y, &sin_gamma, &cos_gamma);
     stdMath_SinCosFast(angles->z, &sin_beta, &cos_beta.x);
+    // Retail spills these two products and reads the rounded copies back for rvec.y and uvec.x.
+    float sb_cg = sin_beta * cos_gamma;
+    float cb_sg = cos_beta.x * sin_gamma;
     (out->rvec).x = -(sin_beta * sin_gamma) * sin_alpha + cos_beta.x * cos_gamma;
-    (out->rvec).y = sin_beta * cos_gamma * sin_alpha + cos_beta.x * sin_gamma;
+    (out->rvec).y = sin_beta * cos_gamma * sin_alpha + cb_sg;
     (out->rvec).z = -sin_beta * cos_alpha;
     (out->lvec).x = -sin_gamma * cos_alpha;
     (out->lvec).y = cos_gamma * cos_alpha;
     (out->lvec).z = sin_alpha;
-    (out->uvec).x = cos_beta.x * sin_gamma * sin_alpha + sin_beta * cos_gamma;
-    (out->uvec).y = -sin_alpha * cos_beta.x * cos_gamma + sin_beta * sin_gamma;
+    (out->uvec).x = cos_beta.x * sin_gamma * sin_alpha + sb_cg;
+    (out->uvec).y = -sin_alpha * (cos_beta.x * cos_gamma) + sin_beta * sin_gamma;
     (out->uvec).z = cos_beta.x * cos_alpha;
     (out->scale).x = translation->x;
     (out->scale).y = translation->y;
@@ -948,21 +956,22 @@ void rdMatrix_InvertOrtho34(rdMatrix34* out, rdMatrix34* in)
     scalez = (in->scale).z;
     scalex = (in->scale).x;
 
-    (out->scale).x = -(scalex * (in->rvec).x + (in->rvec).z * scalez + (in->rvec).y * scaley);
-    (out->scale).y = -((in->lvec).z * scalez + (in->lvec).x * scalex + (in->lvec).y * scaley);
-    (out->scale).z = -((in->uvec).x * scalex + (in->uvec).y * scaley + (in->uvec).z * scalez);
+    (out->scale).x = -((in->rvec).y * scaley + (in->rvec).z * scalez + scalex * (in->rvec).x);
+    (out->scale).y = -((in->lvec).x * scalex + (in->lvec).y * scaley + (in->lvec).z * scalez);
+    (out->scale).z = -((in->uvec).y * scaley + (in->uvec).z * scalez + (in->uvec).x * scalex);
 }
 
 // 0x00492680 World to Camera matrix
 void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
 {
-    float lvec_normsquare;
+    // Retail spills the rvec and uvec squared lengths to float but keeps lvec's on the FPU stack.
+    long double lvec_normsquare;
     float uvec_normsquare;
     float rvec_normsquare;
 
-    rvec_normsquare = (in->rvec).x * (in->rvec).x + (in->rvec).z * (in->rvec).z + (in->rvec).y * (in->rvec).y;
-    lvec_normsquare = (in->lvec).z * (in->lvec).z + (in->lvec).y * (in->lvec).y + (in->lvec).x * (in->lvec).x;
-    uvec_normsquare = (in->uvec).z * (in->uvec).z + (in->uvec).y * (in->uvec).y + (in->uvec).x * (in->uvec).x;
+    lvec_normsquare = (in->lvec).x * (in->lvec).x + (in->lvec).y * (in->lvec).y + (in->lvec).z * (in->lvec).z;
+    uvec_normsquare = (in->uvec).x * (in->uvec).x + (in->uvec).y * (in->uvec).y + (in->uvec).z * (in->uvec).z;
+    rvec_normsquare = (in->rvec).y * (in->rvec).y + (in->rvec).z * (in->rvec).z + (in->rvec).x * (in->rvec).x;
 
     (out->rvec).x = (in->rvec).x / rvec_normsquare;
     (out->rvec).y = (in->lvec).x / lvec_normsquare;
@@ -976,7 +985,7 @@ void rdMatrix_InvertOrthoNorm34(rdMatrix34* out, rdMatrix34* in)
     (out->uvec).y = (in->lvec).z / lvec_normsquare;
     (out->uvec).z = (in->uvec).z / uvec_normsquare;
 
-    (out->scale).x = -((in->scale).x * (out->rvec).x + (in->scale).y * (out->lvec).x + (in->scale).z * (out->uvec).x);
+    (out->scale).x = -((in->scale).z * (out->uvec).x + (in->scale).y * (out->lvec).x + (in->scale).x * (out->rvec).x);
     (out->scale).y = -((in->scale).x * (out->rvec).y + (in->scale).y * (out->lvec).y + (in->scale).z * (out->uvec).y);
     (out->scale).z = -((in->scale).x * (out->rvec).z + (in->scale).y * (out->lvec).z + (in->scale).z * (out->uvec).z);
 }

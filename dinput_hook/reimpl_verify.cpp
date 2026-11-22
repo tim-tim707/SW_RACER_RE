@@ -8,11 +8,13 @@
 
 extern "C" {
 #include <General/stdMath.h>
+#include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
 #include <Swr/swrModel.h>
+#include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <globals.h>
 #include <hook_mode.h>
@@ -1493,6 +1495,718 @@ namespace {
         report(s);
     }
 
+
+    // rdVector2 shapes. Retail leaves an input pointer in EAX rather than returning `v1`, and
+    // no caller reads it, so only the written vector is compared.
+    using V2_vvv = rdVector2 *(*) (rdVector2 *, const rdVector2 *, const rdVector2 *);
+    using V2_vfv = rdVector2 *(*) (rdVector2 *, float, const rdVector2 *);
+    using V_v2v2fv2 = void (*)(rdVector2 *, rdVector2 *, float, rdVector2 *);
+    using F_v2 = float (*)(const rdVector2 *);
+    using F_v2acc = float (*)(rdVector2 *);
+
+    rdVector2 random_vec2(int i, float lo, float hi) {
+        rdVector2 v;
+        v.x = sample(i, lo, hi);
+        v.y = sample(i + 5, lo, hi);
+        return v;
+    }
+
+    void run_v2_vvv(const char *name, uint32_t retail_addr, V2_vvv ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const V2_vvv retail = (V2_vvv) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector2 a = random_vec2(i, lo, hi);
+            const rdVector2 b = random_vec2(i + 17, lo, hi);
+            rdVector2 our_out = {-12345.0f, -12345.0f};
+            rdVector2 ret_out = our_out;
+            ours(&our_out, &a, &b);
+            retail(&ret_out, &a, &b);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g), (%.9g, %.9g)", a.x, a.y, b.x, b.y);
+            record_floats(s, &our_out.x, &ret_out.x, 2, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_v2_vfv(const char *name, uint32_t retail_addr, V2_vfv ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const V2_vfv retail = (V2_vfv) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector2 a = random_vec2(i, lo, hi);
+            const float k = sample(i + 9, lo, hi);
+            rdVector2 our_out = {-12345.0f, -12345.0f};
+            rdVector2 ret_out = our_out;
+            ours(&our_out, k, &a);
+            retail(&ret_out, k, &a);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "k=%.9g (%.9g, %.9g)", k, a.x, a.y);
+            record_floats(s, &our_out.x, &ret_out.x, 2, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_v_v2v2fv2(const char *name, uint32_t retail_addr, V_v2v2fv2 ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_v2v2fv2 retail = (V_v2v2fv2) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector2 a = random_vec2(i, lo, hi);
+            rdVector2 b = random_vec2(i + 17, lo, hi);
+            const float k = sample(i + 9, lo, hi);
+            rdVector2 our_out = {-12345.0f, -12345.0f};
+            rdVector2 ret_out = our_out;
+            ours(&our_out, &a, k, &b);
+            retail(&ret_out, &a, k, &b);
+            char desc[120];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g) + %.9g * (%.9g, %.9g)", a.x, a.y, k,
+                          b.x, b.y);
+            record_floats(s, &our_out.x, &ret_out.x, 2, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_f_v2(const char *name, uint32_t retail_addr, F_v2 ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const F_v2 retail = (F_v2) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector2 a = random_vec2(i, lo, hi);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g)", a.x, a.y);
+            record(s, ours(&a), retail(&a), 0, desc);
+        }
+        report(s);
+    }
+
+    void run_f_v2acc(const char *name, uint32_t retail_addr, F_v2acc ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const F_v2acc retail = (F_v2acc) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector2 seed = random_vec2(i, lo, hi);
+            rdVector2 our_v = seed, ret_v = seed;
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g)", seed.x, seed.y);
+            record(s, ours(&our_v), retail(&ret_v), 0, desc);
+            record_floats(s, &our_v.x, &ret_v.x, 2, 0, desc);
+        }
+        report(s);
+    }
+
+    // Remaining rdVector3/4 shapes.
+    using V_copy3 = void (*)(rdVector3 *, const rdVector3 *);
+    using V3_set3 = rdVector3 *(*) (rdVector3 *, float, float, float);
+    using V4_set4 = rdVector4 *(*) (rdVector4 *, float, float, float, float);
+    using B_vv = bool (*)(rdVector3 *, rdVector3 *);
+    using V_scale_both = void (*)(rdVector3 *, float, const rdVector3 *, float, const rdVector3 *);
+    using V_persp = void (*)(rdVector4 *, rdVector3 *, rdVector3 *);
+
+    void run_copy3(const char *name, uint32_t retail_addr, V_copy3 ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_copy3 retail = (V_copy3) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -1000.0f, 1000.0f);
+            rdVector3 our_out = {-12345.0f, -12345.0f, -12345.0f};
+            rdVector3 ret_out = our_out;
+            ours(&our_out, &a);
+            retail(&ret_out, &a);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), a);
+            record_vec3(s, our_out, ret_out, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_set3(const char *name, uint32_t retail_addr, V3_set3 ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V3_set3 retail = (V3_set3) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -1000.0f, 1000.0f);
+            rdVector3 our_out = {-12345.0f, -12345.0f, -12345.0f};
+            rdVector3 ret_out = our_out;
+            const bool same_ret = (ours(&our_out, a.x, a.y, a.z) == &our_out) ==
+                                  (retail(&ret_out, a.x, a.y, a.z) == &ret_out);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), a);
+            record_vec3(s, our_out, ret_out, 0, desc);
+            record_int(s, same_ret, 1, desc);
+        }
+        report(s);
+    }
+
+    void run_set4(const char *name, uint32_t retail_addr, V4_set4 ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V4_set4 retail = (V4_set4) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -1000.0f, 1000.0f);
+            const float w = sample(i + 13, -1000.0f, 1000.0f);
+            rdVector4 our_out = {-12345.0f, -12345.0f, -12345.0f, -12345.0f};
+            rdVector4 ret_out = our_out;
+            const bool same_ret = (ours(&our_out, a.x, a.y, a.z, w) == &our_out) ==
+                                  (retail(&ret_out, a.x, a.y, a.z, w) == &ret_out);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), a);
+            record_floats(s, &our_out.x, &ret_out.x, 4, 0, desc);
+            record_int(s, same_ret, 1, desc);
+        }
+        report(s);
+    }
+
+    // Half the cases compare a vector against an exact copy, or one that differs in a single
+    // component, so both outcomes are exercised.
+    void run_are_same3(const char *name, uint32_t retail_addr, B_vv ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const B_vv retail = (B_vv) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector3 a = random_vec3(i, -10.0f, 10.0f);
+            rdVector3 b = random_vec3(i + 23, -10.0f, 10.0f);
+            if (i % 2 == 0) {
+                b = a;
+                if (i % 8 == 2)
+                    b.x = -b.x;
+                else if (i % 8 == 4)
+                    b.y = next_float(-10.0f, 10.0f);
+                else if (i % 8 == 6)
+                    b.z = -0.0f, a.z = 0.0f;
+            }
+            char desc[200], sa[96], sb[96];
+            describe_vec3(sa, sizeof(sa), a);
+            describe_vec3(sb, sizeof(sb), b);
+            std::snprintf(desc, sizeof(desc), "%s, %s", sa, sb);
+            record_int(s, ours(&a, &b) ? 1 : 0, retail(&a, &b) ? 1 : 0, desc);
+        }
+        report(s);
+    }
+
+    void run_scale3add3_both(const char *name, uint32_t retail_addr, V_scale_both ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_scale_both retail = (V_scale_both) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -1000.0f, 1000.0f);
+            const rdVector3 b = random_vec3(i + 23, -1000.0f, 1000.0f);
+            const float k1 = sample(i + 3, -10.0f, 10.0f);
+            const float k2 = sample(i + 31, -10.0f, 10.0f);
+            rdVector3 our_out = {-12345.0f, -12345.0f, -12345.0f};
+            rdVector3 ret_out = our_out;
+            ours(&our_out, k1, &a, k2, &b);
+            retail(&ret_out, k1, &a, k2, &b);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "k1=%.9g k2=%.9g case %d", k1, k2, i);
+            record_vec3(s, our_out, ret_out, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_point3_to_perspective3(const char *name, uint32_t retail_addr, V_persp ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_persp retail = (V_persp) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -1000.0f, 1000.0f);
+            const rdVector3 b = random_vec3(i + 23, -1000.0f, 1000.0f);
+            rdVector3 our_a = a, our_b = b, ret_a = a, ret_b = b;
+            rdVector4 our_out = {-12345.0f, -12345.0f, -12345.0f, -12345.0f};
+            rdVector4 ret_out = our_out;
+            ours(&our_out, &our_a, &our_b);
+            retail(&ret_out, &ret_a, &ret_b);
+            char desc[200], sa[96], sb[96];
+            describe_vec3(sa, sizeof(sa), a);
+            describe_vec3(sb, sizeof(sb), b);
+            std::snprintf(desc, sizeof(desc), "%s, %s", sa, sb);
+            record_floats(s, &our_out.x, &ret_out.x, 4, 0, desc);
+            record_vec3(s, our_a, ret_a, 0, desc);
+            record_vec3(s, our_b, ret_b, 0, desc);
+        }
+        report(s);
+    }
+
+    // Remaining rdMatrix shapes.
+    using V_m33fff = void (*)(rdMatrix33 *, float, float, float);
+    using V_m34vv = void (*)(rdMatrix34 *, rdVector3 *, rdVector3 *);
+    using V_m34m34 = void (*)(rdMatrix34 *, rdMatrix34 *);
+    using V_copy44 = void (*)(rdMatrix44 *, const rdMatrix44 *);
+    using V_to_trs = void (*)(const rdMatrix44 *, rdVector3 *, rdMatrix44 *, rdVector3 *);
+    using V_m44tr = void (*)(rdMatrix44 *, swrTranslationRotation *);
+
+    void run_build_rotation33(const char *name, uint32_t retail_addr, V_m33fff ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m33fff retail = (V_m33fff) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdVector3 a = random_vec3(i, -720.0f, 720.0f);
+            rdMatrix33 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, a.x, a.y, a.z);
+            retail(&ret_m, a.x, a.y, a.z);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), a);
+            record_floats(s, &our_m.rvec.x, &ret_m.rvec.x, 9, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_build_rotation34(const char *name, uint32_t retail_addr, V_m34vv ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m34vv retail = (V_m34vv) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector3 angles = random_vec3(i, -720.0f, 720.0f);
+            rdVector3 trans = random_vec3(i + 23, -1000.0f, 1000.0f);
+            rdMatrix34 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, &angles, &trans);
+            retail(&ret_m, &angles, &trans);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), angles);
+            record_floats(s, &our_m.rvec.x, &ret_m.rvec.x, 12, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_build_translate34(const char *name, uint32_t retail_addr, V_m34v ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m34v retail = (V_m34v) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector3 t = random_vec3(i, -1000.0f, 1000.0f);
+            rdMatrix34 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, &t);
+            retail(&ret_m, &t);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), t);
+            record_floats(s, &our_m.rvec.x, &ret_m.rvec.x, 12, 0, desc);
+        }
+        report(s);
+    }
+
+    // `orthonormal` feeds a real rotation: the Norm variant assumes unit axes, and a general
+    // matrix exercises the scale-correcting path of the other.
+    void run_invert34(const char *name, uint32_t retail_addr, V_m34m34 ours, bool orthonormal) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m34m34 retail = (V_m34m34) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdMatrix34 in = random_mat34(i, -10.0f, 10.0f);
+            if (orthonormal || i % 2 == 0) {
+                const rdVector3 t = in.scale;
+                orthonormalize34(in);
+                in.scale = t;
+                if (!orthonormal) {
+                    const float k = next_float(0.1f, 10.0f);
+                    in.rvec.x *= k, in.rvec.y *= k, in.rvec.z *= k;
+                    in.lvec.x *= k, in.lvec.y *= k, in.lvec.z *= k;
+                    in.uvec.x *= k, in.uvec.y *= k, in.uvec.z *= k;
+                }
+            }
+            rdMatrix34 our_in = in, ret_in = in;
+            rdMatrix34 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, &our_in);
+            retail(&ret_m, &ret_in);
+            char desc[32];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_floats(s, &our_m.rvec.x, &ret_m.rvec.x, 12, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_copy44(const char *name, uint32_t retail_addr, V_copy44 ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_copy44 retail = (V_copy44) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            const rdMatrix44 in = random_mat44(i, -1000.0f, 1000.0f);
+            rdMatrix44 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, &in);
+            retail(&ret_m, &in);
+            char desc[32];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_floats(s, &our_m.vA.x, &ret_m.vA.x, 16, 0, desc);
+        }
+        report(s);
+    }
+
+    // A scaled rotation plus translation, the shape the game decomposes.
+    rdMatrix44 random_trs44(int i) {
+        rdMatrix44 m;
+        random_rotation(m, i);
+        const float sx = next_float(0.05f, 20.0f), sy = next_float(0.05f, 20.0f),
+                    sz = next_float(0.05f, 20.0f);
+        m.vA.x *= sx, m.vA.y *= sx, m.vA.z *= sx;
+        m.vB.x *= sy, m.vB.y *= sy, m.vB.z *= sy;
+        m.vC.x *= sz, m.vC.y *= sz, m.vC.z *= sz;
+        m.vD.x = next_float(-5000.0f, 5000.0f);
+        m.vD.y = next_float(-5000.0f, 5000.0f);
+        m.vD.z = next_float(-5000.0f, 5000.0f);
+        m.vD.w = 1.0f;
+        return m;
+    }
+
+    void run_to_trans_rot_scale(const char *name, uint32_t retail_addr, V_to_trs ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_to_trs retail = (V_to_trs) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const rdMatrix44 in = random_trs44(i);
+            rdVector3 our_t, ret_t, our_s, ret_s;
+            rdMatrix44 our_r, ret_r;
+            std::memset(&our_t, 0xcd, sizeof(our_t));
+            std::memset(&ret_t, 0xcd, sizeof(ret_t));
+            std::memset(&our_s, 0xcd, sizeof(our_s));
+            std::memset(&ret_s, 0xcd, sizeof(ret_s));
+            std::memset(&our_r, 0xcd, sizeof(our_r));
+            std::memset(&ret_r, 0xcd, sizeof(ret_r));
+            ours(&in, &our_t, &our_r, &our_s);
+            retail(&in, &ret_t, &ret_r, &ret_s);
+            char desc[32];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_vec3(s, our_t, ret_t, 0, desc);
+            record_floats(s, &our_r.vA.x, &ret_r.vA.x, 16, 0, desc);
+            record_vec3(s, our_s, ret_s, 0, desc);
+        }
+        report(s);
+    }
+
+    // Reads the matrix, writes the translation/rotation pair; the matrix is compared too in
+    // case the body normalises it in place.
+    void run_extract_transform(const char *name, uint32_t retail_addr, V_m44tr ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m44tr retail = (V_m44tr) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdMatrix44 our_m = random_trs44(i);
+            rdMatrix44 ret_m = our_m;
+            swrTranslationRotation our_tr, ret_tr;
+            std::memset(&our_tr, 0xcd, sizeof(our_tr));
+            std::memset(&ret_tr, 0xcd, sizeof(ret_tr));
+            ours(&our_m, &our_tr);
+            retail(&ret_m, &ret_tr);
+            char desc[32];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_floats(s, &our_tr.translation.x, &ret_tr.translation.x, 6, 0, desc);
+            record_floats(s, &our_m.vA.x, &ret_m.vA.x, 16, 0, desc);
+        }
+        report(s);
+    }
+
+    void run_set_transform44(const char *name, uint32_t retail_addr, V_m44tr ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_m44tr retail = (V_m44tr) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrTranslationRotation tr;
+            tr.translation = random_vec3(i, -5000.0f, 5000.0f);
+            tr.yaw_roll_pitch = random_vec3(i + 23, -720.0f, 720.0f);
+            swrTranslationRotation our_tr = tr, ret_tr = tr;
+            rdMatrix44 our_m, ret_m;
+            std::memset(&our_m, 0xcd, sizeof(our_m));
+            std::memset(&ret_m, 0xcd, sizeof(ret_m));
+            ours(&our_m, &our_tr);
+            retail(&ret_m, &ret_tr);
+            char desc[96];
+            describe_vec3(desc, sizeof(desc), tr.yaw_roll_pitch);
+            record_floats(s, &our_m.vA.x, &ret_m.vA.x, 16, 0, desc);
+        }
+        report(s);
+    }
+
+    // stdFnames: string in, pointer-into-buffer or mutated buffer out. Both sides get their own
+    // copy of the same input, and a returned pointer is compared as an offset into that copy.
+    const char *const fname_parts[] = {"data",  "", "\\",   "\\\\",  "track", ".",   "..",
+                                       "a.b",   "file.txt", "x",  "dir\\", "\\sub", "ext.",
+                                       ".bin",  "mod.bmp.bak", "C:", "C:\\", "wav",  "a\\\\b"};
+    const int fname_part_count = (int) (sizeof(fname_parts) / sizeof(fname_parts[0]));
+
+    void random_path(char *out, size_t n) {
+        std::memset(out, 0, n);
+        size_t len = 0;
+        const int pieces = (int) (next_u32() % 5u);
+        for (int k = 0; k < pieces; k++) {
+            const char *p = fname_parts[next_u32() % (uint32_t) fname_part_count];
+            const size_t plen = std::strlen(p);
+            if (len + plen + 1 < n) {
+                std::memcpy(out + len, p, plen);
+                len += plen;
+            }
+        }
+    }
+
+    int offset_or_null(const char *p, const char *base) {
+        return p == nullptr ? -1 : (int) (p - base);
+    }
+
+    using S_s = char *(*) (char *);
+    using I_ss = int (*)(char *, char *);
+    using S_ssi = char *(*) (char *, char *, int);
+    using V_sisS = void (*)(char *, int, char *, char *);
+
+    // `mutates`: the function may write into its argument, so the whole buffer is compared.
+    void run_s_s(const char *name, uint32_t retail_addr, S_s ours, bool mutates) {
+        if (!testable(name, retail_addr))
+            return;
+        const S_s retail = (S_s) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            char in[64], our_b[64], ret_b[64];
+            random_path(in, sizeof(in));
+            std::memcpy(our_b, in, sizeof(in));
+            std::memcpy(ret_b, in, sizeof(in));
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "\"%s\"", in);
+            record_int(s, offset_or_null(ours(our_b), our_b), offset_or_null(retail(ret_b), ret_b),
+                       desc);
+            if (mutates)
+                record_int(s, std::memcmp(our_b, ret_b, sizeof(our_b)), 0, desc);
+        }
+        report(s);
+    }
+
+    void run_change_ext(const char *name, uint32_t retail_addr, I_ss ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const I_ss retail = (I_ss) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            char in[128], our_b[128], ret_b[128], ext[16];
+            std::memset(in, 0, sizeof(in));
+            random_path(in, 64);
+            static const char *const exts[] = {"txt", "", "bmp", "a.b", "wav"};
+            std::snprintf(ext, sizeof(ext), "%s", exts[next_u32() % 5u]);
+            std::memcpy(our_b, in, sizeof(in));
+            std::memcpy(ret_b, in, sizeof(in));
+            char desc[112];
+            std::snprintf(desc, sizeof(desc), "\"%s\" ext=\"%s\"", in, ext);
+            record_int(s, ours(our_b, ext), retail(ret_b, ext), desc);
+            record_int(s, std::memcmp(our_b, ret_b, sizeof(our_b)), 0, desc);
+        }
+        report(s);
+    }
+
+    // Small buffer sizes reach the truncation paths.
+    void run_concat(const char *name, uint32_t retail_addr, S_ssi ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const S_ssi retail = (S_ssi) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            char left[128], right[64], our_b[128], ret_b[128];
+            std::memset(left, 0, sizeof(left));
+            random_path(left, 64);
+            random_path(right, sizeof(right));
+            const int len = (int) std::strlen(left);
+            const int buf = len + 1 + (int) (next_u32() % 40u);
+            std::memcpy(our_b, left, sizeof(left));
+            std::memcpy(ret_b, left, sizeof(left));
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "\"%s\" + \"%s\" len=%d", left, right, buf);
+            record_int(s, offset_or_null(ours(our_b, right, buf), our_b),
+                       offset_or_null(retail(ret_b, right, buf), ret_b), desc);
+            record_int(s, std::memcmp(our_b, ret_b, sizeof(our_b)), 0, desc);
+        }
+        report(s);
+    }
+
+    void run_make_path(const char *name, uint32_t retail_addr, V_sisS ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const V_sisS retail = (V_sisS) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            char a[64], b[64], our_b[128], ret_b[128];
+            random_path(a, sizeof(a));
+            random_path(b, sizeof(b));
+            const int buf = 1 + (int) (next_u32() % 100u);
+            std::memset(our_b, 0x5a, sizeof(our_b));
+            std::memset(ret_b, 0x5a, sizeof(ret_b));
+            ours(our_b, buf, a, b);
+            retail(ret_b, buf, a, b);
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "\"%s\" , \"%s\" len=%d", a, b, buf);
+            record_int(s, std::memcmp(our_b, ret_b, sizeof(our_b)), 0, desc);
+        }
+        report(s);
+    }
+
+    // swrRace leaves on a zeroed racer.
+    using U_racer = unsigned int (*)(swrRace *);
+    using V_take_damage = void (*)(int, int, float);
+    using V_boost_bar = void (*)(swrRace *, uint8_t *, uint8_t *, float *);
+    using F_closest = float (*)(rdVector2 *, float *, rdVector2 *, float *, rdVector2 *,
+                                rdVector2 *, rdVector2 *, rdVector2 *);
+
+    void run_damaged_engine_sides() {
+        const char *name = "swrRace_GetDamagedEngineSides";
+        if (!testable(name, swrRace_GetDamagedEngineSides_ADDR))
+            return;
+        const U_racer retail = (U_racer) hook_retail_ptr(swrRace_GetDamagedEngineSides_ADDR);
+        Stats s;
+        stats_init(s, name);
+        swrRace *r = racer_pair[0];
+        std::memset(r, 0, sizeof(swrRace));
+        for (int i = 0; i < VERIFY_ITERATIONS / 10; i++) {
+            for (int k = 0; k < 6; k++)
+                r->engineStatus[k] = (next_u32() % 3u == 0) ? (next_u32() & 0x3fu) : 0;
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "status=%x,%x,%x,%x,%x,%x", r->engineStatus[0],
+                          r->engineStatus[1], r->engineStatus[2], r->engineStatus[3],
+                          r->engineStatus[4], r->engineStatus[5]);
+            record_int(s, (int) swrRace_GetDamagedEngineSides(r), (int) retail(r), desc);
+        }
+        report(s);
+    }
+
+    void run_take_damage() {
+        const char *name = "swrRace_TakeDamage";
+        if (!testable(name, swrRace_TakeDamage_ADDR))
+            return;
+        const V_take_damage retail = (V_take_damage) hook_retail_ptr(swrRace_TakeDamage_ADDR);
+        const unsigned int saved_invincible = swrRace_IsInvincible;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        static const uint32_t flag0[] = {0, swrObjTest_FLAG0_BOOSTING,
+                                         swrObjTest_FLAG0_RESPAWN_INVINC, swrObjTest_FLAG0_DEAD};
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_IsInvincible = (i % 16 == 15) ? 1u : 0u;
+            std::memset(ours, 0, sizeof(swrRace));
+            ours->flags0 = (swrObjTest_FLAG0) flag0[i % 4];
+            ours->flags1 = (swrObjTest_FLAG1) ((i / 4) % 5 == 4 ? swrObjTest_FLAG1_FINISHED : 0);
+            ours->podStats.damageImmunity = next_float(0.0f, 2.0f);
+            for (int k = 0; k < 6; k++) {
+                ours->engineHealth[k] = next_float(0.0f, 1.0f);
+                ours->engineHealthMin[k] = next_float(0.0f, 1.0f);
+                ours->engineStatus[k] = next_u32() & 0x1fu;
+            }
+            ours->totalDamage = next_float(0.0f, 100.0f);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            const int engine = (int) (next_u32() % 6u);
+            const float amount = next_float(0.0f, 1.5f);
+            swrRace_TakeDamage((int) ours, engine, amount);
+            retail((int) ret, engine, amount);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "engine=%d amount=%.9g flags0=0x%x inv=%u", engine,
+                          amount, (unsigned) ret->flags0, swrRace_IsInvincible);
+            record_racer(s, *ours, *ret, desc);
+        }
+        swrRace_IsInvincible = saved_invincible;
+        report(s);
+    }
+
+    void run_boost_bar_color() {
+        const char *name = "swrRace_GetBoostBarColor";
+        if (!testable(name, swrRace_GetBoostBarColor_ADDR))
+            return;
+        const V_boost_bar retail = (V_boost_bar) hook_retail_ptr(swrRace_GetBoostBarColor_ADDR);
+        Stats s;
+        stats_init(s, name);
+        swrRace *r = racer_pair[0];
+        std::memset(r, 0, sizeof(swrRace));
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            r->boostIndicatorStatus = (uint32_t) (i % 4);
+            r->speedValue = next_float(0.0f, 1200.0f);
+            r->podStats.maxSpeed = next_float(100.0f, 1000.0f);
+            r->boostChargeTimer = next_float(0.0f, 2.0f);
+            uint8_t our_rgb[3], ret_rgb[3], our_rgba[4], ret_rgba[4];
+            float our_fill = -12345.0f, ret_fill = -12345.0f;
+            swrRace_GetBoostBarColor(r, our_rgb, our_rgba, &our_fill);
+            retail(r, ret_rgb, ret_rgba, &ret_fill);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "status=%u speed=%.9g max=%.9g",
+                          r->boostIndicatorStatus, r->speedValue, r->podStats.maxSpeed);
+            record(s, our_fill, ret_fill, 0, desc);
+            record_int(s, std::memcmp(our_rgb, ret_rgb, 3), 0, desc);
+            record_int(s, std::memcmp(our_rgba, ret_rgba, 4), 0, desc);
+        }
+        report(s);
+    }
+
+    void run_closest_approach_2d() {
+        const char *name = "swrRace_ClosestApproach2D";
+        if (!testable(name, swrRace_ClosestApproach2D_ADDR))
+            return;
+        const F_closest retail = (F_closest) hook_retail_ptr(swrRace_ClosestApproach2D_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector2 a0 = random_vec2(i, -1000.0f, 1000.0f);
+            rdVector2 b0 = random_vec2(i + 19, -1000.0f, 1000.0f);
+            // Pods move a few units per tick; every 8th case moves in parallel, which hits the
+            // near-zero relative-velocity early-out.
+            rdVector2 da = random_vec2(i + 7, -20.0f, 20.0f);
+            rdVector2 db = (i % 8 == 0) ? da : random_vec2(i + 29, -20.0f, 20.0f);
+            float a1[2] = {a0.x + da.x, a0.y + da.y};
+            float b1[2] = {b0.x + db.x, b0.y + db.y};
+            rdVector2 o[4], r[4];
+            for (int k = 0; k < 4; k++)
+                o[k] = r[k] = rdVector2{-12345.0f, -12345.0f};
+            const float ot = swrRace_ClosestApproach2D(&a0, a1, &b0, b1, &o[0], &o[1], &o[2], &o[3]);
+            const float rt = retail(&a0, a1, &b0, b1, &r[0], &r[1], &r[2], &r[3]);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "a0=(%.9g, %.9g) da=(%.9g, %.9g)", a0.x, a0.y, da.x,
+                          da.y);
+            record(s, ot, rt, 0, desc);
+            record_floats(s, &o[0].x, &r[0].x, 8, 0, desc);
+        }
+        report(s);
+    }
+
 }// namespace
 
 extern "C" void reimpl_verify_run(FILE *hook_log) {
@@ -1620,6 +2334,53 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_v_m44iv("rdMatrix_SetColumn", rdMatrix_SetColumn_ADDR, rdMatrix_SetColumn, true, 0);
     run_v_m44iv("rdMatrix_GetColumn", rdMatrix_GetColumn_ADDR, rdMatrix_GetColumn, false, 0);
 
+    std::fprintf(verify_log, "\nrdVector (round 3)\n");
+    run_v2_vvv("rdVector_Add2", rdVector_Add2_ADDR, rdVector_Add2, -1000.0f, 1000.0f);
+    run_v2_vfv("rdVector_Scale2", rdVector_Scale2_ADDR, rdVector_Scale2, -1000.0f, 1000.0f);
+    run_v_v2v2fv2("rdVector_Scale2Add2", rdVector_Scale2Add2_ADDR, rdVector_Scale2Add2, -1000.0f,
+                  1000.0f);
+    run_f_v2("rdVector_Len2", rdVector_Len2_ADDR, rdVector_Len2, -1000.0f, 1000.0f);
+    run_f_v2acc("rdVector_Normalize2Acc", rdVector_Normalize2Acc_ADDR, rdVector_Normalize2Acc,
+                -1000.0f, 1000.0f);
+    run_copy3("rdVector_Copy3", rdVector_Copy3_ADDR, rdVector_Copy3);
+    run_set3("rdVector_Set3", rdVector_Set3_ADDR, rdVector_Set3);
+    run_set4("rdVector_Set4", rdVector_Set4_ADDR, rdVector_Set4);
+    run_are_same3("rdVector_AreSame3", rdVector_AreSame3_ADDR, rdVector_AreSame3);
+    run_scale3add3_both("rdVector_Scale3Add3_both", rdVector_Scale3Add3_both_ADDR,
+                        rdVector_Scale3Add3_both);
+    run_point3_to_perspective3("rdVector_Point3ToPerspective3", rdVector_Point3ToPerspective3_ADDR,
+                               rdVector_Point3ToPerspective3);
+
+    std::fprintf(verify_log, "\nrdMatrix (round 3)\n");
+    run_build_rotation33("rdMatrix_BuildRotation33", rdMatrix_BuildRotation33_ADDR,
+                         rdMatrix_BuildRotation33);
+    if (trig_tables_populated())
+        run_build_rotation34("rdMatrix_BuildRotation34", rdMatrix_BuildRotation34_ADDR,
+                             rdMatrix_BuildRotation34);
+    run_build_translate34("rdMatrix_BuildTranslate34", rdMatrix_BuildTranslate34_ADDR,
+                          rdMatrix_BuildTranslate34);
+    run_copy44("rdMatrix_Copy44", rdMatrix_Copy44_ADDR, rdMatrix_Copy44);
+    run_invert34("rdMatrix_InvertOrtho34", rdMatrix_InvertOrtho34_ADDR, rdMatrix_InvertOrtho34,
+                 false);
+    run_invert34("rdMatrix_InvertOrthoNorm34", rdMatrix_InvertOrthoNorm34_ADDR,
+                 rdMatrix_InvertOrthoNorm34, true);
+    run_to_trans_rot_scale("rdMatrix_ToTransRotScale", rdMatrix_ToTransRotScale_ADDR,
+                           rdMatrix_ToTransRotScale);
+    run_extract_transform("rdMatrix_ExtractTransform", rdMatrix_ExtractTransform_ADDR,
+                          rdMatrix_ExtractTransform);
+    run_set_transform44("rdMatrix_SetTransform44", rdMatrix_SetTransform44_ADDR,
+                        rdMatrix_SetTransform44);
+
+    std::fprintf(verify_log, "\nstdFnames\n");
+    run_s_s("stdFnames_FindMedName", stdFnames_FindMedName_ADDR, stdFnames_FindMedName, false);
+    run_s_s("stdFnames_FindExt", stdFnames_FindExt_ADDR, stdFnames_FindExt, false);
+    run_s_s("stdFnames_Basename", stdFnames_Basename_ADDR, stdFnames_Basename, false);
+    run_s_s("stdFnames_StripExtAndDot", stdFnames_StripExtAndDot_ADDR, stdFnames_StripExtAndDot,
+            true);
+    run_change_ext("stdFnames_ChangeExt", stdFnames_ChangeExt_ADDR, stdFnames_ChangeExt);
+    run_concat("stdFnames_Concat", stdFnames_Concat_ADDR, stdFnames_Concat);
+    run_make_path("stdFnames_MakePath", stdFnames_MakePath_ADDR, stdFnames_MakePath);
+
     std::fprintf(verify_log, "\nswrRace\n");
     run_step_toward_clamped();
     run_set_angle_from_turn_rate();
@@ -1628,11 +2389,15 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_apply_upgrades_to_stats();
     run_compute_stat_bars();
     run_crc32();
+    run_closest_approach_2d();
     if (alloc_racers()) {
         run_engine_damage_penalty();
         run_smooth_engine_exhaust_size();
         run_extrapolate_transform();
         run_update_turn2();
+        run_damaged_engine_sides();
+        run_take_damage();
+        run_boost_bar_color();
     }
     free_racers();
 

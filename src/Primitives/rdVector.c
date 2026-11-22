@@ -195,7 +195,7 @@ void rdVector_Point3ToPerspective3(rdVector4* out, rdVector3* p1, rdVector3* p2)
     out->y = p1->y;
     out->z = p1->z;
     rdVector_Normalize3Acc((rdVector3*)out);
-    out->w = p2->x * out->x + p2->y * out->y + p2->z * out->z;
+    out->w = p2->z * out->z + p2->y * out->y + p2->x * out->x;
     return;
 }
 
