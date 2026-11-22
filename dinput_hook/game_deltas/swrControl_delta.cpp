@@ -28,6 +28,7 @@ extern "C" {
 
 #include "../hook_helper.h"
 #include "swrControl_delta.h"
+#include "../lockstep.h"
 #include "swrGamepadNav_delta.h"// swrGamepadNav_StartHeld
 
 typedef int(__cdecl *swrControl_PollFn)(int);
@@ -123,6 +124,8 @@ void swrControl_ProcessInputs_delta(void) {
     prevCancelDown = cancelDown;
     prevCancelKeyDown = cancelKeyDown;
     prevStartDown = startDown;
+
+    lockstep_pin_inputs();
 }
 
 extern "C" void swrControl_NormalizeSceneAdvance(void) {

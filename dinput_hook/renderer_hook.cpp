@@ -9,6 +9,7 @@
 #include "node_utils.h"
 #include "imgui_utils.h"
 #include "reimpl_verify.h"
+#include "lockstep.h"
 #include "renderer_utils.h"
 #include "shaders_utils.h"// compileProgram (cinematic letterbox bars)
 #include "replacements.h"
@@ -3114,6 +3115,10 @@ extern "C" void init_renderer_hooks() {
 
     hook_function("swrMain_RunFrame", (uint32_t) swrMain_RunFrame_ADDR,
                   (uint8_t *) swrMain_RunFrame_delta);
+    hook_function("swrRace_IncrementFrameTimer", (uint32_t) swrRace_IncrementFrameTimer_ADDR,
+                  (uint8_t *) swrRace_IncrementFrameTimer_lockstep);
+    hook_function("swrObjHang_StartRace", (uint32_t) swrObjHang_StartRace_ADDR,
+                  (uint8_t *) swrObjHang_StartRace_lockstep);
     hook_function("swrSound_UpdateIfEnabled", (uint32_t) swrSound_UpdateIfEnabled_ADDR,
                   (uint8_t *) swrSound_UpdateIfEnabled_delta);
 
