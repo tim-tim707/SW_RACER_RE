@@ -117,3 +117,7 @@ if (USE_RELEASE_HOOK)
 endif()
 
 add_subdirectory(dinput_hook)
+
+if (ENABLE_FUZZERS)
+    add_subdirectory(fuzz)
+endif()
