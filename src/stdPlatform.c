@@ -15,21 +15,20 @@ void* stdPlatform_Alloc(unsigned int size)
     return (*stdPlatform_hostServices_ptr->alloc)(size);
 }
 
-// 0x00484720 TODO: crashes on release, works on debug
+// 0x00484720
 unsigned int stdPlatform_Initialize(HostServices* hs)
 {
-    // unsigned short in_FPUControlWord;
+    unsigned short cw;
 
     stdPlatform_hostServices_ptr = hs;
-
-    // Modified here. Is the FPU stuff manually done ?
-
-    // stdPlatform_FPU1 = in_FPUControlWord;
-    // stdPlatform_FPU3 = CONCAT11(0xb, (char)in_FPUControlWord);
-    // stdPlatform_FPU2 = CONCAT11(7, (char)in_FPUControlWord);
+    __asm__ volatile("fnstcw %0" : "=m"(cw));
+    stdPlatfom_FPU1 = cw;
+    // high byte 0x0b: round up, 0x07: round down (both 64-bit precision)
+    *(unsigned short*)&stdPlatfom_FPU3 = (cw & 0xff) | 0x0b00;
+    stdPlatfom_FPU2 = (cw & 0xff) | 0x0700;
     stdPlatform_hostServices_initialized = 1;
-    // return (unsigned int)hs & 0xffff0000 | (unsigned int)in_FPUControlWord;
-    return 1;
+    // retail leaves the control word in AX
+    return ((unsigned int)hs & 0xffff0000) | cw;
 }
 
 // 0x00484760

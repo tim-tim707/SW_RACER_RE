@@ -19,7 +19,7 @@ void swrEvent_AllocateAndLoadObjs(int event, int count)
     swrEvent_CallF4(event, &subEvent);
 }
 
-// 0x00447350 TODO: crashes on release build, works fine on debug
+// 0x00447350
 void swrEvent_ClearObjs(int event)
 {
     swrEvent_SetObjs(event, 0, NULL);

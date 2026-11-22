@@ -22,6 +22,8 @@
 #include <Platform/std3D.h>
 #include <Raster/rdCache.h>
 #include <Win95/stdConsole.h>
+#include <Platform/cstdlib.h>
+#undef fseek // collides with HostServices::fseek; this file never calls the CRT fseek
 
 extern swrSpriteTexture* FUN_00445b40();
 
@@ -299,7 +301,7 @@ void swrSprite_LoadAllSprites(void)
     SpritesLoaded = 1;
 }
 
-// 0x00412e20 TODO: crashes on release, works fine on debug
+// 0x00412e20
 void swrSprite_UnloadAllSprites(void)
 {
     swrUI_ClearAllSprites(swrUI_unk_ptr);
@@ -307,7 +309,7 @@ void swrSprite_UnloadAllSprites(void)
     SpritesLoaded = 0;
 }
 
-// 0x00412e90 TODO; crashes on release, works fine on debug
+// 0x00412e90
 int swrSprite_LoadFromId(swrSprite_NAME id, char* tga_file_optional)
 {
     swrSpriteTexture* texture;
@@ -420,7 +422,7 @@ int swrSprite_FindFreeId(void)
     return 0;
 }
 
-// 0x00417120 TODO: crashes on release, works fine on debug
+// 0x00417120
 void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int* out_height)
 {
     swrSpriteTexture* tmp;
@@ -439,7 +441,7 @@ void swrSprite_GetTextureDimFromId(swrSprite_NAME spriteId, int* out_width, int*
     }
 }
 
-// 0x00417090 TODO: crashes on game startup
+// 0x00417090
 void swrSprite_FreeSprites(void)
 {
     swrSpriteTexItem* texItems;
@@ -476,7 +478,7 @@ void swrSprite_FreeSprites(void)
     } while (texItems < swrSpriteTexItems + (sizeof(swrSpriteTexItems) / sizeof(swrSpriteTexItems[0])));
 }
 
-// 0x00417150 TODO: Crashes on release, works fine on debug
+// 0x00417150
 void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
 {
     unsigned int* out_height;
@@ -484,8 +486,8 @@ void swrSprite_GetBBoxFromId(swrSprite_NAME spriteId, swrSprite_BBox* box)
 
     if (box != NULL)
     {
-        out_height = &box->x2;
-        out_width = &box->y2;
+        out_height = &box->y2;
+        out_width = &box->x2;
         box->y = 0;
         box->x = 0;
         *out_height = 0;
@@ -681,7 +683,7 @@ void swrSprite_NewSprite(short id, swrSpriteTexture* tex)
     }
 }
 
-// 0x00428370 TODO: crashes on release mode game startup, fine on debug
+// 0x00428370
 void swrSprite_ResetAllSprites(void)
 {
     int i;
@@ -1779,7 +1781,7 @@ swrSpriteTexture* swrSprite_LoadTexture(int index)
     return tex;
 }
 
-// 0x00446fb0 TODO: crashes on release, works fine on debug
+// 0x00446fb0
 swrSpriteTexture* swrSprite_LoadTextureById(swrSprite_NAME index)
 {
     return swrSprite_LoadTexture(index);
