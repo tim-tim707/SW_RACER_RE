@@ -5,10 +5,10 @@
 
 #include <swr.h>
 
-// 0x00490a50 TODO: Crashes when enabled
+// 0x00490a50
 rdCanvas* rdCanvas_New(uint32_t bIdk, tVBuffer* vbuf, uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
-    rdCanvas* canvas = (*rdroid_hostServices_ptr->alloc)(sizeof(canvas));
+    rdCanvas* canvas = (*rdroid_hostServices_ptr->alloc)(sizeof(rdCanvas));
     if (canvas == NULL)
     {
         return NULL;

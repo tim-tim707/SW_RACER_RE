@@ -345,7 +345,7 @@ exit:
     return header;
 }
 
-// 0x004485D0 TODO: crashes on game startup
+// 0x004485D0
 void swrModel_ByteSwapModelData(swrModel_Header* header)
 {
     swrModel_HeaderEntry* curr = header->entries;
@@ -411,7 +411,7 @@ void swrModel_ByteSwapModelData(swrModel_Header* header)
     }
 }
 
-// 0x004476B0 TODO: crashes on game startup
+// 0x004476B0
 void swrModel_ByteSwapNode(swrModel_Node* node)
 {
     if (node == NULL)
@@ -650,14 +650,14 @@ void swrModel_ByteSwapNode(swrModel_Node* node)
     }
 }
 
-// 0x00448180 TODO: crashes on game startup
+// 0x00448180
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 {
     FLOAT_SWAP32_INPLACE(&animation->loop_transition_speed);
     FLOAT_SWAP32_INPLACE(&animation->transition_speed);
     animation->transition_from_this_key_frame_index = SWAP32(animation->transition_from_this_key_frame_index);
     FLOAT_SWAP32_INPLACE(&animation->transition_interp_factor);
-    animation->transition_from_this_animation_time = SWAP32(&animation->transition_from_this_animation_time);
+    animation->transition_from_this_animation_time = SWAP32(animation->transition_from_this_animation_time);
     FLOAT_SWAP32_INPLACE(&animation->animation_start_time);
     FLOAT_SWAP32_INPLACE(&animation->animation_end_time);
     FLOAT_SWAP32_INPLACE(&animation->animation_duration);
@@ -726,7 +726,7 @@ bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
     return false;
 }
 
-// 0x00447670 TODO crashes on MSVC
+// 0x00447670
 bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMaterials; i++)
@@ -793,7 +793,7 @@ void swrModel_FixupAltNodePointers(int* model, int* altModel)
     }
 }
 
-// 0x00448BD0 TODO: crashes on game startup
+// 0x00448BD0
 swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_header)
 {
     swrModel_HeaderEntry* curr = model_header->entries;
@@ -1244,7 +1244,7 @@ uint32_t swrModel_AnimationFindKeyFrameIndex(swrModel_Animation* anim)
     return i;
 }
 
-// 0x00426660 TODO: crashes on release build, works fine on debug
+// 0x00426660
 void swrModel_UpdateAnimations()
 {
     for (int i = 0; i < swrScene_animations_count; i++)

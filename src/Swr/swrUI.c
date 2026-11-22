@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <engine_config.h>
+#include <Platform/cstdlib.h>
 
 // 0x004083d0
 void swrUI_UpdateMouseState(void)
@@ -127,7 +128,7 @@ void swrUI_UpdateProgressBar(int progressPercent)
     surf->lpVtbl->Blt(surf, (LPRECT)&rect, ddSurfaceForProgressBar, (LPRECT)&tagRect, 0x1000000 /* DDBLT_WAIT */, NULL);
 }
 
-// 0x00408800 TODO: Crashes on release, works fine on debug
+// 0x00408800
 void swrUI_ResetProgressBar(void)
 {
     swrUI_progressBar_unk = 0;
@@ -2822,7 +2823,7 @@ void swrUI_SetSpriteRect(swrUI_unk* ui, int slot, int* rect)
     }
 }
 
-// 0x004174e0 TODO: crashes on game startup
+// 0x004174e0
 char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
 {
     size_t len;
@@ -2836,9 +2837,9 @@ char* swrUI_replaceAllocatedStr(char* str, char* mondo_text)
     if (mondo_text != NULL)
     {
         len = strlen(mondo_text);
-        res = (char*)malloc(len);
-        strncpy(res, mondo_text, len - 1);
-        res[len - 1] = '\0';
+        res = (char*)malloc(len + 1);
+        strncpy(res, mondo_text, len);
+        res[len] = '\0';
     }
     return res;
 }

@@ -7,6 +7,7 @@
 
 #include <macros.h>
 #include <engine_config.h>
+#include <Platform/cstdlib.h>
 
 // 0x0042D520
 void swrLoader_DecompressLZSS(char* compressed, char* decompressed)
@@ -70,7 +71,7 @@ FILE** swrLoader_TypeToFile(swrLoader_TYPE type)
     }
 }
 
-// 0x0042d640 TODO: crashes on game start
+// 0x0042d640
 size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t _ElementSize)
 {
     FILE** f;
@@ -79,7 +80,7 @@ size_t swrLoader_ReadAt(swrLoader_TYPE type, long _Offset, void* _DstBuf, size_t
     return fread(_DstBuf, _ElementSize, 1, *f);
 }
 
-// 0x0042d680 TODO: crashes on game start
+// 0x0042d680
 void swrLoader_OpenBlock(swrLoader_TYPE type)
 {
     FILE** file;
@@ -115,7 +116,7 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     return;
 }
 
-// 0x0042d6f0 TODO: crashes on game start
+// 0x0042d6f0
 void swrLoader_CloseBlock(swrLoader_TYPE type)
 {
     FILE** f;

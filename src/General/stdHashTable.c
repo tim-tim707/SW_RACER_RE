@@ -161,7 +161,7 @@ int stdHashTable_Free(tHashTable* pTable)
     return result;
 }
 
-// 0x0048c0a0 TODO: crashes on release build, works fine on debug
+// 0x0048c0a0
 int stdHashTable_Add(tHashTable* pTable, char* pName, void* pData)
 {
     void* pvVar1;
@@ -237,7 +237,7 @@ tLinkListNode* stdHashTable_FindNode(tHashTable* pTable, char* pName, int* pNode
     return NULL;
 }
 
-// 0x0048c210 TODO: crashes on release build, works fine on debug
+// 0x0048c210
 int stdHashTable_Remove(tHashTable* pTable, char* pName)
 {
     tLinkListNode* ptVar1;

@@ -88,7 +88,7 @@ void rdCamera_FreeEntry(rdCamera* camera)
     }
 }
 
-// 0x0048fc50 TODO: crashes on release build, runs fine on debug build
+// 0x0048fc50
 int rdCamera_SetCanvas(rdCamera* camera, rdCanvas* canvas)
 {
     camera->canvas = canvas;
@@ -144,7 +144,7 @@ int rdCamera_SetProjectType(rdCamera* camera, rdCameraProjectType type)
     return 1;
 }
 
-// 0x0048fd10 TODO: crashes on release build, works fine on debug build
+// 0x0048fd10
 int rdCamera_UpdateProject(rdCamera* camera, float aspectRatio)
 {
     camera->screenAspectRatio = aspectRatio;
