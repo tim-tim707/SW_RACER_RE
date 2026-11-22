@@ -470,6 +470,10 @@ void compare(const FrameHashes &want, const FrameHashes &got) {
 
 void frame_step() {
     // State hashed here is the end of the previous frame's sim (= the start of this one).
+    if (s.file == nullptr) {
+        stop("no recording file");
+        return;
+    }
     if (s.mode == MODE_RECORD) {
         const FrameHashes fh = hash_state();
         fwrite(s.inputs.data(), s.inputs.size(), 1, s.file);
