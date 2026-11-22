@@ -17,7 +17,7 @@
 void rdMath_CalcSurfaceNormal2(rdVector4* out, rdVector3* a, rdVector3* b, rdVector3* c);
 
 void rdMath_CalcSurfaceNormal(rdVector3* out, rdVector3* edge1, rdVector3* edge2, rdVector3* edge3);
-float rdMath_DistancePointToPlane(rdVector3* light, rdVector3* normal, rdVector3* vertex);
+long double rdMath_DistancePointToPlane(rdVector3* light, rdVector3* normal, rdVector3* vertex);
 void rdMath_ClampVector(rdVector3* out, float minVal);
 int rdMath_PointsCollinear(rdVector3* a1, rdVector3* a2, rdVector3* a3);
 void rdMath_SlerpQuaternions(const rdVector4* a, const rdVector4* b, float t, rdVector4* result);

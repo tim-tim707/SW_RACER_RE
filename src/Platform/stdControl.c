@@ -167,11 +167,11 @@ void stdControl_ReadControls(void)
 }
 
 // 0x004856e0
-float stdControl_ReadAxis(int controlId)
+RETAIL_FP long double stdControl_ReadAxis(int controlId)
 {
     int delta;
     int magnitude;
-    float value;
+    long double value; // retail returns the product unrounded
 
     if (stdControl_bControlsActive == 0) {
         return 0.0f;
@@ -189,8 +189,8 @@ float stdControl_ReadAxis(int controlId)
             return 0.0f;
         }
     }
-    value = (float)delta * stdControl_aAxes[controlId].fltMedian;
-    if (fabsf(value) <= STDCONTROL_AXIS_MIN_VALUE) {
+    value = stdControl_aAxes[controlId].fltMedian * delta;
+    if ((value < 0.0f ? -value : value) <= (float)STDCONTROL_AXIS_MIN_VALUE) {
         value = 0.0f;
     }
     if (stdControl_bControlsIdle != 0 && value != 0.0f) {
@@ -200,10 +200,10 @@ float stdControl_ReadAxis(int controlId)
 }
 
 // 0x004857b0
-float stdControl_ReadKeyAsAxis(unsigned int keyId)
+RETAIL_FP long double stdControl_ReadKeyAsAxis(unsigned int keyId)
 {
     unsigned int heldMs;
-    float value;
+    long double value; // retail returns the product unrounded
 
     if (stdControl_bControlsActive == 0) {
         return 0.0f;
@@ -218,7 +218,7 @@ float stdControl_ReadKeyAsAxis(unsigned int keyId)
     if (heldMs >= (unsigned int)stdControl_readDeltaTime) {
         heldMs = stdControl_readDeltaTime;
     }
-    value = (float)heldMs * sithControl_secFPS;
+    value = (long double)heldMs * sithControl_secFPS;
     if (stdControl_bControlsIdle != 0 && value != 0.0f) {
         stdControl_bControlsIdle = 0;
     }
@@ -226,9 +226,9 @@ float stdControl_ReadKeyAsAxis(unsigned int keyId)
 }
 
 // 0x00485840
-int stdControl_ReadAxisAsKeyEx(int controlId)
+RETAIL_FP int stdControl_ReadAxisAsKeyEx(int controlId)
 {
-    float value;
+    long double value;
 
     value = stdControl_ReadAxis(controlId);
     if (value < 0.0f) {

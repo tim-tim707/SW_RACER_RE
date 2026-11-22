@@ -2638,20 +2638,26 @@ int swrModel_PointInTriangle2(float* origin, float* a, float* b, float* c, rdVec
 // outPoint), or -1 when maxDistSq > 0 and the query's plane distance already exceeds it. outNormal
 // is the face normal, flipped to the query's side.
 // 0x00480dc0
-float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
+RETAIL_FP long double swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, float* c, float maxDistSq, float* outPoint, float* outNormal)
 {
     rdVector4 normal;
     rdVector3 edgeAB;
     rdVector3 edgeBC;
     rdVector3 edgeCA;
-    float distSq;
-    float candidateSq;
     int behind;
 
     rdMath_CalcSurfaceNormal2(&normal, (rdVector3*)a, (rdVector3*)b, (rdVector3*)c);
     behind = (query[0] - a[0]) * normal.x + (query[2] - a[2]) * normal.z + (query[1] - a[1]) * normal.y < 0.0f;
     rdMath_ProjectPointOntoPlane(&normal.x, (rdVector3*)query, (rdVector3*)outPoint);
-    distSq = (query[2] - outPoint[2]) * (query[2] - outPoint[2]) + (query[1] - outPoint[1]) * (query[1] - outPoint[1]) + (query[0] - outPoint[0]) * (query[0] - outPoint[0]);
+
+    // Each squared distance below multiplies a raw difference by its spilled float copy, except
+    // the terms retail keeps entirely on the FPU stack (dz*dz here, dy*dy for BC and CA).
+    long double dx = query[0] - outPoint[0];
+    long double dy = query[1] - outPoint[1];
+    long double dz = query[2] - outPoint[2];
+    float dxf = dx;
+    float dyf = dy;
+    float distSq = (dy * dyf + dz * dz) + dx * dxf;
     if (maxDistSq > 0.0f && distSq > maxDistSq)
         return -1.0f;
 
@@ -2664,29 +2670,51 @@ float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, floa
     edgeCA.x = a[0] - c[0];
     edgeCA.y = a[1] - c[1];
     edgeCA.z = a[2] - c[2];
+    long double result = distSq;
     if (swrModel_PointInTriangle2(outPoint, a, b, c, &edgeAB, &edgeBC, &edgeCA) == 0) {
         // the edge buffers are reused for the closest point on each edge
         rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)a, (rdVector3*)b, &edgeAB);
         rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)b, (rdVector3*)c, &edgeBC);
         rdMath_ClosestPointOnSegment((rdVector3*)outPoint, (rdVector3*)c, (rdVector3*)a, &edgeCA);
-        distSq = (query[2] - edgeAB.z) * (query[2] - edgeAB.z) + (query[1] - edgeAB.y) * (query[1] - edgeAB.y) + (query[0] - edgeAB.x) * (query[0] - edgeAB.x);
+
+        dx = query[0] - edgeAB.x;
+        dy = query[1] - edgeAB.y;
+        dz = query[2] - edgeAB.z;
+        dxf = dx;
+        dyf = dy;
+        float dzf = dz;
+        // The AB distance stays unrounded unless a later edge replaces it.
+        long double best = (dx * dxf + dy * dyf) + dz * dzf;
         outPoint[0] = edgeAB.x;
         outPoint[1] = edgeAB.y;
         outPoint[2] = edgeAB.z;
-        candidateSq = (query[2] - edgeBC.z) * (query[2] - edgeBC.z) + (query[1] - edgeBC.y) * (query[1] - edgeBC.y) + (query[0] - edgeBC.x) * (query[0] - edgeBC.x);
-        if (candidateSq < distSq) {
+
+        dx = query[0] - edgeBC.x;
+        dy = query[1] - edgeBC.y;
+        dz = query[2] - edgeBC.z;
+        dxf = dx;
+        dzf = dz;
+        long double candidate = (dx * dxf + dy * dy) + dz * dzf;
+        if (candidate < best) {
             outPoint[0] = edgeBC.x;
             outPoint[1] = edgeBC.y;
             outPoint[2] = edgeBC.z;
-            distSq = candidateSq;
+            best = (float)candidate;
         }
-        candidateSq = (query[2] - edgeCA.z) * (query[2] - edgeCA.z) + (query[1] - edgeCA.y) * (query[1] - edgeCA.y) + (query[0] - edgeCA.x) * (query[0] - edgeCA.x);
-        if (candidateSq < distSq) {
+
+        dx = query[0] - edgeCA.x;
+        dy = query[1] - edgeCA.y;
+        dz = query[2] - edgeCA.z;
+        dxf = dx;
+        dzf = dz;
+        candidate = (dx * dxf + dy * dy) + dz * dzf;
+        if (candidate < best) {
             outPoint[0] = edgeCA.x;
             outPoint[1] = edgeCA.y;
             outPoint[2] = edgeCA.z;
-            distSq = candidateSq;
+            best = (float)candidate;
         }
+        result = best;
     }
     if (behind) {
         outNormal[0] = -normal.x;
@@ -2697,7 +2725,7 @@ float swrModel_ClosestPointOnTriangleImpl(float* query, float* a, float* b, floa
         outNormal[1] = normal.y;
         outNormal[2] = normal.z;
     }
-    return distSq;
+    return result;
 }
 
 // Keeps the hit if it is closer than the current best by more than 0.01, or (at a near-tie) if
@@ -2994,19 +3022,22 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
 // Returns the hit distance t (and writes the point to outPoint), or -1 on a miss: ray parallel
 // to the plane (|normal.dir| < 1e-4), behind the origin, or past maxDist.
 // 0x00442470
-float rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
+RETAIL_FP long double rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 {
-    float denom = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
-    if (denom >= -0.0001 && denom <= 0.0001)
+    long double denom = plane[0] * ray[3] + plane[2] * ray[5] + plane[1] * ray[4];
+    long double dot = plane[2] * ray[2] + plane[1] * ray[1] + plane[0] * ray[0];
+    if (denom >= (double)-0.0001 && denom <= (double)0.0001)
         return -1.0f;
-    float t = (plane[3] - (plane[0] * ray[0] + plane[1] * ray[1] + plane[2] * ray[2])) / denom;
-    if (t < 0.0f)
+    long double t = (plane[3] - dot) / denom;
+    if (t < 0.0f || ray[6] < t)
         return -1.0f;
-    if (ray[6] < t)
-        return -1.0f;
-    outPoint->x = ray[0] + t * ray[3];
-    outPoint->y = ray[1] + t * ray[4];
-    outPoint->z = ray[2] + t * ray[5];
+    // Retail stores each t * dir product into outPoint before adding the origin.
+    outPoint->x = t * ray[3];
+    outPoint->y = t * ray[4];
+    outPoint->z = t * ray[5];
+    outPoint->x = outPoint->x + ray[0];
+    outPoint->y = ray[1] + outPoint->y;
+    outPoint->z = ray[2] + outPoint->z;
     return t;
 }
 
@@ -3014,7 +3045,7 @@ float rdMath_IntersectRayPlane(float* plane, float* ray, rdVector3* outPoint)
 // records distance/point/node/normal into the swrModel_collision* result globals. Honours the
 // front/back accept flags (a back-face hit flips the recorded normal to oppose the ray).
 // 0x00442550
-void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
+RETAIL_FP void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, float* ray)
 {
     float facing = plane[0] * ray[3] + plane[1] * ray[4] + plane[2] * ray[5];
     int backFace;
@@ -3029,8 +3060,10 @@ void swrModel_CollideRayTriangle(float* plane, float* a, float* b, float* c, flo
     }
 
     rdVector3 hit;
-    float t = rdMath_IntersectRayPlane(plane, ray, &hit);
-    if (t < 0.0f || swrModel_collisionResultDist <= t)
+    // The sign test uses the raw ST0 result; the distance test reads the float it spilled.
+    long double tRaw = rdMath_IntersectRayPlane(plane, ray, &hit);
+    float t = tRaw;
+    if (tRaw < 0.0f || swrModel_collisionResultDist <= t)
         return;
 
     rdVector3 edgeAB, edgeBC, edgeCA;
@@ -3820,13 +3853,13 @@ void swrModel_ComputeNodeChainMatrix(swrModel_Node** nodeList, rdMatrix44* outMa
 }
 
 // 0x00482120
-void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+RETAIL_FP void swrModel_ClosestPointOnTriangle(short* v0, short* v1, short* v2, rdMatrix44* transform, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
 {
     rdVector3 local0, local1, local2;
     rdVector3 world0, world1, world2;
     rdVector3 point, normal;
     rdMatrix44 inverse;
-    float distSq;
+    long double distSq; // both tests and the store read the unrounded Impl result
     int i;
 
     local0.x = (float)v0[0];
@@ -3911,7 +3944,7 @@ void swrModel_ClosestPointInDisplayList(Gfx* displayList, rdMatrix44* transform,
 }
 
 // 0x00482690
-void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
+RETAIL_FP void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int mode, float* minDistSq, rdVector3* queryPoint, rdVector3* outPoint, rdVector3* outNormal)
 {
     for (int i = 0; i < (int)node->num_children; i++) {
         swrModel_Mesh* mesh = node->children.meshes[i];
@@ -3927,7 +3960,7 @@ void swrModel_NodeClosestPoint(swrModel_Node* node, rdMatrix44* transform, int m
             local.y = (float)vertex->v.y;
             local.z = (float)vertex->v.z;
             rdMatrix_Transform3(&world, &local, transform);
-            float distSq = rdVector_DistSquared3(&world, queryPoint);
+            long double distSq = rdVector_DistSquared3(&world, queryPoint);
             if (distSq < *minDistSq) {
                 *outPoint = world;
                 *minDistSq = distSq;

@@ -199,24 +199,33 @@ void rdMatrix_FromTransRotScale(rdMatrix44* mat, const rdVector3* translation, c
 // 0x00480890
 void rdMath_ProjectPointOntoPlane(float* plane, rdVector3* point, rdVector3* out)
 {
-    float t = plane[3] - (point->x * plane[0] + point->y * plane[1] + point->z * plane[2]);
-    out->x = point->x + t * plane[0];
-    out->y = t * plane[1] + point->y;
-    out->z = t * plane[2] + point->z;
+    long double t = plane[3] - (point->z * plane[2] + point->y * plane[1] + point->x * plane[0]);
+    // Retail stores each t * normal product into out before adding the point.
+    out->x = t * plane[0];
+    out->y = t * plane[1];
+    out->z = t * plane[2];
+    out->x = point->x + out->x;
+    out->y = out->y + point->y;
+    out->z = out->z + point->z;
 }
 
 // 0x004808f0
 void rdMath_ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVector3* segEnd, rdVector3* out)
 {
-    float dx = segEnd->x - segStart->x;
-    float dy = segEnd->y - segStart->y;
+    // Retail spills dx/dy/dz but keeps raw dx and dy on the stack for the first two squares.
+    long double dxRaw = segEnd->x - segStart->x;
+    long double dyRaw = segEnd->y - segStart->y;
+    float dx = dxRaw;
+    float dy = dyRaw;
     float dz = segEnd->z - segStart->z;
-    float lenSq = dz * dz + dy * dy + dx * dx;
+    long double lenSq = (dxRaw * dx + dyRaw * dy) + dz * dz;
     if (lenSq <= 0x1.0624dd2f1a9fcp-10) { // 0.001
         *out = *segStart;
         return;
     }
-    float t = ((dx * point->x + point->z * dz + point->y * dy) - (dy * segStart->y + dz * segStart->z + dx * segStart->x)) / lenSq;
+    long double along = (point->y * dy + point->z * dz) + dx * point->x;
+    long double base = (dx * segStart->x + dz * segStart->z) + dy * segStart->y;
+    float t = (along - base) / lenSq;
     if (t <= 0.0f) {
         *out = *segStart;
         return;
@@ -225,9 +234,16 @@ void rdMath_ClosestPointOnSegment(rdVector3* point, rdVector3* segStart, rdVecto
         *out = *segEnd;
         return;
     }
-    out->x = segStart->x + dx * t;
-    out->y = segStart->y + dy * t;
-    out->z = segStart->z + dz * t;
+    // Retail writes the products into out first; x then adds the unrounded product.
+    long double stepX = dx * t;
+    float stepY = dy * t;
+    float stepZ = dz * t;
+    out->x = stepX;
+    out->y = stepY;
+    out->z = stepZ;
+    out->x = segStart->x + stepX;
+    out->y = segStart->y + stepY;
+    out->z = segStart->z + stepZ;
 }
 
 // Crout LU decomposition with implicit partial pivoting (Numerical Recipes ludcmp) of the upper-left
@@ -394,9 +410,10 @@ void rdMatrix_Transform3(rdVector3* out, rdVector3* in, const rdMatrix44* mat)
     memcpy(&v, in, sizeof(rdVector3));
     memcpy(&m, mat, sizeof(rdMatrix44));
     // END DELTA
-    out->x = (m.vA).x * v.x + (m.vB).x * v.y + (m.vC).x * v.z + (m.vD).x;
-    out->y = (m.vA).y * v.x + (m.vB).y * v.y + (m.vC).y * v.z + (m.vD).y;
-    out->z = (m.vA).z * v.x + (m.vB).z * v.y + (m.vC).z * v.z + (m.vD).z;
+    // Retail sums (B*y + C*z) + A*x before adding the translation.
+    out->x = (m.vB).x * v.y + (m.vC).x * v.z + (m.vA).x * v.x + (m.vD).x;
+    out->y = (m.vB).y * v.y + (m.vC).y * v.z + (m.vA).y * v.x + (m.vD).y;
+    out->z = (m.vB).z * v.y + (m.vC).z * v.z + (m.vA).z * v.x + (m.vD).z;
     return;
 }
 

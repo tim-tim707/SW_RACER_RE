@@ -1492,8 +1492,8 @@ static void renderer_viewFromTransforms(rdMatrix44 *view_mat, rdVector3 *positio
         {xAxis.x, yAxis.x, zAxis.x, 0},
         {xAxis.y, yAxis.y, zAxis.y, 0},
         {xAxis.z, yAxis.z, zAxis.z, 0},
-        {-rdVector_Dot3(&xAxis, position), -rdVector_Dot3(&yAxis, position),
-         -rdVector_Dot3(&zAxis, position), 1},
+        {(float)-rdVector_Dot3(&xAxis, position), (float)-rdVector_Dot3(&yAxis, position),
+         (float)-rdVector_Dot3(&zAxis, position), 1},
     };
 }
 

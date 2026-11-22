@@ -5,7 +5,7 @@
 
 #define swrUtils_Rand_ADDR (0x004816b0)
 
-float swrUtils_RandFloat(void);
+long double swrUtils_RandFloat(void);
 
 int swrUtils_Rand(void);
 

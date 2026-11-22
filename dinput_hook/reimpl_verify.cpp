@@ -9,14 +9,18 @@
 #include <cstring>
 
 extern "C" {
+#include <Engine/rdCamera.h>
+#include <Engine/rdLight.h>
 #include <General/stdMath.h>
 #include <General/utils.h>
 #include <General/stdFnames.h>
 #include <General/stdHashTable.h>
 #include <Main/swrControl.h>
+#include <Platform/stdControl.h>
 #include <Primitives/rdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
+#include <Swr/swrEvent.h>
 #include <Swr/swrModel.h>
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
@@ -152,6 +156,36 @@ namespace {
         }
     }
 
+    void record_ld(Stats &s, long double ours, long double retail, const char *input_desc) {
+        s.total++;
+        if (std::memcmp(&ours, &retail, 10) == 0) {
+            s.exact++;
+            return;
+        }
+        s.mismatch++;
+        if (s.first_fail[0] == '\0') {
+            // msvcrt printf has no 80-bit %Lg: print a double plus the raw 10 bytes.
+            uint8_t ob[10], rb[10];
+            std::memcpy(ob, &ours, 10);
+            std::memcpy(rb, &retail, 10);
+            std::snprintf(s.first_fail, sizeof(s.first_fail),
+                          "%s -> ours=%.17g (%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x) "
+                          "retail=%.17g (%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x)",
+                          input_desc, (double) ours, ob[9], ob[8], ob[7], ob[6], ob[5], ob[4], ob[3],
+                          ob[2], ob[1], ob[0], (double) retail, rb[9], rb[8], rb[7], rb[6], rb[5],
+                          rb[4], rb[3], rb[2], rb[1], rb[0]);
+        }
+    }
+
+    // A long double return is an ST0 value callers use unrounded, so all 80 bits must match.
+    void record_any(Stats &s, float ours, float retail, int tolerance, const char *input_desc) {
+        record(s, ours, retail, tolerance, input_desc);
+    }
+
+    void record_any(Stats &s, long double ours, long double retail, int, const char *input_desc) {
+        record_ld(s, ours, retail, input_desc);
+    }
+
     void report(const Stats &s) {
         const bool passed = s.mismatch == 0;
         cases_run++;
@@ -270,12 +304,13 @@ namespace {
         report(s);
     }
 
-    void run_f_vv(const char *name, uint32_t retail_addr, F_vv ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_vv(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                   int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_vv retail = (F_vv) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -287,7 +322,7 @@ namespace {
             describe_vec3(sa, sizeof(sa), a);
             describe_vec3(sb, sizeof(sb), b);
             std::snprintf(desc, sizeof(desc), "%s, %s", sa, sb);
-            record(s, ours(&a, &b), retail(&a, &b), tolerance, desc);
+            record_any(s, ours(&a, &b), retail(&a, &b), tolerance, desc);
         }
         report(s);
     }
@@ -447,12 +482,13 @@ namespace {
         report(s);
     }
 
-    void run_f_vvv(const char *name, uint32_t retail_addr, F_vvv ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_vvv(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                    int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_vvv retail = (F_vvv) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -462,7 +498,7 @@ namespace {
             rdVector3 c = random_vec3(i + 41, lo, hi);
             char desc[304];
             describe3(desc, sizeof(desc), a, b, c);
-            record(s, ours(&a, &b, &c), retail(&a, &b, &c), tolerance, desc);
+            record_any(s, ours(&a, &b, &c), retail(&a, &b, &c), tolerance, desc);
         }
         report(s);
     }
@@ -884,12 +920,13 @@ namespace {
         report(s);
     }
 
-    void run_f_f(const char *name, uint32_t retail_addr, F_f ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_f(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                  int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_f retail = (F_f) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -897,17 +934,18 @@ namespace {
             const float x = sample(i, lo, hi);
             char desc[64];
             std::snprintf(desc, sizeof(desc), "f(%.9g)", x);
-            record(s, ours(x), retail(x), tolerance, desc);
+            record_any(s, ours(x), retail(x), tolerance, desc);
         }
         report(s);
     }
 
-    void run_f_ff(const char *name, uint32_t retail_addr, F_ff ours, float lo, float hi,
+    template <typename Fn>
+    void run_f_ff(const char *name, uint32_t retail_addr, Fn ours, float lo, float hi,
                   int tolerance) {
         if (!testable(name, retail_addr))
             return;
 
-        const F_ff retail = (F_ff) hook_retail_ptr(retail_addr);
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
         Stats s;
         stats_init(s, name);
 
@@ -916,7 +954,7 @@ namespace {
             const float b = sample(i + 7, lo, hi);
             char desc[96];
             std::snprintf(desc, sizeof(desc), "f(%.9g, %.9g)", a, b);
-            record(s, ours(a, b), retail(a, b), tolerance, desc);
+            record_any(s, ours(a, b), retail(a, b), tolerance, desc);
         }
         report(s);
     }
@@ -1364,7 +1402,7 @@ namespace {
         report(s);
     }
 
-    using F_racer = float (*)(swrRace *);
+    using F_racer = long double (*)(swrRace *);
 
     void run_engine_damage_penalty() {
         const char *name = "swrRace_GetEngineDamagePenalty";
@@ -1380,12 +1418,12 @@ namespace {
                 r->engineHealth[k] = (next_u32() % 4u == 0) ? 0.8f : next_float(0.0f, 1.0f);
             char desc[64];
             std::snprintf(desc, sizeof(desc), "health[0]=%.9g", r->engineHealth[0]);
-            record(s, swrRace_GetEngineDamagePenalty(r), retail(r), 0, desc);
+            record_any(s, swrRace_GetEngineDamagePenalty(r), retail(r), 0, desc);
         }
         report(s);
     }
 
-    using F_exhaust = float (*)(swrRace *, int, float, float, float, float, float, float);
+    using F_exhaust = long double (*)(swrRace *, int, float, float, float, float, float, float);
 
     void run_smooth_engine_exhaust_size() {
         const char *name = "swrRace_SmoothEngineExhaustSize";
@@ -1417,13 +1455,13 @@ namespace {
             const float brake = next_float(-10.0f, 10.0f);
             const float down = next_float(0.0f, 20.0f);
             const float up = next_float(0.0f, 20.0f);
-            const float our_r =
+            const long double our_r =
                 swrRace_SmoothEngineExhaustSize(ours, part, target, brake, down, up, lo, hi);
-            const float ret_r = retail(ret, part, target, brake, down, up, lo, hi);
+            const long double ret_r = retail(ret, part, target, brake, down, up, lo, hi);
             char desc[160];
             std::snprintf(desc, sizeof(desc), "part=%d target=%.9g flags0=0x%x dt=%.9g", part,
                           target, (unsigned) ours->flags0, swrRace_deltaTimeSecs);
-            record(s, our_r, ret_r, 0, desc);
+            record_any(s, our_r, ret_r, 0, desc);
             record_racer(s, *ours, *ret, desc);
         }
         report(s);
@@ -2515,6 +2553,996 @@ namespace {
         report(s);
     }
 
+
+    void stub_dispatch_sub_events(void *obj, int *sub_events) {
+        log_word(0xb0000000u);
+        log_word(racer_offset(obj));
+        log_word((uint32_t) sub_events[0]), log_word((uint32_t) sub_events[1]);
+        log_word((uint32_t) sub_events[2]);
+    }
+
+    void stub_spawn_engine_fireball(swrRace *player, int slot, rdVector3 *pos, float scale) {
+        log_word(0xb1000000u | (uint32_t) slot);
+        log_word(racer_offset(player));
+        log_word(float_bits(pos->x)), log_word(float_bits(pos->y)), log_word(float_bits(pos->z));
+        log_word(float_bits(scale));
+    }
+
+    struct PhysicsPatches {
+        SideEffectPatches base;
+        EntryPatch p[4];
+
+        PhysicsPatches() {
+            patch_jmp(p[0], hook_retail_ptr(swrEvent_DispatchSubEvents_ADDR),
+                      (void *) stub_dispatch_sub_events);
+            patch_jmp(p[1], (void *) swrEvent_DispatchSubEvents, (void *) stub_dispatch_sub_events);
+            patch_jmp(p[2], hook_retail_ptr(swrRace_SpawnEngineFireball_ADDR),
+                      (void *) stub_spawn_engine_fireball);
+            patch_jmp(p[3], (void *) swrRace_SpawnEngineFireball,
+                      (void *) stub_spawn_engine_fireball);
+        }
+
+        ~PhysicsPatches() {
+            for (int k = 3; k >= 0; k--)
+                unpatch(p[k]);
+        }
+    };
+
+
+    // Per-case outputs that live outside the racer (out-params, return value).
+    struct RacerOut {
+        float ret;
+        float extra[6];
+        long double ret_ld;
+    };
+
+    // Shared driver for racer-state functions: `fill` randomises a zeroed racer (and any
+    // per-case arguments it captures), `invoke` calls one side and writes its outputs.
+    template <typename Fn, typename Fill, typename Invoke>
+    void run_racer(const char *name, uint32_t retail_addr, Fn ours_fn, Fill fill, Invoke invoke) {
+        if (!testable(name, retail_addr))
+            return;
+        const Fn retail_fn = (Fn) hook_retail_ptr(retail_addr);
+        DeltaGuard guard;
+        Stats s;
+        stats_init(s, name);
+        swrRace *ours = racer_pair[0];
+        swrRace *ret = racer_pair[1];
+        swrScore score;
+        int pilot = 5;
+        std::memset(&score, 0, sizeof(score));
+        score.pilotId = &pilot;
+        PhysicsPatches patches;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrRace_deltaTimeSecs = sample_delta(i);
+            score.flag = (next_u32() % 4u == 0) ? 8 : 0;
+            std::memset(ours, 0, sizeof(swrRace));
+            ours->score_ptr = &score;
+            char desc[160];
+            std::snprintf(desc, sizeof(desc), "case %d dt=%.9g", i, swrRace_deltaTimeSecs);
+            fill(*ours, i, desc);
+            std::memcpy(ret, ours, sizeof(swrRace));
+            const uint32_t seed = next_u32();
+
+            RacerOut our_out = {-12345.0f, {-12345.0f, -12345.0f, -12345.0f, -12345.0f, -12345.0f, -12345.0f}, 0.0L};
+            RacerOut ret_out = our_out;
+            CallLog our_log, ret_log;
+            begin_log(our_log, ours, seed, 0);
+            invoke(ours_fn, ours, our_out);
+            begin_log(ret_log, ret, seed, 0);
+            invoke(retail_fn, ret, ret_out);
+            active_log = nullptr;
+
+            record(s, our_out.ret, ret_out.ret, 0, desc);
+            record_floats(s, our_out.extra, ret_out.extra, 6, 0, desc);
+            record_ld(s, our_out.ret_ld, ret_out.ret_ld, desc);
+            record_racer(s, *ours, *ret, desc);
+            record_calls(s, our_log, ret_log, desc);
+        }
+        report(s);
+    }
+
+    uint32_t random_bits(uint32_t mask) {
+        return next_u32() & mask;
+    }
+
+    void random_podstats(swrRace &r) {
+        r.podStats.acceleration = next_float(0.1f, 3.0f);
+        r.podStats.maxSpeed = next_float(300.0f, 650.0f);
+        r.podStats.airBrakeInv = next_float(1.0f, 100.0f);
+        r.podStats.deceleration_interval = next_float(1.0f, 100.0f);
+        r.podStats.boost_thrust = next_float(0.0f, 300.0f);
+        r.podStats.heatRate = next_float(0.0f, 50.0f);
+        r.podStats.coolRate = next_float(0.0f, 50.0f);
+        r.podStats.hoverHeight = next_float(1.0f, 10.0f);
+        r.podStats.intersectRadius = next_float(1.0f, 10.0f);
+    }
+
+    // An ST0 return that callers consume unrounded: all 80 bits must match, not just the
+    // float a caller would eventually store.
+    using LD_ff = long double (*)(float, float);
+
+
+    void run_ld_ff(const char *name, uint32_t retail_addr, LD_ff ours, float lo, float hi) {
+        if (!testable(name, retail_addr))
+            return;
+        const LD_ff retail = (LD_ff) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const float a = sample(i, lo, hi);
+            const float b = sample(i + 7, lo, hi);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "(%.9g, %.9g)", a, b);
+            record_ld(s, ours(a, b), retail(a, b), desc);
+        }
+        report(s);
+    }
+
+    using LD_void = long double (*)(void);
+
+    // Our swrUtils_Rand is inlined into RandFloat (same TU), so an entry patch can't intercept
+    // it. Drive the game's real generator instead: same seed in, same value and seed out.
+    void run_rand_float() {
+        const char *name = "swrUtils_RandFloat";
+        if (!testable(name, swrUtils_RandFloat_ADDR))
+            return;
+        const LD_void retail = (LD_void) hook_retail_ptr(swrUtils_RandFloat_ADDR);
+        const int saved_state = swrUtils_randState;
+        const int saved_init = swrUtils_randInitialized;
+        Stats s;
+        stats_init(s, name);
+        swrUtils_randInitialized = 1;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const int seed = (int) next_u32();
+            swrUtils_randState = seed;
+            const long double ours = swrUtils_RandFloat();
+            const int our_state = swrUtils_randState;
+            swrUtils_randState = seed;
+            const long double ret = retail();
+            const int ret_state = swrUtils_randState;
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "seed=0x%08x", (unsigned) seed);
+            record_ld(s, ours, ret, desc);
+            record_int(s, our_state, ret_state, desc);
+        }
+        swrUtils_randState = saved_state;
+        swrUtils_randInitialized = saved_init;
+        report(s);
+    }
+
+    using F_racer_speed = float (*)(swrRace *);
+    using LD_racer = long double (*)(swrRace *);
+    using V_racer_only = void (*)(swrRace *);
+    using V_glide = void (*)(swrRace *, rdVector3 *, rdVector3 *, int);
+    using V_reset_input = void (*)(swrRace *, int);
+    using V_gravity = void (*)(swrRace *, float *, float);
+    using V_wall = void (*)(swrRace *, rdVector3 *, rdVector3 *);
+    using V_slope = void (*)(swrRace *, int, int, float, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    void run_physics_suite() {
+        run_racer(
+            "swrRace_UpdateSpeed", swrRace_UpdateSpeed_ADDR, (F_racer_speed) swrRace_UpdateSpeed,
+            [](swrRace &r, int i, char *) {
+                random_podstats(r);
+                static const float throttles[] = {0.1f, -0.1f, 0.99f, -0.6f, 1.0f, -1.0f, 0.0f};
+                r.throttle = (i % 3 == 0) ? throttles[next_u32() % 7u] : next_float(-1.0f, 1.0f);
+                r.accelThrust = next_float(-3.0f, 12.0f);
+                r.speedMultiplier = next_float(0.5f, 1.5f);
+                r.groundToPodMeasure = next_u32() % 2u ? 15.0f : next_float(0.0f, 30.0f);
+                r.surfaceSpeedFactor = next_u32() % 2u ? 1.0f : next_float(0.3f, 1.2f);
+                r.surfaceSpeedBonus = next_u32() % 3u ? 0.0f : next_float(-50.0f, 50.0f);
+                r.pitch = next_u32() % 2u ? -1.0f : next_float(-1.0f, 1.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING | swrObjTest_FLAG0_BRAKING |
+                                                          swrObjTest_FLAG0_ZOFF | swrObjTest_FLAG0_AI);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_BOOST_START | swrObjTest_FLAG1_GROUNDED |
+                                                          swrObjTest_FLAG1_FINISHED);
+            },
+            [](F_racer_speed fn, swrRace *r, RacerOut &o) { o.ret = fn(r); });
+
+        run_racer(
+            "swrRace_ApplyBoost", swrRace_ApplyBoost_ADDR, (LD_racer) swrRace_ApplyBoost,
+            [](swrRace &r, int, char *) {
+                random_podstats(r);
+                r.boostValue = next_u32() % 4u ? next_float(0.0f, 3.0f) : next_float(0.0f, 0.002f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING | swrObjTest_FLAG0_BRAKING);
+            },
+            [](LD_racer fn, swrRace *r, RacerOut &o) { o.ret_ld = fn(r); });
+
+        run_racer(
+            "swrRace_ApplyEngineDamage", swrRace_ApplyEngineDamage_ADDR,
+            (V_racer_only) swrRace_ApplyEngineDamage,
+            [](swrRace &r, int, char *) {
+                r.podStats.damageImmunity = next_float(0.0f, 2.0f);
+                for (int k = 0; k < 6; k++) {
+                    r.engineStatus[k] = next_u32() % 3u == 0 ? random_bits(0x1f) : 0;
+                    r.engineHealth[k] = next_float(0.0f, 1.0f);
+                    r.engineHealthMin[k] = next_float(0.0f, 1.0f);
+                }
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                active_log->sfx_flags = (active_log->rng_state & 1) ? swrSound_SFXFLAG_ENGINE_FIRE : 0;
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        run_racer(
+            "swrRace_UpdateHeat", swrRace_UpdateHeat_ADDR, (V_racer_only) swrRace_UpdateHeat,
+            [](swrRace &r, int, char *) {
+                random_podstats(r);
+                r.engineTemp = next_u32() % 3u ? next_float(-1.0f, 2.0f) : next_float(0.0f, 101.0f);
+                r.tiltManualMult = next_float(-1.0f, 1.0f);
+                for (int k = 0; k < 6; k++)
+                    r.engineStatus[k] = random_bits(0x8);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_BOOSTING);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_ON_LAVA);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        static float gravity_b;
+        run_racer(
+            "swrRace_ApplyGravity", swrRace_ApplyGravity_ADDR, (V_gravity) swrRace_ApplyGravity,
+            [](swrRace &r, int i, char *desc) {
+                random_podstats(r);
+                static const float heights[] = {12.0f, 30.0f, 99999.0f, 100000.0f, 0.0f};
+                gravity_b = (i % 3 == 0) ? heights[next_u32() % 5u] : next_float(-5.0f, 60.0f);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                r.up = random_vec3(i, -1.0f, 1.0f);
+                r.transform.vA.z = next_float(-1.0f, 1.0f);
+                r.collisionWidth = next_float(0.0f, 20.0f);
+                r.fallTimer = next_float(0.0f, 4.0f);
+                r.fallVelocity = next_float(-3.0f, 3.0f);
+                r.gravityScale = next_float(0.0f, 2.0f);
+                r.speedValue = next_float(-100.0f, 600.0f);
+                r.pitch = next_float(-1.0f, 1.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_HIT_BOTTOM);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_MAGNET | swrObjTest_FLAG1_AIRBORNE);
+                std::snprintf(desc + std::strlen(desc), 40, " b=%.9g", gravity_b);
+            },
+            [](V_gravity fn, swrRace *r, RacerOut &o) {
+                o.extra[0] = 1.0f, o.extra[1] = -2.0f, o.extra[2] = 3.0f;
+                fn(r, o.extra, gravity_b);
+                o.ret = 0.0f;
+            });
+
+        static rdVector3 wall_normal, wall_dir;
+        run_racer(
+            "swrRace_ApplyWallCollision", swrRace_ApplyWallCollision_ADDR,
+            (V_wall) swrRace_ApplyWallCollision,
+            [](swrRace &r, int i, char *) {
+                random_rotation(r.transform, i);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                wall_normal = random_vec3(i, -1.0f, 1.0f);
+                wall_dir = random_vec3(i + 5, -1.0f, 1.0f);
+                if (i % 4 == 0)
+                    wall_dir = rdVector3{r.transform.vB.x, r.transform.vB.y, r.transform.vB.z};
+                r.speedValue = next_float(0.0f, 600.0f);
+                r.accelThrust = next_float(0.0f, 10.0f);
+                r.velocityCollision = random_vec3(i + 9, -50.0f, 50.0f);
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_THROTTLE_SETTLED | swrObjTest_FLAG0_RESPAWN |
+                                                          swrObjTest_FLAG0_DEAD);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_MAGNET);
+            },
+            [](V_wall fn, swrRace *r, RacerOut &o) {
+                rdVector3 n = wall_normal, d = wall_dir;
+                fn(r, &n, &d);
+                o.extra[0] = n.x, o.extra[1] = n.y, o.extra[2] = n.z;
+                o.ret = 0.0f;
+            });
+
+        static rdVector3 spline_pos;
+        static int use_clearance;
+        run_racer(
+            "swrRace_UpdateAIGlidePitch", swrRace_UpdateAIGlidePitch_ADDR,
+            (V_glide) swrRace_UpdateAIGlidePitch,
+            [](swrRace &r, int i, char *) {
+                r.transform.vD.z = next_float(-100.0f, 100.0f);
+                spline_pos = random_vec3(i, -100.0f, 100.0f);
+                if (i % 5 == 0)
+                    spline_pos.z = r.transform.vD.z;
+                use_clearance = (int) (next_u32() % 2u);
+                static const float clearances[] = {400.0f, 400.00003f, 399.99997f, 0.0f};
+                r.groundToPodMeasure = next_u32() % 2u ? clearances[next_u32() % 4u] : next_float(0.0f, 800.0f);
+                r.flags1 = (swrObjTest_FLAG1) random_bits(swrObjTest_FLAG1_AIRBORNE);
+            },
+            [](V_glide fn, swrRace *r, RacerOut &o) {
+                rdVector3 look = {0.0f, 0.0f, 0.0f}, sp = spline_pos;
+                fn(r, &look, &sp, use_clearance);
+                o.ret = 0.0f;
+            });
+
+        static swrModel_Node *fake_nodes[6];
+        run_racer(
+            "swrRace_ApplyPartSinkOffset", swrRace_ApplyPartSinkOffset_ADDR,
+            (V_racer_only) swrRace_ApplyPartSinkOffset,
+            [](swrRace &r, int, char *) {
+                r.unk11_1 = next_float(-5.0f, 5.0f);
+                for (int k = 0; k < 6; k++)
+                    fake_nodes[k] = next_u32() % 3u ? (swrModel_Node *) &fake_nodes : nullptr;
+                r.partNodes = next_u32() % 6u ? fake_nodes : nullptr;
+                r.engineXfR.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfL.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfR2.vD.z = next_float(-50.0f, 50.0f);
+                r.engineXfL2.vD.z = next_float(-50.0f, 50.0f);
+                r.cockpitXf.vD.z = next_float(-50.0f, 50.0f);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+
+        static int reset_index;
+        const int saved_inputs[4] = {inRaceLocalPlayerInputBitset3[0], inRaceLocalPlayerInputBitset3[1],
+                                     inRaceLocalPlayerInputBitset3[2], inRaceLocalPlayerInputBitset3[3]};
+        run_racer(
+            "swrRace_CheckResetInput", swrRace_CheckResetInput_ADDR,
+            (V_reset_input) swrRace_CheckResetInput,
+            [](swrRace &r, int, char *) {
+                reset_index = (int) (next_u32() % 4u);
+                for (int k = 0; k < 4; k++)
+                    inRaceLocalPlayerInputBitset3[k] = (int) next_u32();
+                r.flags0 = (swrObjTest_FLAG0) random_bits(swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_LOCAL);
+            },
+            [](V_reset_input fn, swrRace *r, RacerOut &o) {
+                fn(r, reset_index);
+                o.ret = 0.0f;
+            });
+        for (int k = 0; k < 4; k++)
+            inRaceLocalPlayerInputBitset3[k] = saved_inputs[k];
+
+        static rdVector3 slope_normal;
+        run_racer(
+            "swrRace_ApplySlopeSteeringMagnet", swrRace_ApplySlopeSteeringMagnet_ADDR,
+            (V_slope) swrRace_ApplySlopeSteeringMagnet,
+            [](swrRace &r, int i, char *) {
+                random_rotation(r.transform, i);
+                r.world_gravity = rdVector3{0.0f, 0.0f, -1.0f};
+                slope_normal = random_vec3(i + 3, -1.0f, 1.0f);
+                if (i % 5 == 0)
+                    slope_normal = rdVector3{0.0f, 0.0f, 1.0f};
+                rdVector_Normalize3Acc(&slope_normal);
+                static const float speeds[] = {200.0f, 250.0f, 300.0f, 350.0f};
+                r.speedValue = next_u32() % 3u ? next_float(0.0f, 600.0f) : speeds[next_u32() % 4u];
+                r.velocitySlope = random_vec3(i + 9, -50.0f, 50.0f);
+                r.autoTilt = next_float(-1.0f, 1.0f);
+            },
+            [](V_slope fn, swrRace *r, RacerOut &o) {
+                rdVector3 n = slope_normal, out1 = {-9.0f, -9.0f, -9.0f}, out2 = out1;
+                fn(r, 0, 0, 0.0f, &n, &out1, &out2);
+                o.extra[0] = out1.x, o.extra[1] = out1.y, o.extra[2] = out1.z;
+                o.extra[3] = out2.x, o.extra[4] = out2.y, o.extra[5] = out2.z;
+                o.ret = 0.0f;
+            });
+
+        run_racer(
+            "swrRace_ResetGravityDown", swrRace_ResetGravityDown_ADDR,
+            (V_racer_only) swrRace_ResetGravityDown,
+            [](swrRace &r, int i, char *) {
+                r.gravityScale = next_float(0.0f, 5.0f);
+                r.world_gravity = random_vec3(i, -1.0f, 1.0f);
+            },
+            [](V_racer_only fn, swrRace *r, RacerOut &o) {
+                fn(r);
+                o.ret = 0.0f;
+            });
+    }
+
+
+    // Module globals a case writes: saved before the case, captured after each side, restored
+    // after, so ours and retail start from the same state and the game's state is untouched.
+    struct GlobalSet {
+        struct Item {
+            void *ptr;
+            size_t size;
+        };
+        Item items[12];
+        int n = 0;
+        uint8_t saved[512];
+        uint8_t ours[512];
+        uint8_t ret[512];
+
+        void add(void *p, size_t size) {
+            items[n++] = Item{p, size};
+        }
+        size_t copy_out(uint8_t *dst) {
+            size_t off = 0;
+            for (int k = 0; k < n; k++) {
+                std::memcpy(dst + off, items[k].ptr, items[k].size);
+                off += items[k].size;
+            }
+            return off;
+        }
+        void copy_in(const uint8_t *src) {
+            size_t off = 0;
+            for (int k = 0; k < n; k++) {
+                std::memcpy(items[k].ptr, src + off, items[k].size);
+                off += items[k].size;
+            }
+        }
+        void save() {
+            copy_out(saved);
+        }
+        void restore() {
+            copy_in(saved);
+        }
+        // Compares as floats where it can, so a mismatch reports a value.
+        void record(Stats &s, const char *desc) {
+            const size_t total = copy_out(ret);
+            record_floats(s, (const float *) ours, (const float *) ret, (int) (total / 4), 0, desc);
+        }
+    };
+
+    using LD_irp = long double (*)(float *, float *, rdVector3 *);
+
+    void run_intersect_ray_plane() {
+        const char *name = "rdMath_IntersectRayPlane";
+        if (!testable(name, rdMath_IntersectRayPlane_ADDR))
+            return;
+        const LD_irp retail = (LD_irp) hook_retail_ptr(rdMath_IntersectRayPlane_ADDR);
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            rdVector3 n = random_vec3(i, -1.0f, 1.0f);
+            if (rdVector_Normalize3Acc(&n) == 0.0f)
+                continue;
+            float plane[4] = {n.x, n.y, n.z, next_float(-500.0f, 500.0f)};
+            rdVector3 o = random_vec3(i + 3, -1000.0f, 1000.0f);
+            rdVector3 d = random_vec3(i + 7, -2000.0f, 2000.0f);
+            if (i % 9 == 0) {
+                // near-parallel rays exercise the +-0.0001 denominator gate
+                const float k = n.x * d.x + n.y * d.y + n.z * d.z;
+                d.x -= k * n.x, d.y -= k * n.y, d.z -= k * n.z;
+                d.x += next_float(-0.0002f, 0.0002f);
+            }
+            float ray[7] = {o.x, o.y, o.z, d.x, d.y, d.z, next_u32() % 4u ? 1.0e9f : next_float(0.0f, 2.0f)};
+            rdVector3 our_p = {-9.0f, -9.0f, -9.0f}, ret_p = our_p;
+            const long double ours = rdMath_IntersectRayPlane(plane, ray, &our_p);
+            const long double ret = retail(plane, ray, &ret_p);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record_ld(s, ours, ret, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+        }
+        report(s);
+    }
+
+    using LD_score = long double (*)(swrScore *);
+
+    // flag bit 2 (finished) switches RankValue from spline progress to the time-based key.
+    void run_score_ld(const char *name, uint32_t retail_addr, LD_score ours) {
+        if (!testable(name, retail_addr))
+            return;
+        const LD_score retail = (LD_score) hook_retail_ptr(retail_addr);
+        Stats s;
+        stats_init(s, name);
+        swrRace test;
+        swrScore score;
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            std::memset(&test, 0, sizeof(test));
+            std::memset(&score, 0, sizeof(score));
+            score.obj_test_ptr = &test;
+            test.lapComp = next_float(-0.2f, 1.2f);
+            test.lapCompMax = (i % 5 == 0) ? test.lapComp : next_float(-0.2f, 1.2f);
+            score.results_P1_Lap = (int) (next_u32() % 6u) - 1;
+            score.results_P1_total_time = next_float(0.0f, 900.0f);
+            score.flag = (i % 3 == 0) ? 2 : 0;
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "case %d lap=%d comp=%.9g max=%.9g", i,
+                          score.results_P1_Lap, test.lapComp, test.lapCompMax);
+            record_ld(s, ours(&score), retail(&score), desc);
+        }
+        report(s);
+    }
+
+    // Triangles: random, plus sliver/degenerate ones every few cases. Coordinates span a track.
+    void random_triangle(int i, rdVector3 &a, rdVector3 &b, rdVector3 &c) {
+        a = random_vec3(i, -2000.0f, 2000.0f);
+        b = a, c = a;
+        const rdVector3 e1 = random_vec3(i + 3, -50.0f, 50.0f);
+        const rdVector3 e2 = random_vec3(i + 5, -50.0f, 50.0f);
+        b.x += e1.x, b.y += e1.y, b.z += e1.z;
+        if (i % 11 == 0) {
+            c = b;  // zero-area
+        } else if (i % 7 == 0) {
+            c.x += e1.x * 0.5f, c.y += e1.y * 0.5f, c.z += e1.z * 0.5f + next_float(-0.01f, 0.01f);
+        } else {
+            c.x += e2.x, c.y += e2.y, c.z += e2.z;
+        }
+    }
+
+    rdVector3 near_point(int i, const rdVector3 &a, const rdVector3 &b, const rdVector3 &c) {
+        // barycentric mix that lands inside, on an edge, or outside the triangle
+        float u = next_float(-0.5f, 1.5f), v = next_float(-0.5f, 1.5f);
+        if (i % 4 == 0)
+            u = next_float(0.0f, 1.0f), v = 1.0f - u;
+        rdVector3 off = random_vec3(i + 13, -30.0f, 30.0f);
+        return rdVector3{a.x + (b.x - a.x) * u + (c.x - a.x) * v + off.x,
+                         a.y + (b.y - a.y) * u + (c.y - a.y) * v + off.y,
+                         a.z + (b.z - a.z) * u + (c.z - a.z) * v + off.z};
+    }
+
+    using V_project_plane = void (*)(float *, rdVector3 *, rdVector3 *);
+    using V_closest_seg = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *);
+    using I_point_in_tri2 = int (*)(float *, float *, float *, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+    using LD_closest_tri = long double (*)(float *, float *, float *, float *, float, float *, float *);
+
+    void run_triangle_suite() {
+        {
+            const char *name = "rdMath_ProjectPointOntoPlane";
+            if (testable(name, rdMath_ProjectPointOntoPlane_ADDR)) {
+                const V_project_plane retail = (V_project_plane) hook_retail_ptr(rdMath_ProjectPointOntoPlane_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 n = random_vec3(i, -1.0f, 1.0f);
+                    if (rdVector_Normalize3Acc(&n) == 0.0f)
+                        continue;
+                    float plane[4] = {n.x, n.y, n.z, next_float(-2000.0f, 2000.0f)};
+                    rdVector3 pt = random_vec3(i + 3, -2000.0f, 2000.0f);
+                    rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
+                    rdMath_ProjectPointOntoPlane(plane, &pt, &o);
+                    retail(plane, &pt, &r);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_vec3(s, o, r, 0, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "rdMath_ClosestPointOnSegment";
+            if (testable(name, rdMath_ClosestPointOnSegment_ADDR)) {
+                const V_closest_seg retail = (V_closest_seg) hook_retail_ptr(rdMath_ClosestPointOnSegment_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a0 = random_vec3(i, -2000.0f, 2000.0f);
+                    rdVector3 d = random_vec3(i + 3, -60.0f, 60.0f);
+                    if (i % 10 == 0)
+                        d = random_vec3(i + 3, -0.03f, 0.03f);
+                    rdVector3 a1 = {a0.x + d.x, a0.y + d.y, a0.z + d.z};
+                    rdVector3 pt = near_point(i, a0, a1, a0);
+                    rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
+                    rdMath_ClosestPointOnSegment(&pt, &a0, &a1, &o);
+                    retail(&pt, &a0, &a1, &r);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_vec3(s, o, r, 0, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "swrModel_PointInTriangle2";
+            if (testable(name, swrModel_PointInTriangle2_ADDR)) {
+                const I_point_in_tri2 retail = (I_point_in_tri2) hook_retail_ptr(swrModel_PointInTriangle2_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a, b, c;
+                    random_triangle(i, a, b, c);
+                    rdVector3 pt = near_point(i, a, b, c);
+                    if (i % 13 == 0)
+                        pt = (i & 1) ? a : b;
+                    rdVector3 eab = {b.x - a.x, b.y - a.y, b.z - a.z};
+                    rdVector3 ebc = {c.x - b.x, c.y - b.y, c.z - b.z};
+                    rdVector3 eca = {a.x - c.x, a.y - c.y, a.z - c.z};
+                    const int o = swrModel_PointInTriangle2(&pt.x, &a.x, &b.x, &c.x, &eab, &ebc, &eca);
+                    const int r = retail(&pt.x, &a.x, &b.x, &c.x, &eab, &ebc, &eca);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_int(s, o, r, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "swrModel_ClosestPointOnTriangleImpl";
+            if (testable(name, swrModel_ClosestPointOnTriangleImpl_ADDR)) {
+                const LD_closest_tri retail = (LD_closest_tri) hook_retail_ptr(swrModel_ClosestPointOnTriangleImpl_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 a, b, c;
+                    random_triangle(i, a, b, c);
+                    rdVector3 q = near_point(i, a, b, c);
+                    const float maxDistSq = (i % 3 == 0) ? 0.0f : next_float(1.0f, 900.0f);
+                    rdVector3 op = {-9.0f, -9.0f, -9.0f}, rp = op, on = op, rn = op;
+                    const long double o = swrModel_ClosestPointOnTriangleImpl(&q.x, &a.x, &b.x, &c.x, maxDistSq, &op.x, &on.x);
+                    const long double r = retail(&q.x, &a.x, &b.x, &c.x, maxDistSq, &rp.x, &rn.x);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_ld(s, o, r, desc);
+                    record_vec3(s, op, rp, 0, desc);
+                    record_vec3(s, on, rn, 0, desc);
+                }
+                report(s);
+            }
+        }
+    }
+
+    using V_closest_tri = void (*)(short *, short *, short *, rdMatrix44 *, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    // Depth -1 stops before the node-chain bookkeeping, which needs a live model walk.
+    void run_closest_point_on_triangle() {
+        const char *name = "swrModel_ClosestPointOnTriangle";
+        if (!testable(name, swrModel_ClosestPointOnTriangle_ADDR))
+            return;
+        const V_closest_tri retail = (V_closest_tri) hook_retail_ptr(swrModel_ClosestPointOnTriangle_ADDR);
+        const int saved_depth = swrModel_closestPointDepth;
+        swrModel_closestPointDepth = -1;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            short v[3][3];
+            for (int k = 0; k < 3; k++) {
+                for (int j = 0; j < 3; j++)
+                    v[k][j] = (short) ((int) (next_u32() % 801u) - 400);
+            }
+            if (i % 11 == 0)
+                std::memcpy(v[2], v[1], sizeof(v[1]));
+            rdMatrix44 xf;
+            random_rotation(xf, i);
+            xf.vD.x = next_float(-500.0f, 500.0f);
+            xf.vD.y = next_float(-500.0f, 500.0f);
+            xf.vD.z = next_float(-500.0f, 500.0f);
+            xf.vD.w = 1.0f;
+            rdVector3 query = random_vec3(i + 5, -900.0f, 900.0f);
+            const float start_min = (i % 2) ? 1.0e12f : next_float(1.0f, 400000.0f);
+            float our_min = start_min, ret_min = start_min;
+            rdVector3 our_p = {-1, -1, -1}, ret_p = our_p, our_n = our_p, ret_n = our_p;
+            swrModel_ClosestPointOnTriangle(v[0], v[1], v[2], &xf, &our_min, &query, &our_p, &our_n);
+            retail(v[0], v[1], v[2], &xf, &ret_min, &query, &ret_p, &ret_n);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record(s, our_min, ret_min, 0, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+            record_vec3(s, our_n, ret_n, 0, desc);
+        }
+        swrModel_closestPointDepth = saved_depth;
+        report(s);
+    }
+
+    using LD_int = long double (*)(int);
+    using LD_uint = long double (*)(unsigned int);
+    using I_int = int (*)(int);
+
+    // Drives axis 0 and key 0 through their deadzone, idle and timing paths; every input
+    // global they read or write is saved first and restored afterwards.
+    struct StdControlState {
+        StdControlAxis axis;
+        int axisPos, keyIdle, keyInfo, readDelta, idle, active;
+        float secFPS;
+
+        void capture() {
+            axis = stdControl_aAxes[0];
+            axisPos = stdControl_aAxisPos[0];
+            keyIdle = stdControl_aKeyIdleTimes[0];
+            keyInfo = stdControl_aKeyInfos[0];
+            readDelta = stdControl_readDeltaTime;
+            idle = stdControl_bControlsIdle;
+            active = stdControl_bControlsActive;
+            secFPS = sithControl_secFPS;
+        }
+        void apply() const {
+            stdControl_aAxes[0] = axis;
+            stdControl_aAxisPos[0] = axisPos;
+            stdControl_aKeyIdleTimes[0] = keyIdle;
+            stdControl_aKeyInfos[0] = keyInfo;
+            stdControl_readDeltaTime = readDelta;
+            stdControl_bControlsIdle = idle;
+            stdControl_bControlsActive = active;
+            sithControl_secFPS = secFPS;
+        }
+    };
+
+    void random_control_state(StdControlState &st, int i) {
+        st.active = (i % 17 != 0);
+        st.idle = (int) (next_u32() & 1u);
+        st.axis.flags = (StdControlAxisFlag) ((next_u32() % 8u ? STDCONTROL_AXIS_ENABLED : 0) |
+                                              (next_u32() % 4u ? 0 : STDCONTROL_AXIS_UNKNOWN_8));
+        st.axis.xOffset = (int) (next_u32() % 2001u) - 1000;
+        st.axis.yOffset = (i % 3 == 0) ? 0 : (int) (next_u32() % 3000u);
+        st.axis.fltMedian = (i % 5 == 0) ? next_float(1.0e-9f, 1.0e-6f) : next_float(1.0e-6f, 0.002f);
+        st.axisPos = st.axis.xOffset + ((i % 9 == 0) ? 0 : (int) (next_u32() % 70001u) - 35000);
+        st.keyIdle = (i % 4 == 0) ? 0 : (int) (next_u32() % 300u);
+        st.keyInfo = (int) (next_u32() & 1u);
+        st.readDelta = 1 + (int) (next_u32() % 200u);
+        st.secFPS = next_float(0.0001f, 0.06f);
+    }
+
+    template <typename Fn, typename Arg, typename Rec>
+    void run_control_reader(const char *name, uint32_t retail_addr, Fn ours, Arg arg, Rec rec) {
+        if (!testable(name, retail_addr))
+            return;
+        const Fn retail = (Fn) hook_retail_ptr(retail_addr);
+        StdControlState saved;
+        saved.capture();
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            StdControlState st = saved;
+            random_control_state(st, i);
+            char desc[96];
+            std::snprintf(desc, sizeof(desc), "case %d pos=%d med=%.9g held=%d", i, st.axisPos,
+                          st.axis.fltMedian, st.keyIdle);
+            st.apply();
+            const auto o = ours(arg);
+            const int our_idle = stdControl_bControlsIdle;
+            st.apply();
+            const auto r = retail(arg);
+            rec(s, o, r, desc);
+            record_int(s, our_idle, stdControl_bControlsIdle, desc);
+        }
+        saved.apply();
+        report(s);
+    }
+
+    void run_stdcontrol_readers() {
+        auto ld = [](Stats &s, long double o, long double r, const char *d) { record_ld(s, o, r, d); };
+        auto in = [](Stats &s, int o, int r, const char *d) { record_int(s, o, r, d); };
+        run_control_reader("stdControl_ReadAxis", stdControl_ReadAxis_ADDR, (LD_int) stdControl_ReadAxis, 0, ld);
+        run_control_reader("stdControl_ReadKeyAsAxis", stdControl_ReadKeyAsAxis_ADDR,
+                           (LD_uint) stdControl_ReadKeyAsAxis, 0u, ld);
+        run_control_reader("stdControl_ReadAxisAsKeyEx", stdControl_ReadAxisAsKeyEx_ADDR,
+                           (I_int) stdControl_ReadAxisAsKeyEx, 0, in);
+    }
+
+    using I_add_light = int (*)(rdCamera *, rdLight *, rdVector3 *);
+
+    void run_add_light() {
+        const char *name = "rdCamera_AddLight";
+        if (!testable(name, rdCamera_AddLight_ADDR))
+            return;
+        const I_add_light retail = (I_add_light) hook_retail_ptr(rdCamera_AddLight_ADDR);
+        // Padding: retail's numLights == 128 path writes 4 bytes past the struct.
+        rdCamera *cam[2] = {(rdCamera *) std::calloc(1, sizeof(rdCamera) + 16),
+                            (rdCamera *) std::calloc(1, sizeof(rdCamera) + 16)};
+        rdLight light[2];
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            std::memset(cam[0], 0, sizeof(rdCamera) + 16);
+            // 128 itself writes past the struct (UB in C), so it is left out; 129+ is rejected.
+            cam[0]->numLights = (int) (next_u32() % 4u ? next_u32() % 128u : 129u + next_u32() % 3u);
+            cam[0]->attenuationMin = next_float(0.01f, 5.0f);
+            cam[0]->attenuationMax = next_float(0.01f, 5.0f);
+            std::memcpy(cam[1], cam[0], sizeof(rdCamera) + 16);
+            std::memset(&light[0], 0, sizeof(rdLight));
+            light[0].color.x = next_float(0.0f, 2.0f);
+            light[0].color.y = next_float(0.0f, 2.0f);
+            light[0].color.z = next_float(0.0f, 2.0f);
+            light[0].color.w = next_float(0.0f, 2.0f);
+            light[0].falloffMin = (next_u32() % 3u) ? 0.0f : next_float(0.0f, 10.0f);
+            light[0].falloffMax = (next_u32() % 3u) ? 0.0f : next_float(0.0f, 10.0f);
+            light[1] = light[0];
+            rdVector3 pos = random_vec3(i, -1000.0f, 1000.0f);
+            const int our_r = rdCamera_AddLight(cam[0], &light[0], &pos);
+            const int ret_r = retail(cam[1], &light[1], &pos);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "numLights=%d color=%.9g", cam[1]->numLights,
+                          light[1].color.x);
+            record_int(s, our_r, ret_r, desc);
+            const int slot = cam[1]->numLights - 1;
+            if (our_r && slot >= 0 && slot < 128) {
+                record_int(s, cam[0]->lights[slot] == &light[0], cam[1]->lights[slot] == &light[1],
+                           desc);
+                cam[0]->lights[slot] = cam[1]->lights[slot] = nullptr;
+            }
+            record_int(s, std::memcmp(cam[0], cam[1], sizeof(rdCamera) + 16), 0, desc);
+            record_floats(s, &light[0].falloffMin, &light[1].falloffMin, 2, 0, desc);
+            record_int(s, std::memcmp(&light[0], &light[1], sizeof(rdLight)), 0, desc);
+        }
+        std::free(cam[0]);
+        std::free(cam[1]);
+        report(s);
+    }
+
+    using V_collide_tri = void (*)(float *, float *, float *, float *, float *);
+
+    void run_collide_ray_triangle() {
+        const char *name = "swrModel_CollideRayTriangle";
+        if (!testable(name, swrModel_CollideRayTriangle_ADDR))
+            return;
+        const V_collide_tri retail = (V_collide_tri) hook_retail_ptr(swrModel_CollideRayTriangle_ADDR);
+        GlobalSet g;
+        g.add(&swrModel_collisionResultDist, 4);
+        g.add(&swrModel_collisionHitPoint, 12);
+        g.add(&swrModel_collisionHitNormal, 12);
+        g.add(&swrModel_collisionUnk250, 4);
+        g.add(&swrModel_collisionResultNode, 4);
+        g.add(&swrModel_collisionAcceptFrontFaces, 4);
+        g.add(&swrModel_collisionAcceptBackFaces, 4);
+        g.add(&swrModel_collisionCurrentMesh, 4);
+        g.save();
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            // A triangle, its plane (unit normal + offset), and a ray that usually crosses it.
+            rdVector3 a = random_vec3(i, -100.0f, 100.0f);
+            rdVector3 b = random_vec3(i + 3, -100.0f, 100.0f);
+            rdVector3 c = random_vec3(i + 9, -100.0f, 100.0f);
+            rdVector3 e1 = {b.x - a.x, b.y - a.y, b.z - a.z};
+            rdVector3 e2 = {c.x - a.x, c.y - a.y, c.z - a.z};
+            rdVector3 nrm;
+            rdVector_Cross3(&nrm, &e1, &e2);
+            if (rdVector_Normalize3Acc(&nrm) == 0.0f)
+                continue;
+            float plane[4] = {nrm.x, nrm.y, nrm.z, -(nrm.x * a.x + nrm.y * a.y + nrm.z * a.z)};
+            const float u = next_float(-0.2f, 1.2f), v = next_float(-0.2f, 1.2f);
+            rdVector3 target = {a.x + e1.x * u + e2.x * v * (1.0f - u), a.y + e1.y * u + e2.y * v * (1.0f - u),
+                                a.z + e1.z * u + e2.z * v * (1.0f - u)};
+            rdVector3 origin = random_vec3(i + 17, -200.0f, 200.0f);
+            float ray[6] = {origin.x, origin.y, origin.z, target.x - origin.x, target.y - origin.y,
+                            target.z - origin.z};
+            float ta[3] = {a.x, a.y, a.z}, tb[3] = {b.x, b.y, b.z}, tc[3] = {c.x, c.y, c.z};
+            uint8_t start[512];
+            swrModel_collisionResultDist = next_u32() % 4u ? 1.0e9f : next_float(0.0f, 2.0f);
+            swrModel_collisionAcceptFrontFaces = (int) (next_u32() % 4u != 0);
+            swrModel_collisionAcceptBackFaces = (int) (next_u32() % 2u);
+            swrModel_collisionUnk250 = 0;
+            g.copy_out(start);
+            V_collide_tri ours_fn = swrModel_CollideRayTriangle;
+            ours_fn(plane, ta, tb, tc, ray);
+            g.copy_out(g.ours);
+            g.copy_in(start);
+            retail(plane, ta, tb, tc, ray);
+            char desc[64];
+            std::snprintf(desc, sizeof(desc), "case %d u=%.9g v=%.9g", i, u, v);
+            g.record(s, desc);
+        }
+        g.restore();
+        report(s);
+    }
+
+    using V_node_closest = void (*)(swrModel_Node *, rdMatrix44 *, int, float *, rdVector3 *, rdVector3 *, rdVector3 *);
+
+    // Mode 1 (raw vertices) only: mode 0 walks display lists through an unverified callee.
+    void run_node_closest_point() {
+        const char *name = "swrModel_NodeClosestPoint";
+        if (!testable(name, swrModel_NodeClosestPoint_ADDR))
+            return;
+        const V_node_closest retail = (V_node_closest) hook_retail_ptr(swrModel_NodeClosestPoint_ADDR);
+        static Vtx verts[2][24];
+        static swrModel_Mesh meshes[2];
+        static swrModel_Mesh *mesh_ptrs[2];
+        static swrModel_Node node;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS / 4; i++) {
+            std::memset(&node, 0, sizeof(node));
+            node.num_children = 1 + next_u32() % 2u;
+            for (int m = 0; m < 2; m++) {
+                std::memset(&meshes[m], 0, sizeof(swrModel_Mesh));
+                meshes[m].vertices = verts[m];
+                meshes[m].num_vertices = (uint16_t) (1 + next_u32() % 24u);
+                for (int k = 0; k < 24; k++) {
+                    verts[m][k].v.x = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                    verts[m][k].v.y = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                    verts[m][k].v.z = (int16_t) ((int) (next_u32() % 4001u) - 2000);
+                }
+                mesh_ptrs[m] = &meshes[m];
+            }
+            node.children.meshes = mesh_ptrs;
+            rdMatrix44 xf;
+            random_rotation(xf, i);
+            xf.vD.x = next_float(-500.0f, 500.0f);
+            xf.vD.y = next_float(-500.0f, 500.0f);
+            xf.vD.z = next_float(-500.0f, 500.0f);
+            xf.vD.w = 1.0f;
+            rdVector3 query = random_vec3(i + 5, -2500.0f, 2500.0f);
+            float our_min = 1.0e12f, ret_min = 1.0e12f;
+            rdVector3 our_p = {-1, -1, -1}, ret_p = our_p, our_n = our_p, ret_n = our_p;
+            swrModel_NodeClosestPoint(&node, &xf, 1, &our_min, &query, &our_p, &our_n);
+            retail(&node, &xf, 1, &ret_min, &query, &ret_p, &ret_n);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d", i);
+            record(s, our_min, ret_min, 0, desc);
+            record_vec3(s, our_p, ret_p, 0, desc);
+        }
+        report(s);
+    }
+
+    using V_face_intensity = void (*)(rdLight **, rdVector3 *, int, RdFace *, rdVector3 *, rdVector3 *, float, void *);
+
+    void run_calc_face_intensity() {
+        const char *name = "rdLight_CalcFaceIntensity";
+        if (!testable(name, rdLight_CalcFaceIntensity_ADDR))
+            return;
+        const V_face_intensity retail = (V_face_intensity) hook_retail_ptr(rdLight_CalcFaceIntensity_ADDR);
+        static rdLight lights[6];
+        static rdLight *light_ptrs[6];
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            const int n = (int) (1 + next_u32() % 6u);
+            rdVector3 poses[6];
+            for (int k = 0; k < n; k++) {
+                std::memset(&lights[k], 0, sizeof(rdLight));
+                lights[k].active = next_u32() % 5u != 0;
+                lights[k].type = (next_u32() % 2u) ? RD_LIGHT_TYPE_POINT : RD_LIGHT_TYPE_DIRECTIONAL;
+                lights[k].color.x = next_float(0.0f, 2.0f);
+                lights[k].color.y = next_float(0.0f, 2.0f);
+                lights[k].color.z = next_float(0.0f, 2.0f);
+                lights[k].falloffMin = next_float(0.0f, 300.0f);
+                light_ptrs[k] = &lights[k];
+                poses[k] = random_vec3(i + 7 * k, -200.0f, 200.0f);
+            }
+            rdVector3 verts[3] = {random_vec3(i, -100.0f, 100.0f), random_vec3(i + 1, -100.0f, 100.0f),
+                                  random_vec3(i + 2, -100.0f, 100.0f)};
+            int idx[3] = {(int) (next_u32() % 3u), 1, 2};
+            RdFace face;
+            std::memset(&face, 0, sizeof(face));
+            face.aVertIdxs = idx;
+            rdVector3 normal = random_vec3(i + 11, -1.0f, 1.0f);
+            rdVector_Normalize3Acc(&normal);
+            const float scalar = next_float(0.0f, 0.05f);
+            rdVector4 our_out = {-1, -1, -1, -1}, ret_out = our_out;
+            rdLight_CalcFaceIntensity(light_ptrs, poses, n, &face, &normal, verts, scalar, &our_out);
+            retail(light_ptrs, poses, n, &face, &normal, verts, scalar, &ret_out);
+            char desc[48];
+            std::snprintf(desc, sizeof(desc), "case %d lights=%d", i, n);
+            record_floats(s, &our_out.x, &ret_out.x, 4, 0, desc);
+        }
+        report(s);
+    }
+
+    using I_step_camera = int (*)(swrObjHang *, float *, rdVector3 *, rdVector3 *, rdVector3 *, float);
+
+    void run_step_camera_toward() {
+        const char *name = "swrObjHang_StepCameraToward";
+        if (!testable(name, swrObjHang_StepCameraToward_ADDR))
+            return;
+        const I_step_camera retail = (I_step_camera) hook_retail_ptr(swrObjHang_StepCameraToward_ADDR);
+        GlobalSet g;
+        g.add(&swrObjHang_inspectCameraTimer, 4);
+        g.add(&swrObjHang_fadeState, 4);
+        g.add(&swrObjHang_state2, 4);
+        g.add(&swrObjHang_cameraStepScratch, 4);
+        g.add(&swrRace_fdeltaTimeSecs, 4);
+        g.save();
+        swrObjHang *hang = (swrObjHang *) std::calloc(1, sizeof(swrObjHang));
+        static const swrObjHang_STATE screens[] = {
+            swrObjHang_STATE_MAIN_MENU, swrObjHang_STATE_LOOK_AT_VEHICLE, swrObjHang_STATE_RESULTS_INTRO,
+            swrObjHang_STATE_VEHICLE_SELECT_INTRO, swrObjHang_STATE_PLANET_SELECT_INTRO, swrObjHang_STATE_LEGAL};
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            hang->menuScreen = screens[next_u32() % 6u];
+            swrObjHang_inspectCameraTimer = next_float(0.0f, 10.0f);
+            swrObjHang_fadeState = (int) (next_u32() % 2u);
+            swrObjHang_state2 = (swrObjHang_STATE) (next_u32() % 3u ? 0 : -1);
+            swrRace_fdeltaTimeSecs = (float) sample_delta(i);
+            uint8_t start[512];
+            g.copy_out(start);
+            rdVector3 target = random_vec3(i, -500.0f, 500.0f);
+            rdVector3 to = random_vec3(i + 3, -500.0f, 500.0f);
+            rdVector3 from = random_vec3(i + 9, -500.0f, 500.0f);
+            if (i % 4 == 0)
+                from = rdVector3{target.x + next_float(-3.0f, 3.0f), target.y, target.z};
+            const float speed = next_float(0.1f, 3.0f);
+            float our_prog = next_float(0.0f, 2000.0f), ret_prog = our_prog;
+            rdVector3 our_from = from, ret_from = from;
+            const int our_r = swrObjHang_StepCameraToward(hang, &our_prog, &target, &our_from, &to, speed);
+            g.copy_out(g.ours);
+            g.copy_in(start);
+            const int ret_r = retail(hang, &ret_prog, &target, &ret_from, &to, speed);
+            char desc[80];
+            std::snprintf(desc, sizeof(desc), "case %d screen=%d speed=%.9g", i, (int) hang->menuScreen, speed);
+            record_int(s, our_r, ret_r, desc);
+            record(s, our_prog, ret_prog, 0, desc);
+            record_vec3(s, our_from, ret_from, 0, desc);
+            g.record(s, desc);
+        }
+        std::free(hang);
+        g.restore();
+        report(s);
+    }
+
 }// namespace
 
 extern "C" void reimpl_verify_run(FILE *hook_log) {
@@ -2543,8 +3571,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
             2000.0f, 0);
     run_f_f("stdMath_NormalizeAngleAcute", stdMath_NormalizeAngleAcute_ADDR,
             stdMath_NormalizeAngleAcute, -2000.0f, 2000.0f, 0);
-    run_f_ff("stdMath_Decelerator", stdMath_Decelerator_ADDR, stdMath_Decelerator, -100.0f, 100.0f,
-             0);
+    run_ld_ff("stdMath_Decelerator", stdMath_Decelerator_ADDR, stdMath_Decelerator, -100.0f, 100.0f);
     run_f_fi("stdMath_FlexPower", stdMath_FlexPower_ADDR, stdMath_FlexPower, -10.0f, 10.0f, 8, 0);
     run_v_pffff("stdMath_MultiplyAddClamped", stdMath_MultiplyAddClamped_ADDR,
                 stdMath_MultiplyAddClamped, -1000.0f, 1000.0f, 0);
@@ -2689,6 +3716,24 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_concat("stdFnames_Concat", stdFnames_Concat_ADDR, stdFnames_Concat);
     run_make_path("stdFnames_MakePath", stdFnames_MakePath_ADDR, stdFnames_MakePath);
 
+    std::fprintf(verify_log, "\nswrUtils / swrObjHang\n");
+    run_rand_float();
+    run_f_ff("swrObjHang_CosineEase", swrObjHang_CosineEase_ADDR, swrObjHang_CosineEase,
+             -10.0f, 10.0f, 0);
+    std::fprintf(verify_log, "\nST0 callers\n");
+    run_add_light();
+    run_calc_face_intensity();
+    run_intersect_ray_plane();
+    run_collide_ray_triangle();
+    run_triangle_suite();
+    run_closest_point_on_triangle();
+    run_stdcontrol_readers();
+    run_node_closest_point();
+    run_step_camera_toward();
+    run_score_ld("swrObjJdge_GetRacerProgress", swrObjJdge_GetRacerProgress_ADDR,
+                 swrObjJdge_GetRacerProgress);
+    run_score_ld("swrObjJdge_GetRacerRankValue", swrObjJdge_GetRacerRankValue_ADDR,
+                 swrObjJdge_GetRacerRankValue);
     std::fprintf(verify_log, "\nswrRace\n");
     run_step_toward_clamped();
     run_set_angle_from_turn_rate();
@@ -2708,6 +3753,7 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
         run_boost_bar_color();
         run_repair();
         run_boost_charge();
+        run_physics_suite();
     }
     free_racers();
 

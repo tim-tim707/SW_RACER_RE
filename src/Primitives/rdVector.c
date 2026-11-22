@@ -91,7 +91,7 @@ rdVector3* rdVector_Sub3(rdVector3* v1, const rdVector3* v2, rdVector3* v3)
 }
 
 // 0x0042f890
-float rdVector_Dot3(const rdVector3* v1, const rdVector3* v2)
+long double rdVector_Dot3(const rdVector3* v1, const rdVector3* v2)
 {
     // Retail accumulates (y + z) + x.
     return ((long double)v1->y * v2->y + (long double)v1->z * v2->z) + (long double)v1->x * v2->x;
@@ -104,7 +104,7 @@ float rdVector_Len3(const rdVector3* v)
 }
 
 // 0x0042f910
-float rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
+long double rdVector_DistSquared3(const rdVector3* v1, const rdVector3* v2)
 {
     // Retail spills dx and dy through `FST dword` and multiplies each register-width delta
     // by its own 32-bit copy; dz is squared at register width. Sum is (dx2 + dy2) + dz2.

@@ -32,6 +32,25 @@ both stdHashtbl_*
 both stdFnames_*
 both swrRace_*
 both swrMath_StepTowardClamped
+both swrUtils_RandFloat
+both swrObjHang_CosineEase
+both rdCamera_AddLight
+both rdLight_CalcFaceIntensity
+both rdMath_IntersectRayPlane
+both swrModel_CollideRayTriangle
+both swrModel_NodeClosestPoint
+both swrObjHang_StepCameraToward
+both swrObjJdge_GetRacerProgress
+both swrObjJdge_GetRacerRankValue
+both rdMath_ProjectPointOntoPlane
+both rdMath_ClosestPointOnSegment
+both swrModel_PointInTriangle2
+both swrModel_ClosestPointOnTriangleImpl
+both swrModel_ClosestPointOnTriangle
+both stdControl_ReadAxis
+both stdControl_ReadKeyAsAxis
+both stdControl_ReadAxisAsKeyEx
+both swrRace_ClosestApproach2D
 verify
 
 # ---------------------------------------------------------------------------

@@ -466,10 +466,10 @@ void swrControl_ProcessInputs(void)
         swrControl_ClearDeviceState(swrConfig_DEVICE_KEYBOARD);
     } else {
         swrControl_SnapshotKeyboard();
-        right = stdControl_ReadKeyAsAxis(DIK_RIGHT) - stdControl_ReadKeyAsAxis(DIK_LEFT);
-        swrControl_keyboardAxes[0] = (stdControl_ReadKeyAsAxis(DIK_NUMPAD6) - stdControl_ReadKeyAsAxis(DIK_NUMPAD4)) + right;
-        up = stdControl_ReadKeyAsAxis(DIK_UP) - stdControl_ReadKeyAsAxis(DIK_DOWN);
-        swrControl_keyboardAxes[1] = (stdControl_ReadKeyAsAxis(DIK_NUMPAD8) - stdControl_ReadKeyAsAxis(DIK_NUMPAD2)) + up;
+        right = (float)stdControl_ReadKeyAsAxis(DIK_RIGHT) - stdControl_ReadKeyAsAxis(DIK_LEFT);
+        swrControl_keyboardAxes[0] = ((float)stdControl_ReadKeyAsAxis(DIK_NUMPAD6) - stdControl_ReadKeyAsAxis(DIK_NUMPAD4)) + right;
+        up = (float)stdControl_ReadKeyAsAxis(DIK_UP) - stdControl_ReadKeyAsAxis(DIK_DOWN);
+        swrControl_keyboardAxes[1] = ((float)stdControl_ReadKeyAsAxis(DIK_NUMPAD8) - stdControl_ReadKeyAsAxis(DIK_NUMPAD2)) + up;
         for (binding = swrControl_bindingsKeyboard; binding < swrControl_bindingsKeyboard + (SWR_CONTROL_BINDINGS_PER_DEVICE - 1) && binding->flags != SWR_CONTROL_BINDING_END; binding++) {
             if ((binding->flags & swrControlBinding_FLAG_BUTTON) == 0) {
                 continue;

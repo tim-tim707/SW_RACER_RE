@@ -35,8 +35,8 @@ void stdControl_Close(void);
 void stdControl_Reset(void);
 int stdControl_EnableAxis(int axisID);
 void stdControl_ReadControls(void);
-float stdControl_ReadAxis(int controlId);
-float stdControl_ReadKeyAsAxis(unsigned int keyId);
+long double stdControl_ReadAxis(int controlId);
+long double stdControl_ReadKeyAsAxis(unsigned int keyId);
 int stdControl_ReadAxisAsKeyEx(int controlId);
 int stdControl_ReadKey(unsigned int keyNum, int* pNumPressed);
 

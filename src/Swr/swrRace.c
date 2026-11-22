@@ -5297,7 +5297,7 @@ unsigned int swrRace_GetDamagedEngineSides(swrRace* player)
 // shifts the result by -0.33 (left, parts 0..2) or +0.33 (right, parts 3..5), so a
 // lopsidedly damaged pod pulls to one side.
 // 0x0046a9f0
-RETAIL_FP float swrRace_GetEngineDamagePenalty(swrRace* player)
+RETAIL_FP long double swrRace_GetEngineDamagePenalty(swrRace* player)
 {
     // The health threshold is the double 0.8, so an engine at exactly 0.8f (just above it) counts.
     long double penalty = 0.0f;
@@ -6908,7 +6908,7 @@ void swrRace_UpdateSurfaceTag(swrRace* test)
 }
 
 // 0x004774f0
-void swrRace_ApplyGravity(swrRace* player, float* a, float b)
+RETAIL_FP void swrRace_ApplyGravity(swrRace* player, float* a, float b)
 {
     // Down direction: surface-relative on walls/tubes (flags1 0x400), else the world vector.
     float gx, gy, gz;
@@ -6932,9 +6932,9 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     float vAz = player->transform.vA.z;
     if (vAz < 0.0f)
         vAz = -vAz;
-    float rollTerm = player->collisionWidth * vAz;
+    long double rollTerm = player->collisionWidth * vAz;
     if (3.0f < rollTerm)
-        groundDist -= rollTerm - 3.0f;
+        groundDist = groundDist - (rollTerm - 3.0f);
 
     // Too-high-for-too-long watchdog forces a respawn.
     if (b <= 99999.0f)
@@ -6943,8 +6943,10 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     }
     else
     {
-        player->fallTimer += swrRace_deltaTimeSecs;
-        if (3.0f < player->fallTimer)
+        // Retail compares the sum before rounding it into fallTimer.
+        long double fallTimer = swrRace_deltaTimeSecs + player->fallTimer;
+        player->fallTimer = fallTimer;
+        if (3.0f < fallTimer)
             player->flags0 |= swrObjTest_FLAG0_RESPAWN;
     }
 
@@ -6958,17 +6960,19 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     // Integrate the vertical-velocity accumulator (fallVelocity).
     if (groundDist <= 12.0f)
     {
-        player->fallVelocity += (1.0f - (12.0f - groundDist) / (12.0f - hoverDelta)) * swrRace_deltaTimeSecs;
-        if (hoverDelta < groundDist && player->fallVelocity < 0.0f)
-            player->fallVelocity *= stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs);
+        // The sign test uses the sum before it is rounded into fallVelocity.
+        long double fallVelocity = (1.0f - (12.0f - groundDist) / (12.0f - hoverDelta)) * swrRace_deltaTimeSecs + player->fallVelocity;
+        player->fallVelocity = fallVelocity;
+        if (hoverDelta < groundDist && fallVelocity < 0.0f)
+            player->fallVelocity = stdMath_Decelerator(4.0f, swrRace_deltaTimeSecs) * player->fallVelocity;
     }
     else if (player->speedValue < 0.0f)
     {
-        player->fallVelocity += swrRace_deltaTimeSecs * 2.0;   // stored constant is the double -2.0, applied as a subtract
+        player->fallVelocity = player->fallVelocity - swrRace_deltaTimeSecs * -2.0;
     }
     else
     {
-        player->fallVelocity += swrRace_deltaTimeSecs;
+        player->fallVelocity = swrRace_deltaTimeSecs + player->fallVelocity;
     }
 
     // fallStep = dt * gravityScale * fallVelocity * 30. Negative pitch scales the fall step DOWN by
@@ -6976,7 +6980,7 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     float fallStep = swrRace_deltaTimeSecs * player->gravityScale * player->fallVelocity * 30.0f;
     player->fallStep = fallStep;
     if (player->pitch < 0.0f && 0.0f <= player->speedValue && 0.0f < fallStep)
-        player->fallStep = (player->pitch * 0.9f + 1.0f) * fallStep;
+        player->fallStep = (player->pitch * (float)0.9f + 1.0f) * fallStep;
 
     // Clamp the fall to the ground; on a hard landing dispatch the "HitBotm" event.
     if (player->fallStep <= groundDist)
@@ -6985,17 +6989,18 @@ void swrRace_ApplyGravity(swrRace* player, float* a, float b)
     }
     else
     {
-        float impactRate = player->fallStep;
-        float bounceMag = player->fallVelocity * 8.0f;
+        // Retail spills the impact rate but keeps bounceMag on the FPU stack.
+        float impactRate = player->fallStep / swrRace_deltaTimeSecs;
+        long double bounceMag = player->fallVelocity * 8.0f;
         player->fallStep = groundDist;
         if (0.0f < player->fallVelocity)
-            player->fallVelocity = -(player->fallVelocity * 0.2f);
+            player->fallVelocity = -(player->fallVelocity * (float)0.2f);
         if (4.0f < bounceMag && (player->flags0 & swrObjTest_FLAG0_HIT_BOTTOM) == 0)
         {
             int subEvents[3];
             subEvents[0] = 0x48697474; // 'Hitt'
             subEvents[1] = 0x426f746d; // 'Botm'
-            *(float*)&subEvents[2] = (impactRate / swrRace_deltaTimeSecs) * 0.5f;
+            *(float*)&subEvents[2] = impactRate * 0.5f;
             swrEvent_DispatchSubEvents(player, subEvents);
         }
         player->flags0 |= swrObjTest_FLAG0_HIT_BOTTOM;
@@ -7023,9 +7028,9 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
 
     float dotND = normal->x * player->world_gravity.x + normal->y * player->world_gravity.y +
                   normal->z * player->world_gravity.z;
-    if ((dotND < -0.995) || (0.995 < dotND)) {
+    if ((dotND < (double)-0.995) || ((double)0.995 < dotND)) {
         rdVector_Set3(out1, 0.0, 0.0, 0.0);
-        rdVector_Scale3(&player->velocitySlope, 0.9f, &player->velocitySlope);
+        rdVector_Scale3(&player->velocitySlope, (float)0.9f, &player->velocitySlope);
         rdVector_Copy3(out2, &player->velocitySlope);
         player->autoTilt = 0.0;
         return;
@@ -7066,7 +7071,7 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
     vbFlat.y = player->transform.vB.y;
     vbFlat.z = 0.0;
     float surfLen = rdVector_Normalize3Acc(&surfDir);
-    if (surfLen < 0.01f) {
+    if (surfLen < (float)0.01f) {
         surfDir.x = -normal->x;
         surfDir.y = -normal->y;
         surfDir.z = -normal->z;
@@ -7098,7 +7103,7 @@ void swrRace_ApplySlopeSteering(swrRace* player, int velocity, int scrapeData, f
 // near-inverted bail. NOTE: the [-0.995, 0.995] gate + the speed tiers are the limits a "banking magnet"
 // corkscrew mode would relax. velocity/scrapeData/groundDist are unused here (kept for signature parity).
 // 0x00479550
-void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist,
+RETAIL_FP void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeData, float groundDist,
                                       rdVector3* normal, rdVector3* out1, rdVector3* out2)
 {
     rdVector3 downhillAxis;
@@ -7121,8 +7126,8 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
     rdVector_Cross3(out1, normal, &downhillAxis);// out1 = downhill gradient on the surface
     float slopeSin = out1->x * player->world_gravity.x + out1->y * player->world_gravity.y +
                      out1->z * player->world_gravity.z;
-    float slopeAngle = stdMath_ArcSin(slopeSin);
-    float steerMag = slopeAngle * -1.1111112f;
+    long double slopeAngle = stdMath_ArcSin(slopeSin);
+    float steerMag = slopeAngle * (float)-1.1111112f;
 
     if (200.0f <= player->speedValue) {
         if (250.0f <= player->speedValue) {
@@ -7132,10 +7137,10 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
                 else
                     steerMag = (steerMag - 60.0f) * 2.5f;
             } else {
-                steerMag = (steerMag - 40.0f) * 1.6666666f;
+                steerMag = (steerMag - 40.0f) * (float)1.6666666f;
             }
         } else {
-            steerMag = (steerMag - 25.0f) * 1.3333334f;
+            steerMag = (steerMag - 25.0f) * (float)1.3333334f;
         }
     }
     if (steerMag < 0.0)
@@ -7172,7 +7177,7 @@ void swrRace_ApplySlopeSteeringMagnet(swrRace* player, int velocity, int scrapeD
     rdVector_Normalize3Acc(&vbFlat);
     float align = surfDir.x * vbFlat.x + surfDir.y * vbFlat.y + surfDir.z * vbFlat.z;
     if (0.0 <= align) {
-        float a = stdMath_ArcSin(align);
+        long double a = stdMath_ArcSin(align);
         float side = vbFlat.x * downhillAxis.x + vbFlat.y * downhillAxis.y + vbFlat.z * downhillAxis.z;
         if (side <= 0.0)
             player->autoTilt = -(a * slopeSin);
@@ -8496,22 +8501,22 @@ float swrRace_UpdateSpeed(swrRace* player)
 // heatRate, idling recovers it at coolRate, and a spinout drains it fast (biasing which
 // engine fails). When it bottoms out, a random engine part overheats and blows.
 // 0x004788c0
-void swrRace_UpdateHeat(swrRace* player)
+RETAIL_FP void swrRace_UpdateHeat(swrRace* player)
 {
     int spinDir = 0; // -1 / 0 / +1 spinout-tilt bias for which engine part fails
 
     if ((player->flags1 & swrObjTest_FLAG1_ON_LAVA) != 0) {
         // On lava terrain: drain fast regardless of throttle; tilt direction biases the failure.
-        player->engineTemp -= (float) (swrRace_deltaTimeSecs * 20.0);
+        player->engineTemp = player->engineTemp - swrRace_deltaTimeSecs * 20.0f;
         if (player->tiltManualMult < -0.5f) {
             spinDir = -1;
         } else if (0.5f < player->tiltManualMult) {
             spinDir = 1;
         }
     } else if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) != 0) {
-        player->engineTemp -= (float) (swrRace_deltaTimeSecs * player->podStats.heatRate);
+        player->engineTemp = player->engineTemp - swrRace_deltaTimeSecs * player->podStats.heatRate;
     } else {
-        player->engineTemp += (float) (swrRace_deltaTimeSecs * player->podStats.coolRate);
+        player->engineTemp = swrRace_deltaTimeSecs * player->podStats.coolRate + player->engineTemp;
     }
 
     if (100.0f <= player->engineTemp) {
@@ -8525,18 +8530,18 @@ void swrRace_UpdateHeat(swrRace* player)
     player->engineTemp = 0.0f;
     int part;
     if (spinDir < 0) {
-        part = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * 3.0f);
+        part = (int) ((long double) swrUtils_Rand() * (float) SWR_CTL_RAND_NORM * 3.0f);
     } else if (spinDir > 0) {
-        part = 3 - (int) ((float) swrUtils_Rand() * 4.6566129e-10f * -3.0f);
+        part = 3 - (int) ((long double) swrUtils_Rand() * (float) SWR_CTL_RAND_NORM * -3.0f);
     } else {
-        part = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * 6.0f);
+        part = (int) ((long double) swrUtils_Rand() * (float) SWR_CTL_RAND_NORM * 6.0f);
     }
 
-    if ((player->engineStatus[part] & 8) == 0) {
+    if ((player->engineStatus[part] & swrRace_ENGINESTATUS_ON_FIRE) == 0) {
         rdVector3 origin = {0.0f, 0.0f, 0.0f};
-        swrRace_SpawnEngineFireball(player, 2 - part / 3, &origin, 0.1f);
+        swrRace_SpawnEngineFireball(player, 2 - part / 3, &origin, (float) 0.1f);
     }
-    player->engineStatus[part] |= 8;
+    player->engineStatus[part] |= swrRace_ENGINESTATUS_ON_FIRE;
     player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
 }
 
@@ -8756,8 +8761,9 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
     player->wallPushback.z = c->z - savedZ;
 }
 
+// Returns the unrounded ST0 result: swrRace_IntegrateMotion adds it to the speed before storing.
 // 0x004787f0
-float swrRace_ApplyBoost(swrRace* player)
+long double swrRace_ApplyBoost(swrRace* player)
 {
     if ((player->flags0 & swrObjTest_FLAG0_BOOSTING) == 0)
     {
@@ -9418,7 +9424,7 @@ void swrRace_DetectWallScrape(swrRace* player, float* pos, float* prevPos)
 }
 
 // 0x00479920
-void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir)
+RETAIL_FP void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* dir)
 {
     rdVector3 push;
     rdVector3 side;
@@ -9428,15 +9434,14 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
     float dx = dir->x;
     float dy = dir->y;
     float dz = dir->z;
-    float along = dx * normal->x + dz * normal->z + dy * normal->y;
+    float along = dy * normal->y + dz * normal->z + dx * normal->x;
     float len = rdVector_Len3(normal);
+    long double approach = 0.0f;
+    if (!(len < (float)0.1f))
+        approach = (float)0.7f - along / len;
     float impact = 0.0f;
-    if (0.1f <= len)
-        impact = 0.7f - along / len;
-    if (0.0f <= impact)
-        impact *= 1.4285715f;
-    else
-        impact = 0.0f;
+    if (!(approach < 0.0f))
+        impact = approach * (float)1.4285715f;
 
     // strip the component along dir, leaving the wall push
     push.x = dx * -along + normal->x;
@@ -9444,26 +9449,30 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
     push.z = dz * -along + normal->z;
     *normal = push;
     float pushLen = rdVector_Len3(&push);
-    if (pushLen < 0.01f)
+    if (pushLen < (float)0.01f)
         return;
-    float inv = 1.0f / pushLen;
-    push.x *= inv;
-    push.y *= inv;
-    push.z *= inv;
+    long double inv = 1.0f / pushLen;
+    long double pushX = push.x * inv;
+    push.x = pushX;
+    push.y = push.y * inv;
+    push.z = push.z * inv;
 
-    float headOn = player->transform.vB.z * push.z + player->transform.vB.y * push.y + push.x * player->transform.vB.x;
+    // Retail dots the unrounded x term with the y and z it has already stored.
+    float headOn = player->transform.vB.x * pushX + player->transform.vB.y * push.y + player->transform.vB.z * push.z;
     rdVector_Cross3(&side, &player->world_gravity, (rdVector3*)&player->transform.vB);
     rdVector_Normalize3Acc(&side);
-    float strength = impact * headOn * headOn;
-    float sideways = side.z * push.z + side.y * push.y + side.x * push.x;
-    if (0.7f < strength) {
+    // The hard-hit test uses the unrounded product; everything after reads the spilled copy.
+    long double strengthRaw = impact * headOn * headOn;
+    float strength = strengthRaw;
+    float sideways = side.x * push.x + side.y * push.y + side.z * push.z;
+    if ((float)0.7f < strengthRaw) {
         unsigned int flags = player->flags0;
         hardHit = true;
         player->flags0 = flags & ~swrObjTest_FLAG0_THROTTLE_SETTLED;
         if ((flags & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_RESPAWN_INVINC | swrObjTest_FLAG0_DEAD)) == 0)
-            player->wallHitCooldown = 0.1f;
+            player->wallHitCooldown = (float)0.1f;
     }
-    float kick = strength * player->speedValue * 1.5f;
+    long double kick = strength * player->speedValue * 1.5f;
     player->velocityCollision.x = push.x * kick + player->velocityCollision.x;
     player->velocityCollision.y = push.y * kick + player->velocityCollision.y;
     player->velocityCollision.z = push.z * kick + player->velocityCollision.z;
@@ -9474,12 +9483,14 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
         if (0.0f <= headOn) {
             player->turnModifier = 0.0f;
         } else if (0.0f <= sideways) {
-            player->turnModifier = ((sideways - headOn) - 1.0f) * 2.5f;
-            if (player->turnModifier < 0.0f)
+            long double turn = ((sideways - headOn) - 1.0f) * 2.5f;
+            player->turnModifier = turn;
+            if (turn < 0.0f)
                 player->turnModifier = 0.0f;
         } else {
-            player->turnModifier = ((sideways + headOn) - -1.0f) * 2.5f;
-            if (0.0f < player->turnModifier)
+            long double turn = ((sideways + headOn) - -1.0f) * 2.5f;
+            player->turnModifier = turn;
+            if (0.0f < turn)
                 player->turnModifier = 0.0f;
         }
         player->turnModifier = impact * -150.0f * player->turnModifier;
@@ -9487,7 +9498,7 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
 
     if (0.0 < strength && 100.0 < player->speedValue) {
         player->accelThrust = stdMath_Decelerator(50.0f, (float)swrRace_deltaTimeSecs) * player->accelThrust;
-        if (0.05f < strength)
+        if ((float)0.05f < strength)
             player->flags0 |= swrObjTest_FLAG0_WALL_IMPACT_CLAMP;
         subEvents[0] = 'Hitt';
         if (hardHit) {
@@ -9500,7 +9511,8 @@ void swrRace_ApplyWallCollision(swrRace* player, rdVector3* normal, rdVector3* d
             else
                 subEvents[1] = 0.0 <= sideways ? 'LtFt' : 'RtFt';
         }
-        *(float*)&subEvents[2] = pushLen / (float)swrRace_deltaTimeSecs;
+        // Divides by the double frame time, not a float copy of it.
+        *(float*)&subEvents[2] = pushLen / swrRace_deltaTimeSecs;
         swrEvent_DispatchSubEvents(player, subEvents);
     }
 }
@@ -10306,11 +10318,11 @@ void swrRace_BuildStretchedQuad(rdMatrix44* a, rdMatrix44* b, float mirrorX, flo
 }
 
 // 0x00470510
-RETAIL_FP float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
+RETAIL_FP long double swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max)
 {
     float* value = &player->partOffset[part].y;
     float current = *value;
-    float result;
+    long double result; // retail returns the finished-pod average unrounded (FST, not FSTP)
 
     lowerRate *= swrRace_deltaTimeSecs;
     upperRate *= swrRace_deltaTimeSecs;

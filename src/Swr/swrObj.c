@@ -5432,23 +5432,24 @@ int swrRace_GetLocalPlayerNumberFromScore(swrScore* score)
 
 // Placement metric: lap count + fraction of the current lap (spline progress, wrap-corrected).
 // 0x0045d410
-float swrObjJdge_GetRacerProgress(swrScore* score)
+RETAIL_FP long double swrObjJdge_GetRacerProgress(swrScore* score)
 {
-    float lapCompMax = score->obj_test_ptr->lapCompMax;
-    float wrap = lapCompMax - score->obj_test_ptr->lapComp;
+    // Retail keeps the whole chain on the FPU stack and returns it unrounded.
+    long double lapCompMax = score->obj_test_ptr->lapCompMax;
+    long double wrap = lapCompMax - score->obj_test_ptr->lapComp;
     if (wrap < 0.0f)
         wrap = -wrap;
     if (0.5f < wrap)
         wrap = 1.0f - wrap;
-    float progress = ((float)score->results_P1_Lap + lapCompMax) - wrap;
+    long double progress = (lapCompMax + score->results_P1_Lap) - wrap;
     if (progress < 0.0f)
-        progress = 0.0f;
+        return 0.0f;
     return progress;
 }
 
 // Sort key for standings: finished racers rank by (maxRaceTime - total time); others by progress.
 // 0x0045d480
-float swrObjJdge_GetRacerRankValue(swrScore* score)
+long double swrObjJdge_GetRacerRankValue(swrScore* score)
 {
     if ((score->flag & 2) == 0)
         return swrObjJdge_GetRacerProgress(score);
@@ -11236,18 +11237,20 @@ void swrObjTest_UpdateControlAndMove(swrRace* player)
 }
 
 // 0x0047aee0
-float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB)
+RETAIL_FP float swrRace_ClosestApproach2D(rdVector2* a0, float* a1, rdVector2* b0, float* b1, rdVector2* outA, rdVector2* outB, rdVector2* outDirA, rdVector2* outDirB)
 {
     outDirA->x = a1[0] - a0->x;
     outDirA->y = a1[1] - a0->y;
     outDirB->x = b1[0] - b0->x;
-    outDirB->y = b1[1] - b0->y;
-    float relX = outDirA->x - outDirB->x;
-    float relY = outDirA->y - outDirB->y;
-    float relSq = relY * relY + relX * relX;
-    if (relSq < 0.001f && -relSq < 0.001f)
+    // Retail FSTs dirB.y and keeps the unrounded value for relY; only t is rounded after that.
+    long double dirBy = b1[1] - b0->y;
+    outDirB->y = dirBy;
+    long double relX = outDirA->x - outDirB->x;
+    long double relY = outDirA->y - dirBy;
+    long double relSq = relX * relX + relY * relY;
+    if (relSq < (float)0.001f && -relSq < (float)0.001f)
         return -1.0f;
-    float t = -(relY * (a0->y - b0->y) + relX * (a0->x - b0->x)) / relSq;
+    float t = -(relX * (a0->x - b0->x) + relY * (a0->y - b0->y)) / relSq;
     if (t < 0.0f)
         t = 0.0f;
     if (t > 1.0f)
@@ -12944,7 +12947,7 @@ void swrCam_CamState_ApplyToViewport(swrViewport* viewport)
 
 // Cosine ease driving the front-end camera moves: 0 at t == 0, `period` at t == period.
 // 0x0045a420
-float swrObjHang_CosineEase(float t, float period) {
+long double swrObjHang_CosineEase(float t, float period) {
     float sine;
     // The original passes its own `t` slot as the cosine out-param and reads it back.
     stdMath_SinCos((t / period) * 180.0f, &sine, &t);
@@ -13345,14 +13348,14 @@ void swrObjHang_UpdateHoloCamera(swrObjHang* hang)
 // Advance `from` toward `target` this frame, ramping the carried speed down over the last stretch so
 // the camera eases in. Returns nonzero once it has arrived.
 // 0x0045c560
-int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed)
+RETAIL_FP int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* target, rdVector3* from, rdVector3* to, float speed)
 {
     swrObjHang_STATE screen;
-    float dot;
+    long double dot;
     float step;
     float rate;
     float halfSpan;
-    float arriveRadius;
+    long double arriveRadius; // compared unrounded unless clamped to halfSpan
     float distToTarget;
     float carriedSpeed;
     float decelSpan;
@@ -13367,18 +13370,21 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
     decelSpan = 1600.0f;
     if (screen == swrObjHang_STATE_RESULTS_INTRO || screen == swrObjHang_STATE_VEHICLE_SELECT_INTRO || (screen == swrObjHang_STATE_LOOK_AT_VEHICLE && 5.0f <= swrObjHang_inspectCameraTimer) || (screen == swrObjHang_STATE_MAIN_MENU && swrObjHang_fadeState == 0)) {
         decelSpan = 320.0f;
-        rate = 0.2f;
+        rate = (float)0.2f;
     } else if (screen == swrObjHang_STATE_PLANET_SELECT_INTRO) {
         decelSpan = 80.0f;
-        rate = 0.05f;
+        rate = (float)0.05f;
     } else {
         rate = 1.0f;
     }
-    step = swrRace_fdeltaTimeSecs * 60000.0f * rate;
+    // Retail stores the base step, then the rate-scaled step, rounding each.
+    step = swrRace_fdeltaTimeSecs * 60000.0f;
+    step = step * rate;
 
     rdVector_Copy3(&start, from);
     swrObjHang_cameraStepScratch = 0;
     step = step * speed;
+    decelSpan = decelSpan * speed;
     rdVector_Sub3(&targetToTo, target, to);
     halfSpan = rdVector_Len3(&targetToTo) * 0.5f;
     rdVector_Sub3(&fromToTo, to, from);
@@ -13394,11 +13400,13 @@ int swrObjHang_StepCameraToward(swrObjHang* hang, float* progress, rdVector3* ta
             if (swrObjHang_state2 != (swrObjHang_STATE)~swrObjHang_STATE_LEGAL && hang->menuScreen != swrObjHang_STATE_VEHICLE_SELECT_INTRO) {
                 return 1;
             }
-            carriedSpeed = stdMath_Sqrt(distToTarget / (decelSpan * speed)) * decelSpan * speed;
+            carriedSpeed = stdMath_Sqrt(distToTarget / decelSpan) * decelSpan;
         }
     } else {
-        carriedSpeed = carriedSpeed - speed * swrRace_fdeltaTimeSecs * -2000.0f;
-        if (step < carriedSpeed) {
+        // The cap test reads the sum before it is rounded into carriedSpeed.
+        long double accelerated = carriedSpeed - speed * swrRace_fdeltaTimeSecs * -2000.0f;
+        carriedSpeed = accelerated;
+        if (step < accelerated) {
             carriedSpeed = step;
         }
     }

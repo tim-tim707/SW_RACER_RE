@@ -398,7 +398,7 @@ void swrRace_AlignToSurface(swrRace* player, rdVector3* up, rdVector3* fwd_vB, r
 void swrRace_UpdateTurn2(swrRace* player, rdVector3* pos, rdVector3* turnInput);
 
 float swrRace_UpdateSpeed(swrRace* player);
-float swrRace_ApplyBoost(swrRace* player);
+long double swrRace_ApplyBoost(swrRace* player);
 void swrRace_UpdateHeat(swrRace* player);
 void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdVector3* d);
 void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d);
@@ -448,7 +448,7 @@ void swrRace_UpdateEngineDamageFX(swrRace* player);
 void swrRace_SpawnGroundDustKick(swrRace* player, float* transform, float sx, float sy, float sz, float offset, int tossFlag);
 
 // Smooths a per-side engine exhaust size toward a target over time (best guess).
-float swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max);
+long double swrRace_SmoothEngineExhaustSize(swrRace* player, int part, float target, float brakeTarget, float lowerRate, float upperRate, float min, float max);
 
 // pod state + engine secondary-motion helpers:
 // Counts down the death timer; on expiry dispatches the 'Snap' event and resets engine health/flags.
@@ -483,7 +483,7 @@ void swrRace_CheckResetInput(swrRace* player, int playerIndex);
 // Returns a bitmask of which engine groups are damaged (1=left trio, 2=right trio).
 unsigned int swrRace_GetDamagedEngineSides(swrRace* player);
 // Returns the handling penalty accumulated from damaged engines.
-float swrRace_GetEngineDamagePenalty(swrRace* player);
+long double swrRace_GetEngineDamagePenalty(swrRace* player);
 // Applies per-engine overheat damage (swrRace_TakeDamage) and triggers rumble.
 void swrRace_ApplyEngineDamage(swrRace* player);
 // Autopilot steering: follows the track spline via a look-ahead point, setting
