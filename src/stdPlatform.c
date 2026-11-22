@@ -5,6 +5,7 @@
 #include "globals.h"
 
 #include <macros.h>
+#include <engine_config.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,9 +24,8 @@ unsigned int stdPlatform_Initialize(HostServices* hs)
     stdPlatform_hostServices_ptr = hs;
     __asm__ volatile("fnstcw %0" : "=m"(cw));
     stdPlatfom_FPU1 = cw;
-    // high byte 0x0b: round up, 0x07: round down (both 64-bit precision)
-    *(unsigned short*)&stdPlatfom_FPU3 = (cw & 0xff) | 0x0b00;
-    stdPlatfom_FPU2 = (cw & 0xff) | 0x0700;
+    *(unsigned short*)&stdPlatfom_FPU3 = (cw & 0xff) | STD_FPU_CW_ROUND_UP;
+    stdPlatfom_FPU2 = (cw & 0xff) | STD_FPU_CW_ROUND_DOWN;
     stdPlatform_hostServices_initialized = 1;
     // retail leaves the control word in AX
     return ((unsigned int)hs & 0xffff0000) | cw;

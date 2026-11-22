@@ -646,4 +646,9 @@
 // swrScore.identifier for a local human racer ('Locl').
 #define SWR_SCORE_ID_LOCAL (0x4c6f636c)
 
+// x87 control-word high bytes stdPlatform_Initialize derives from the startup word
+// (both 64-bit precision); the low byte (exception masks) is kept.
+#define STD_FPU_CW_ROUND_UP (0x0b00)
+#define STD_FPU_CW_ROUND_DOWN (0x0700)
+
 #endif // ENGINE_CONFIG_H
