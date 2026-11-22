@@ -324,12 +324,25 @@ static float swrControl_ClampUnit(float value)
     return value;
 }
 
+// Retail's inline clamp, which tests and keeps the unrounded reading.
+static RETAIL_FP long double swrControl_ClampUnitRaw(long double value)
+{
+    if (!(value >= -1.0f)) {
+        return -1.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
+}
+
 // 0x00404dd0
-void swrControl_ProcessInputs(void)
+RETAIL_FP void swrControl_ProcessInputs(void)
 {
     swrControlBinding* binding;
     swrUI_unk* page;
     float value;
+    long double reading; // reader results retail accumulates without rounding
     float right;
     float up;
     int axis;
@@ -367,11 +380,11 @@ void swrControl_ProcessInputs(void)
             if ((binding->flags & swrControlBinding_FLAG_BUTTON) != 0) {
                 key = STDCONTROL_JOYSTICK_KEY_BASE + stdControl_joystickDeviceIndex * STDCONTROL_KEYS_PER_JOYSTICK + binding->input;
                 if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
-                    value = stdControl_ReadKeyAsAxis(key);
+                    reading = stdControl_ReadKeyAsAxis(key);
                     if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
-                        JoystickAxisInput[binding->action] = value + JoystickAxisInput[binding->action];
+                        JoystickAxisInput[binding->action] = reading + JoystickAxisInput[binding->action];
                     } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
-                        JoystickAxisInput[binding->action] = JoystickAxisInput[binding->action] - value;
+                        JoystickAxisInput[binding->action] = JoystickAxisInput[binding->action] - reading;
                     }
                 } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
                     value = (float)stdControl_ReadKey(key, NULL);
@@ -380,14 +393,14 @@ void swrControl_ProcessInputs(void)
             } else if ((binding->flags & swrControlBinding_FLAG_AXIS) != 0) {
                 axis = binding->input + stdControl_joystickDeviceIndex * STDCONTROL_AXES_PER_JOYSTICK;
                 if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
-                    value = swrControl_ClampUnit(stdControl_ReadAxis(axis) * swrControl_joystickAxisScale[binding->input]);
-                    JoystickAxisInput[binding->action] = value * (swrControl_joystickFlipAxis[binding->input] != 0 ? -1.0 : 1.0) + JoystickAxisInput[binding->action];
+                    reading = swrControl_ClampUnitRaw(stdControl_ReadAxis(axis) * swrControl_joystickAxisScale[binding->input]);
+                    JoystickAxisInput[binding->action] = reading * (swrControl_joystickFlipAxis[binding->input] != 0 ? -1.0 : 1.0) + JoystickAxisInput[binding->action];
                 } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
                     direction = swrControl_joystickFlipAxis[binding->input] != 0 ? -1 : 1;
                     if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
-                        value = (float)stdControl_isAxisAboveDeadzone(axis, -direction, 0.0f, SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                        value = (float)stdControl_isAxisAboveDeadzone(axis, -direction, 0.0f, (float)SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
                     } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
-                        value = (float)stdControl_isAxisAboveDeadzone(axis, direction, 0.0f, SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                        value = (float)stdControl_isAxisAboveDeadzone(axis, direction, 0.0f, (float)SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
                     } else {
                         value = (float)stdControl_ReadAxisAsKeyEx(axis);
                         if (swrControl_joystickFlipAxis[binding->input] == 0) {
@@ -440,14 +453,14 @@ void swrControl_ProcessInputs(void)
                         MouseAxisInput[binding->action] = swrControl_mouseAxes[axis] + MouseAxisInput[binding->action];
                     } else {
                         // faithful: indexes the 3-entry mouse flip table with any axis
-                        value = stdControl_ReadAxis(STDCONTROL_MOUSE_AXIS_BASE + axis);
-                        MouseAxisInput[binding->action] = value * ((&flip_x_axis)[axis] != 0 ? -1.0 : 1.0) + MouseAxisInput[binding->action];
+                        reading = stdControl_ReadAxis(STDCONTROL_MOUSE_AXIS_BASE + axis);
+                        MouseAxisInput[binding->action] = reading * ((&flip_x_axis)[axis] != 0 ? -1.0 : 1.0) + MouseAxisInput[binding->action];
                     }
                 } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
                     if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
-                        value = (float)stdControl_isAxisAboveDeadzone(-1, 1, swrControl_mouseAxes[axis], SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                        value = (float)stdControl_isAxisAboveDeadzone(-1, 1, swrControl_mouseAxes[axis], (float)SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
                     } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
-                        value = (float)stdControl_isAxisAboveDeadzone(-1, -1, swrControl_mouseAxes[axis], SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
+                        value = (float)stdControl_isAxisAboveDeadzone(-1, -1, swrControl_mouseAxes[axis], (float)SWR_CONTROL_AXIS_DIGITAL_THRESHOLD);
                     } else {
                         value = (float)stdControl_isAxisAboveDeadzone(STDCONTROL_MOUSE_AXIS_BASE + axis, 0, swrControl_mouseAxes[axis], SWR_CONTROL_MOUSE_AXIS_DIGITAL_THRESHOLD);
                     }
@@ -475,11 +488,11 @@ void swrControl_ProcessInputs(void)
                 continue;
             }
             if ((binding->flags & swrControlBinding_FLAG_ANALOG) != 0) {
-                value = stdControl_ReadKeyAsAxis(binding->input);
+                reading = stdControl_ReadKeyAsAxis(binding->input);
                 if ((binding->flags & swrControlBinding_FLAG_POSITIVE) != 0) {
-                    KeyboardAxisInput[binding->action] = value + KeyboardAxisInput[binding->action];
+                    KeyboardAxisInput[binding->action] = reading + KeyboardAxisInput[binding->action];
                 } else if ((binding->flags & swrControlBinding_FLAG_NEGATIVE) != 0) {
-                    KeyboardAxisInput[binding->action] = KeyboardAxisInput[binding->action] - value;
+                    KeyboardAxisInput[binding->action] = KeyboardAxisInput[binding->action] - reading;
                 }
             } else if ((binding->flags & swrControlBinding_FLAG_DIGITAL) != 0) {
                 value = (float)stdControl_ReadKey(binding->input, NULL);
@@ -1766,16 +1779,18 @@ int swrControl_IsKeyStringControl(int controlId)
 // 0x00408040
 int stdControl_isAxisAboveDeadzone(int axisId, int direction, float value, float threshold)
 {
+    long double reading = value; // retail tests the ReadAxis result unrounded
+
     if (axisId >= 0) {
-        value = stdControl_ReadAxis(axisId);
+        reading = stdControl_ReadAxis(axisId);
     }
-    if (direction != 0 && (value < 0.0f ? -1 : 1) != direction) {
+    if (direction != 0 && (reading < 0.0f ? -1 : 1) != direction) {
         return 0;
     }
-    if (value < 0.0f) {
-        value = -value;
+    if (reading < 0.0f) {
+        reading = -reading;
     }
-    return value > threshold ? 1 : 0;
+    return reading > threshold ? 1 : 0;
 }
 
 // 0x00408120

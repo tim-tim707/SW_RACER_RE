@@ -25,6 +25,10 @@ extern "C" {
 #include <Swr/swrObj.h>
 #include <Swr/swrRace.h>
 #include <Swr/swrSound.h>
+#include <Swr/swrSprite.h>
+#include <Swr/swrUI.h>
+#include <swr.h>
+#include <engine_config.h>
 #include <globals.h>
 #include <hook_mode.h>
 }
@@ -3322,6 +3326,335 @@ namespace {
                            (I_int) stdControl_ReadAxisAsKeyEx, 0, in);
     }
 
+    // Cross-TU callees of the two caller fixtures below are jmp-patched at both entries, like
+    // SideEffectPatches. Same-TU callees inline into our side, so those run for real on both.
+    struct CalleePatches {
+        EntryPatch p[32];
+        int n = 0;
+
+        void both(void *ours, uint32_t retail_addr, void *stub) {
+            patch_jmp(p[n++], hook_retail_ptr(retail_addr), stub);
+            patch_jmp(p[n++], ours, stub);
+        }
+
+        ~CalleePatches() {
+            while (n > 0)
+                unpatch(p[--n]);
+        }
+    };
+
+    uint32_t script_seed;
+
+    // Every scripted reader is a pure function of (case seed, argument), so retail's repeated
+    // reads of one axis inside its clamp macro see the same value as our single read.
+    uint32_t script_hash(uint32_t a, uint32_t b) {
+        uint32_t h = script_seed ^ (a * 0x9e3779b9u) ^ (b * 0x85ebca6bu);
+        h ^= h >> 16;
+        h *= 0x7feb352du;
+        h ^= h >> 15;
+        h *= 0x846ca68bu;
+        h ^= h >> 16;
+        return h;
+    }
+
+    void stub_noop(void) {}
+
+    void stub_elmo_anim_timing(swrObjElmo *elmo, float *start, float *end) {
+        log_word(0xb1000000u | (uint32_t) elmo->unk88);
+        *start = (float) elmo->unk88 * 0.37f + 0.05f;
+        *end = *start + 1.25f;
+    }
+    void stub_anim_settings(swrModel_Animation **anims, float time, float start, float end, int loop,
+                            float transition, float loopTransition) {
+        log_word(0xb2000000u | ((uint32_t) loop & 0xffu));
+        log_word(float_bits(time)), log_word(float_bits(start)), log_word(float_bits(end));
+        log_word(float_bits(transition)), log_word(float_bits(loopTransition));
+    }
+    void stub_anim_speed(swrModel_Animation **anims, float speed) {
+        log_word(0xb3000000u);
+        log_word(float_bits(speed));
+    }
+
+    using V_elmo_anim = void (*)(swrObjElmo *, int);
+    using V_void = void (*)(void);
+
+    // Turn command 0x14 drives the ArcTan2 - yaw chain; yaw is placed a few ulps either side of
+    // each wrap and clip threshold so a rounded difference lands on the other side.
+    void run_elmo_set_anim_state() {
+        const char *name = "swrObjElmo_SetAnimState";
+        if (!testable(name, swrObjElmo_SetAnimState_ADDR))
+            return;
+        const V_elmo_anim retail = (V_elmo_anim) hook_retail_ptr(swrObjElmo_SetAnimState_ADDR);
+        static const int commands[] = {0x14, 0x14, 0x14, 0x14, 0x13, 0x18, 0, 5, 0x1b};
+        static const swrObjElmo_KIND kinds[] = {swrObjElmo_KIND_PIT_DROID, swrObjElmo_KIND_PILOT,
+                                                swrObjElmo_KIND_WATTO, swrObjElmo_KIND_BARTENDER};
+        static const float thresholds[] = {5.0f, -5.0f, 85.0f, -85.0f, 175.0f, -175.0f, 180.0f, -180.0f};
+        CalleePatches patches;
+        patches.both((void *) swrObjElmo_GetAnimTiming, swrObjElmo_GetAnimTiming_ADDR,
+                     (void *) stub_elmo_anim_timing);
+        patches.both((void *) swrModel_AnimationsSetSettings, swrModel_AnimationsSetSettings_ADDR,
+                     (void *) stub_anim_settings);
+        patches.both((void *) swrModel_SetAnimListSpeed, swrModel_SetAnimListSpeed_ADDR,
+                     (void *) stub_anim_speed);
+        Stats s;
+        stats_init(s, name);
+        swrModel_Animation anim_mem[2][2];
+        swrModel_Animation *anim_lists[2][3];
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            swrObjElmo elmo[2];
+            std::memset(&elmo[0], 0, sizeof(elmo[0]));
+            elmo[0].kind = kinds[next_u32() % 4u];
+            elmo[0].animCmd = (next_u32() % 3u == 0) ? 0x13 : 0x14;
+            elmo[0].animSpeed = next_float(-1.5f, 1.5f);
+            elmo[0].unk88 = (int) (next_u32() % 3u);
+            elmo[0].position = random_vec3(i, -300.0f, 300.0f);
+            elmo[0].moveTarget = random_vec3(i + 1, -300.0f, 300.0f);
+            if (next_u32() & 1u) {
+                elmo[0].moveTarget.x = elmo[0].position.x + next_float(-6.0f, 6.0f);
+                elmo[0].moveTarget.y = elmo[0].position.y + next_float(-6.0f, 6.0f);
+                elmo[0].moveTarget.z = elmo[0].position.z + next_float(-6.0f, 6.0f);
+            }
+            // CheckReachedTarget runs for real (it inlines into our SetAnimState), so predict it.
+            rdVector3 goal = elmo[0].moveTarget;
+            if (elmo[0].kind == swrObjElmo_KIND_PILOT)
+                goal.z = elmo[0].position.z;
+            elmo[0].reachedTarget = rdVector_Dist3(&goal, &elmo[0].position) <= 10.0f;
+            const int cmd = commands[i % 9];
+            const float threshold = thresholds[next_u32() % 8u];
+            long double target;
+            if (elmo[0].reachedTarget != 0) {
+                elmo[0].yawTarget = next_float(-400.0f, 400.0f);
+                target = elmo[0].yawTarget;
+            } else {
+                target = stdMath_ArcTan2(-(elmo[0].moveTarget.x - elmo[0].position.x),
+                                         elmo[0].moveTarget.y - elmo[0].position.y);
+            }
+            float yaw = (i % 7 == 0) ? next_float(-540.0f, 540.0f) : (float) (target - threshold);
+            for (int k = (int) (next_u32() % 7u) - 3; k != 0; k += (k > 0 ? -1 : 1))
+                yaw = std::nextafter(yaw, k > 0 ? 1.0e9f : -1.0e9f);
+            elmo[0].yaw = yaw;
+            std::memcpy(&elmo[1], &elmo[0], sizeof(elmo[0]));
+
+            CallLog logs[2];
+            for (int side = 0; side < 2; side++) {
+                std::memset(anim_mem[side], 0, sizeof(anim_mem[side]));
+                anim_lists[side][0] = &anim_mem[side][0];
+                anim_lists[side][1] = &anim_mem[side][1];
+                anim_lists[side][2] = nullptr;
+                elmo[side].unk34 = anim_lists[side];
+                begin_log(logs[side], nullptr, 0, 0);
+                if (side == 0)
+                    swrObjElmo_SetAnimState(&elmo[0], cmd);
+                else
+                    retail(&elmo[1], cmd);
+            }
+            active_log = nullptr;
+            elmo[1].unk34 = elmo[0].unk34;
+
+            char desc[128];
+            std::snprintf(desc, sizeof(desc), "case %d cmd=0x%x yaw=%.9g target=%.9g", i, cmd,
+                          elmo[0].yaw, (double) target);
+            record_int(s, std::memcmp(&elmo[0], &elmo[1], sizeof(swrObjElmo)) == 0, 1, desc);
+            record_int(s, elmo[0].unk88, elmo[1].unk88, desc);
+            record_int(s, std::memcmp(anim_mem[0], anim_mem[1], sizeof(anim_mem[0])) == 0, 1, desc);
+            record_calls(s, logs[0], logs[1], desc);
+        }
+        report(s);
+    }
+
+    long double stub_read_axis(int axis) {
+        const uint32_t h = script_hash(1, (uint32_t) axis);
+        if (h % 5u == 0)
+            return 0.0L;
+        return (long double) ((int) (h % 2600001u) - 1300000) / 1000003.0L;
+    }
+    long double stub_read_key_as_axis(unsigned int key) {
+        const uint32_t h = script_hash(2, key);
+        if (h % 3u == 0)
+            return 0.0L;
+        return (long double) (h % 1500001u) / 999983.0L;
+    }
+    int stub_read_key(unsigned int key, int *pressed) {
+        if (pressed != nullptr)
+            *pressed = 0;
+        return (int) (script_hash(3, key) & 1u);
+    }
+    int stub_read_axis_as_key(int axis) {
+        return (int) (script_hash(4, (uint32_t) axis) & 1u);
+    }
+    int stub_text_entry_active(void) {
+        return (int) (script_hash(6, 0) & 1u);
+    }
+    swrUI_unk *stub_current_page(void) {
+        static swrUI_unk page;
+        const uint32_t h = script_hash(8, 0);
+        if (h % 3u == 0)
+            return nullptr;
+        std::memset(&page, 0, sizeof(page));
+        page.id = (h & 4u) ? swrUI_WINDOW_SPLASH : 2;
+        return &page;
+    }
+    void stub_ui_sound(int id) {
+        log_word(0xa1000000u | (uint32_t) id);
+    }
+
+    // Every global ProcessInputs reads or writes lives in these ranges; they are compared whole.
+    struct InputRegion {
+        uint32_t addr, size;
+    };
+    const InputRegion input_regions[] = {
+        {0x004b2940, 0xb0},  // uiInputActive .. actionEdgeOnly
+        {0x004d5e30, 0xd40}, // *AxisInput, *ButtonPressedInput, bindings, edge state
+        {0x00e98ee0, 0x60},  // inRaceLocalPlayerInputRecord
+        {0x00ec8790, 0x150}, // flips, joystick/mouse/keyboard axes, analog inputs, button state
+    };
+    constexpr uint32_t input_region_bytes = 0xb0 + 0xd40 + 0x60 + 0x150;
+
+    void capture_inputs(uint8_t *out) {
+        for (const InputRegion &r : input_regions) {
+            std::memcpy(out, (const void *) (uintptr_t) r.addr, r.size);
+            out += r.size;
+        }
+    }
+    void apply_inputs(const uint8_t *in) {
+        for (const InputRegion &r : input_regions) {
+            std::memcpy((void *) (uintptr_t) r.addr, in, r.size);
+            in += r.size;
+        }
+    }
+
+    void random_bindings(swrControlBinding *table, int axis_limit) {
+        const int count = (int) (next_u32() % 24u);
+        for (int k = 0; k < count; k++) {
+            uint32_t flags;
+            switch (next_u32() % 5u) {
+            case 0:
+                flags = swrControlBinding_FLAG_BUTTON | swrControlBinding_FLAG_ANALOG;
+                break;
+            case 1:
+                flags = swrControlBinding_FLAG_BUTTON | swrControlBinding_FLAG_DIGITAL;
+                break;
+            case 2:
+                flags = swrControlBinding_FLAG_AXIS | swrControlBinding_FLAG_ANALOG;
+                break;
+            default:
+                flags = swrControlBinding_FLAG_AXIS | swrControlBinding_FLAG_DIGITAL;
+                break;
+            }
+            const uint32_t sign = next_u32() % 3u;
+            if (sign == 1)
+                flags |= swrControlBinding_FLAG_POSITIVE;
+            else if (sign == 2)
+                flags |= swrControlBinding_FLAG_NEGATIVE;
+            table[k].flags = (unsigned char) flags;
+            const bool analog = (flags & swrControlBinding_FLAG_ANALOG) != 0;
+            table[k].input = (flags & swrControlBinding_FLAG_AXIS) ? (int) (next_u32() % (uint32_t) axis_limit)
+                                                                   : (int) (next_u32() % 256u);
+            table[k].action = analog ? (int) (next_u32() % SWR_CONTROL_NUM_ANALOG_ACTIONS)
+                                     : (int) (next_u32() % SWR_CONTROL_NUM_ACTIONS);
+        }
+        table[count].flags = SWR_CONTROL_BINDING_END;
+    }
+
+    void run_process_inputs() {
+        const char *name = "swrControl_ProcessInputs";
+        if (!testable(name, swrControl_ProcessInputs_ADDR))
+            return;
+        const V_void retail = (V_void) hook_retail_ptr(swrControl_ProcessInputs_ADDR);
+        CalleePatches patches;
+        patches.both((void *) stdControl_ReadControls, stdControl_ReadControls_ADDR, (void *) stub_noop);
+        patches.both((void *) stdControl_ReadAxis, stdControl_ReadAxis_ADDR, (void *) stub_read_axis);
+        patches.both((void *) stdControl_ReadKeyAsAxis, stdControl_ReadKeyAsAxis_ADDR,
+                     (void *) stub_read_key_as_axis);
+        patches.both((void *) stdControl_ReadKey, stdControl_ReadKey_ADDR, (void *) stub_read_key);
+        patches.both((void *) stdControl_ReadAxisAsKeyEx, stdControl_ReadAxisAsKeyEx_ADDR,
+                     (void *) stub_read_axis_as_key);
+        patches.both((void *) swrUI_IsTextEntryActive, swrUI_IsTextEntryActive_ADDR,
+                     (void *) stub_text_entry_active);
+        patches.both((void *) swrControl_SnapshotKeyboard, swrControl_SnapshotKeyboard_ADDR,
+                     (void *) stub_noop);
+        patches.both((void *) swrUI_GetCurrentPage, swrUI_GetCurrentPage_ADDR, (void *) stub_current_page);
+        patches.both((void *) swrSound_PlayUISound, swrSound_PlayUISound_ADDR, (void *) stub_ui_sound);
+        patches.both((void *) swr_noop2, swr_noop2_ADDR, (void *) stub_noop);
+
+        static uint8_t saved[input_region_bytes], init[input_region_bytes];
+        static uint8_t out[2][input_region_bytes];
+        capture_inputs(saved);
+        const double saved_dt = swrRace_deltaTimeSecs;
+        swrObjHang *const saved_hang = g_objHang2;
+        swrObjHang hang;
+        std::memset(&hang, 0, sizeof(hang));
+        g_objHang2 = &hang;
+        Stats s;
+        stats_init(s, name);
+        for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+            apply_inputs(saved);
+            swrControl_uiInputActive = (next_u32() % 4u == 0);
+            swrConfig_joystick_enabled = (next_u32() % 6u != 0);
+            swrConfig_keyboard_enabled = (next_u32() % 6u != 0);
+            swrConfig_mouse_enabled = (next_u32() % 4u != 0);
+            swrControl_bindingCaptureActive = (next_u32() % 6u == 0);
+            swrControl_mouseSuppressed = (next_u32() % 8u == 0);
+            swrControl_menuAcceptGuard = (int) (next_u32() & 1u);
+            stdControl_joystickDeviceIndex = (int) (next_u32() % 2u);
+            for (int k = 0; k < STDCONTROL_AXES_PER_JOYSTICK; k++) {
+                swrControl_joystickAxisScale[k] = (k % 3 == 0) ? 1.0f : next_float(0.4f, 2.5f);
+                swrControl_joystickFlipAxis[k] = (int) (next_u32() & 1u);
+            }
+            flip_x_axis = (int) (next_u32() & 1u);
+            flip_y_axis = (int) (next_u32() & 1u);
+            flip_z_axis = (int) (next_u32() & 1u);
+            for (int k = 0; k < 3; k++)
+                swrControl_mouseAxesAccum[k] = next_float(-1.0f, 1.0f);
+            for (int k = 0; k < SWR_CONTROL_NUM_ACTIONS; k++) {
+                swrControl_actionEdgeOnly[k] = (char) (next_u32() & 1u);
+                swrControl_buttonHeldPrev[k] = (char) (next_u32() & 1u);
+                (&swrControl_viewHoldTime)[k] = next_float(0.0f, 3.0f);
+            }
+            swrControl_acceptHeldPrev = (int) (next_u32() & 1u);
+            swrControl_cancelHeldPrev = (int) (next_u32() & 1u);
+            swrControl_acceptUpPrev = (int) (next_u32() & 1u);
+            swrControl_cancelUpPrev = (int) (next_u32() & 1u);
+            swrControl_menuAcceptHeldPrev = (int) (next_u32() & 1u);
+            random_bindings(swrControl_bindingsJoystick, STDCONTROL_AXES_PER_JOYSTICK);
+            random_bindings(swrControl_bindingsMouse, (i % 5 == 0) ? 6 : 3);
+            random_bindings(swrControl_bindingsKeyboard, 1);
+            hang.menuScreen = (swrObjHang_STATE) (next_u32() % 8u);
+            swrRace_deltaTimeSecs = sample_delta(i);
+            capture_inputs(init);
+            script_seed = next_u32();
+
+            CallLog logs[2];
+            for (int side = 0; side < 2; side++) {
+                apply_inputs(init);
+                begin_log(logs[side], nullptr, 0, 0);
+                if (side == 0)
+                    swrControl_ProcessInputs();
+                else
+                    retail();
+                capture_inputs(out[side]);
+            }
+            active_log = nullptr;
+
+            uint32_t first = 0xffffffffu;
+            for (uint32_t k = 0; k < input_region_bytes; k++) {
+                if (out[0][k] != out[1][k]) {
+                    first = k;
+                    break;
+                }
+            }
+            char desc[128];
+            std::snprintf(desc, sizeof(desc), "case %d seed=%08x first diff byte=%d", i, script_seed,
+                          (int) first);
+            record_int(s, first == 0xffffffffu, 1, desc);
+            record_calls(s, logs[0], logs[1], desc);
+        }
+        apply_inputs(saved);
+        swrRace_deltaTimeSecs = saved_dt;
+        g_objHang2 = saved_hang;
+        report(s);
+    }
+
     using I_add_light = int (*)(rdCamera *, rdLight *, rdVector3 *);
 
     void run_add_light() {
@@ -3758,6 +4091,8 @@ extern "C" void reimpl_verify_run(FILE *hook_log) {
     run_triangle_suite();
     run_closest_point_on_triangle();
     run_stdcontrol_readers();
+    run_elmo_set_anim_state();
+    run_process_inputs();
     run_node_closest_point();
     run_step_camera_toward();
     run_score_ld("swrObjJdge_GetRacerProgress", swrObjJdge_GetRacerProgress_ADDR,
