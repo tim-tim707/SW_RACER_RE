@@ -4119,14 +4119,17 @@ int swrModel_FxAnimGetState_Maybe(void)
 }
 
 // 0x0046d730
-float swrMath_StepTowardClamped(float value, float current, float min, float max, float upper, float lower)
+RETAIL_FP float swrMath_StepTowardClamped(float value, float current, float min, float max, float upper, float lower)
 {
     float result = value;
+    // Retail rounds both bounds to float before comparing against them.
+    float top = current + upper;
+    float bottom = current - lower;
 
-    if (current + upper < result)
-        result = current + upper;
-    if (result < current - lower)
-        result = current - lower;
+    if (top < result)
+        result = top;
+    if (result < bottom)
+        result = bottom;
     if (result < min)
         result = min;
     if (max < result)
