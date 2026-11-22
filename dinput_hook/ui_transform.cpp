@@ -6,7 +6,6 @@
 
 int ui_menu_text_depth = 0;
 int ui_hud_marker_mode = -1;
-int ui_in_race_hud = 0;
 
 /* Layer/group transform stack. The composed top is what the emit applies; an
  * empty stack reads as identity so menus (which push nothing) are unaffected.
@@ -149,6 +148,22 @@ float ui_anchor_element_dx(UiAnchorH h) {
         return 0.0f;
     float d = ui_center_offset_px() / s;
     return (h == UI_H_LEFT) ? -d : d;
+}
+
+float ui_center_offset_y_px(void) {
+    if (!ui_enabled())
+        return 0.0f;
+    return ((float) swrDisplay_screenHeight - UI_DESIGN_H * ui_layout_scale()) * 0.5f;
+}
+
+float ui_anchor_element_dy(UiAnchorV v) {
+    if (!ui_enabled() || v == UI_V_MIDDLE)
+        return 0.0f;
+    float s = ui_layout_scale();
+    if (s <= 0.0f)
+        return 0.0f;
+    float d = ui_center_offset_y_px() / s;
+    return (v == UI_V_TOP) ? -d : d;
 }
 
 float ui_hud_marker_x(float design_x, int mode) {

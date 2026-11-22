@@ -41,6 +41,7 @@ int stdConsole_GetCursorPos_delta(int *out_x, int *out_y) {
             float fb_x = (float) x * (float) swrDisplay_screenWidth / (float) w;
             float fb_y = (float) y * (float) swrDisplay_screenHeight / (float) h;
             fb_x -= ui_center_offset_px();
+            fb_y -= ui_center_offset_y_px();
             UiVec2 d = ui_screen_to_design(UI_H_LEFT, UI_V_TOP, UiVec2{fb_x, fb_y});
             *out_x = (int) d.x;
             *out_y = (int) d.y;
@@ -66,6 +67,7 @@ int stdConsole_GetCursorPos_delta(int *out_x, int *out_y) {
                 float fb_x = io.MousePos.x * (float) swrDisplay_screenWidth / io.DisplaySize.x;
                 float fb_y = io.MousePos.y * (float) swrDisplay_screenHeight / io.DisplaySize.y;
                 fb_x -= ui_center_offset_px();
+                fb_y -= ui_center_offset_y_px();
                 UiVec2 d = ui_screen_to_design(UI_H_LEFT, UI_V_TOP, UiVec2{fb_x, fb_y});
                 virtual_cursor_pos.x = (LONG) d.x;
                 virtual_cursor_pos.y = (LONG) d.y;
@@ -101,6 +103,7 @@ void stdConsole_SetCursorPos_delta(int X, int Y) {
             // framebuffer -> window px (identity when they match).
             UiVec2 fb = ui_design_to_screen(UI_H_LEFT, UI_V_TOP, UiVec2{(float) X, (float) Y});
             fb.x += ui_center_offset_px();
+            fb.y += ui_center_offset_y_px();
             glfwSetCursorPos(window, fb.x * w / swrDisplay_screenWidth,
                              fb.y * h / swrDisplay_screenHeight);
         } else {

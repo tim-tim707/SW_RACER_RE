@@ -2884,18 +2884,24 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrUI_DrawTextAligned", (uint32_t) swrUI_DrawTextAligned_ADDR,
                   (uint8_t *) swrUI_DrawTextAligned_delta);
 
-    // Edge-anchor the standard Back/Cancel/Quit, OK and Settings buttons to the real screen edges on
-    // wide screens. AddNavButton/AddOkButton/NewButton tag and move the buttons; the SetPos hook keeps
-    // them at the edge across relayout and RenderElementSprites advances the shift each frame so they
-    // track a window resize. The whole element moves, so sprite + label + hit-test follow. Passthrough
-    // when res-independence is off.
-    hook_function("swrUI_AddNavButton", (uint32_t) swrUI_AddNavButton_ADDR,
-                  (uint8_t *) swrUI_AddNavButton_delta);
-    hook_function("swrUI_AddOkButton", (uint32_t) swrUI_AddOkButton_ADDR,
-                  (uint8_t *) swrUI_AddOkButton_delta);
+    // Anchor menu elements (ui_menu.h) to screen edges: NewButton/NewLabel tag and move elements by
+    // their creation call site, SetPos keeps them anchored across relayout, and RenderElementSprites advances
+    // the shift each frame so they track a resize or UI-scale change. Passthrough when off.
     hook_function("swrUI_NewButton", (uint32_t) swrUI_NewButton_ADDR,
                   (uint8_t *) swrUI_NewButton_delta);
+    hook_function("swrUI_NewLabel", (uint32_t) swrUI_NewLabel_ADDR,
+                  (uint8_t *) swrUI_NewLabel_delta);
     hook_function("swrUI_SetPos", (uint32_t) swrUI_SetPos_ADDR, (uint8_t *) swrUI_SetPos_delta);
+    // UI-aligned 3D holograms (part shop, inspected part, pit droids, results) follow the 2D UI's
+    // scale and anchors; see ui_model.h.
+    hook_function("swrModel_NodeSetTransform", (uint32_t) swrModel_NodeSetTransform_ADDR,
+                  (uint8_t *) swrModel_NodeSetTransform_delta);
+    hook_function("swrObjHang_PositionHoloNode", (uint32_t) swrObjHang_PositionHoloNode_ADDR,
+                  (uint8_t *) swrObjHang_PositionHoloNode_delta);
+    hook_function("swrRace_DrawPartShopScreen", (uint32_t) swrRace_DrawPartShopScreen_ADDR,
+                  (uint8_t *) swrRace_DrawPartShopScreen_delta);
+    hook_function("swrObjHang_BuyPitDroidsMenu", (uint32_t) swrObjHang_BuyPitDroidsMenu_ADDR,
+                  (uint8_t *) swrRace_BuyPitdroidsMenu_delta);
 
     // stdDisplay
     hook_function("stdDisplay_Startup", (uint32_t) 0x00487d20,
@@ -3197,11 +3203,6 @@ extern "C" void init_renderer_hooks() {
     // HUD mode (right strip in mode 0, full-width ring in mode 1) instead of plain centering.
     hook_function("swrObjJdge_DrawRaceHUD", (uint32_t) swrObjJdge_DrawRaceHUD_ADDR,
                   (uint8_t *) swrObjJdge_DrawRaceHUD_delta);
-    // Scope the per-player HUD draw so the id-based HUD edge-anchoring fires only in-race, not on
-    // other screens (e.g. race settings) that reuse the same low sprite ids / text columns.
-    hook_function("swrObjJdge_UpdatePlayerHUD", (uint32_t) swrObjJdge_UpdatePlayerHUD_ADDR,
-                  (uint8_t *) swrObjJdge_UpdatePlayerHUD_delta);
-
     // Cinematic letterbox ("Game" panel): draw black bars over the pre-race binder cinematic + the
     // victory lap, injected at the HUD text flush so the lap/total-time text renders on top.
     hook_function("swrText_DrawEntries1", (uint32_t) swrText_DrawEntries1, (uint8_t *) swrText_DrawEntries1_ADDR);

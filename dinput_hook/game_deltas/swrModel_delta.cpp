@@ -16,6 +16,9 @@
 #include "../nv_dds/nv_dds.h"
 #include "../imgui_utils.h"
 #include "../ui_transform.h"
+#include "../ui_hud.h"
+#include "../ui_inspect.h"
+#include "../ui_model.h"
 #include "../mod_registry.h"
 
 #include <regex>
@@ -395,83 +398,47 @@ void swrUI_DrawTextAligned_delta(int font, char *text, short *bbox, unsigned int
     ui_menu_text_depth--;
 }
 
-// The design-space X columns the in-race HUD strings are emitted at, in the same 320-wide sprite draw
-// space their sibling sprites use. Each is the exact literal its emitter passes.
-// ENGINE/FIRE, TEMP/WARN, OVERHEAT, Warning, Repair (swrRace_InRaceEngineUI)
-static constexpr int kHudTextXEngineWarning = 54;
-// "#/#" + "LAP", in the minimap / arrow HUD modes and in the progress-ring mode respectively
-static constexpr int kHudTextXLapCounter = 42;
-static constexpr int kHudTextXLapCounterRing = 62;
-// "BOOST" and the digital speed readout (swrObjJdge_DrawSpeedDialHud / swrRace_InRaceTimer)
-static constexpr int kHudTextXBoostLabel = 244;
-static constexpr int kHudTextXSpeedReadout = 254;
-// "#/#" + "POS"
-static constexpr int kHudTextXPositionCounter = 278;
-
-// Edge-anchored in-race HUD text, keyed by the exact design x the game draws it at (from
-// swrRace_InRaceTimer / swrObjJdge_DrawSpeedDialHud). These strings sit on HUD clusters that anchor to
-// a screen edge (see hud_sprite_anchor in swrSprite_delta), so their text must ride the same edge or it
-// detaches from the frame. RIGHT shifts by two centering offsets (real right edge), LEFT by zero (real
-// left); everything else -- centered messages, the timer, countdown -- stays plain-centered. Matched by
-// exact x (not a range) so a centered string near these columns is never caught. Only consulted for
-// HUD text (ui_menu_text_depth == 0); menu text is unaffected.
-static UiAnchorH hud_text_anchor(int x) {
-    switch (x) {
-    // Both sit on the right-anchored speedometer frame.
-    case kHudTextXBoostLabel:
-    case kHudTextXSpeedReadout:
-        return UI_H_RIGHT;
-    // The engine warning rides the bottom-left engine readout; both lap columns ride the header lap
-    // holder (swrUISprite_dial_lap_pos_rgb_0), which anchors LEFT.
-    case kHudTextXEngineWarning:
-    case kHudTextXLapCounter:
-    case kHudTextXLapCounterRing:
-        return UI_H_LEFT;
-    // Rides the header position holder (swrUISprite_dial_lap_pos_rgb_1).
-    case kHudTextXPositionCounter:
-        return UI_H_RIGHT;
-    default:
-        return UI_H_CENTER;
-    }
-}
-
 // Shared X shift for every entries1 (menu/HUD) text string, whichever wrapper emitted it:
 // swrText_CreateTextEntry1, swrText_CreateColorlessEntry1, and swrText_CreateColorlessFormattedEntry1
 // all sink into swrText_CreateEntry. Menu text (inside a swrUI_DrawText scope) lives in the 640
 // widget space (ui_layout_scale); all other text in the ~320 draw space (ui_sprite_scale). Match the
 // divisor to the text's space so it shifts the same px as its sibling sprites. HUD text on an
-// edge-anchored cluster (hud_text_anchor) rides that edge instead of plain centering. Returns x
+// in-race HUD cluster (ui_hud.h) rides that cluster instead of plain centering. Returns x
 // unchanged when centering is off (ui_center_offset_px() is 0).
-static int ui_center_text_x(int x) {
+struct UiTextPos {
+    int x, y;
+};
+
+static UiTextPos ui_center_text(int x, int y, uintptr_t call_site) {
+    float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
+    if (s <= 0.0f)
+        return {x, y};
+    float off = ui_center_offset_px();
+    float off_y = ui_center_offset_y_px();
     // In-race position-marker number text (drawn only inside swrObjJdge_DrawRaceHUD): remap X by HUD
     // mode exactly like its marker sprite, so the number rides the right strip / full-width ring.
     if (ui_hud_marker_mode >= 0 && !ui_menu_text_depth)
-        return (int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode));
-    float s = ui_menu_text_depth ? ui_layout_scale() : ui_sprite_scale();
-    if (s > 0.0f) {
-        float off = ui_center_offset_px();
-        // Only edge-anchor HUD text while the in-race HUD is being drawn (ui_in_race_hud): the fixed
-        // design-x columns hud_text_anchor keys off are reused by other screens (race-settings
-        // portrait/favorite labels), which must stay plain-centered.
-        if (!ui_menu_text_depth && ui_in_race_hud) {
-            UiAnchorH a = hud_text_anchor(x);
-            if (a == UI_H_RIGHT)
-                off = 2.0f * off;
-            else if (a == UI_H_LEFT)
-                off = 0.0f;
-        }
-        x += (int) lroundf(off / s);
+        return {(int) lroundf(ui_hud_marker_x((float) x, ui_hud_marker_mode)),
+                y + (int) lroundf(off_y / s)};
+    HudElement el = ui_hud_element_at(call_site);
+    if (el.cluster != HUD_CLUSTER_NONE) {
+        UiXform xf = ui_hud_cluster_xform(el.cluster);
+        off = xf.tx;
+        off_y = xf.ty;
     }
-    return x;
+    return {x + (int) lroundf(off / s), y + (int) lroundf(off_y / s)};
 }
 
 // 0x00450530
 void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, char *screenText) {
-    // Center the 2D UI by shifting the text origin right (see ui_center_text_x). Call the ORIGINAL
+    // Center the 2D UI by shifting the text origin (see ui_center_text). Call the ORIGINAL
     // via the trampoline; calling swrText_CreateTextEntry1 by name would re-enter this same hook (the
     // symbol resolves to the hooked EXE address) -> infinite recursion. swrText_CreateTextEntry2_delta
     // calls the DLL copy (not this hook), keeping projected text world-locked.
-    hook_call_original(swrText_CreateTextEntry1, ui_center_text_x(x), y, r, g, b, a, screenText);
+    uintptr_t site = ui_hud_text_site(UI_CALL_SITE());
+    ui_inspect_note("text", site, -1, x, y, screenText);
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateTextEntry1, p.x, p.y, r, g, b, a, screenText);
 }
 
 // 0x00450560 -- swrText_CreateColorlessEntry1 and 0x00450590 -- swrText_CreateColorlessFormattedEntry1.
@@ -481,13 +448,19 @@ void swrText_CreateTextEntry1_delta(int x, int y, int r, int g, int b, int a, ch
 // x=0xa0; without these hooks the titles miss the centering offset and sit left of the pillarboxed
 // UI. Apply the same shift as CreateTextEntry1.
 void swrText_CreateColorlessEntry1_delta(short x, short y, char *screenText) {
-    hook_call_original(swrText_CreateColorlessEntry1, (short) ui_center_text_x(x), y, screenText);
+    uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text", site, -1, x, y, screenText);
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateColorlessEntry1, (short) p.x, (short) p.y, screenText);
 }
 
 void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short y,
                                                   char *screenText) {
-    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt,
-                       (short) ui_center_text_x(x), y, screenText);
+    uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text", site, -1, x, y, screenText);
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateColorlessFormattedEntry1, formatInt, (short) p.x, (short) p.y,
+                       screenText);
 }
 
 // 0x004505c0 -- swrText_CreateEntry2. Writes the entries2 buffer (drawn by swrText_RenderEntries2 at
@@ -497,8 +470,10 @@ void swrText_CreateColorlessFormattedEntry1_delta(int formatInt, short x, short 
 // shifts only the pause options. Same centering as CreateTextEntry1.
 void swrText_CreateEntry2_delta(short x, short y, char r, char g, char b, char a,
                                 char *screenText) {
-    hook_call_original(swrText_CreateEntry2, (short) ui_center_text_x(x), y, r, g, b, a,
-                       screenText);
+    uintptr_t site = UI_CALL_SITE();
+    ui_inspect_note("text2", site, -1, x, y, screenText);
+    UiTextPos p = ui_center_text(x, y, site);
+    hook_call_original(swrText_CreateEntry2, (short) p.x, (short) p.y, r, g, b, a, screenText);
 }
 
 // 0x00450310
@@ -521,11 +496,14 @@ void swrText_SetEntryClipRect_delta(int *rect) {
         // only clipX changes (was the stretched screen_width/640). The centering offset shifts the
         // box's X edges right by the same amount the text moved, so clipped text stays inside it.
         float s = ui_layout_scale();
-        float off = ui_center_offset_px();
+        // Text origins move by whole design units (ui_center_text rounds), so round the clip box's
+        // shift the same way; an exact-px shift can land the left edge inside the first glyph.
+        float off = s > 0.0f ? lroundf(ui_center_offset_px() / s) * s : 0.0f;
+        float off_y = s > 0.0f ? lroundf(ui_center_offset_y_px() / s) * s : 0.0f;
         left = (int) ((float) rect[0] * s + off);
-        top = (int) ((float) rect[1] * s);
+        top = (int) ((float) rect[1] * s + off_y);
         right = (int) ((float) rect[2] * s + off);
-        bottom = (int) ((float) rect[3] * s);
+        bottom = (int) ((float) rect[3] * s + off_y);
     } else {
         // Vanilla: L/R * screen_width/640, T/B * screen_height/480 (integer, truncated toward zero).
         left = (int) ((int64_t) rect[0] * swrDisplay_screenWidth / 640);
@@ -539,4 +517,20 @@ void swrText_SetEntryClipRect_delta(int *rect) {
     clip[1] = top;
     clip[2] = right;
     clip[3] = bottom;
+}
+
+void swrModel_NodeSetTransform_delta(swrModel_NodeTransformed *node, const rdMatrix44 *matrix) {
+    const uintptr_t site = UI_CALL_SITE();
+    if (matrix != nullptr)
+        ui_inspect_note("model", site, 0, (int) matrix->vD.x, (int) matrix->vD.y, NULL);
+    uintptr_t owner = ui_model_owner_for(site, node);
+    if (owner == 0 || matrix == nullptr) {
+        hook_call_original((void (*)(swrModel_NodeTransformed *, const rdMatrix44 *)) swrModel_NodeSetTransform_ADDR,
+                           node, matrix);
+        return;
+    }
+    rdMatrix44 remapped = *matrix;
+    ui_model_remap(&remapped, owner);
+    hook_call_original((void (*)(swrModel_NodeTransformed *, const rdMatrix44 *)) swrModel_NodeSetTransform_ADDR,
+                           node, (const rdMatrix44 *) &remapped);
 }
