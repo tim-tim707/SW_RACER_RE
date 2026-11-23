@@ -618,10 +618,11 @@ extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *ros
         if (s.mode == MODE_RECORD) {
             s.startRaceRand = swrUtils_randState;
             s.haveStartRaceRand = true;
-            s.setup = {hang->demo_mode,      hang->track_index,       hang->circuitIdx, hang->isTournamentMode,
-                       hang->timeAttackMode, hang->bMirror,           hang->num_local_players,
-                       hang->num_players,    hang->vehiclePlayer,     hang->numLaps,    hang->AISpeed,
-                       {0, 0}};
+            const RaceSetup setup = {hang->demo_mode,      hang->track_index,   hang->circuitIdx,
+                                     hang->isTournamentMode, hang->timeAttackMode, hang->bMirror,
+                                     hang->num_local_players, hang->num_players,  hang->vehiclePlayer,
+                                     hang->numLaps,        hang->AISpeed,       {0, 0}};
+            memcpy(&s.setup, &setup, sizeof(setup));
         } else if (s.headerRead || open_replay()) {
             s.hz = s.hdr.hz;
             swrUtils_randState = s.hdr.startRaceRandState;
