@@ -97,7 +97,8 @@ struct RaceSetup {
     int8_t vehiclePlayer;
     int8_t numLaps;
     int8_t aiSpeed;
-    int8_t pad[2];
+    int8_t recordedAutostart;// the menus' StartRace before the autostart ran unpinned; 0 in older files
+    int8_t pad;
 };
 
 struct FileHeader {
@@ -132,6 +133,7 @@ struct State {
     FILE *file = nullptr;
     FILE *log = nullptr;
     uint32_t frame = 0;
+    uint32_t loadTicks = 0;// pinned frames before T0
     uint32_t mismatches = 0;
     int firstMismatch = -1;
     int savedFastMode = 0;
@@ -143,7 +145,14 @@ struct State {
     bool headerRead = false;
     FileHeader hdr = {};
     RaceSetup setup = {};// record: captured at StartRace
-    bool autostart = false;// replay: start the recorded race from the main menu, no menu input
+    bool autostart = false;// start the race from the main menu, no menu input (replay: the recorded one)
+    // record + autostart: the race to start, -1 = the hangar's current choice
+    int forceTrack = -1;
+    int forceLaps = -1;
+    int forcePod = -1;
+    int forceMirror = -1;
+    int forceRacers = -1;
+    int recordFrames = 0;// record: stop after this many frames, 0 = when the race is left
     bool exitWhenDone = false;
     bool autostarted = false;
     bool fastForward = false;
@@ -226,6 +235,18 @@ void read_config() {
             s.vanilla = true;
         } else if (strcmp(key, "rerecord") == 0 && val[0]) {
             snprintf(s.rerecordPath, sizeof(s.rerecordPath), "%s", val);
+        } else if (strcmp(key, "track") == 0) {
+            s.forceTrack = atoi(val);
+        } else if (strcmp(key, "laps") == 0) {
+            s.forceLaps = atoi(val);
+        } else if (strcmp(key, "pod") == 0) {
+            s.forcePod = atoi(val);
+        } else if (strcmp(key, "mirror") == 0) {
+            s.forceMirror = val[0] ? atoi(val) : 1;
+        } else if (strcmp(key, "racers") == 0) {
+            s.forceRacers = atoi(val);
+        } else if (strcmp(key, "frames") == 0) {
+            s.recordFrames = atoi(val);
         } else if (strcmp(key, "exit_when_done") == 0) {
             s.exitWhenDone = true;
         } else if (strcmp(key, "dump_at") == 0) {
@@ -483,8 +504,8 @@ bool start() {
     s.mismatches = 0;
     s.firstMismatch = -1;
     s.active = true;
-    log_line("lockstep: race start, %d racers, %d animations, rng %08x", racer_count(), animCount,
-             (uint32_t) swrUtils_randState);
+    log_line("lockstep: race start after %u load ticks, %d racers, %d animations, rng %08x", s.loadTicks,
+             racer_count(), animCount, (uint32_t) swrUtils_randState);
     return true;
 }
 
@@ -555,6 +576,8 @@ void frame_step() {
     if ((int) s.frame >= s.dumpAt && (int) s.frame <= s.dumpTo)
         dump_state(s.frame);
     s.frame++;
+    if (s.mode == MODE_RECORD && s.recordFrames > 0 && (int) s.frame >= s.recordFrames)
+        stop("frame limit");
 }
 
 }// namespace
@@ -569,9 +592,14 @@ extern "C" void lockstep_pin_inputs(void) {
     }
 }
 
+bool autostart_run();
+void begin_pin_dt();
+
 extern "C" void __cdecl swrRace_IncrementFrameTimer_lockstep(void) {
     if (!s.configRead)
         read_config();
+    if (!s.pinDt && !s.finished && !s.active && autostart_run())
+        begin_pin_dt();
     if (s.mode != MODE_OFF && !s.finished) {
         swrObjJdge *j = judge();
         const bool running = race_running(j);
@@ -600,6 +628,8 @@ extern "C" void __cdecl swrRace_IncrementFrameTimer_lockstep(void) {
     if (s.pinDt && !s.finished) {
         swr_FastMode = 1;
         swr_fixedDeltaTimeSecs = 1.0 / (double) s.hz;
+        if (!s.active)
+            s.loadTicks++;
     }
     hook_call_original((void_fn_t) swrRace_IncrementFrameTimer_ADDR);
     // swr_FastMode leaves the unclamped delta alone, and the race clock (swrObjJdge_F2) sums it.
@@ -609,30 +639,55 @@ extern "C" void __cdecl swrRace_IncrementFrameTimer_lockstep(void) {
 
 typedef void(__cdecl *StartRace_t)(swrObjHang *, int *, int);
 
+// An autostarted recording, or the replay of one: the menus run on the pinned dt from the first
+// frame, and their own StartRace before ours is left to the natural RNG.
+bool autostart_run() {
+    if (s.mode == MODE_RECORD)
+        return s.autostart;
+    return s.mode == MODE_REPLAY && (s.headerRead || open_replay()) && s.hdr.setup.recordedAutostart != 0;
+}
+
+void begin_pin_dt() {
+    if (s.pinDt)
+        return;
+    if (s.mode == MODE_REPLAY)
+        s.hz = s.hdr.hz;
+    s.savedFastMode = swr_FastMode;
+    s.savedFixedDt = swr_fixedDeltaTimeSecs;
+    s.pinDt = true;
+    // Whatever runs before the next frame reads the last frame's dt; replace the measured one.
+    swr_FastMode = 1;
+    swr_fixedDeltaTimeSecs = 1.0 / (double) s.hz;
+    swrRace_deltaTimeSecs = swr_fixedDeltaTimeSecs;
+    swrRace_dt_raw_d = swr_fixedDeltaTimeSecs;
+    swrRace_fdeltaTimeSecs = (float) swr_fixedDeltaTimeSecs;
+}
+
 // The single-player roster (AI pilots, grid) is rolled from swrUtils_Rand here, from whatever state
 // the menus left it in; pin it so record and replay race the same field.
 extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *rosterArg, int noBroadcast) {
     if (!s.configRead)
         read_config();
-    if (s.mode != MODE_OFF && !s.finished && !s.active) {
+    const bool ours = !autostart_run() || s.autostarted;
+    if (s.mode != MODE_OFF && !s.finished && !s.active && !ours)
+        log_line("lockstep: StartRace before autostart, rng %08x, left alone", (uint32_t) swrUtils_randState);
+    if (s.mode != MODE_OFF && !s.finished && !s.active && ours) {
         if (s.mode == MODE_RECORD) {
             s.startRaceRand = swrUtils_randState;
             s.haveStartRaceRand = true;
             const RaceSetup setup = {hang->demo_mode,      hang->track_index,   hang->circuitIdx,
                                      hang->isTournamentMode, hang->timeAttackMode, hang->bMirror,
                                      hang->num_local_players, hang->num_players,  hang->vehiclePlayer,
-                                     hang->numLaps,        hang->AISpeed,       {0, 0}};
+                                     hang->numLaps,        hang->AISpeed,       s.autostart,
+                                     0};
             memcpy(&s.setup, &setup, sizeof(setup));
+            log_line("lockstep: StartRace, rng %08x, track %d", (uint32_t) s.startRaceRand, hang->track_index);
         } else if (s.headerRead || open_replay()) {
             s.hz = s.hdr.hz;
             swrUtils_randState = s.hdr.startRaceRandState;
             log_line("lockstep: StartRace, rng pinned to %08x", (uint32_t) s.hdr.startRaceRandState);
         }
-        if (!s.pinDt) {
-            s.savedFastMode = swr_FastMode;
-            s.savedFixedDt = swr_fixedDeltaTimeSecs;
-            s.pinDt = true;
-        }
+        begin_pin_dt();
     }
     hook_call_original((StartRace_t) swrObjHang_StartRace_ADDR, hang, rosterArg, noBroadcast);
 }
@@ -656,7 +711,7 @@ extern "C" void lockstep_hang_f0(swrObjHang *hang) {
         return;
     if (!s.configRead)
         read_config();
-    if (s.mode != MODE_REPLAY || !s.autostart || s.autostarted || s.finished)
+    if (s.mode == MODE_OFF || !s.autostart || s.autostarted || s.finished)
         return;
     static int menuFrames = 0;
     if (hang == nullptr ||
@@ -666,11 +721,38 @@ extern "C" void lockstep_hang_f0(swrObjHang *hang) {
     }
     if (++menuFrames < kAutostartMenuFrames)
         return;
-    if (!s.headerRead && !open_replay()) {
+    if (s.mode == MODE_REPLAY && !s.headerRead && !open_replay()) {
         s.finished = true;
         return;
     }
-    const RaceSetup &r = s.hdr.setup;
+    // record: a single-player free-play race; the defaults are what the menus produce.
+    RaceSetup r = {0,
+                   hang->track_index,
+                   hang->circuitIdx,
+                   0,
+                   0,
+                   hang->bMirror,
+                   1,
+                   hang->num_players,
+                   hang->vehiclePlayer,
+                   hang->numLaps,
+                   hang->AISpeed,
+                   1,
+                   0};
+    if (s.mode == MODE_REPLAY) {
+        memcpy(&r, &s.hdr.setup, sizeof(r));
+    } else {
+        if (s.forceTrack >= 0)
+            r.trackIndex = (int8_t) s.forceTrack;
+        if (s.forceLaps > 0)
+            r.numLaps = (int8_t) s.forceLaps;
+        if (s.forcePod >= 0)
+            r.vehiclePlayer = (int8_t) s.forcePod;
+        if (s.forceMirror >= 0)
+            r.mirror = (int8_t) s.forceMirror;
+        if (s.forceRacers > 0)
+            r.numPlayers = (int8_t) s.forceRacers;
+    }
     hang->demo_mode = r.demoMode;
     hang->track_index = r.trackIndex;
     hang->circuitIdx = r.circuitIdx;
