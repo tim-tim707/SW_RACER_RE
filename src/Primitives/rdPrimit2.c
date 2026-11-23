@@ -22,7 +22,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
     if (iVar2 != 0)
     {
         vbuffer = pCanvas->vbuffer;
-        if ((vbuffer->rasterInfo).colorInfo.redBPP == 8)
+        if ((vbuffer->rasterInfo).colorInfo.bpp == 8)
         {
             local_18 = y2 - y1;
             local_14 = x2 - x1;
@@ -39,7 +39,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             }
             if ((mask & 0x80000000) != 0)
             {
-                vbuffer->pPixels[x1 + (vbuffer->rasterInfo).width * y1] = (char)color16;
+                vbuffer->pPixels[x1 + (vbuffer->rasterInfo).rowSize * y1] = (char)color16;
             }
             uVar5 = 0;
             while ((x1 != x2 || (y1 != y2)))
@@ -62,7 +62,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
                 }
                 if ((mask & local_10) != 0)
                 {
-                    pCanvas->vbuffer->pPixels[x1 + (pCanvas->vbuffer->rasterInfo).width * y1] = (char)color16;
+                    pCanvas->vbuffer->pPixels[x1 + (pCanvas->vbuffer->rasterInfo).rowSize * y1] = (char)color16;
                 }
             }
         }
@@ -88,7 +88,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
             }
             if ((mask & 0x80000000) != 0)
             {
-                *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.width * y1 + x1) * 2) = color16;
+                *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.rowWidth * y1 + x1) * 2) = color16;
             }
             uVar5 = 0;
             iVar4 = x1;
@@ -113,7 +113,7 @@ int rdPrimit2_DrawClippedLine(rdCanvas* pCanvas, int x1, int y1, int x2, int y2,
                 }
                 if ((mask & local_10) != 0)
                 {
-                    *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.width * iVar6 + iVar4) * 2) = color16;
+                    *(uint16_t*)(pCanvas->vbuffer->pPixels + (pCanvas->vbuffer->rasterInfo.rowWidth * iVar6 + iVar4) * 2) = color16;
                 }
             }
             if (bVar7)

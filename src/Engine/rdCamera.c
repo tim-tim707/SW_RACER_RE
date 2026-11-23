@@ -9,6 +9,7 @@
 #include <General/stdMath.h>
 #include <Primitives/rdMatrix.h>
 #include <Primitives/rdVector.h>
+#include <string.h>
 
 // 0x00409af0
 void rdCamera_Shutdown(void)
@@ -48,7 +49,7 @@ int rdCamera_NewEntry(rdCamera* camera, float fov, float a3, float zNear, float 
             fov = 179.0;
         }
         camera->fov = fov;
-        clipFrustum->bFarClip = a3;
+        memcpy(&clipFrustum->bFarClip, &a3, sizeof(clipFrustum->bFarClip)); // retail copies the raw bits
         clipFrustum->zNear = zNear;
         clipFrustum->zFar = zFar;
         camera->screenAspectRatio = aspectRatio;
@@ -261,15 +262,24 @@ void rdCamera_OrthoProject(rdVector3* out, rdVector3* v)
 {
     out->x = rdCamera_pCurCamera->orthoScale * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
     out->y = -(v->z * rdCamera_pCurCamera->orthoScale) * rdCamera_pCurCamera->screenAspectRatio + rdCamera_pCurCamera->canvas->screen_width_half;
-    out->z = v->y * rdCamera_pCurCamera->orthoScale;
+    out->z = v->y;
 }
 
 // 0x004900e0
 void rdCamera_OrthoProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (unsigned int i = 0; i < num_vertices; i++)
-    {
-        rdCamera_OrthoProject(vertices_out, vertices_in);
+    // retail inlines this with the aspect folded into one float factor, so it rounds unlike
+    // rdCamera_OrthoProject
+    float scale = rdCamera_pCurCamera->orthoScale;
+    float scaleY = rdCamera_pCurCamera->screenAspectRatio * scale;
+    float widthHalf = rdCamera_pCurCamera->canvas->screen_width_half;
+    float heightHalf = rdCamera_pCurCamera->canvas->screen_height_half;
+    unsigned int i;
+
+    for (i = 0; i < num_vertices; i++) {
+        vertices_out->x = scale * vertices_in->x + heightHalf;
+        vertices_out->y = widthHalf - vertices_in->z * scaleY;
+        vertices_out->z = vertices_in->y;
         ++vertices_in;
         ++vertices_out;
     }
@@ -298,7 +308,7 @@ void rdCamera_OrthoProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices
 void rdCamera_PerspProject(rdVector3* out, rdVector3* v)
 {
     out->x = (rdCamera_pCurCamera->fov_y / v->y) * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
-    out->y = rdCamera_pCurCamera->canvas->screen_width_half - (rdCamera_pCurCamera->fov_y / v->y) * v->z;
+    out->y = rdCamera_pCurCamera->canvas->screen_width_half - v->z * ((rdCamera_pCurCamera->fov_y / v->y) * rdCamera_pCurCamera->screenAspectRatio);
     out->z = v->y;
 }
 
@@ -316,17 +326,28 @@ void rdCamera_PerspProjectLst(rdVector3* vertices_out, rdVector3* vertices_in, u
 // 0x004902d0
 void rdCamera_PerspProjectSquare(rdVector3* out, rdVector3* v)
 {
-    out->x = (rdCamera_pCurCamera->fov_y / v->y) * v->x + rdCamera_pCurCamera->canvas->screen_height_half;
-    out->y = rdCamera_pCurCamera->canvas->screen_width_half - v->z * (rdCamera_pCurCamera->fov_y / v->y);
+    out->x = v->x * ((1.0f / v->y) * rdCamera_pCurCamera->fov_y) + rdCamera_pCurCamera->canvas->screen_height_half;
+    out->y = rdCamera_pCurCamera->canvas->screen_width_half - v->z * ((1.0f / v->y) * rdCamera_pCurCamera->fov_y);
     out->z = v->y;
 }
 
 // 0x00490310
 void rdCamera_PerspProjectSquareLst(rdVector3* vertices_out, rdVector3* vertices_in, unsigned int num_vertices)
 {
-    for (unsigned int i = 0; i < num_vertices; i++)
-    {
-        rdCamera_PerspProjectSquare(vertices_out, vertices_in);
+    // retail inlines this with fov_y / y (not rdCamera_PerspProjectSquare's 1 / y * fov_y) and
+    // mirrors x for rdCamera_bMirrorX
+    float widthHalf = rdCamera_pCurCamera->canvas->screen_width_half;
+    float heightHalf = rdCamera_pCurCamera->canvas->screen_height_half;
+    unsigned int i;
+
+    for (i = 0; i < num_vertices; i++) {
+        if (rdCamera_bMirrorX == 1) {
+            vertices_out->x = (float)rdCamera_screen_width - (vertices_in->x * (rdCamera_pCurCamera->fov_y / vertices_in->y) + heightHalf);
+        } else {
+            vertices_out->x = vertices_in->x * (rdCamera_pCurCamera->fov_y / vertices_in->y) + heightHalf;
+        }
+        vertices_out->y = widthHalf - vertices_in->z * (rdCamera_pCurCamera->fov_y / vertices_in->y);
+        vertices_out->z = vertices_in->y;
         ++vertices_in;
         ++vertices_out;
     }
