@@ -1770,12 +1770,12 @@ repair_upgrade_level 0x00e364fb char
 
 
 PrecomputedMVPMatrix 0x00e37480 rdMatrix44
-rdModel_sceneStateUnusedE 0x00e374c4 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
+rdModel_sceneStateUnusedE 0x00e374c4 short # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 rdModel_displayListCursor 0x00e374c0 Gfx* # display-list cursor saved/restored around rdModel_BuildAndDrawScene
 rdModel_sceneStatCounters 0x00e374e0 int[16] # zeroed per rdModel_BuildAndDrawScene, then [0] += [1..15]; nothing else touches them on PC
 
 PrecomputedMVPMatrixPtr 0x00e37520 rdMatrix44*
-rdModel_sceneStateUnusedD 0x00e37524 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
+rdModel_sceneStateUnusedD 0x00e37524 short # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 rdModel_sceneStateUnusedC 0x00e37528 int # write-only on PC; reset by rdModel_SetupSceneFogAndLights
 
 PrecomputedModelMatrixPtr 0x00e3752c rdMatrix44*

@@ -8239,7 +8239,7 @@ RETAIL_FP void swrRace_UpdateEnergyBinder(swrRace* player, int side, rdVector3* 
     t = swrRace_energyBinderTime - (float)player->obj.id * (float)0.1f; // stays in ST0 in retail
     if (t > 0.0f)
         t = t * t;
-    if (t < 0.01) {
+    if (t < 0.01f) {
         if (player->partNodes[beam] != NULL)
             swrModel_NodeModifyFlags(player->partNodes[beam], 2, -4, 0x10, 3);
         rdMatrix_SetTranslation44(&(&player->unk350_mat)[beam], 0.0f, 0.0f, -100000.0f);
