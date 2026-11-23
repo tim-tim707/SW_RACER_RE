@@ -8684,7 +8684,7 @@ int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* m
 }
 
 // 0x00478d80
-void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d)
+RETAIL_FP void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVector3* d)
 {
     rdVector3 vel;
 
@@ -8696,9 +8696,11 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
     // Flatten a too-steep climb (unless on a wall/repulsor surface).
     if ((player->flags1 & swrObjTest_FLAG1_MAGNET) == 0 && (player->flags0 & swrObjTest_FLAG0_ZON) == 0 && 0.0f < vel.z)
     {
-        float horiz = vel.y * vel.y + vel.x * vel.x;
-        if (horiz * 0.13690001f < vel.z * vel.z)
-            vel.z = stdMath_Sqrt(horiz) * 0.2f;
+        // retail stores horiz as a float but scales the unrounded sum for the compare
+        long double horizRaw = vel.x * vel.x + vel.y * vel.y;
+        float horiz = horizRaw;
+        if (horizRaw * (float)0.13690001f < vel.z * vel.z)
+            vel.z = stdMath_Sqrt(horiz) * (float)0.2f;
     }
 
     // Fold in opponent-collision velocity, then bleed both collision velocities down.
@@ -8714,11 +8716,13 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
 
     // Blend in the slope velocity (skipped while spun out / idle on the ground).
     if ((player->flags0 & (swrObjTest_FLAG0_RESPAWN | swrObjTest_FLAG0_DEAD)) == 0 &&
-        (0.1f < player->throttle || 0.1f < -player->throttle || (player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))
+        ((float)0.1f < player->throttle || (float)0.1f < -player->throttle || (player->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) == 0))
     {
-        float dot = vel.x * player->velocitySlope.x + vel.y * player->velocitySlope.y + vel.z * player->velocitySlope.z;
+        // retail sums z, y, x and tests the unrounded dot; dot is then used as a float
+        long double dotRaw = (vel.z * player->velocitySlope.z + vel.y * player->velocitySlope.y) + vel.x * player->velocitySlope.x;
+        float dot = dotRaw;
         float len;
-        if (dot < 0.0f || (len = rdVector_Len3(&player->velocitySlope)) <= 1.0f)
+        if (dotRaw < 0.0f || (len = rdVector_Len3(&player->velocitySlope)) <= 1.0f)
         {
             vel.x += player->velocitySlope.x;
             vel.y += player->velocitySlope.y;
@@ -8728,14 +8732,14 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
         {
             if (1.0f < speed)
             {
-                float ratio = dot / (speed * 60.0f);
+                long double ratio = dot / (speed * 60.0f);
                 if (0.0f < ratio)
                 {
-                    float dtr = swrRace_deltaTimeSecs * ratio;
-                    player->accelThrust += dtr + dtr;
+                    long double dtr = swrRace_deltaTimeSecs * ratio;
+                    player->accelThrust = (dtr + dtr) + player->accelThrust;
                 }
             }
-            float factor = (dot / len) * 0.01f;
+            float factor = (dot / len) * (float)0.01f;
             if (factor < 1.0f)
                 factor = 1.0f;
             rdVector_Scale3Add3(&vel, &vel, factor, &player->velocitySlope);
@@ -8748,7 +8752,7 @@ void swrRace_IntegrateMotion(swrRace* player, rdVector3* b, rdVector3* c, rdVect
     // Once the pod is beyond the LOD distance, freeze the move delta and bail. lodDistance is the
     // distance to the nearest active viewport camera (set in swrObjTest_F0); (lodDistance - 400)/600 >= 1
     // means >= ~1000 units away. Skipped for local players and FORCE_GROUND pods.
-    if (1.0 <= ((float)player->lodDistance - 400.0f) * 0.0016666667f &&
+    if (1.0 <= ((float)player->lodDistance - 400.0f) * (float)0.0016666667f &&
         (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 && (player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) == 0)
     {
         player->wallPushback.x = 0.0f;
@@ -9133,7 +9137,7 @@ swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 // Steps the cursor over each node plane the pod passed (segmentT += 0.01 per step). Entering node 0
 // sets *outCrossTime by line-plane interpolation of positionPrev -> position, times the raw delta.
 // 0x0047f8e0
-void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
+RETAIL_FP void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outForward, int* outBackward)
 {
     swrSplineCursor* cursor = &player->splineCursor;
     rdMatrix44 m;
@@ -9150,30 +9154,36 @@ void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outF
     rdVector_Len3(&moved);
     *outCrossTime = 0.0f;
 
-    // forward: step past every node plane the pod is beyond
+    // forward: step past every node plane the pod is beyond. Retail compares the unrounded pod
+    // distance against the float-rounded plane distance, and sums each dot product in this order.
     do {
         done = true;
-        float posDist = m.vB.x * player->transform.vD.x + m.vB.y * player->transform.vD.y + m.vB.z * player->transform.vD.z;
-        float planeDist = m.vD.z * m.vB.z + m.vD.y * m.vB.y + m.vD.x * m.vB.x;
-        float prevDist = m.vB.x * player->positionPrev.x + m.vB.y * player->positionPrev.y + m.vB.z * player->positionPrev.z;
+        long double posDist = (m.vB.z * player->transform.vD.z + m.vB.y * player->transform.vD.y) + m.vB.x * player->transform.vD.x;
+        float posDistF = posDist;
+        float planeDist = (m.vD.x * m.vB.x + m.vD.y * m.vB.y) + m.vD.z * m.vB.z;
+        float prevDist = (m.vB.z * player->positionPrev.z + m.vB.y * player->positionPrev.y) + m.vB.x * player->positionPrev.x;
         if (planeDist < posDist) {
+            float moveDist;
             if (cursor->endFlag == 0) {
-                cursor->segmentT -= -0.01f;
+                cursor->segmentT -= -(float)0.01f;
                 swrSpline_EvaluateToMatrix(cursor, &m);
                 done = false;
                 if (cursor->nodeLookahead[0] != node) {
                     if (cursor->nodeLookahead[0] == 0) {
-                        if (0.01f <= posDist - prevDist)
-                            *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / (posDist - prevDist);
+                        moveDist = posDistF - prevDist;
+                        if ((float)0.01f <= moveDist)
+                            *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / moveDist;
                         else
                             *outCrossTime = 0.0f;
                     }
                     node = cursor->nodeLookahead[0];
                 }
-            } else if (0.01f <= posDist - prevDist) {
-                *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / (posDist - prevDist);
             } else {
-                *outCrossTime = 0.0f;
+                moveDist = posDistF - prevDist;
+                if ((float)0.01f <= moveDist)
+                    *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / moveDist;
+                else
+                    *outCrossTime = 0.0f;
             }
             *outForward = 1;
         }
@@ -9181,23 +9191,24 @@ void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outF
 
     // backward: no forward progress, so step back while the pod is behind the plane
     if (*outForward == 0 && cursor->startFlag == 0) {
-        cursor->segmentT -= 0.01f;
+        cursor->segmentT -= (float)0.01f;
         swrSpline_EvaluateToMatrix(cursor, &m);
         do {
             done = true;
-            float posDist = m.vB.x * player->transform.vD.x + m.vB.y * player->transform.vD.y + m.vB.z * player->transform.vD.z;
-            float planeDist = m.vD.z * m.vB.z + m.vD.y * m.vB.y + m.vD.x * m.vB.x;
+            // both stay unrounded here
+            long double posDist = (m.vB.z * player->transform.vD.z + m.vB.y * player->transform.vD.y) + m.vB.x * player->transform.vD.x;
+            long double planeDist = (m.vD.x * m.vB.x + m.vD.y * m.vB.y) + m.vD.z * m.vB.z;
             if (posDist < planeDist) {
                 done = cursor->startFlag != 0;
                 if (!done) {
-                    cursor->segmentT -= 0.01f;
+                    cursor->segmentT -= (float)0.01f;
                     swrSpline_EvaluateToMatrix(cursor, &m);
                 }
                 *outBackward = 1;
             }
         } while (!done);
         if (cursor->startFlag == 0) {
-            cursor->segmentT -= -0.01f;
+            cursor->segmentT -= -(float)0.01f;
             swrSpline_EvaluateToMatrix(cursor, &m);
         }
     }
