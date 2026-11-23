@@ -38,9 +38,19 @@ int hook_verify_requested(void);
 // its hook_call_original() needs the original-mode registration. NULL when there is no delta layer.
 extern int (*hook_mode_delta_owned)(uint32_t reimpl_addr);
 
-// `force_reimpl` marks functions annotated `// 0xADDR HOOK` -- deltas the GL renderer depends on
-// rather than equivalence candidates, so they go live regardless of configuration.
-void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, int force_reimpl, FILE* hook_log);
+typedef enum hook_install_kind
+{
+    // `// 0xADDR`: the mode comes from reimpl_config.txt.
+    HOOK_INSTALL_CONFIGURABLE = 0,
+    // `// 0xADDR HOOK`: deltas the GL renderer depends on rather than equivalence candidates, so
+    // they go live regardless of configuration.
+    HOOK_INSTALL_FORCE_REIMPL = 1,
+    // A delta hooks the retail entry by hand, so our body never goes live; our symbol still
+    // redirects to the retail entry, so a caller that names it reaches that delta like retail does.
+    HOOK_INSTALL_PIN_ORIGINAL = 2,
+} hook_install_kind;
+
+void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, FILE* hook_log);
 
 // Log what hook_install() actually did across the whole table.
 void hook_mode_log_summary(FILE* hook_log);
