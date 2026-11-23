@@ -3067,6 +3067,7 @@ namespace {
 
     using V_project_plane = void (*)(float *, rdVector3 *, rdVector3 *);
     using V_closest_seg = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *);
+    using V_seg_plane = void (*)(rdVector3 *, rdVector3 *, rdVector3 *, rdVector3 *, float);
     using I_point_in_tri2 = int (*)(float *, float *, float *, float *, rdVector3 *, rdVector3 *, rdVector3 *);
     using LD_closest_tri = long double (*)(float *, float *, float *, float *, float, float *, float *);
 
@@ -3109,6 +3110,35 @@ namespace {
                     rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
                     rdMath_ClosestPointOnSegment(&pt, &a0, &a1, &o);
                     retail(&pt, &a0, &a1, &r);
+                    char desc[48];
+                    std::snprintf(desc, sizeof(desc), "case %d", i);
+                    record_vec3(s, o, r, 0, desc);
+                }
+                report(s);
+            }
+        }
+        {
+            const char *name = "rdMath_IntersectSegmentPlane";
+            if (testable(name, rdMath_IntersectSegmentPlane_ADDR)) {
+                const V_seg_plane retail = (V_seg_plane) hook_retail_ptr(rdMath_IntersectSegmentPlane_ADDR);
+                Stats s;
+                stats_init(s, name);
+                for (int i = 0; i < VERIFY_ITERATIONS; i++) {
+                    rdVector3 n = random_vec3(i, -1.0f, 1.0f);
+                    if (rdVector_Normalize3Acc(&n) == 0.0f)
+                        continue;
+                    // the swept-sphere slab clip: a segment crossing the plane, as near-parallel as 1:100
+                    rdVector3 a0 = random_vec3(i + 3, -2000.0f, 2000.0f);
+                    rdVector3 d = random_vec3(i + 7, -60.0f, 60.0f);
+                    const float along = d.x * n.x + d.y * n.y + d.z * n.z;
+                    const float len = rdVector_Len3(&d);
+                    if (len == 0.0f || std::fabs(along) < len * 0.01f)
+                        continue;
+                    rdVector3 a1 = {a0.x + d.x, a0.y + d.y, a0.z + d.z};
+                    const float dist = (a0.x * n.x + a0.y * n.y + a0.z * n.z) + along * next_float(0.0f, 1.0f);
+                    rdVector3 o = {-9.0f, -9.0f, -9.0f}, r = o;
+                    rdMath_IntersectSegmentPlane(&o, &a0, &a1, &n, dist);
+                    retail(&r, &a0, &a1, &n, dist);
                     char desc[48];
                     std::snprintf(desc, sizeof(desc), "case %d", i);
                     record_vec3(s, o, r, 0, desc);

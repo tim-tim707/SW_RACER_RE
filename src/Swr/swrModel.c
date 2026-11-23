@@ -2778,18 +2778,24 @@ void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, floa
         swrModel_RecordClosestHit(best, center, &closest.x, normal);
 }
 
+// Retail's sum order, t stored as a float, and each offset rounded to float before the start point is
+// added (FST dword).
 // 0x00441710
-void rdMath_IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist)
+RETAIL_FP void rdMath_IntersectSegmentPlane(rdVector3* out, rdVector3* segStart, rdVector3* segEnd, rdVector3* planeNormal, float planeDist)
 {
     rdVector3 dir;
     dir.x = segEnd->x - segStart->x;
     dir.y = segEnd->y - segStart->y;
     dir.z = segEnd->z - segStart->z;
     rdVector_Normalize3Acc(&dir);
-    float t = (planeDist - (segStart->x * planeNormal->x + planeNormal->y * segStart->y + planeNormal->z * segStart->z)) / (dir.x * planeNormal->x + dir.y * planeNormal->y + dir.z * planeNormal->z);
-    out->x = segStart->x + dir.x * t;
-    out->y = segStart->y + dir.y * t;
-    out->z = segStart->z + dir.z * t;
+    float t = (planeDist - ((planeNormal->y * segStart->y + planeNormal->z * segStart->z) + segStart->x * planeNormal->x)) /
+              ((dir.z * planeNormal->z + dir.y * planeNormal->y) + dir.x * planeNormal->x);
+    float offX = dir.x * t;
+    float offY = dir.y * t;
+    float offZ = dir.z * t;
+    out->x = segStart->x + offX;
+    out->y = segStart->y + offY;
+    out->z = segStart->z + offZ;
 }
 
 static int sweepSlabSide(const float* v)
