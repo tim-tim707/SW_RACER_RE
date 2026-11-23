@@ -570,7 +570,7 @@ float swrRace_LapProgress(swrSplineCursor* cursor);
 // player->splineTrackMesh and promoted to player->terrainModel while the ground cache is valid.
 swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor);
 
-bool swrRace_LapCompletion(swrRace* player, int checkCrossing);
+int swrRace_LapCompletion(swrRace* player, int checkCrossing);
 
 // Per-racer race-progress update (called per racer from swrObjJdge_F2): advances the spline
 // cursor, refreshes cursor-derived state, runs swrRace_LapCompletion, and ticks the

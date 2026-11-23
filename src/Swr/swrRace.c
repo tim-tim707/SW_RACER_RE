@@ -9027,7 +9027,7 @@ void swrRace_InitFireEffects(int racer, float reset)
 // segment's span (swrSpline_progressTable). Closed tracks clamp just under 1.0 (the wrap is what
 // swrRace_LapCompletion detects); open tracks (swrSpline_finishNodeIdx >= 0) clamp to 1.0.
 // 0x0047f810
-float swrRace_LapProgress(swrSplineCursor* cursor)
+RETAIL_FP float swrRace_LapProgress(swrSplineCursor* cursor)
 {
     int cp;
     float progress;
@@ -9048,12 +9048,12 @@ float swrRace_LapProgress(swrSplineCursor* cursor)
 // overtaking a NEGATIVE lapCompMax. Remote ('REMO') pods read the swrMultiplayer_aRemote* arrays
 // instead of the local spline cursor.
 // 0x0047fdd0
-bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
+RETAIL_FP int swrRace_LapCompletion(swrRace* player, int checkCrossing)
 {
     swrScore* score;
     int netSlot;
     float maxComp;
-    bool crossed;
+    int crossed; // retail returns the full EAX; its caller tests all 32 bits
 
     if ((player->flags0 & swrObjTest_FLAG0_DEAD) != 0)
         checkCrossing = 1;
@@ -9070,7 +9070,7 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
         player->lapComp = swrMultiplayer_aRemoteLapComp[*(int*)&player->score_ptr->time_unk];
 
     if (player->moveTick < 9)
-        player->idleTick += (float)swrRace_deltaTimeSecs;
+        player->idleTick = (float)(swrRace_deltaTimeSecs + player->idleTick); // double dt, one rounding
     else
         player->idleTick = 0.0f;
 
@@ -9099,13 +9099,13 @@ bool swrRace_LapCompletion(swrRace* player, int checkCrossing)
             return crossed;
         }
     }
-    return false;
+    return 0;
 }
 
 // 0x0047f890
 swrModel_Mesh* swrRace_GetTrackMeshAtCursor(swrSplineCursor* cursor)
 {
-    float sample = cursor->segmentT * SWR_SPLINE_SAMPLES_PER_NODE;
+    long double sample = (long double)cursor->segmentT * (float)SWR_SPLINE_SAMPLES_PER_NODE; // unrounded into __ftol, as retail
     if (sample < 0.0f)
         sample -= 0.999999f;
     int sampleIndex = (int)sample;
@@ -9214,18 +9214,18 @@ int swrRace_UpdateSplineBinding(swrRace* player)
 }
 
 // 0x0047fca0
-void swrRace_ComputeTrackOffset(swrRace* player)
+RETAIL_FP void swrRace_ComputeTrackOffset(swrRace* player)
 {
     rdMatrix44 frame;
     rdVector3 closest;
     rdVector3 delta;
     float dist;
-    float invDist;
+    long double invDist;
     float along;
 
     swrSpline_EvaluateToMatrix(&player->splineCursor, &frame);
     // project the pod onto the spline frame's forward axis (vB) through its origin (vD)
-    along = (frame.vB.x * player->transform.vD.x + frame.vB.y * player->transform.vD.y + frame.vB.z * player->transform.vD.z) - (frame.vD.z * frame.vB.z + frame.vD.y * frame.vB.y + frame.vD.x * frame.vB.x);
+    along = (frame.vB.z * player->transform.vD.z + frame.vB.y * player->transform.vD.y + frame.vB.x * player->transform.vD.x) - (frame.vD.x * frame.vB.x + frame.vD.y * frame.vB.y + frame.vD.z * frame.vB.z);
     rdVector_Scale3Add3(&closest, (rdVector3*)&frame.vD, along, (rdVector3*)&frame.vB);
     delta.x = player->transform.vD.x - closest.x;
     delta.y = player->transform.vD.y - closest.y;
@@ -9233,7 +9233,7 @@ void swrRace_ComputeTrackOffset(swrRace* player)
     dist = rdVector_Len3(&delta);
     player->trackOffset.w = dist;
     if (0.1f < dist) {
-        invDist = 1.0f / dist;
+        invDist = 1.0f / (long double)dist; // stays in ST0 in retail
         player->trackOffset.x = delta.x * invDist;
         player->trackOffset.y = delta.y * invDist;
         player->trackOffset.z = delta.z * invDist;
