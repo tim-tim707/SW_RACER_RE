@@ -121,7 +121,7 @@ int swrSpline_getControlPoint(void* cursor, int level)
 // spline-type basis matrix, and writes the components selected by mask
 // (swrSpline_INTERP_FLAGS) into out[0..11] (3 floats each).
 // 0x0044e660
-void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeIndices, float* out)
+RETAIL_FP void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeIndices, float* out)
 {
     swrSpline* s = (swrSpline*)spline;
     swrSplineControlPoint* cp = s->control_points;
@@ -131,7 +131,7 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
     tvec.z = t;
     tvec.y = t * t;
     tvec.w = 1.0f;
-    tvec.x = tvec.y * t;
+    tvec.x = t * t * t; // from the unrounded t*t
 
     float* p0;
     float* p1;
@@ -152,9 +152,10 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
     }
 
     if (mask & SPLINE_INTERP_POSITION) {
-        out[0] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
-        out[1] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
-        out[2] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
+        // retail's x87 sum order
+        out[0] = p3[0] * basis.w + p1[0] * basis.y + p2[0] * basis.z + p0[0] * basis.x;
+        out[1] = p3[1] * basis.w + p0[1] * basis.x + p2[1] * basis.z + p1[1] * basis.y;
+        out[2] = p3[2] * basis.w + p0[2] * basis.x + p2[2] * basis.z + p1[2] * basis.y;
     }
     if (mask & SPLINE_INTERP_UP) {
         if (s->type == SPLINE_TYPE_BEZIER_FLAT) {
@@ -166,22 +167,22 @@ void swrSpline_Interpolate(void* spline, unsigned char mask, float t, int* nodeI
             float* r1 = &cp[nodeIndices[1]].rotation.x;
             float* r2 = &cp[nodeIndices[2]].rotation.x;
             float* r3 = &cp[nodeIndices[3]].rotation.x;
-            out[9] = r3[0] * basis.w + r0[0] * basis.x + r2[0] * basis.z + r1[0] * basis.y;
-            out[10] = r1[1] * basis.y + r2[1] * basis.z + r0[1] * basis.x + r3[1] * basis.w;
-            out[11] = r3[2] * basis.w + r1[2] * basis.y + r2[2] * basis.z + r0[2] * basis.x;
+            out[9] = r1[0] * basis.y + r2[0] * basis.z + r0[0] * basis.x + r3[0] * basis.w;
+            out[10] = r3[1] * basis.w + r0[1] * basis.x + r2[1] * basis.z + r1[1] * basis.y;
+            out[11] = r0[2] * basis.x + r2[2] * basis.z + r1[2] * basis.y + r3[2] * basis.w;
         }
     }
     if (mask & SPLINE_INTERP_TANGENT) {
         rdMatrix_Multiply4(&basis, &tvec, s->type == SPLINE_TYPE_BSPLINE ? &rdMatrix_unk3 : &rdMatrix_unk4);
-        out[3] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
-        out[4] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
-        out[5] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
+        out[3] = p3[0] * basis.w + p1[0] * basis.y + p2[0] * basis.z + p0[0] * basis.x;
+        out[4] = p3[1] * basis.w + p0[1] * basis.x + p2[1] * basis.z + p1[1] * basis.y;
+        out[5] = p3[2] * basis.w + p0[2] * basis.x + p2[2] * basis.z + p1[2] * basis.y;
     }
     if (mask & SPLINE_INTERP_NORMAL) {
         rdMatrix_Multiply4(&basis, &tvec, s->type == SPLINE_TYPE_BSPLINE ? &rdMatrix_unk1 : &rdMatrix_unk2);
-        out[6] = p0[0] * basis.x + p2[0] * basis.z + p1[0] * basis.y + p3[0] * basis.w;
-        out[7] = p1[1] * basis.y + p2[1] * basis.z + p0[1] * basis.x + p3[1] * basis.w;
-        out[8] = p1[2] * basis.y + p2[2] * basis.z + p0[2] * basis.x + p3[2] * basis.w;
+        out[6] = p3[0] * basis.w + p1[0] * basis.y + p2[0] * basis.z + p0[0] * basis.x;
+        out[7] = p3[1] * basis.w + p0[1] * basis.x + p2[1] * basis.z + p1[1] * basis.y;
+        out[8] = p3[2] * basis.w + p0[2] * basis.x + p2[2] * basis.z + p1[2] * basis.y;
     }
 }
 
@@ -682,11 +683,12 @@ void swrSpline_TraceProgress(void* cursor, float segmentLength, unsigned short* 
     for (int i = 0; i < nodeCount; i++) {
         node = swrSpline_getControlPoint(&walk, 0);
         order[node] = *counter;
-        float f = (swrSpline_progressTable[node].x - startProgress) / length;
-        float progress = f * endProgress + (1.0f - f) * startProgress;
-        swrSpline_progressTable[node].x = progress;
+        // retail keeps f and progress in ST0; .y below uses the unrounded progress
+        long double f = ((long double) swrSpline_progressTable[node].x - startProgress) / length;
+        long double progress = (1.0f - f) * startProgress + f * endProgress;
+        swrSpline_progressTable[node].x = (float) progress;
         if (i != 0)
-            swrSpline_progressTable[prevNode].y = progress - swrSpline_progressTable[prevNode].x;
+            swrSpline_progressTable[prevNode].y = (float) (progress - swrSpline_progressTable[prevNode].x);
         prevNode = node;
         walk.segmentT = 1.0f;
         swrSpline_EvaluateToMatrix(&walk, &m);
