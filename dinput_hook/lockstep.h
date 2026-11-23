@@ -20,8 +20,9 @@ void __cdecl swrRace_IncrementFrameTimer_lockstep(void);
 // Called at the end of swrControl_ProcessInputs_delta: records or pins this frame's inputs.
 void lockstep_pin_inputs(void);
 
-// Once per presented frame, outside the ImGui frame: autostarts a replay from the main menu.
+// Once per presented frame: reads lockstep.txt and updates the fast-forward state.
 void lockstep_frame_service(void);
+// After swrObjHang_F0: autostarts a replay from the main menu.
 void lockstep_hang_f0(struct swrObjHang *hang);
 // True while a replay runs on the pinned dt: the frame limiter and vsync are skipped.
 bool lockstep_fast_forward(void);
