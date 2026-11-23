@@ -44,6 +44,7 @@ both swrObjJdge_GetRacerProgress
 both swrObjJdge_GetRacerRankValue
 both rdMath_ProjectPointOntoPlane
 both rdMath_ClosestPointOnSegment
+both rdMath_IntersectSegmentPlane
 both swrModel_PointInTriangle2
 both swrModel_ClosestPointOnTriangleImpl
 both swrModel_ClosestPointOnTriangle
