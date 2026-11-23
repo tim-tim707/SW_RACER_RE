@@ -5566,14 +5566,14 @@ RETAIL_FP void swrRace_AutopilotSteer(swrRace* player)
     long double steer;
     if (err <= (float)0.02f) {
         steer = 0.0f;
-        if (errSpill < (float)-(float)0.02f) {
-            steer = errSpill * (float)-(float)1.42857146f; // -10/7
-            if (errSpill < (float)-(float)0.3f) {
+        if (errSpill < -(float)0.02f) {
+            steer = errSpill * -(float)1.42857146f; // -10/7
+            if (errSpill < -(float)0.3f) {
                 player->throttle = (errSpill - -1.0f) * 0.5f * player->throttle;
             }
         }
     } else {
-        steer = errSpill * (float)-(float)1.42857146f;
+        steer = errSpill * -(float)1.42857146f;
         if ((float)0.3f < errSpill) {
             player->throttle = (1.0f - errSpill) * 0.5f * player->throttle;
         }
