@@ -182,6 +182,9 @@ void* swrEvent_GetItem(int event, int index)
     return NULL;
 }
 
+// Retail pushes the message twice: F4 handlers that take a third argument see the message again.
+typedef int (*swrEvent_F4Call)(void* obj, void* msg, void* msgAgain);
+
 // 0x00450c00
 void swrEvent_DispatchSubEvents(void* obj, int* subEvents)
 {
@@ -201,7 +204,7 @@ void swrEvent_DispatchSubEvents(void* obj, int* subEvents)
     }
 
     if (manager->f4 != NULL && (((swrObj*) obj)->flags & 0x100) == 0)
-        manager->f4(obj, subEvents);
+        ((swrEvent_F4Call) manager->f4)(obj, subEvents, subEvents);
 }
 
 // 0x00450c50
@@ -218,7 +221,7 @@ void swrEvent_CallF4(int event, void* forward_param)
             swrObj* obj = manager->head;
             for (int i = 0; i < manager->count; i++)
             {
-                if ((obj->flags & 0x100) == 0 && manager->f4(obj, forward_param) == 2)
+                if ((obj->flags & 0x100) == 0 && ((swrEvent_F4Call) manager->f4)(obj, forward_param, forward_param) == 2)
                     return;
                 obj = (swrObj*) ((char*) obj + manager->size);
             }
@@ -325,7 +328,7 @@ void swrEvent_Broadcast(int event, int* subEvents)
 // returns the number found. Positions are read from the object's transform.vD (+0x50), which
 // every caller relies on by passing 'Test' (swrRace) objects.
 // 0x00450e70
-int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void* excludeObj, int maxResults, float* outDistances, rdVector3* outDeltas, void** outObjects)
+RETAIL_FP int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void* excludeObj, int maxResults, float* outDistances, rdVector3* outDeltas, void** outObjects)
 {
     int found = 0;
     for (swrEventManager** it = eventManagerMain; *it != NULL; it++) {
@@ -339,10 +342,12 @@ int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void
                 continue;
 
             rdVector4* objPos = &((swrRace*)obj)->transform.vD;
-            float dx = objPos->x - pos->x;
-            float dy = objPos->y - pos->y;
+            // retail: dx and the sum stay in ST0, dy is squared raw x its float spill, dz from its spill
+            long double dx = objPos->x - pos->x;
+            long double dyRaw = objPos->y - pos->y;
+            float dy = (float) dyRaw;
             float dz = objPos->z - pos->z;
-            float distSq = dz * dz + dy * dy + dx * dx;
+            long double distSq = dx * dx + dyRaw * dy + dz * dz;
             if (maxDistSq <= distSq)
                 continue;
 
@@ -363,9 +368,9 @@ int swrEvent_FindNearestObjects(int event, rdVector3* pos, float maxDistSq, void
                 outDistances[j] = outDistances[j - 1];
                 outDeltas[j] = outDeltas[j - 1];
             }
-            outDistances[insertIdx] = distSq;
+            outDistances[insertIdx] = (float) distSq;
             outObjects[insertIdx] = obj;
-            outDeltas[insertIdx].x = dx;
+            outDeltas[insertIdx].x = (float) dx;
             outDeltas[insertIdx].y = dy;
             outDeltas[insertIdx].z = dz;
         }
