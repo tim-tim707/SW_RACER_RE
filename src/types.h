@@ -1321,7 +1321,7 @@ extern "C"
         char a;              // 0x37
     } swrUI_unk2; // sizeof(0x38) in a [20]
 
-    typedef struct swrUI_ScreenTextValue // second text column drawn by swrUI_ScreenTextProc (swrUI_unk.unk4f4)
+    typedef struct swrUI_ScreenTextValue // second text column drawn by swrUI_ScreenTextProc: overlays swrUI_unk from +0x4f4
     {
         int x_offset; // 0x00 offset from the label's left edge; -1 = just right of the element
         char* text; // 0x04 freed on swrUI_MSG_DESTROY
@@ -1381,7 +1381,7 @@ extern "C"
         int font_index; // 0x4dc font-table index (set via swrUI_ReplaceIndex)
         swrSprite_BBox bbox;
         unsigned int frame_style; // 0x4f0 swrUI_FRAME_STYLE bits (swrUI_BuildHighlightSprites)
-        int unk4f4; // 0x4f4 class payload pointer (swrUI_SetValue2_Maybe); screen text: swrUI_ScreenTextValue*
+        int unk4f4; // 0x4f4 class payload (swrUI_SetValue2_Maybe); screen text: start of an inline swrUI_ScreenTextValue
         char* value_text; // 0x4f8 secondary value-text (swrUI_SetValueText / swrUI_GetValueText)
         int value; // 0x4fc element value (swrUI_SetValue)
         int unk500;

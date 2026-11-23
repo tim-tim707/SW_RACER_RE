@@ -160,7 +160,7 @@ swrObjHang_cinematicFiles 0x004b7a08 char*[11] # PlanetTAT/A/B/C/D/E/F/J.znm, Go
 
 swrMainDisplay_currentDevice 0x004b7a34 int
 swrMain_GuiAdvanceFunction 0x004b7a38 void*
-swrMain2_firstFrame 0x004b7a3c int = 1 # swrMain_RunFrame flags for the next GUI frame; cleared after the first one
+swrMain2_firstFrame 0x004b7a3c short = 1 # swrMain_RunFrame flags for the next GUI frame; cleared after the first one
 
 swrSound_criticalSection 0x004b7e7e CRITICAL_SECTION
 
@@ -918,7 +918,7 @@ rdMatrixStack44_size 0x0050c5e8 int
 pauseState 0x0050C5F0 int
 pauseDisabled 0x0050C5F4 int
 
-pauseEnabledFlag 0x0050c5f8 int # set to 1 by swrRace_EnablePause; write-only (no readers found)
+pauseEnabledFlag 0x0050c5f8 char # set to 1 by swrRace_EnablePause; write-only (no readers found)
 swrRace_saveDefaultsUnk 0x0050c75c int # zeroed by swrRace_InitDefaultGameData next to a stripped debug call; write-only (no readers found)
 
 assetBufferModelLoaded 0x0050C600 int
@@ -1489,7 +1489,7 @@ swrModel_collisionSweepAxis 0x00e985a0 rdVector3 # sphere sweep axis in the curr
 swrModel_collisionSphereRadius 0x00e985b0 float
 swrModel_collisionSlabMin 0x00e98e00 float
 swrModel_collisionSweepAxisWorld 0x00e98e10 rdVector3
-swrModel_collisionUnkE1c 0x00e98e1c int
+swrModel_collisionUnkE1c 0x00e98e1c short
 swrModel_collisionSphereCenter 0x00e98e30 rdVector3 # in the current node's local space
 swrModel_collisionRayOrigin 0x00e98e40 rdVector3
 swrModel_collisionRayDir 0x00e98e4c rdVector3

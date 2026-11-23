@@ -2273,7 +2273,7 @@ int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
         rect[3] = ui->height;
         focused = swrUI_IsElementFocused(ui);
         swrUI_DrawTextAligned(ui->font_index, ui->str_allocated, (short*)rect, ui->text_flags, ui->r, ui->g, ui->b, ui->a, focused, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
-        value = (swrUI_ScreenTextValue*)ui->unk4f4;
+        value = (swrUI_ScreenTextValue*)&ui->unk4f4;
         if (value->x_offset == -1)
             rect[0] = rect[0] + 1 + (ui->width - ui->x);
         else
@@ -2281,7 +2281,7 @@ int swrUI_ScreenTextProc(swrUI_unk* ui, unsigned int msg, void* param, int param
         swrUI_DrawTextAligned(value->font, value->text, (short*)rect, value->align_flags, ui->r, ui->g, ui->b, ui->a, 0, (int)&ui->bbox, ui->flags & swrUI_DISABLED);
         break;
     case swrUI_MSG_DESTROY:
-        value = (swrUI_ScreenTextValue*)ui->unk4f4;
+        value = (swrUI_ScreenTextValue*)&ui->unk4f4;
         value->text = swrUI_replaceAllocatedStr(value->text, NULL);
         break;
     }

@@ -221,7 +221,7 @@ void swrViewport_ProjectToScreen(swrViewport* viewport, rdVector4* worldPos, flo
     if ((GameSettingFlags & 0x4000) != 0) {
         clip.x = -clip.x;
     }
-    if (0.01f < clip.w) {
+    if (0.01 < clip.w) { // retail compares against a double
         screenX = (clip.x / clip.w + 1.0f) * scaleX + centerX;
         screenY = (1.0f - clip.y / clip.w) * scaleY + centerY;
         *outZ = clip.z / clip.w;
@@ -304,7 +304,7 @@ void swrViewport_ComputeClipMatrix(swrViewport* unk)
 {
     float aspect = ((float)(unk->viewport_x2 - unk->viewport_x1) * unk->aspect_ratio) / (float)(unk->viewport_y2 - unk->viewport_y1);
     float angle = 3.0;
-    if (0.01 <= aspect) {
+    if (0.01f <= aspect) {
         angle = stdMath_Tan(unk->fov_y_degrees * 0.5);
         angle = stdMath_ArcTan2(angle, aspect);
         angle = angle + angle;
@@ -453,9 +453,9 @@ void swrViewport_Init(int viewportIndex)
 void swrViewport_SetCameraParameters(int viewportIndex, float fovY, float aspect, float nearClip, float farClip, float param6)
 {
     if (swrConfig_VIDEO_DRAWDISTANCE == 3)
-        farClip = farClip * 1.5;
+        farClip = farClip * 1.5f;
     if (swrConfig_VIDEO_DRAWDISTANCE == 1)
-        farClip = farClip * 0.4;
+        farClip = farClip * 0.4f;
     if (0.0 < fovY)
         swrViewport_array[viewportIndex].fov_y_degrees = fovY;
     if (0.0 < aspect)

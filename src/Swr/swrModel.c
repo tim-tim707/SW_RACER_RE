@@ -878,7 +878,7 @@ void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation*
     const float v0 = anim->key_frame_values[key_frame_index];
     const float v1 = anim->key_frame_values[key_frame_index + 1];
 
-    if (time >= t1)
+    if (time > t1)
     {
         *result = v1;
     }
@@ -902,7 +902,7 @@ void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* an
     const rdVector3 v0 = anim->key_frame_translations[key_frame_index];
     const rdVector3 v1 = anim->key_frame_translations[key_frame_index + 1];
 
-    if (time >= t1)
+    if (time > t1)
     {
         *result = v1;
     }
@@ -913,7 +913,11 @@ void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* an
     else
     {
         const float t = swrModel_AnimationComputeInterpFactor(anim, time, key_frame_index);
-        rdVector_Scale3Add3_both(result, (1 - t), &v0, t, &v1);
+        // retail rounds t * v1 into result before blending in v0
+        result->x = t * v1.x;
+        result->y = t * v1.y;
+        result->z = t * v1.z;
+        rdVector_Scale3Add3(result, result, 1 - t, &v0);
     }
 }
 
@@ -926,7 +930,7 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
     const rdVector4 v0 = anim->key_frame_axis_angle_rotations[key_frame_index];
     const rdVector4 v1 = anim->key_frame_axis_angle_rotations[key_frame_index + 1];
 
-    if (time >= t1)
+    if (time > t1)
     {
         *result = v1;
     }
@@ -3390,13 +3394,11 @@ void swrModel_TransformCollisionResult(unsigned char flags)
     }
 }
 
-// Is the sphere's bounding box (center +- radius) overlapping aabb (min xyz, max xyz)?
-static int sphereAABBOverlaps(const float* aabb)
+// Is the sphere's bounding box [lo, hi] overlapping aabb (min xyz, max xyz)?
+static int sphereAABBOverlaps(const float* aabb, const float* lo, const float* hi)
 {
-    const float* center = &swrModel_collisionSphereCenter.x;
-    float r = swrModel_collisionSphereRadius;
     for (int axis = 0; axis < 3; axis++) {
-        if (aabb[axis + 3] < center[axis] - r || center[axis] + r < aabb[axis])
+        if (aabb[axis + 3] < lo[axis] || hi[axis] < aabb[axis])
             return 0;
     }
     return 1;
@@ -3413,14 +3415,22 @@ void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int fla
         swrModel_collisionUnkE70 = 0;
         swrModel_TransformCollisionQuery(flags, &swrModel_collisionSphereCenter, query, &swrModel_collisionSweepAxis, &swrModel_collisionSweepAxisWorld);
     }
+    // retail rounds center +- radius to floats once and tests every AABB against those
+    float lo[3];
+    float hi[3];
+    const float* center = &swrModel_collisionSphereCenter.x;
+    for (int axis = 0; axis < 3; axis++) {
+        hi[axis] = center[axis] + swrModel_collisionSphereRadius;
+        lo[axis] = center[axis] - swrModel_collisionSphereRadius;
+    }
     // the node's own AABB is stored as six floats immediately after the node header
-    if (!sphereAABBOverlaps((const float*)(node + 1)))
+    if (!sphereAABBOverlaps((const float*)(node + 1), lo, hi))
         return;
 
     uint32_t num_children = swrModel_NodeGetNumChildren(node);
     for (int i = 0; i < (int)num_children; i++) {
         swrModel_Mesh* mesh = node->children.meshes[i];
-        if (sphereAABBOverlaps(mesh->aabb))
+        if (sphereAABBOverlaps(mesh->aabb, lo, hi))
             swrModel_MeshIterateOverCollisionFaces(mesh);
     }
     if (swrModel_collisionUnk250 != 0) {

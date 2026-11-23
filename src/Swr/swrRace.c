@@ -9300,7 +9300,7 @@ int swrRace_UpdateRaceProgress(swrRace* player, float* outCrossTime)
 void swrRace_InitFrameTimer(void)
 {
     if (swr_fixedDeltaTimeSecs <= swrRace_minDeltaTimeSecs)
-        swr_fixedDeltaTimeSecs = (double)(1.0f / 15.0f);
+        swr_fixedDeltaTimeSecs = 0.06666667f; // the float 1/15 widened, as retail stores it
     swrRace_deltaTimeSecs = swr_fixedDeltaTimeSecs;
     swrRace_fdeltaTimeSecs = (float)swr_fixedDeltaTimeSecs;
     timetotal = 0.0;
