@@ -5537,9 +5537,10 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             if (firstLocalIdx == maxIdx) {
                 pod->gapToLocalPlayer1 = 0;
             } else {
-                float gap = firstLocalRank - rankValues[maxIdx];
+                // retail ranks the rivals on the unrounded ST0 gap
+                long double gap = (long double) firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->gapToLocalPlayer1 = gap;
+                pod->gapToLocalPlayer1 = (float) gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap) {
@@ -5547,6 +5548,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                         aGapC = aGapB;
                         aGapB = gap;
                         aheadIdx2 = maxIdx;
+                    } else if (aGapC > gap) {
+                        aGapC = gap;
                     }
                 } else {
                     aGapC = aGapB;
@@ -5563,10 +5566,10 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             pod->gapToLocalPlayer2 = 0;
             pod->gapToLocalPlayer1 = firstLocalRank - secondLocalRank;
         } else {
-            float gapP1 = firstLocalRank - rankValues[maxIdx];
-            float gapP2 = secondLocalRank - rankValues[maxIdx];
+            long double gapP1 = (long double) firstLocalRank - rankValues[maxIdx];
+            float gapP2 = secondLocalRank - rankValues[maxIdx]; // retail reloads it from a float spill
             bool neg = gapP1 < 0.0f;
-            pod->gapToLocalPlayer1 = gapP1;
+            pod->gapToLocalPlayer1 = (float) gapP1;
             pod->gapToLocalPlayer2 = gapP2;
             if (neg)
                 gapP1 = -gapP1;
