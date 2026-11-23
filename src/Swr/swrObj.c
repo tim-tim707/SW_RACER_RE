@@ -10285,12 +10285,13 @@ static void swrRace_SetPartTransform(swrRace* player, int part, const rdMatrix44
         swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[part], m);
 }
 
+// steer and the spin sum stay at register width as in retail; only the stores round to float.
 // 0x00472A50
-void swrRace_PoddAnimateSteeringParts(swrRace* a1)
+RETAIL_FP void swrRace_PoddAnimateSteeringParts(swrRace* a1)
 {
     rdMatrix44 unusedTransform;
     rdMatrix44 m;
-    float steer;
+    long double steer;
     float steerLeft;
     float steerRight;
     float steerDelta;
@@ -10301,7 +10302,7 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
     float pitchL;
     float pitchR;
     float speed;
-    float spin;
+    long double spin;
     int pilot;
 
     if (a1->partNodes == NULL)
@@ -10341,7 +10342,7 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
         spin -= -360.0;
     if (spin > 180.0)
         spin -= 360.0;
-    a1->partOffset[33].y = spin;
+    a1->partOffset[33].y = (float)spin;
 
     switch (pilot) {
     case 0:
