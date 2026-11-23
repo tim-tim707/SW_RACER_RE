@@ -51,6 +51,8 @@ both swrModel_ClosestPointOnTriangle
 both stdControl_ReadAxis
 both stdControl_ReadKeyAsAxis
 both stdControl_ReadAxisAsKeyEx
+both swrObjElmo_SetAnimState
+both swrControl_ProcessInputs
 both swrRace_ClosestApproach2D
 verify
 

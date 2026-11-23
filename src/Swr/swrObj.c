@@ -8252,7 +8252,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     int atWattoCounter = 0;
     int prevState;
     int choice;
-    float angle;
+    long double angle; // retail wraps and tests the ArcTan2 - yaw difference unrounded
     rdVector3 delta;
     swrObjElmo* other;
 
