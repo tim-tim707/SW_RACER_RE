@@ -6353,11 +6353,14 @@ void swrRace_UpdatePlayerControl(swrRace* player)
 
     // ---- turnRateTarget from steer (squared) ----
     if (steerInput >= SWR_CTL_STEER_DEADZONE || -steerInput >= SWR_CTL_STEER_DEADZONE) {
-        float squared = steerInput * SWR_CTL_STEER_SQUARE_GAIN * (steerInput * SWR_CTL_STEER_SQUARE_GAIN);
+        // retail squares in ST0 and applies the scale before maxTurnRate
+        const long double scaled = (long double) steerInput * SWR_CTL_STEER_SQUARE_GAIN;
+        long double squared = scaled * scaled;
         if (steerInput < 0.0f) {
             squared = -squared;
         }
-        player->turnRateTarget = -(player->podStats.maxTurnRate * squared * SWR_CTL_STEER_SCALE);
+        squared *= SWR_CTL_STEER_SCALE;
+        player->turnRateTarget = (float) -(player->podStats.maxTurnRate * squared);
     } else {
         player->turnRateTarget = 0.0f;
     }
