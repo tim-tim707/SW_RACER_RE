@@ -27,6 +27,7 @@
 #include <General/utils.h>
 #include <Win95/Window.h>
 #include <string.h>
+#include <Platform/cstdlib.h> // the game's CRT heap, not the DLL's
 
 // 0x004336d0
 void swrObjHang_SetHangar2State(swrObjHang_STATE state)

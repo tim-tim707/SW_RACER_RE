@@ -26,6 +26,8 @@
 
 #include <stdlib.h> // malloc, free
 #include <string.h>
+#define CSTDLIB_HEAP_ONLY
+#include <Platform/cstdlib.h> // c_malloc/c_free: the game's CRT heap, not the DLL's
 
 // 0x00421d90
 int swrSound_Startup()
@@ -1213,7 +1215,7 @@ void swrSound_FreeBank(void)
         }
         swrSound_Remove((char*)(*(int*)(bank + 0x28) + i * 0x4c));
     }
-    free(*(void**)(bank + 0x28));
+    c_free(*(void**)(bank + 0x28));
     *(int*)(bank + 0x20) = 0;
     *(int*)(bank + 0x24) = 0;
     *(void**)(bank + 0x28) = NULL;
@@ -1225,7 +1227,7 @@ void swrSound_FreeBank(void)
 int swrSound_AllocBank(int count)
 {
     char* bank = (char*) swrSound_bank;
-    void* entries = malloc(count * 0x4c);
+    void* entries = c_malloc(count * 0x4c);
     *(void**) (bank + 0x28) = entries;
     if (entries == NULL)
         return 0;
