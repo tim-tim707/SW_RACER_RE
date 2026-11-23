@@ -218,7 +218,7 @@ int DirectDraw_GetSelectedDevice(StdDisplayDevice* device)
 }
 
 // 0x00488880
-bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
+int DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free)
 {
     HRESULT HVar1;
     DDSCAPS2 caps;
@@ -409,7 +409,7 @@ void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_)
 }
 
 // 0x0048b3c0
-bool Direct3d_CreateAndAttachViewport(void)
+int Direct3d_CreateAndAttachViewport(void)
 {
     HRESULT hres;
     int iVar1;

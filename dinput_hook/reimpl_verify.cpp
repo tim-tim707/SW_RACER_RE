@@ -1652,7 +1652,7 @@ namespace {
     using V_copy3 = void (*)(rdVector3 *, const rdVector3 *);
     using V3_set3 = rdVector3 *(*) (rdVector3 *, float, float, float);
     using V4_set4 = rdVector4 *(*) (rdVector4 *, float, float, float, float);
-    using B_vv = bool (*)(rdVector3 *, rdVector3 *);
+    using B_vv = int (*)(rdVector3 *, rdVector3 *);
     using V_scale_both = void (*)(rdVector3 *, float, const rdVector3 *, float, const rdVector3 *);
     using V_persp = void (*)(rdVector4 *, rdVector3 *, rdVector3 *);
 

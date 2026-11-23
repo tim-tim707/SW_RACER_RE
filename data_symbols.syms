@@ -17,7 +17,7 @@ DAT_004ac86c 0x004ac86c float
 
 DAT_004ac93c 0x004ac93c float
 
-swrText_minTimedMessageDuration 0x004acd08 float
+swrText_minTimedMessageDuration 0x004acd08 double
 
 swrObjJdge_maxRaceTime 0x004ad230 float # rank baseline for finished racers (sort key = maxRaceTime - total_time); ceiling above any real race time
 
@@ -31,7 +31,7 @@ swrObjJdge_notRacingZoneMinY 0x004ad46c float
 
 swrObjJdge_notRacingZoneMaxY 0x004ad470 float
 
-swrObjJdge_notRacingSpeedThreshold 0x004ad478 float
+swrObjJdge_notRacingSpeedThreshold 0x004ad478 double
 
 swrRace_minDeltaTimeSecs 0x004adf70 double
 swrRace_msToSecondsScale 0x004adf80 double

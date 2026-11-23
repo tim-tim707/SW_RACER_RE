@@ -176,7 +176,7 @@ int swrObjHang_IsTrackUnlocked(char circuitId, char trackId)
 }
 
 // 0x00440aa0
-bool swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
+int swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx)
 {
     char tmp = swrRace_UnlockDataBase[circuitIdx + 1];
     if ((swrMultiplayer_enabled != 0) && (circuitIdx < '\x03')) {
@@ -544,7 +544,7 @@ void swrObjcMan_UpdateLighting(swrObjcMan* cman, swrRace* pod)
     flags = cman->unk2e4_flag;
     if ((flags & swrObjcMan_LIGHTFLAG_SPARK_FLASH) != 0) {
         // scrape sparks: a random warm flash from the spark toward the pod
-        float level = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
+        float level = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.5f - -0.5f;
         flashDir.x = pod->transform.vD.x - pod->scrapeSparkXf.vD.x;
         flashDir.y = pod->transform.vD.y - pod->scrapeSparkXf.vD.y;
         flashDir.z = pod->transform.vD.z - pod->scrapeSparkXf.vD.z;
@@ -1427,7 +1427,7 @@ void swrObjcMan_UpdateCamera(swrObjcMan* cman)
             // auto-cycling spectator cam: hold each mode 3..10 s
             swrObjcMan_spectatorCamTimer -= swrRace_deltaTimeSecs;
             if (swrObjcMan_spectatorCamTimer <= 0.0f) {
-                swrObjcMan_spectatorCamTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 3.0f;
+                swrObjcMan_spectatorCamTimer = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 3.0f;
                 // summed unrounded on the x87 stack before __ftol
                 swrObjcMan_spectatorCamIndex = (int)((double)swrObjcMan_spectatorCamIndex + (double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f) % 7;
                 cman->mode_type = swrObjcMan_SpectatorCamModes[swrObjcMan_spectatorCamIndex];
@@ -2637,7 +2637,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang)
         swrObjHang_vehicleIntroStep = 0;
         swrObjHang_vehicleIntroTimer = 3.0f;
         swrObjHang_SetHoloCameraTarget(&swrObjHang_cameraPlacements[38].position2, &swrObjHang_cameraPlacements[39].position2, 1, 0, 0);
-        swrObjHang_vehicleIntroPlanet = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 8.0f);
+        swrObjHang_vehicleIntroPlanet = (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 8.0f);
     }
     swrUI_Front_SetOkBackActive(0, 0);
     elmo = (swrObjElmo*)swrEvent_GetItem('Elmo', hang->elmoEntityIndex);
@@ -2797,7 +2797,7 @@ void swrObjHang_UpdatePlanetSelectIntro(swrObjHang* hang)
         for (int i = 0; i < 3; i++) {
             // reads vehiclePlayer, vehicleOpponent[0], vehicleOpponent[1]
             swrObjHang_planetIntroOrbitSpeed[i] = swrRacer_PodData[(int)(&hang->vehiclePlayer)[i]].float20;
-            swrObjHang_planetIntroOrbitAngle[i] = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
+            swrObjHang_planetIntroOrbitAngle[i] = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0f;
         }
         rdVector_Set3((rdVector3*)&swrObjHang_holoCameraMatrix.vD, 0.0f, 0.0f, -100.0f);
         rdVector_Set3((rdVector3*)&swrObjHang_cameraMatrix.vD, 300.0f, 0.0f, -100.0f);
@@ -3780,7 +3780,7 @@ void swrObjHang_StartRace(swrObjHang* hang, int* rosterArg, int noBroadcast)
         hang->num_players = 3;
         do {
             do {
-                hang->track_index = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)ELFSAVE_NB_TRACKS);
+                hang->track_index = (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)ELFSAVE_NB_TRACKS);
             } while (hang->track_index == swrRace_TRACK_VENGEANCE);
         } while (g_aTrackInfos[hang->track_index].trackID == -1 || g_aTrackInfos[hang->track_index].planetTrackNumber != 0);
     }
@@ -3957,13 +3957,13 @@ void* swrObjHang_BuildRosterSinglePlayer(swrObjHang* hang, int* out)
     for (int i = 0; i < hang->num_local_players; i++)
         allowedPilots |= swrRace_aProfiles[i].pilotsUnlocked;
     if (hang->demo_mode == 2)
-        hang->vehiclePlayer = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
+        hang->vehiclePlayer = (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
     hang->num_local_players = 1;
 
     // draw distinct opponents; slot 1 gets the track's favorite pilot unless the player took it
     for (int i = 1; i < hang->num_players;) {
         int retry = 0;
-        slotPilots[i] = (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
+        slotPilots[i] = (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
         if (i == 1 && slotPilots[0] != g_aTrackInfos[hang->track_index].FavoritePilot) {
             slotPilots[1] = g_aTrackInfos[hang->track_index].FavoritePilot;
         } else {
@@ -4283,12 +4283,12 @@ void swrObjHang_LoadScreenAssets(swrObjHang* hang)
 
         // a random unlocked pilot sits in the cantina
         do {
-            pilot = 1 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -22.0f);
+            pilot = 1 - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -22.0f);
         } while (((1 << pilot) & swrRace_unlockedPilotsMask) == 0);
         swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_PILOT, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         if ((swrRace_unlockedPilotsMask & SWR_CANTINA_PILOT_POOL) == 0) {
             do {
-                pilot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
+                pilot = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_PILOT_COUNT);
             } while ((swrRace_unlockedPilotsMask & (1 << pilot)) != 0);
             swrModel_LoadPuppet(swrRacer_PodData[pilot].puppet_modelId, SWR_SCENE_SLOT_CANTINA_GUEST, swrObjElmo_KIND_PILOT, swrRacer_PodData[pilot].float20);
         } else {
@@ -4875,12 +4875,12 @@ void swrObjHang_Init(swrObjHang* hang)
     // RNG call order matters: it is the shared swrUtils_Rand stream
     for (planetIdx = 0; planetIdx < SWR_PLANET_COUNT; planetIdx++) {
         planet = &swrPlanetTable[planetIdx];
-        angle = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+        angle = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
         planet->orientationAngle = angle;
         if (planetIdx != SWR_PLANET_OOVO_IV && ((angle > 45.0 && angle < 135.0f) || (angle > 225.0 && angle < 315.0f)))
             planet->orientationAngle = angle + 90.0f;
-        planet->spinAngle = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
-        planet->unk14 = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+        planet->spinAngle = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
+        planet->unk14 = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 360.0;
 
         randFactor = swrUtils_RandFloat();
         randInt = swrUtils_Rand();
@@ -5219,13 +5219,13 @@ void swrObjHang_GenerateJunkyardStock(swrObjHang* hang)
         swrObjHang_junkyardStock[i].partType = -1;
         // the slot's camera framing is only enabled once a part lands in it
         *(short*)&swrObjHang_cameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + i].unk1 = -1;
-        swrObjHang_junkyardStock[i].level = 1 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -5.0f);
-        swrObjHang_junkyardStock[i].health = 102 - (char)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -129.0f);
+        swrObjHang_junkyardStock[i].level = 1 - (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -5.0f);
+        swrObjHang_junkyardStock[i].health = 102 - (char)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -129.0f);
     }
     for (int part = 0; part < SWR_JUNKYARD_PART_COUNT; part++) {
         int slot;
         do {
-            slot = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 16.0f);
+            slot = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 16.0f);
         } while (swrObjHang_junkyardStock[slot].partType != -1);
         swrObjHang_junkyardStock[slot].partType = (char)part;
         *(short*)&swrObjHang_cameraPlacements[SWR_JUNKYARD_PLACEMENT_FIRST + slot].unk1 = 4;
@@ -5537,9 +5537,10 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             if (firstLocalIdx == maxIdx) {
                 pod->gapToLocalPlayer1 = 0;
             } else {
-                float gap = firstLocalRank - rankValues[maxIdx];
+                // retail ranks the rivals on the unrounded ST0 gap
+                long double gap = (long double) firstLocalRank - rankValues[maxIdx];
                 bool neg = gap < 0.0f;
-                pod->gapToLocalPlayer1 = gap;
+                pod->gapToLocalPlayer1 = (float) gap;
                 if (neg)
                     gap = -gap;
                 if (aGapA <= gap) {
@@ -5547,6 +5548,8 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
                         aGapC = aGapB;
                         aGapB = gap;
                         aheadIdx2 = maxIdx;
+                    } else if (aGapC > gap) {
+                        aGapC = gap;
                     }
                 } else {
                     aGapC = aGapB;
@@ -5563,10 +5566,10 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
             pod->gapToLocalPlayer2 = 0;
             pod->gapToLocalPlayer1 = firstLocalRank - secondLocalRank;
         } else {
-            float gapP1 = firstLocalRank - rankValues[maxIdx];
-            float gapP2 = secondLocalRank - rankValues[maxIdx];
+            long double gapP1 = (long double) firstLocalRank - rankValues[maxIdx];
+            float gapP2 = secondLocalRank - rankValues[maxIdx]; // retail reloads it from a float spill
             bool neg = gapP1 < 0.0f;
-            pod->gapToLocalPlayer1 = gapP1;
+            pod->gapToLocalPlayer1 = (float) gapP1;
             pod->gapToLocalPlayer2 = gapP2;
             if (neg)
                 gapP1 = -gapP1;
@@ -5801,7 +5804,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         if ((jdge->flag & 0x60) == 0 && swrMultiplayer_IsMultiplayerEnabled() != 0 && swrMultiplayer_PollPlayerStatus(1) == 0)
             return;
 
-        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+        jdge->raceTimer_ms = (float)(jdge->raceTimer_ms - swrRace_deltaTimeSecs);
         for (int i = 0; i < jdge->num_players; i++) {
             swrRace* pod = swrScoresPtr[i].obj_test_ptr;
             if (pod != NULL) {
@@ -5832,7 +5835,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     case 1: // "Go!" hold -> racing
         if ((jdge->flag & 0x20) == 0) {
             if (swrMultiplayer_enabled == 0 || swrObjJdge_goAcknowledged != 0) {
-                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+                jdge->raceTimer_ms = (float)(jdge->raceTimer_ms + swrRace_deltaTimeSecs);
                 swrRace_InitFireEffects(jdge->planetId, 0);
                 return;
             }
@@ -5844,8 +5847,8 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             }
         } else {
             // intro/demo countdown: bail out on timeout or local input
-            jdge->countdownTimer_ms -= (float)swrRace_deltaTimeSecs;
-            jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+            jdge->countdownTimer_ms = (float)(jdge->countdownTimer_ms - swrRace_deltaTimeSecs);
+            jdge->raceTimer_ms = (float)(jdge->raceTimer_ms + swrRace_deltaTimeSecs);
             if ((swrRace_creditsMode == 0 || swrObjJdge_creditsHudCycled != 0) && (jdge->countdownTimer_ms < 0.0f || inRaceLocalPlayerInputBitset1[0] != 0 || inRaceLocalPlayerInputBitset1[1] != 0)) {
                 swrObjJdge_Clear(jdge, 'Abrt');
                 return;
@@ -5856,7 +5859,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
     case 2: // racing -> finish ('Fini')
         swrControl_uiInputActive = 0;
         swrMain_raceActiveForUi = 1;
-        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        jdge->raceTimer_ms = (float)(jdge->raceTimer_ms + swrRace_deltaTimeSecs);
         if (swrObjJdge_KeyDownForPlayer1Or2(0x201) != 0) {
             swrObjJdge_Clear(jdge, 'Fini');
             swrObjJdge_finishTriggered = 1;
@@ -5876,7 +5879,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
         break;
 
     case 3: // finish hold (clamp the timer to a 3s window)
-        jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+        jdge->raceTimer_ms = (float)(jdge->raceTimer_ms + swrRace_deltaTimeSecs);
         if (3.0f < jdge->raceTimer_ms) {
             do
                 jdge->raceTimer_ms -= 3.0f;
@@ -5905,9 +5908,9 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             advance = true;
         } else {
             if (jdge->camSweepCursor.endFlag == 0)
-                jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+                jdge->raceTimer_ms = (float)(jdge->raceTimer_ms - swrRace_deltaTimeSecs);
             else if ((flags & 0x80) != 0)
-                jdge->raceTimer_ms += (float)swrRace_deltaTimeSecs;
+                jdge->raceTimer_ms = (float)(jdge->raceTimer_ms + swrRace_deltaTimeSecs);
             else {
                 jdge->raceTimer_ms = 0.0f;
                 jdge->flag = flags | 0x80;
@@ -5940,14 +5943,14 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             swrSound_ResetMusic();
             swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
         } else {
-            jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+            jdge->raceTimer_ms = (float)(jdge->raceTimer_ms - swrRace_deltaTimeSecs);
             if (jdge->raceTimer_ms < 0.0f) {
                 swrObjJdge_StartPostRaceSequence(jdge);
                 swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
             }
         }
         if (0.0f < swrObjJdge_postRaceDelay)
-            swrObjJdge_postRaceDelay -= (float)swrRace_deltaTimeSecs;
+            swrObjJdge_postRaceDelay = (float)(swrObjJdge_postRaceDelay - swrRace_deltaTimeSecs);
         if (swrObjJdge_postRaceDelay <= 0.0f && swrObjJdge_NumLocalPlayers() < 2 && 1 < jdge->num_players && swrSound_TestSfxFlag(0, 0x200000) == 0) {
             // play the winner's taunt if our racer is on the hangar roster
             char* hang = swrEvent_GetItem('Hang', 0);
@@ -5957,7 +5960,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
                     onRoster = true;
             }
             int taunt = swrObjJdge_tauntSoundIds[swrObjJdge_localRacerId];
-            if (taunt != 0 && 0.0f <= (float)swrUtils_Rand() * 4.6566129e-10f && onRoster) {
+            if (taunt != 0 && 0.0f <= (long double)swrUtils_Rand() * 4.6566129e-10f && onRoster) {
                 if (0 < taunt)
                     swrSound_PlaySfxThrottled(5, 0, taunt, NULL);
                 else
@@ -5981,7 +5984,7 @@ void swrObjJdge_F0(swrObjJdge* jdge)
             swrObjJdge_TeardownRace(jdge, jdge->event);
             return;
         }
-        jdge->raceTimer_ms -= (float)swrRace_deltaTimeSecs;
+        jdge->raceTimer_ms = (float)(jdge->raceTimer_ms - swrRace_deltaTimeSecs);
         break;
     }
 }
@@ -6127,7 +6130,7 @@ void swrObjJdge_F2(swrObjJdge* jdge)
             if ((score->flag & 2) == 0) {
                 // the rest of the frame delta accrues to the (possibly new) current lap;
                 // timing uses the raw, unclamped delta, capped at 3000s
-                frameRemainder = (float)swrRace_dt_raw_d - crossTime;
+                frameRemainder = (float)(swrRace_dt_raw_d - crossTime);
                 score->results_P1_total_time += frameRemainder;
                 if (3000.0f < score->results_P1_total_time)
                     score->results_P1_total_time = 3000.0f;
@@ -6184,7 +6187,7 @@ void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
         prev = swrObjJdge_prevRacePositions[i];
         if ((score->obj_test_ptr->flags0 & swrObjTest_FLAG0_LOCAL) != 0 && pos > 0 && prev != pos) {
             int lost = prev < pos;
-            if ((lost && (pos == 2 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)) || (!lost && (pos == 1 || (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f))) {
+            if ((lost && (pos == 2 || (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)) || (!lost && (pos == 1 || (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f))) {
                 variant = -1;
                 other = NULL;
                 for (j = 0; j < jdge->num_players; j++) {
@@ -6201,7 +6204,7 @@ void swrObjJdge_PlayPassingVoiceLines(swrObjJdge* jdge)
                         rdVector3* at = (rdVector3*)&otherPod->transform.vD;
                         if (!lost) {
                             swrSound_PlayRandomSfx(1, variant, 0x15, 0x01, 0x17, 0x03, 0x14, at);
-                        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+                        } else if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
                             // 0x11 is skipped for variant 14 (its first slot is 0x12 too)
                             swrSound_PlayRandomSfx(1, variant, variant == 0xe ? 0x12 : 0x11, 0x12, 0x13, 0x14, 0x15, at);
                         } else {
@@ -6251,7 +6254,7 @@ void swrObjJdge_DrawBoostDialHud(swrObjJdge* jdge, swrRace* pod, short x, short 
     }
     level = jdge->boostLightLevel[playerIdx];
     if (pauseState == 0)
-        level = (level * 0.7f - level) * ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM) + level;
+        level = (level * 0.7f - level) * ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM) + level;
     else
         level = (level - level * 0.7f * -3.0f) * 0.25f;
     level = level * 255.0f;
@@ -6281,7 +6284,7 @@ void swrObjJdge_DrawBoostDialHud(swrObjJdge* jdge, swrRace* pod, short x, short 
     if (swrRace_netPauseNoticeFade > 0.0f) {
         sprintf(buffer, "~f4~s~c%s", swrText_Translate("/MONDOTEXT_H_0522/Net play: Press CTRL-Q to quit race."));
         int noticeAlpha = (int)(swrRace_netPauseNoticeFade * 255.0f);
-        swrText_CreateTextEntry1(0xa0, 0xdc, (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 255.0f), -1, -1, noticeAlpha, buffer);
+        swrText_CreateTextEntry1(0xa0, 0xdc, (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 255.0f), -1, -1, noticeAlpha, buffer);
         swrRace_netPauseNoticeFade = (float)(swrRace_netPauseNoticeFade - swrRace_deltaTimeSecs * 0.33329999446868896);
     }
 
@@ -6295,7 +6298,7 @@ void swrObjJdge_DrawBoostDialHud(swrObjJdge* jdge, swrRace* pod, short x, short 
         swrObjJdge_boostHintBlinkCounter++;
         if (swrObjJdge_boostHintBlinkCounter & 1) {
             sprintf(buffer, "~f4~c%s", swrText_Translate("/SCREENTEXT_380/~~Boost"));
-            swrText_CreateTextEntry1(0xf4, 0xa2, -1, -1, (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 255.0f), alpha, buffer);
+            swrText_CreateTextEntry1(0xf4, 0xa2, -1, -1, (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 255.0f), alpha, buffer);
         }
     }
 
@@ -6776,7 +6779,7 @@ void swrObjJdge_UpdatePlayerHUD(swrObjJdge* jdge, swrScore* score)
         // boost active: green channel jitters with rand() while running, holds at 191 while paused
         float green;
         if (pauseState == 0)
-            green = (float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
+            green = (long double)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f;
         else
             green = 191.0f;
         swrText_CreateTextEntry1(0xa0, 0x50, -1, (int)green, 0, -1, swrText_Translate("~c~sKa-pow."));
@@ -6809,7 +6812,7 @@ int swrObjJdge_CheckIfPauseRequested()
 static int swrObjJdge_CountdownLightColor(void)
 {
     if (pauseState == 0)
-        return (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
+        return (int)((long double)swrUtils_Rand() * 4.656612873077393e-10f * 255.0f);
     return (int)191.25f;
 }
 
@@ -6911,7 +6914,7 @@ void swrObjJdge_UpdateCountdownLights(swrObjJdge* jdge)
 
     // idle/demo hold: pulse the start gantry green (state 1), hold it dark (state 3)
     if ((jdge->flag & 0xf) == 1) {
-        int a = (int)((float)swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
+        int a = (int)((long double)swrUtils_Rand() * 4.656612873077393e-10f * 127.0f - (-128.0f));
         swrModel_NodeSetColorsOnAllMaterials(jdge->unk28_model, -1, -1, 0, 0xff, 0, a);
     }
     if ((jdge->flag & 0xf) == 3) {
@@ -8105,7 +8108,7 @@ void swrObjJdge_SpawnRacers(swrObjJdge* judge, swrScore* scores)
         spawnOrder[i] = -1;
     for (i = 0; i < judge->num_players; i++) {
         // pick the n-th still-free grid slot, n uniform in [0, remaining)
-        pick = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * (judge->num_players - i));
+        pick = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * (judge->num_players - i));
         slot = -1;
         while (pick >= 0) {
             slot++;
@@ -8275,7 +8278,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 1:
         setLoop = false;
-        switch ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f)) {
+        switch ((int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f)) {
         case 0:
             elmo->unk88 = 0x1b;
             break;
@@ -8314,7 +8317,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         setLoop = false;
         break;
     case 8:
-        swrSound_Play2D((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.3 ? 0x31 : 0x32, 6, 0.25f, 0.5f, 0);
+        swrSound_Play2D((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.3 ? 0x31 : 0x32, 6, 0.25f, 0.5f, 0);
         elmo->unk88 = 0x14;
         transition = 0.0f;
         break;
@@ -8347,7 +8350,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
     case 0xe:
         transition = 0.0f;
         elmo->unk88 = 4;
-        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0f + 8.0f;
+        elmo->unk1c_ms = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0f + 8.0f;
         break;
     case 0xf:
         setLoop = false;
@@ -8363,21 +8366,21 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         if (swrSound_TestSfxFlag(0, swrSound_HANGSFXFLAG_NO_PIT_DROID_CHATTER) != 0)
             break;
         if (swrObjHang_lastMenuScreen == swrObjHang_STATE_JUNKYARD || swrObjHang_lastMenuScreen == swrObjHang_STATE_WATTO) {
-            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM >= 0.15f)
+            if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM >= 0.15f)
                 break;
-            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM <= 0.998f) {
+            if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM <= 0.998f) {
                 swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 1, 5, 0x12, 0xe, 8, NULL);
             } else {
                 swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 6, 9, 6, 9, 6, NULL);
             }
         } else if (swrObjHang_lastMenuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
-            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f) {
-                if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+            if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f) {
+                if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
                     swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 0xc, 7, 5, 1, 0xb, NULL);
                 } else {
                     swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 8, 7, 5, 3, 0xc, NULL);
                 }
-            } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.001f) {
+            } else if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.001f) {
                 swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 6, 9, 6, 9, 6, NULL);
             }
         }
@@ -8387,7 +8390,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
             choiceCount = 2;
             atWattoCounter = 1;
         }
-        choice = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * choiceCount);
+        choice = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * choiceCount);
         if (choice == elmo->unka4)
             choice++;
         if (choice >= choiceCount)
@@ -8455,7 +8458,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         elmo->unk88 = 9;
         break;
     case 0x19:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
             swrObjElmo_PlayRandomVoiceSfx(10, 0xb, 0xc, 0xd, 0x12);
         } else {
             swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 2, 2, 2, 2, 2, NULL);
@@ -8470,7 +8473,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         }
         break;
     case 0x1a:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.75) {
             swrObjElmo_PlayRandomVoiceSfx(2, 0x1f, 7, 8, 9);
         } else {
             swrSound_PlayRandomSfx(0, swrRace_UnlockDataBase[0], 3, 3, 3, 5, 5, NULL);
@@ -8492,11 +8495,11 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         elmo->unk88 = 0xd;
         break;
     case 0x1d:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
             swrObjElmo_PlayRandomVoiceSfx(0x30, 0x31, 0x32, 0x22, 0x2b);
-        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
+        } else if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5f) {
             swrObjElmo_PlayRandomVoiceSfx(0x23, 0x24, 0x25, 0x26, 0x27);
-        } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
+        } else if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
             swrObjElmo_PlayRandomVoiceSfx(0x18, 0x2e, 0x13, 0x29, 0x2b);
         } else {
             swrObjElmo_PlayRandomVoiceSfx(0x19, 0x20, 0x2c, 0x19, 0x20);
@@ -8504,7 +8507,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         loopTransition = 0.0f;
         transition = 0.0f;
         elmo->unk88 = 0;
-        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
+        elmo->unk1c_ms = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
         break;
     case 0x1f:
         setLoop = false;
@@ -8513,7 +8516,7 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 0x20:
         elmo->unk88 = 0xc;
-        elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
+        elmo->unk1c_ms = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
         break;
     case 0x22:
     case 0x1e:
@@ -8523,19 +8526,19 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         break;
     case 0x23:
     case 0x25:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
             swrObjElmo_PlayRandomVoiceSfx(0xb, 0xc, 0xd, 0x2d, 0x14);
         elmo->unk88 = elmo->animCmd == 0x23 ? 3 : 0xd;
         setLoop = false;
         break;
     case 0x24:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
             swrObjElmo_PlayRandomVoiceSfx(0x12, 0x28, 0x36, 0xe, 0x17);
         elmo->unk88 = 1;
         setLoop = false;
         break;
     case 0x26:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f)
             swrObjElmo_PlayRandomVoiceSfx(0x12, 0x28, 0x36, 0xe, 0x17);
         // fallthrough
     case 3:
@@ -8543,8 +8546,8 @@ void swrObjElmo_SetAnimState(swrObjElmo* elmo, int animCmd)
         setLoop = false;
         break;
     case 0x27:
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f) {
-            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25f) {
+            if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.8f || swrRace_UnlockDataBase[0] == 2) {
                 swrObjElmo_PlayRandomVoiceSfx(0x2a, 0x32, 0x31, 0x33, 0x13);
             } else {
                 swrObjElmo_PlayRandomVoiceSfx(0x2c, 0x19, 0x20, 0x2c, 0x19);
@@ -8682,7 +8685,7 @@ void swrObjElmo_F0(swrObjElmo* elmo)
         break;
     case 8:
         swrSound_Play2D(0x33, 6, 0.25f, 0.5f, 1);
-        if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f) == 0 && loopEnd - 0.1 <= swrModel_GetAnimListTime(anims))
+        if ((int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f) == 0 && loopEnd - 0.1 <= swrModel_GetAnimListTime(anims))
             swrObjElmo_SetAnimState(elmo, 9);
         break;
     case 9:
@@ -8726,7 +8729,7 @@ void swrObjElmo_F0(swrObjElmo* elmo)
             return;
         }
         // 1-in-101 chance per frame: the first pilot puppet drifts 5% toward its target
-        if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 101.0f) == 0 && elmo->unkc_index == SWR_SCENE_SLOT_PILOT_PUPPETS)
+        if ((int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 101.0f) == 0 && elmo->unkc_index == SWR_SCENE_SLOT_PILOT_PUPPETS)
             rdVector_Scale3Add3_both(&elmo->position, 0.95f, &elmo->position, 0.05f, &elmo->moveTarget);
         swrRace_SetEngineNodeTranslation((void**)elmo->unk30_nodes, &elmo->position);
         break;
@@ -8769,7 +8772,7 @@ void swrObjElmo_F0(swrObjElmo* elmo)
     case 0x1d:
         if (loopEnd - 0.1 <= swrModel_GetAnimListTime(anims) && elmo->unk18_ms > elmo->unk1c_ms) {
             if (swrObjElmo_GetWaypointIndex(elmo) == 4) {
-                if ((int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f) == 0) {
+                if ((int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f) == 0) {
                     rdVector_Copy3(&elmo->moveTarget, &swrObjElmo_waypoints[3]);
                     swrObjElmo_SetAnimState(elmo, 0x22);
                     break;
@@ -8917,7 +8920,7 @@ void swrObjElmo_Init(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrOb
     elmo->unk10 = 0;
     elmo->animCmd = 0;
     elmo->unk18_ms = 0.0f;
-    elmo->unk1c_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f + 3.0f;
+    elmo->unk1c_ms = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 5.0f + 3.0f;
     rdVector_Set3(&elmo->unk20, 0.0f, 0.0f, 0.0f);
     elmo->unk2c = 0;
     rdVector_Set3(&elmo->unk38, 0.0f, 0.0f, 0.0f);
@@ -8940,7 +8943,7 @@ void swrObjElmo_Init(swrObjElmo* elmo, swrModel_Node** nodes, void* anims, swrOb
     elmo->unkb0 = 0;
     elmo->unkb4 = 0;
     elmo->lastWaypoint = -1;
-    elmo->unkac_ms = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
+    elmo->unkac_ms = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.0f + 3.0f;
 }
 
 // 0x00468800
@@ -8972,7 +8975,7 @@ void swrObjElmo_SetTransformAndAnimById(int elmoId, int animCmd, rdVector3* posi
     case swrObjElmo_KIND_PIT_DROID:
         if (elmoId < SWR_ELMO_ID_PIT_DROID_BASE + SWR_MAX_PIT_DROIDS) {
             elmo->scale = 0.3f;
-            elmo->animSpeed = (float)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (double)0.4f - -0.8);
+            elmo->animSpeed = (float)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (double)0.4f - -0.8);
             break;
         }
         elmo->scale = 0.3f;
@@ -9271,7 +9274,7 @@ static void swrObjHang_FlickerHoloNode(swrModel_Node* node)
 {
     swrModel_MeshMaterial* material;
 
-    swrModel_NodeSetColorsOnAllMaterials(node, 0, 0, 0, 0xff, 0, (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 24.0f - -8.0f));
+    swrModel_NodeSetColorsOnAllMaterials(node, 0, 0, 0, 0xff, 0, (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 24.0f - -8.0f));
     material = swrModel_NodeFindFirstMeshMaterial(node);
     if (material != NULL)
         swrModel_MeshMaterialSetTextureUVOffset(material, 0.11f, 0.11f);
@@ -9527,7 +9530,7 @@ void swrObjSmok_F0(swrObjSmok* smok)
     }
 
     int advanceFront = smok->alphaWindowFront < 1.0f;
-    smok->lifetime = smok->lifetime - (float)swrRace_deltaTimeSecs;
+    smok->lifetime = (float)(smok->lifetime - swrRace_deltaTimeSecs);
     if (advanceFront)
         smok->alphaWindowFront = smok->alphaWindowFront - (swrRace_deltaTimeSecs * -4.0) / smok->totalLifetime;
     if (smok->lifetime < smok->totalLifetime)
@@ -9578,7 +9581,7 @@ void swrObjSmok_F3(swrObjSmok* smok)
         rdVector_Scale3((rdVector3*)&transform.vB, width, &up);
         rdVector_Scale3((rdVector3*)&transform.vC, ((smok->lengthEnd - smok->lengthStart) * t * t + smok->lengthStart) * 0.01f, &forward);
 
-        float spin = ((smok->spinRateEnd - smok->spinRateStart) * t + smok->spinRateStart) * (float)swrRace_deltaTimeSecs + smok->particleSpin[i];
+        float spin = ((smok->spinRateEnd - smok->spinRateStart) * t + smok->spinRateStart) * swrRace_deltaTimeSecs + smok->particleSpin[i];
         smok->particleSpin[i] = spin;
         rdMatrix_AddRotationFromVectorAngle44Before(&transform, spin, 0.0f, 0.0f, 1.0f, &transform);
         rdVector_Scale3Add3((rdVector3*)&transform.vD, (rdVector3*)&smok->transform.vD, t, &smok->velocity);
@@ -9622,7 +9625,7 @@ void swrObjSmok_F3(swrObjSmok* smok)
         swrModel_MeshMaterial* material = swrModel_NodeFindFirstMeshMaterial(node);
         if (material != NULL) {
             swrModel_MeshMaterialSetColors(material, 0, 0, r, g, b, a);
-            swrModel_MeshMaterialSetTextureUVOffset(material, 0.0f, ((smok->uvScrollEnd - smok->uvScrollStart) * t + smok->uvScrollStart) * (float)swrRace_deltaTimeSecs);
+            swrModel_MeshMaterialSetTextureUVOffset(material, 0.0f, (float)(((smok->uvScrollEnd - smok->uvScrollStart) * t + smok->uvScrollStart) * swrRace_deltaTimeSecs));
         }
     }
 }
@@ -10285,12 +10288,13 @@ static void swrRace_SetPartTransform(swrRace* player, int part, const rdMatrix44
         swrModel_NodeSetTransform((swrModel_NodeTransformed*)player->partNodes[part], m);
 }
 
+// steer and the spin sum stay at register width as in retail; only the stores round to float.
 // 0x00472A50
-void swrRace_PoddAnimateSteeringParts(swrRace* a1)
+RETAIL_FP void swrRace_PoddAnimateSteeringParts(swrRace* a1)
 {
     rdMatrix44 unusedTransform;
     rdMatrix44 m;
-    float steer;
+    long double steer;
     float steerLeft;
     float steerRight;
     float steerDelta;
@@ -10301,7 +10305,7 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
     float pitchL;
     float pitchR;
     float speed;
-    float spin;
+    long double spin;
     int pilot;
 
     if (a1->partNodes == NULL)
@@ -10341,7 +10345,7 @@ void swrRace_PoddAnimateSteeringParts(swrRace* a1)
         spin -= -360.0;
     if (spin > 180.0)
         spin -= 360.0;
-    a1->partOffset[33].y = spin;
+    a1->partOffset[33].y = (float)spin;
 
     switch (pilot) {
     case 0:
@@ -10662,7 +10666,7 @@ void swrRace_Explode(swrRace* player, char side)
 
     player->flags0 &= ~(swrObjTest_FLAG0_CAN_CHARGE_BOOST | swrObjTest_FLAG0_BOOSTING);
     player->flags1 |= swrObjTest_FLAG1_EXPLODING;
-    player->deathExplodeTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM + 2.0f;
+    player->deathExplodeTimer = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM + 2.0f;
     if (player->flags0 & swrObjTest_FLAG0_LOCAL)
         swrControl_StopAllForceEffects(0);
 
@@ -10689,9 +10693,9 @@ void swrRace_Explode(swrRace* player, char side)
     swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.0f, &pos, 1.0f);
     swrObjSmok_Spawn(swrObjSmok_TYPE_EXPLOSION, 0, 2.2f, &pos, 3.0f);
     for (int i = 0; i < 2; i++) {
-        float pick = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM;
+        float pick = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM;
         int sfx = pick < 0.33f ? 0x34 : (pick < 0.66f ? 0x35 : 0x36);
-        float pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
+        float pitch = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
         swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, &pos, 0, 0, 10.0f, 500.0f);
     }
     swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 9, 9, 9, 9, 9, (rdVector3*)&player->transform.vD);
@@ -10784,7 +10788,7 @@ static void swrRace_DeathFireballAndSounds(swrRace* player, rdVector3* pos)
         fireballPos = (rdVector3*)&player->engineXfR.vD;
     } else if (player->flags1 & swrObjTest_FLAG1_EXPLODING_LEFT) {
         fireballPos = (rdVector3*)&player->engineXfL.vD;
-    } else if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+    } else if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
         fireballPos = (rdVector3*)&player->engineXfR.vD;
     } else {
         fireballPos = (rdVector3*)&player->engineXfL.vD;
@@ -10792,9 +10796,9 @@ static void swrRace_DeathFireballAndSounds(swrRace* player, rdVector3* pos)
     swrRace_SpawnEngineFireball(player, -1, fireballPos, 0.2f);
 
     for (int i = 0; i < 2; i++) {
-        float pick = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM;
+        float pick = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM;
         int sfx = pick < 0.33f ? 0x34 : (pick < 0.66f ? 0x35 : 0x36);
-        float pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
+        float pitch = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.2 + 0.1;
         swrSound_PlaySpatialRange(sfx, 7, pitch, 1.0f, pos, 0, 0, 10.0f, 500.0f);
     }
 
@@ -11042,7 +11046,7 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
         share = amount / (float)count;
         for (i = 0; i < count; i++)
             swrRace_TakeDamage((int)player, (unsigned int)swrUtils_Rand() % 6, share);
-        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
             swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 7, 7, 7, 8, 8, (rdVector3*)&player->transform.vD);
         }
         return 1;
@@ -11051,18 +11055,18 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
         player->vibrationMagnitude = 1.0f;
         count = 1;
         engines[0] = 3;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
             count = 2;
             engines[1] = 0;
         }
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 4;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 1;
         share = amount / (float)count;
         for (i = 0; i < count; i++)
             swrRace_TakeDamage((int)player, engines[i], share);
-        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_OBJ_COLLISION, 0) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_OBJ_COLLISION, 0) && (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
             swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 5, 6, 5, 6, 7, (rdVector3*)&player->transform.vD);
         }
         return 1;
@@ -11072,7 +11076,7 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
         player->vibrationMagnitude = 1.0f;
         for (i = 0; i < 3; i++)
             swrRace_TakeDamage((int)player, (unsigned int)swrUtils_Rand() % 6, share);
-        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
+        if (swrObjTest_PlayHitImpactSound(player, swrForceEffect_HARD_LANDING, -1) && (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f) {
             swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 5, 6, 5, 6, 7, (rdVector3*)&player->transform.vD);
         }
         return 1;
@@ -11092,48 +11096,48 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
     if (kind == 'RtFt') {
         count = 1;
         engines[0] = 3;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
             count = 2;
             engines[1] = 0;
         }
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 4;
         forceDirection = 45;
     } else if (kind == 'LtFt') {
         count = 1;
         engines[0] = 0;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
             count = 2;
             engines[1] = 3;
         }
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 1;
         forceDirection = 315;
     } else if (kind == 'RtSd') {
         count = 1;
         engines[0] = 3;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
             count = 2;
             engines[1] = 4;
         }
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 5;
         forceDirection = 90;
     } else if (kind == 'LtSd') {
         count = 1;
         engines[0] = 0;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.5) {
             engines[1] = 1;
             count = 2;
         }
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25)
             engines[count++] = 2;
         forceDirection = 270;
     } else {
         count = 4;
         for (i = 0; i < 4; i++)
             engines[i] = (unsigned int)swrUtils_Rand() % 6;
-        player->vehicleBumpTimer = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - (-2.0f);
+        player->vehicleBumpTimer = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - (-2.0f);
     }
 
     share = amount / (float)count;
@@ -11143,7 +11147,7 @@ int swrObjTest_F4(swrRace* player, int* subEvent, int ghost)
     if (!(player->lodDistance < SWR_POD_HIT_SOUND_MAX_LOD) || (player->flags0 & swrObjTest_FLAG0_LOCAL) == 0)
         return 1;
     swrControl_PlayForceEffect(swrForceEffect_OBJ_COLLISION, -1, forceDirection, -1);
-    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || !((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f))
+    if ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0 || !((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.15f))
         return 1;
     if (kind == 'VhLt') {
         swrSound_PlayRandomSfx(1, *player->score_ptr->pilotId, 1, 6, 5, 6, 5, (rdVector3*)&player->transform.vD);
@@ -11693,8 +11697,8 @@ void swrObjTrig_F0(swrObjTrig* trig)
     if ((trig->flag & swrObjTrig_FLAG_ACTIVE) == 0)
         return;
 
-    trig->unk10_ms += (float)swrRace_deltaTimeSecs;
-    trig->unk14_ms += (float)swrRace_deltaTimeSecs;
+    trig->unk10_ms = (float)(trig->unk10_ms + swrRace_deltaTimeSecs);
+    trig->unk14_ms = (float)(trig->unk14_ms + swrRace_deltaTimeSecs);
 
     switch (trig->trigger_type) {
     case swrModel_TriggerType_BreakDestructable_100:
@@ -12107,7 +12111,7 @@ void swrObjTrig_AddTriggerDescriptions(swrModel_TriggerDescription* descriptions
             desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP1 | swrModel_TriggerDescription_FLAG_IGNORE_AI;
         if (desc->type == swrModel_TriggerType_Earthquake) {
             desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP1 | swrModel_TriggerDescription_FLAG_IGNORE_AI;
-            if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM > 0.5f)
+            if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM > 0.5f)
                 desc->flags |= swrModel_TriggerDescription_FLAG_SKIP_LAP2;
         }
         if (desc->type == swrModel_TriggerType_StartAnimDoor2)
@@ -13161,9 +13165,9 @@ void swrObjHang_BeginCameraMove(swrObjHang* hang, int mode)
             // swrUtils_Rand returns a positive 31-bit value; 1/2^31 maps it to [0, 1).
             rdVector_Copy3((rdVector3*)&swrObjHang_cameraMatrixTarget.vD, &swrObjElmo_waypoints[6]);
             jitterScale = swrUtils_RandFloat();
-            swrObjHang_cameraMatrixTarget.vD.x = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 10.0f + 180.0f) * jitterScale + swrObjHang_cameraMatrixTarget.vD.x;
-            swrObjHang_cameraMatrixTarget.vD.y = ((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 125.0f - 375.0f) + swrObjHang_cameraMatrixTarget.vD.y;
-            swrObjHang_cameraMatrixTarget.vD.z = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 30.0f + 40.0f;
+            swrObjHang_cameraMatrixTarget.vD.x = ((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 10.0f + 180.0f) * jitterScale + swrObjHang_cameraMatrixTarget.vD.x;
+            swrObjHang_cameraMatrixTarget.vD.y = ((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 125.0f - 375.0f) + swrObjHang_cameraMatrixTarget.vD.y;
+            swrObjHang_cameraMatrixTarget.vD.z = (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 30.0f + 40.0f;
             rdVector_Copy3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &swrObjElmo_waypoints[6]);
             rdVector_Sub3(&delta, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_cameraMatrixTarget.vD);
             rdVector_Add3((rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, (rdVector3*)&swrObjHang_holoCameraMatrixTarget.vD, &delta);
@@ -14041,7 +14045,7 @@ void swrObjHang_CycleInspectCamera(swrObjHang* hang)
 {
     int cameraState = hang->cameraState;
     if (swrObjHang_inspectIdleDelay == -1.0f)
-        swrObjHang_inspectIdleDelay = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
+        swrObjHang_inspectIdleDelay = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
 
     swrObjHang_UpdateHoloCameraTarget(hang, cameraState);
 
@@ -14049,10 +14053,10 @@ void swrObjHang_CycleInspectCamera(swrObjHang* hang)
         swrObjHang_inspectIdleTimer += swrRace_fdeltaTimeSecs;
         if (swrObjHang_inspectIdleTimer >= swrObjHang_inspectIdleDelay) {
             swrObjHang_inspectIdleTimer = 0.0f;
-            swrObjHang_inspectIdleDelay = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
+            swrObjHang_inspectIdleDelay = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 4.0 + 3.0;
             do {
                 // InspectCockpit..InspectCharacter
-                cameraState = HangCameraState_InspectCockpit - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -10.0f);
+                cameraState = HangCameraState_InspectCockpit - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -10.0f);
                 if (cameraState >= HangCameraState_InspectEngine1 && cameraState <= HangCameraState_InspectEngine4 && swrRacer_PodData[hang->vehiclePlayer].pod_modelID == MODELID_neva_kee_pod)
                     cameraState = hang->cameraState;
                 if (cameraState >= HangCameraState_InspectEngine3 && cameraState <= HangCameraState_InspectEngine4 && swrRacer_PodData[hang->vehiclePlayer].pod_modelID != MODELID_ben_quadinaros_pod)
@@ -14344,13 +14348,13 @@ void swrObjHang_AimHoloCamera(swrObjHang* hang, int cameraState, int fromCurrent
     }
 
     // jittered one-shot framing above the cameraState
-    spreadY = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.y;
-    rdVector_Set3(&eye, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.x, spreadY, lookAt.z - -400.0f);
+    spreadY = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.y;
+    rdVector_Set3(&eye, (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 500.0f - 250.0f + lookAt.x, spreadY, lookAt.z - -400.0f);
     if (cameraState >= HangCameraState_InspectPT01 && cameraState <= HangCameraState_InspectCharacter) {
         float scaleY = swrUtils_RandFloat();
-        spreadY = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleY + lookAt.y;
+        spreadY = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleY + lookAt.y;
         float scaleX = swrUtils_RandFloat();
-        spreadX = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleX + lookAt.x;
+        spreadX = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 150.0f - -200.0f) * scaleX + lookAt.x;
         rdVector_Set3(&eye, spreadX, spreadY, lookAt.z);
         eye.z = eye.z - (lookAt.z == -97.0f ? 30.0f : -400.0f);
     }

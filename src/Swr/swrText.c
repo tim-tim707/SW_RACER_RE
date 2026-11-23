@@ -460,7 +460,7 @@ void swrText_UpdateTimedMessage(void)
             uint8_t fade = (uint8_t)(int)(swrText_timedMessageAlpha * 255.0f);
             swrSprite_setCurrentSpriteColor(fade, 0xff, fade, 0xff);
         } else {
-            swrSprite_setCurrentSpriteColor(0, (uint8_t)(int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 55.0f - -200.0f), 0, 0xff);
+            swrSprite_setCurrentSpriteColor(0, (uint8_t)(int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 55.0f - -200.0f), 0, 0xff);
         }
         swrSprite_setCurrentTextPos(0x1a, (int16_t)(int)(drop * 20.0f - -215.0f));
         swrText_RenderString(swrText_timedMessageBuffer);

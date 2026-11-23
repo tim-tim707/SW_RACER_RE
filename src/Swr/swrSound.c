@@ -609,7 +609,7 @@ unsigned int swrSound_DuplicateSource(IA3dSource* source)
 // type reports bit 2 (an inherently looping source); otherwise the caller's
 // `loop` argument is used. Returns true if Play succeeded.
 // 0x00484be0
-bool swrSound_Play(IA3dSource* source, int loop)
+int swrSound_Play(IA3dSource* source, int loop)
 {
     DWORD type;
 
@@ -917,7 +917,7 @@ void* swrSound_WriteLocked(IA3dSource* source, int nbBytes, int* firstBlockLen)
 }
 
 // 0x00485170
-bool swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
+int swrSound_UnlockSource(IA3dSource* source, LPVOID unk, DWORD unk2)
 {
     return (*source->lpVtbl->Unlock)(source, unk, unk2, NULL, 0) == 0;
 }
@@ -1795,7 +1795,7 @@ int swrSound_PlayRandomSfx(int category, int variant, int sfx1, int sfx2, int sf
     if (count == 0)
         return -1;
 
-    int idx = (int) ((float) swrUtils_Rand() * 4.6566129e-10f * (float) (count + 1));
+    int idx = (int) ((long double)swrUtils_Rand() * 4.6566129e-10f * (float) (count + 1));
     if (idx < 0)
         idx = 0;
     int chosen = candidates[idx % count];

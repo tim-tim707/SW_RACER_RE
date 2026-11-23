@@ -473,7 +473,7 @@ void swrSound_PlayUISound(int soundId);
 
 char* swrUI_Front_GetTrackNameFromId(int trackId);
 
-bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
+int swrUI_Front_BeatEverything1stPlace(swrObjHang* hang);
 
 // Enters credits mode and picks five random unlocked tracks for the AI races behind the end credits.
 void swrObjHang_SelectCreditsTracks(swrObjHang* hang);

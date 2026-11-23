@@ -3136,7 +3136,7 @@ void swrUI_RandomizeSpriteAlpha(swrUI_unk* element)
         count = element->sprite_count - first;
     }
     // roll lands in (-156, 0], so the alpha lands in [100, 255]
-    alpha = 100 - (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * -156.0f);
+    alpha = 100 - (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * -156.0f);
     for (i = first; i < first + count; i++) {
         swrUI_SetSpriteColor(element, i, element->ui_elements[i].r, element->ui_elements[i].g, element->ui_elements[i].b, (uint8_t)alpha);
     }
@@ -4973,8 +4973,8 @@ void swrObjHang_SelectCreditsTracks(swrObjHang* hang)
         useBeatTracks = 1;
     }
     while (count < SWR_CREDITS_TRACK_COUNT) {
-        int circuit = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_CIRCUIT_COUNT);
-        int track = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)(int)g_aTracksInCircuits[circuit]);
+        int circuit = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)SWR_CIRCUIT_COUNT);
+        int track = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * (float)(int)g_aTracksInCircuits[circuit]);
         uint8_t unlocked = useBeatTracks ? g_aBeatTracksGlobal[circuit] : (uint8_t)swrRace_UnlockDataBase[circuit + 1];
         if ((unlocked & (uint8_t)(1 << (track & 0x1f))) != 0) {
             int trackId = g_aTrackIDs[circuit * SWR_TRACKS_PER_CIRCUIT + track];
@@ -5113,7 +5113,7 @@ char* swrUI_Front_GetTrackNameFromId(int trackId) // swrRace_TRACK
 }
 
 // 0x00440bc0
-bool swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
+int swrUI_Front_BeatEverything1stPlace(swrObjHang* hang)
 {
     if (!hang->isTournamentMode)
         return (swrRace_saveData.unlockFlags & swrSaveData_UNLOCK_BEAT_ALL_TRACKS_FIRST) != 0;
