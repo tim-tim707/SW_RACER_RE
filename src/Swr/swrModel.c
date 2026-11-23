@@ -21,6 +21,8 @@
 #include <math.h> // fabs
 #include <stdlib.h>
 #include <string.h>
+#define CSTDLIB_HEAP_ONLY
+#include <Platform/cstdlib.h> // c_malloc/c_free: the game's CRT heap, not the DLL's
 
 // 0x00408e60
 void* swrModel_AllocMaterial(unsigned int offset, unsigned int byteSize)
@@ -139,7 +141,7 @@ void* swrModel_SplitTextureIntoTiles(void* tex, int bytesPerPixel)
     unsigned int cols = (tileWidth + srcWidth - 1) / tileWidth;
     unsigned int rows = (tileHeight + srcHeight - 1) / tileHeight;
     header->page_count = (unsigned short)(rows * cols);
-    swrSpriteTexturePage* tile = (swrSpriteTexturePage*)malloc((short)header->page_count << 3);
+    swrSpriteTexturePage* tile = (swrSpriteTexturePage*)c_malloc((short)header->page_count << 3);
     header->page_table = tile;
     void* pixels = (void*)source->offset;
 
@@ -161,14 +163,14 @@ void* swrModel_SplitTextureIntoTiles(void* tex, int bytesPerPixel)
         y -= tileHeight;
     }
 
-    free(pixels);
-    free(source);
+    c_free(pixels);
+    c_free(source);
 
     for (unsigned int i = 0; i < (unsigned int)(short)header->page_count; i++) {
         void* tilePixels = (void*)header->page_table[i].offset;
         swrModel_ConvertTileToRdMaterial(tex, &header->page_table[i]);
         swrModel_PopRootMaterial();
-        free(tilePixels);
+        c_free(tilePixels);
     }
     return tex;
 }
@@ -179,7 +181,7 @@ void* swrModel_ExtractTextureTile(void* outTile, void* src, int x, int y, int ti
     swrSpriteTexturePage* page = (swrSpriteTexturePage*)outTile;
     unsigned int pitch = (tileWidth + 1) & ~1u;
     unsigned int size = pitch * bytesPerPixel * tileHeight;
-    uint8_t* pixels = (uint8_t*)malloc(size);
+    uint8_t* pixels = (uint8_t*)c_malloc(size);
     memset(pixels, 0, size);
 
     if (swrModel_tileReadOneRowUp != 0 && y > 0)

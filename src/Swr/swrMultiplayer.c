@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <Platform/cstdlib.h> // the game's CRT heap, not the DLL's
 
 // Stride in wchar_t between consecutive players in the swrMultiplayer_playerNames table;
 // 0x58 wchar_t == the 0xb0 sizeof(SithPlayer) that table is a view into.

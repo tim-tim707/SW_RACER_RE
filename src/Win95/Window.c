@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <Platform/cstdlib.h> // the game's CRT heap, not the DLL's
 
 // 0x004080C0
 void Window_AddKeyEvent(WPARAM virtual_key_code, USHORT flags, uint8_t pressed)

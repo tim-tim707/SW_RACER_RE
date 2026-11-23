@@ -9,6 +9,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#define CSTDLIB_HEAP_ONLY
+#include <Platform/cstdlib.h> // c_malloc/c_free: the game's CRT heap, not the DLL's
 
 // 0x00408e40
 void* stdPlatform_Alloc(unsigned int size)
@@ -119,19 +121,19 @@ void stdPlatform_Assert(const char* msg, const char* filePath, int line)
 // 0x48c5a0
 void* stdPlatform_AllocHandle(size_t _Size)
 {
-    return malloc(_Size);
+    return c_malloc(_Size);
 }
 
 // 0x0048c5b0
 void stdPlatform_FreeHandle(void* _Memory)
 {
-    return free(_Memory);
+    return c_free(_Memory);
 }
 
 // 0x0048c5c0
 void* stdPlatform_ReallocHandle(void* _Memory, size_t _NewSize)
 {
-    return realloc(_Memory, _NewSize);
+    return c_realloc(_Memory, _NewSize);
 }
 
 // 0x0048c5e0

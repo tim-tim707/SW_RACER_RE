@@ -16,6 +16,14 @@
 
 #include <stdio.h>
 
+// The game's heap by explicit name. A file whose HostServices member accesses (.free, .fseek, ...)
+// can't take the renaming macros below defines CSTDLIB_HEAP_ONLY before including this.
+void* c_malloc(size_t size);
+void c_free(void* ptr);
+void* c_realloc(void* ptr, size_t size);
+
+#ifndef CSTDLIB_HEAP_ONLY
+
 // ctype.h
 #define _filelength_ADDR (0x004a04e0)
 #define _filelength c__filelength
@@ -569,5 +577,7 @@ void* time_internal6();
 void* time_internal7(void* param_1, void* param_2);
 void* time_internal8(void* param_1);
 void* time_internal9(void* param_1, void* param_2);
+
+#endif // CSTDLIB_HEAP_ONLY
 
 #endif // CSTDLIB_H
