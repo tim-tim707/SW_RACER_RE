@@ -99,7 +99,7 @@
 
 void swrSprite_SetCursorVisibility2(int visibility);
 
-bool swrSprite_IsCursorVisible(void);
+int swrSprite_IsCursorVisible(void);
 
 void swrSprite_SetCursorVisibility(int visible);
 

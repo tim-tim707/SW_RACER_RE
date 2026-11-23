@@ -259,8 +259,8 @@ void swrSpline_CursorEvaluate(void* cursor, float* out)
     swrSplineCursor* c = (swrSplineCursor*)cursor;
 
     if ((c->velocity > 0.0f && c->endFlag == 0) || (c->velocity < 0.0f && c->startFlag == 0)) {
-        float step = c->velocity * (float)swrRace_deltaTimeSecs;
-        c->segmentT += step;
+        long double step = c->velocity * swrRace_deltaTimeSecs; // retail keeps it in ST0
+        c->segmentT = (float)(c->segmentT + step);
         if (step >= 0.0f) {
             if (step > 0.0f)
                 c->startFlag = 0;

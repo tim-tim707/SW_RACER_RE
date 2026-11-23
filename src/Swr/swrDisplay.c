@@ -156,7 +156,7 @@ int swrDisplay_FindMatchingVideoMode(StdVideoMode mode, swrMainDisplaySettings* 
 }
 
 // 0x00423840
-bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
+int swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height)
 {
     int opened;
 

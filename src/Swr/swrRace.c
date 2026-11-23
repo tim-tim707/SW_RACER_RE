@@ -329,7 +329,7 @@ void swrRace_InitGameData(void)
 }
 
 // 0x00421850
-bool swrRace_LoadProfile(char* playerName)
+int swrRace_LoadProfile(char* playerName)
 {
     FILE* stream;
     int failed;
@@ -375,7 +375,7 @@ int swrRace_DeleteProfile(char* playerName)
 }
 
 // 0x004219d0
-bool swrRace_SaveProfile(char* playerName)
+int swrRace_SaveProfile(char* playerName)
 {
     FILE* stream;
     size_t wroteMagic;
@@ -427,7 +427,7 @@ int swrRace_ResetGameData(int resetCurrentPlayer)
 }
 
 // 0x00421b90
-bool swrRace_LoadGameData(void)
+int swrRace_LoadGameData(void)
 {
     FILE* stream;
     int failed;
@@ -458,7 +458,7 @@ bool swrRace_LoadGameData(void)
 }
 
 // 0x00421c90
-bool swrRace_SaveGameData(void)
+int swrRace_SaveGameData(void)
 {
     FILE* stream;
     size_t wroteMagic;
@@ -483,7 +483,7 @@ bool swrRace_SaveGameData(void)
 }
 
 // 0x00421d80
-bool swrRace_IsGameDataUninitialized(void)
+int swrRace_IsGameDataUninitialized(void)
 {
     return swrRace_saveData.pilotsUnlockedGlobal == 0;
 }
@@ -1030,7 +1030,7 @@ void swrRace_UpdateInRaceMenu(void)
     if (DebugMenuState != 2 && swrObjJdge_singleLocalViewport == 0)
         swrRace_blankWorldForMenu = 1;
     scroll = swrRace_GetPauseMenuScrollInOut();
-    pulse = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
+    pulse = (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 0.25 + 0.75;
 
     // dev builds: input bits 0x1000, 0x800, 0x2000, 0x400 in order unlock the debug menu
     if ((swrRace_DebugFlag & swrRace_DEBUGFLAG_DEV) && swrRace_DebugMenu <= 0 && inRaceLocalPlayerInputBitset1[0] != 0) {
@@ -2250,9 +2250,9 @@ void swrObjHang_CourseSelectionMenu(void)
 
     if (g_aTrackInfos[hang->track_index].trackID == -1 || g_aTrackInfos[hang->track_index].splineID == -1) {
         sprintf(text, swrText_Translate(g_pTxtPlanetNotLoaded));
-        b = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
-        g = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
-        r = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        b = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        g = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        r = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
         swrText_CreateTextEntry1(0xa0, 0xcd, r, g, b, -1, text);
     }
     sprintf(text, swrText_Translate(g_pTxtPartNameFormat), swrUI_Front_GetTrackNameFromId(hang->track_index));
@@ -2539,9 +2539,9 @@ void swrObjHang_CourseInfoMenu(swrObjHang* hang)
         // no model/spline assigned: flashing "planet not loaded" warning
         text = swrText_Translate(g_pTxtPlanetNotLoaded);
         sprintf(buffer, text);
-        colB = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
-        colG = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
-        colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        colB = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        colG = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
+        colR = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 256.0f);
         swrText_CreateTextEntry1(0xa0, 0xcd, colR, colG, colB, -1, buffer);
     }
     text = swrUI_Front_GetTrackNameFromId((int)hang->track_index);
@@ -2770,15 +2770,15 @@ void swrRace_UpdatePartsHealth(void)
     if (installed == 0)
         return;
 
-    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    wear = (uint8_t)(25 - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
     while (wear <= damage) {
-        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        part = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
         if (profile->upgradeLevels[part] != 0) {
             health = (uint8_t)profile->upgradeHealths[part];
             profile->upgradeHealths[part] = (health > wear) ? (char)(health - wear) : 0;
         }
         damage -= wear;
-        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+        wear = (uint8_t)(25 - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
     }
     for (i = 0; i < SWR_UPGRADE_CATEGORY_COUNT; i++) {
         if (profile->upgradeLevels[i] == 0)
@@ -2796,9 +2796,9 @@ void swrRace_UpdatePartsHealth(void)
         return;
     }
 
-    wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+    wear = (uint8_t)(25 - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
     while (wear <= repair) {
-        part = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
+        part = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f);
         health = (uint8_t)profile->upgradeHealths[part];
         if (health != 0xff) {
             if (0xff - health < wear) {
@@ -2809,7 +2809,7 @@ void swrRace_UpdatePartsHealth(void)
             }
             repair -= wear;
         }
-        wear = (uint8_t)(25 - (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
+        wear = (uint8_t)(25 - (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * -52.0f));
     }
     swrRace_SaveCurrentProfile();
 }
@@ -3388,7 +3388,7 @@ void swrRace_UpdatePitDroidModels(void)
     ambient.y = 75.0f;
     ambient.z = 50.0f;
     for (i = 0; i < swrRace_nbPitDroids; i++) {
-        sparkScale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.5 - -2.0;
+        sparkScale = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 2.5 - -2.0;
         swrRace_GetEngineNodeOffsetPos((void**)swr_sceneModels[SWR_SCENE_SLOT_PIT_DROIDS + i], &droidPos);
         if (droidPos.z <= -157.0f)
             continue;
@@ -3404,7 +3404,7 @@ void swrRace_UpdatePitDroidModels(void)
             if ((float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].start * 0.0666f <= animTime && swrModel_GetAnimListTime((swrModel_Animation**)droid->unk34) <= (float)swrObjElmo_animFramesPitDroid[SWR_ELMO_PIT_DROID_ANIM_WELD].end * 0.0666f) {
                 ambient.x = 80.0f;
                 ambient.y = 75.0f;
-                ambient.z = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 120.0 - 30.0 - -50.0f;
+                ambient.z = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 120.0 - 30.0 - -50.0f;
                 rdMatrix_SetRotation44(&m, camYaw, 0.0f, -90.0f);
                 rdVector_Copy3((rdVector3*)&m.vD, &droidPos);
                 if (m.vD.x < 0.0f)
@@ -4535,7 +4535,7 @@ void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
             swrSprite_SetVisible(id, 1);
             swrSprite_SetPos(id, (short)(int)(barX - current * -96.0f), rowY);
             swrSprite_SetDim(id, (preview - current) * 12.0f, 0.625f);
-            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, (uint8_t)(int)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
+            swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, (uint8_t)(int)(((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
         } else {
             // loss: white bar to the preview value, flickering red segment up to the current one
             swrSprite_SetDim(id, preview * 12.0f, 0.625f);
@@ -4545,7 +4545,7 @@ void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
             swrSprite_SetVisible(id, 1);
             swrSprite_SetPos(id, (short)(int)(barX - preview * -96.0f), rowY);
             swrSprite_SetDim(id, (current - preview) * 12.0f, 0.625f);
-            swrSprite_SetColor(id, 0xff, 0x64, 0x64, (uint8_t)(int)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
+            swrSprite_SetColor(id, 0xff, 0x64, 0x64, (uint8_t)(int)(((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 155.0f - -100.0f) * fade));
             // faithful: in the look-at-vehicle screen the loss segment is repainted solid yellow
             if (hang->menuScreen == swrObjHang_STATE_LOOK_AT_VEHICLE) {
                 swrSprite_SetColor(id, 0xa3, 0xbe, 0x11, alpha);
@@ -4586,7 +4586,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     pod = score->obj_test_ptr;
     isPlayer2 = (score == secondLocalPlayer) ? 1 : 0;
     if (swrRace_GetPauseState() == 0) {
-        pod->vibrationMagnitude -= (float)swrRace_deltaTimeSecs;
+        pod->vibrationMagnitude = (float)(pod->vibrationMagnitude - swrRace_deltaTimeSecs);
         if (pod->vibrationMagnitude < 0.0f)
             pod->vibrationMagnitude = 0.0f;
     }
@@ -4630,7 +4630,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
         } else {
             flicker = 223.25f;
             if (pauseState == 0)
-                flicker = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f;
+                flicker = (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f;
             colR = (int)flicker;
             colG = (int)((float)colR * 0.5f);
             alpha = (int)(fade * 255.0f) * 8;
@@ -4658,9 +4658,9 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
                         alpha = (int)(fade * 255.0f) * 4;
                         if (255 < alpha)
                             alpha = 255;
-                        colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
-                        colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
-                        colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        colR = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        colG = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
+                        colB = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
                         text = swrText_Translate("/SCREENTEXT_526/~f6~s~cFINAL LAP");
                         swrText_CreateTextEntry1(0xa0, 0x46, colR, colG, colB, alpha, text);
                     }
@@ -4811,11 +4811,11 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
     leftR = 0;
     leftG = 255;
     leftB = 255;
-    leftA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
+    leftA = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
     rightR = 0;
     rightG = 255;
     rightB = 255;
-    rightA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
+    rightA = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 64.0f + 64.0f : 112.0f);
 
     if (pod->flags0 & swrObjTest_FLAG0_RESPAWN_INVINC) {
         for (i = 0; i < 6; i++) {
@@ -4823,7 +4823,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
                 partR[i] = 100;
                 partG[i] = 100;
                 if (pauseState == 0)
-                    partB[i] = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+                    partB[i] = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
                 else
                     partB[i] = (int)223.25f;
             } else {
@@ -4839,8 +4839,8 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
         for (i = 0; i < 6; i++)
             partR[i] = 255;
         for (i = 0; i < 6; i++) {
-            partG[i] = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 200.0f : 150.0f);
-            partB[i] = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 128.0f : 96.0f);
+            partG[i] = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 200.0f : 150.0f);
+            partB[i] = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 128.0f : 96.0f);
             if (partB[i] > partG[i])
                 partB[i] = partG[i];
         }
@@ -4869,13 +4869,13 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
             leftR = 255;
             leftG = 255;
             leftB = 0;
-            leftA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+            leftA = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
         }
         if (rightDamaged) {
             rightR = 255;
             rightG = 255;
             rightB = 0;
-            rightA = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+            rightA = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
         }
 
         for (i = 0; i < 6; i++) {
@@ -4891,7 +4891,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
             g = (int)(((1.0 - damage) + (1.0 - damage)) * 255.0);
             b = 0;
             // rand() is drawn even while paused (faithful)
-            if (damage > 0.8 && (float)swrUtils_Rand() * (1.0f / 2147483648.0f) > 0.5f) {
+            if (damage > 0.8 && (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) > 0.5f) {
                 r = 0x80;
                 g = 0;
                 b = 0;
@@ -4995,7 +4995,7 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
             alpha = (int)(swrRace_engineUiPulse[slot] * 255.0f);
             if (pod->flags0 & swrObjTest_FLAG0_BOOSTING)
                 swrText_CreateTextEntry1(0x36, (int)(lowerTextY + 48.0f), r, g, b, alpha, swrText_Translate("/SCREENTEXT_435/~c~sTEMP~n~cWARNING"));
-            a = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+            a = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
             leftA = a;
             rightA = a;
             leftR = r;
@@ -5024,12 +5024,12 @@ void swrRace_InRaceEngineUI(swrScore* score, int slot)
                 double repairTime = swrRace_engineUiRepairTime[slot] + swrRace_deltaTimeSecs;
                 swrRace_engineUiRepairTime[slot] = repairTime;
                 if (repairTime < 0.8f) {
-                    noticeAlpha = pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
+                    noticeAlpha = pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
                     swrText_CreateTextEntry1(0x36, (int)(textY + 48.0f), 0x40, -0x80, 0x40, (int)noticeAlpha, swrText_Translate("/SCREENTEXT_437/~c~sRepair"));
                 }
             } else {
                 swrRace_engineUiRepairTime[slot] = 0.0f;
-                noticeAlpha = pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
+                noticeAlpha = pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f;
                 swrText_CreateTextEntry1(0x36, (int)(textY + 48.0f), -0x80, -0x80, -1, (int)noticeAlpha, swrText_Translate("/SCREENTEXT_436/~c~sRepair"));
             }
         } else {
@@ -5176,7 +5176,7 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
         } else {
             // this row is the session-best lap: flicker it
             if (pauseState == 0)
-                colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+                colR = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
             else
                 colR = (int)223.25f;
             colG = colR - 0x14;
@@ -5193,11 +5193,11 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
         // new session-best race total: latch it and flicker the row
         jdge->recordLap3_ms = total;
         if (pauseState == 0)
-            colR = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 26.0f + 24.0f);
+            colR = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 26.0f + 24.0f);
         else
             colR = (int)43.5f;
         if (pauseState == 0)
-            colG = (int)((float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
+            colG = (int)((long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f);
         else
             colG = (int)223.25f;
         colB = 0;
@@ -5251,9 +5251,9 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
         else
             text = "/SCREENTEXT_430/~sth";
         text = swrText_Translate(text);
-        colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
-        colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
-        colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        colR = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        colG = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+        colB = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
         sprintf(buf, "~f2~r~s%d", (int)pos);
         swrText_CreateTextEntry1(x, textY, colR, colG, colB, -2, buf);
         swrText_CreateTextEntry1(x + 1, textY, colR, colG, colB, -2, text);
@@ -5271,9 +5271,9 @@ void swrRace_InRaceEndStatistics(swrObjJdge* jdge, swrScore* score)
     else
         text = "/SCREENTEXT_430/~sth";
     text = swrText_Translate(text);
-    colR = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
-    colG = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
-    colB = (int)(pauseState == 0 ? (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    colR = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    colG = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
+    colB = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 127.0f + 128.0f : 223.25f);
     sprintf(buf, "~f2~r~s%d", (int)pos);
     swrText_CreateTextEntry1(0xa0, placeY, colR, colG, colB, -2, buf);
     swrText_CreateTextEntry1(0xa1, placeY, colR, colG, colB, -2, text);
@@ -5907,7 +5907,7 @@ void swrRace_ApplyEngineDamage(swrRace* player)
 
     for (i = 0; i < 6; i++) {
         if ((player->engineStatus[i] & 8) != 0) {
-            swrRace_TakeDamage((int)player, i, (float)(((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1f + 0.1f) * swrRace_deltaTimeSecs));
+            swrRace_TakeDamage((int)player, i, (float)(((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1f + 0.1f) * swrRace_deltaTimeSecs));
             lastBurning = i;
         }
     }
@@ -5933,8 +5933,8 @@ void swrRace_SpawnFlameAttack(swrRace* player)
         return;
 
     pos = (rdVector3*)&player->transform.vD;
-    swrSound_PlaySpatialRange(0x87, 6, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
-    swrSound_PlaySpatialRange(0x88, 7, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
+    swrSound_PlaySpatialRange(0x87, 6, (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
+    swrSound_PlaySpatialRange(0x88, 7, (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.04 - (-0.23), 1.0f, pos, 0, 1, 50.0f, 500.0f);
     player->unk12_2 = 15.0f;
     rdVector_Copy3(&smokPos, pos);
     player->flameSmokeHandle = swrObjSmok_Spawn(swrObjSmok_TYPE_FLAME_ATTACK, 0, 8.0f, &smokPos, 2.0f);
@@ -6322,12 +6322,12 @@ void swrRace_UpdatePlayerControl(swrRace* player)
 
     // ---- slide2 easing ----
     if (sliding == 0 || player->speedValue <= SWR_CTL_SLIDE_SPEED) {
-        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_HALF_HOLD);
+        player->slide = (float)(player->slide - swrRace_deltaTimeSecs * SWR_CTL_HALF_HOLD);
         if (player->slide < 0.0f) {
             player->slide = 0.0f;
         }
     } else {
-        player->slide -= (float) (swrRace_deltaTimeSecs * SWR_CTL_NEG_HALF);
+        player->slide = (float)(player->slide - swrRace_deltaTimeSecs * SWR_CTL_NEG_HALF);
         if (player->slide > SWR_CTL_ONE) {
             player->slide = 1.0f;
         }
@@ -6342,7 +6342,7 @@ void swrRace_UpdatePlayerControl(swrRace* player)
         player->flags0 &= ~swrObjTest_FLAG0_BOOSTING;
     }
 
-    player->unk1f14 -= (float) swrRace_deltaTimeSecs;
+    player->unk1f14 = (float)(player->unk1f14 - swrRace_deltaTimeSecs);
 
     // ---- tilt / bank ----
     if ((bankLeft != 0 || bankRight != 0) && (player->flags1 & swrObjTest_FLAG1_MAGNET) != 0) {
@@ -6672,7 +6672,7 @@ void swrRace_Init(swrRace* player, swrSpline* spline, swrModel_Node** partNodes,
     player->scrapeSparkXf.vD.z = -2000.0f;
     player->scrapeSparkXf2.vD.z = -2000.0f;
     for (i = 0; i < 4; i++)
-        player->wobblePhase[i] = (float)swrUtils_Rand() * (1.0f / 2147483648.0f) * 60.0f;
+        player->wobblePhase[i] = (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 60.0f;
     player->unk19b0 = 0.0f;
     player->wobbleAmplitude = 1.0f;
     player->unk19b4 = 1.0f;
@@ -7287,7 +7287,8 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
     prevPos.y = velocity[1];
     prevPos.z = velocity[2];
 
-    const float progress = ((float) player->lodDistance - 400.0f) * 0.0016666667f;
+    // retail recomputes this in ST0 at each use and never rounds it to float
+    const long double progress = (long double) ((float) player->lodDistance - 400.0f) * 0.0016666667f;
     if ((progress < 1.0f) || ((player->flags0 & swrObjTest_FLAG0_LOCAL) != 0) || ((player->flags1 & swrObjTest_FLAG1_FORCE_GROUND) != 0)) {
         uint32_t flags1;
         if (((player->flags1 & swrObjTest_FLAG1_FLAT_CACHE) == 0) || ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0)) {
@@ -7336,7 +7337,7 @@ float swrRace_UpdateGroundContact(swrRace* player, float* velocity, int scrapeDa
         if ((((uint8_t) player->flags0 & 0xf) == swrObjTest_FLAG0_RACING) && ((player->flags0 & swrObjTest_FLAG0_LOCAL) == 0) &&
             (0.0f <= progress && progress <= 1.0f)) {
             swrSpline_EvaluateAtOffset(&player->splineCursor, &splineMat, 0.0);
-            velocity[2] = progress * (splineMat.vD.z - velocity[2]) + velocity[2];
+            velocity[2] = (float) ((splineMat.vD.z - velocity[2]) * progress + velocity[2]);
         }
 
         if ((player->flags1 & swrObjTest_FLAG1_ON_FLAT) == 0) {
@@ -7669,12 +7670,12 @@ void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos
     rdMatrix44 m;
     rdMatrix_SetIdentity44(&m);
     for (int k = 0; k < 3; k++) {
-        float a = (float) swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
+        float a = (long double)swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
         if ((swrUtils_Rand() & 1) != 0) {
             a = -a;
         }
         (&m.vA.x)[k] = a;
-        float b = (float) swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
+        float b = (long double)swrUtils_Rand() * 4.6566129e-10f * 0.99f + 0.01f;
         if ((swrUtils_Rand() & 1) != 0) {
             b = -b;
         }
@@ -7686,9 +7687,9 @@ void swrRace_SpawnEngineFireball(swrRace* player, int engineSlot, rdVector3* pos
     rdVector_Normalize3Acc((rdVector3*) &m.vB);
     rdVector_Normalize3Acc((rdVector3*) &m.vC);
     float spread = scale * 1.5f - scale;
-    rdVector_Scale3((rdVector3*) &m.vA, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vA);
-    rdVector_Scale3((rdVector3*) &m.vB, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vB);
-    rdVector_Scale3((rdVector3*) &m.vC, (float) swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vC);
+    rdVector_Scale3((rdVector3*) &m.vA, (long double)swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vA);
+    rdVector_Scale3((rdVector3*) &m.vB, (long double)swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vB);
+    rdVector_Scale3((rdVector3*) &m.vC, (long double)swrUtils_Rand() * 4.6566129e-10f * spread + scale, (rdVector3*) &m.vC);
 
     swrModel_AnimationsResetToZero(fx_podasx_anim);
     swrModel_AnimationsResetToZero2(fx_podasx_anim, 3.0f);
@@ -7717,7 +7718,7 @@ static void updateExhaustPlume(swrRace* player, swrModel_NodeTransformed* node, 
     float angle;
     float alphaScale;
 
-    scale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.20000005f - -1.0f;
+    scale = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.20000005f - -1.0f;
     swrUtils_Rand();
     alphaScale = 1.0f;
     angle = (float)(timetotal * 30.0f);
@@ -7733,7 +7734,7 @@ static void updateExhaustPlume(swrRace* player, swrModel_NodeTransformed* node, 
     case 0x10:
         scale = 1.0f;
         angle = 0.0f;
-        alphaScale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000024f - -0.9f;
+        alphaScale = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000024f - -0.9f;
         break;
     case 8:
     case 10:
@@ -7761,11 +7762,11 @@ static void updateExhaustGlow(swrRace* player, swrModel_NodeTransformed* node, i
 
     material = swrModel_NodeFindFirstMeshMaterial(&node->node);
     swrUtils_Rand();
-    flicker = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -1.0f;
+    flicker = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -1.0f;
     swrUtils_Rand();
     scale = size * flicker;
     if (boosting) {
-        scale = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.6999998f - -3.5f;
+        scale = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.6999998f - -3.5f;
     }
     swrUtils_Rand();
     rdMatrix_SetRotation44(&m, 0.0f, 0.0f, 0.0f);
@@ -7960,7 +7961,7 @@ void swrRace_UpdateEngineDamageFX(swrRace* player)
             continue;
         if (other->flags1 & swrObjTest_FLAG1_FINISHED)
             continue;
-        engine = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f);
+        engine = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 3.0f);
         if (player->transform.vB.x * other->transform.vB.x + player->transform.vB.y * other->transform.vB.y + player->transform.vB.z * other->transform.vB.z < 0.0f)
             engine += 3;
         other->engineStatus[engine] |= swrRace_ENGINESTATUS_ON_FIRE;
@@ -8880,7 +8881,7 @@ void swrRace_TriggerHandler(swrObjTrig* trig, swrRace* player, char fromNetwork)
         break;
 
     case swrModel_TriggerType_KillPlayer:
-        if (0.5 <= (float)swrUtils_Rand() * SWR_CTL_RAND_NORM)
+        if (0.5 <= (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM)
             swrRace_Explode(player, 2);
         else
             swrRace_Explode(player, 1);
@@ -8984,14 +8985,14 @@ void swrRace_UpdateFireEffects(swrRace* player)
     swrUtils_Rand();
     for (int i = 0; i < SWR_FIRE_EFFECT_COUNT; i++) {
         if (swrRace_FireTimer[i] <= 0.0f) {
-            swrRace_FireTimer[i] = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - 2.0f;
+            swrRace_FireTimer[i] = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 6.0f - 2.0f;
             rdMatrix_Copy44(&podTransform, &player->transform);
             swrSpline_EvaluateAtOffset(&player->splineCursor, &splineFrame, player->speedValue * 0.0033333334f * (swrRace_FireTimer[i] * 0.2857143f) * 1.2f);
             swrRace_FireLocation[i].x = splineFrame.vD.x;
             swrRace_FireLocation[i].y = splineFrame.vD.y;
             swrRace_FireLocation[i].z = splineFrame.vD.z - 8.0f;
-            swrRace_FireLocation[i].x = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].x;
-            swrRace_FireLocation[i].y = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].y;
+            swrRace_FireLocation[i].x = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].x;
+            swrRace_FireLocation[i].y = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 200.0f - 100.0f) + swrRace_FireLocation[i].y;
         }
     }
 }
@@ -9018,17 +9019,17 @@ void swrRace_InitFireEffects(int racer, float reset)
         swrRace_FireTimer[i] = (float)(prev - swrRace_deltaTimeSecs);
         if (prev > 0.8f && swrRace_FireTimer[i] <= 0.8f) {
             sfx = 0x43;
-            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000009f + 0.2f;
-            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.5f;
+            volume = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.100000009f + 0.2f;
+            pitch = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.5f;
             if (racer == 6) {
                 sfx = 0x6e;
-                pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+                pitch = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
             }
             swrSound_Play2D(sfx, 7, volume, pitch, 0);
         }
         if (swrRace_FireTimer[i] <= 0.0f) {
-            volume = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.0800000057f + 0.1f;
-            pitch = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
+            volume = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.0800000057f + 0.1f;
+            pitch = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.199999988f + 0.8f;
             swrSound_PlaySpatialRange(0x43, 6, volume, pitch, &swrRace_FireLocation[i], 0, 0, 1000.0f, 2000.0f);
             pos = swrRace_FireLocation[i];
             swrObjSmok_Spawn(2, 0, 5.0f, &pos, 5.0f);
@@ -9160,14 +9161,14 @@ void swrRace_AdvanceSplineCursor(swrRace* player, float* outCrossTime, int* outF
                 if (cursor->nodeLookahead[0] != node) {
                     if (cursor->nodeLookahead[0] == 0) {
                         if (0.01f <= posDist - prevDist)
-                            *outCrossTime = ((planeDist - prevDist) * (float)swrRace_dt_raw_d) / (posDist - prevDist);
+                            *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / (posDist - prevDist);
                         else
                             *outCrossTime = 0.0f;
                     }
                     node = cursor->nodeLookahead[0];
                 }
             } else if (0.01f <= posDist - prevDist) {
-                *outCrossTime = ((planeDist - prevDist) * (float)swrRace_dt_raw_d) / (posDist - prevDist);
+                *outCrossTime = ((planeDist - prevDist) * swrRace_dt_raw_d) / (posDist - prevDist);
             } else {
                 *outCrossTime = 0.0f;
             }
@@ -9725,8 +9726,8 @@ void swrRace_ApplySmokProximityPush(swrRace* player, rdVector3* pos)
         if (smok->lifetime < 2.0f)
             return;
         sign = -1.0f;
-        if (dist < 30.0f && (float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25) {
-            int engine = (int)((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 0.5f);
+        if (dist < 30.0f && (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.25) {
+            int engine = (int)((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 7.0f + 0.5f);
             if (engine > 5)
                 engine = 0;
             player->engineStatus[engine] |= 8;
@@ -10016,7 +10017,7 @@ void swrRace_PlayEngineSounds(swrRace* player, float gain)
 
     if (sfx >= 0) {
         pitch = (swrRace_engineGearPitch[newGear][0] + swrRace_engineGearPitch[newGear][1]) * 0.5f;
-        if ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f)
+        if ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM < 0.05f)
             swrUtils_Rand(); // result unused
         pitch = pitchScale * pitch;
         if (player->flags1 & swrObjTest_FLAG1_EXPLODING) {
@@ -10071,8 +10072,8 @@ void swrRace_PlayEngineSounds(swrRace* player, float gain)
     }
     if (oldGear < newGear) {
         // gear-up whoosh with a random pitch (0.1..0.25) and gain (0.3..0.6)
-        pitch = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1 - -0.15) * pitchScale;
-        volume = ((float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.30000000000000004 - -0.5) * gain;
+        pitch = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.1 - -0.15) * pitchScale;
+        volume = ((long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.30000000000000004 - -0.5) * gain;
         if (!muted)
             swrSound_PlaySpatialRange(0x7a, 6, pitch, volume, (rdVector3*)&player->transform.vD, 0, 1, 10.0f, 500.0f);
     }
@@ -10450,10 +10451,10 @@ void swrRace_UpdateScrapeSparks(swrRace* player)
             swrModel_NodeModifyFlags(player->partNodes[0x41], 2, 3, 0x10, 2);
         // -0.75 is the double at 0x004ada08: re-arm a timer that sits too far ahead
         if (timetotal - -0.75 < swrRace_scrapeSparkSoundTime)
-            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+            swrRace_scrapeSparkSoundTime = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
         if (swrRace_scrapeSparkSoundTime < timetotal) {
-            swrSound_PlaySpatialRange(0x3c, 5, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
-            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+            swrSound_PlaySpatialRange(0x3c, 5, (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
+            swrRace_scrapeSparkSoundTime = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
         }
     } else if (nodes[0x41] != NULL) {
         swrModel_NodeModifyFlags(nodes[0x41], 2, -4, 0x10, 3);
@@ -10469,8 +10470,8 @@ void swrRace_UpdateScrapeSparks(swrRace* player)
             swrModel_NodeModifyFlags(player->partNodes[0x42], 2, 3, 0x10, 2);
         player->flags0 &= ~swrObjTest_FLAG0_SCRAPE_SPARK_L;
         if (swrRace_scrapeSparkSoundTime < timetotal) {
-            swrSound_PlaySpatialRange(0x3c, 5, (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
-            swrRace_scrapeSparkSoundTime = (float)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
+            swrSound_PlaySpatialRange(0x3c, 5, (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.19999999f - -0.3f, 0.6f, (rdVector3*)&player->transform.vD, 0, 0, 10.0f, 500.0f);
+            swrRace_scrapeSparkSoundTime = (long double)swrUtils_Rand() * SWR_CTL_RAND_NORM * 0.25f - -0.5f + timetotal;
         }
     } else if (player->partNodes[0x42] != NULL) {
         swrModel_NodeModifyFlags(player->partNodes[0x42], 2, -4, 0x10, 3);

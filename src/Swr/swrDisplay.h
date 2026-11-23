@@ -20,7 +20,7 @@ int swrDisplay_SetSettingsFromRegistry(StdDisplayEnvironment* env, swrMainDispla
 // Index of the current display device's first 16-bpp mode with mode's width/height (0 when none).
 int swrDisplay_FindMatchingVideoMode(StdVideoMode mode, swrMainDisplaySettings* displaySettings);
 
-bool swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height);
+int swrDisplay_Resize(swrMainDisplaySettings* displaySettings, int width, int height);
 int swrDisplay_SetWindowSize(void);
 
 #endif // SWRDISPLAY_H

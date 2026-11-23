@@ -364,7 +364,7 @@ void swrObjHang_UpdateVehicleSelectIntro(swrObjHang* hang);
 
 char swrObjHang_GetRequiredPlaceToProceed(char circuitIdx, char trackIdx);
 int swrObjHang_IsTrackUnlocked(char circuitId, char trackId);
-bool swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
+int swrObjHang_IsTrackPlayable(swrObjHang* hang, char circuitIdx, char trackIdx);
 int swrObjHang_VerifySelectedTrack(swrObjHang* hang, int selectedTrackIdx);
 
 // Clear the in-race input accumulation buffer and return its base pointer.

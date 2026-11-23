@@ -59,7 +59,7 @@ BOOL __stdcall DirectPlay_EnumConnectionsCallback(const GUID* lpguidSP, LPVOID l
 
 int DirectDraw_GetSelectedDevice(StdDisplayDevice* device);
 
-bool DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
+int DirectDraw_GetAvailableVidMem(LPDWORD total, LPDWORD free);
 
 IDirectDrawSurface4* DirectDraw_GetZBuffer(void);
 
@@ -74,7 +74,7 @@ int Direct3d_SetFogMode(void);
 int Direct3d_IsLensflareCompatible(void);
 
 void Direct3d_ConfigFog(float r, float g, float b, float near_, float far_);
-bool Direct3d_CreateAndAttachViewport(void);
+int Direct3d_CreateAndAttachViewport(void);
 
 HRESULT __stdcall Direct3d_EnumDevices_Callback(GUID* guid, char* description, char* name, D3DDEVICEDESC* hal_desc, D3DDEVICEDESC* hel_desc, void* ctx);
 HRESULT __stdcall Direct3d_EnumTextureFormats_Callback(DDPIXELFORMAT* format, void* ctx);

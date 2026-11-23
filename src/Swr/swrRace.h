@@ -601,22 +601,22 @@ void swrRace_ComputeTrackOffset(swrRace* player);
 void swrRace_InitGameData(void);
 
 // Installs the loaded profile blob as saved profile slot 0 + the live working profile.
-bool swrRace_LoadProfile(char* playerName);
+int swrRace_LoadProfile(char* playerName);
 // Read .\data\player\tgfd.dat, verify the 0x10003 version magic, load the 0xfd4-byte image.
-bool swrRace_LoadGameData(void);
+int swrRace_LoadGameData(void);
 // Create .\data\player\ and write the version magic + 0xfd4-byte image to tgfd.dat.
-bool swrRace_SaveGameData(void);
+int swrRace_SaveGameData(void);
 // Rebuild the in-memory save image from defaults. resetCurrentPlayer != 0 also clears the
 // active player slot/name; == 0 preserves the current player's profile record.
 int swrRace_ResetGameData(int resetCurrentPlayer);
 // Export a single profile record to .\data\player\<playerName> (extension swapped).
-bool swrRace_SaveProfile(char* playerName);
+int swrRace_SaveProfile(char* playerName);
 // Delete .\data\player\<playerName>.sav and reset the live profile to defaults with no name loaded.
 int swrRace_DeleteProfile(char* playerName);
 // Start a fresh default profile under playerName and write it out.
 void swrRace_CreateProfile(char* playerName);
 // True when the loaded image looks empty/uninitialized (unlock bitfield == 0); gates a reset.
-bool swrRace_IsGameDataUninitialized(void);
+int swrRace_IsGameDataUninitialized(void);
 // Sync the live working profile into the save image and persist it. Called after any change
 // that must survive (shop purchase, race result, settings, name entry) and at shutdown.
 void swrRace_SaveCurrentProfile(void);

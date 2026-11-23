@@ -63,7 +63,7 @@ void rdVector_Copy3(rdVector3* v1, const rdVector3* v2)
 }
 
 // 0x0042f7f0
-bool rdVector_AreSame3(rdVector3* v1, rdVector3* v2)
+int rdVector_AreSame3(rdVector3* v1, rdVector3* v2)
 {
     if (((v1->x == v2->x) && (v1->y == v2->y)) && (v1->z == v2->z))
     {

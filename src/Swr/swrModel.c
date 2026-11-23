@@ -705,7 +705,7 @@ void swrModel_ByteSwapAnimation(swrModel_Animation* animation)
 }
 
 // 0x004475F0
-bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
+int swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMeshMaterials; i++)
     {
@@ -716,7 +716,7 @@ bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* material)
 }
 
 // 0x00447630
-bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
+int swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMeshTextures; i++)
     {
@@ -727,7 +727,7 @@ bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture)
 }
 
 // 0x00447670
-bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
+int swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material)
 {
     for (int i = 0; i < swrModel_NumAlreadyByteSwappedMaterials; i++)
     {

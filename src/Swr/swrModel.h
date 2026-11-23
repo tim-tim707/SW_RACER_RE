@@ -356,9 +356,9 @@ void swrModel_LoadTextureDataAndPalette(int* texture_offsets, uint8_t** texture_
 void swrModel_InitializeTextureBuffer();
 void swrModel_LoadModelTexture(TEXID texture_index, swrMaterial** material_ptr, uint8_t** palette_data_ptr);
 
-bool swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);
-bool swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture);
-bool swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material);
+int swrModel_MeshMaterialAlreadyByteSwapped(swrModel_MeshMaterial* mesh_material);
+int swrModel_MeshTextureAlreadyByteSwapped(swrModel_MaterialTexture* texture);
+int swrModel_MaterialAlreadyByteSwapped(swrModel_Material* material);
 void swrModel_ByteSwapNode(swrModel_Node* node);
 void swrModel_ByteSwapAnimation(swrModel_Animation* animation);
 void swrModel_ByteSwapModelData(swrModel_Header* header);

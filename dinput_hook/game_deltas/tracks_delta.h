@@ -37,7 +37,7 @@ void swrObjHang_CourseInfoMenu_delta(swrObjHang *hang);
 
 char *swrUI_GetTrackNameFromId_delta(int trackId);
 
-bool swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
+int swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx);
 
 int swrObjHang_VerifySelectedTrack_delta(swrObjHang *hang, int selectedTrackIdx);
 

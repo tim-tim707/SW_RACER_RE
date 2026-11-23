@@ -39,7 +39,7 @@ void swrSprite_SetCursorVisibility2(int visibility)
 }
 
 // 0x00408200
-bool swrSprite_IsCursorVisible(void)
+int swrSprite_IsCursorVisible(void)
 {
     return 0 < swrSprite_mouseVisible;
 }

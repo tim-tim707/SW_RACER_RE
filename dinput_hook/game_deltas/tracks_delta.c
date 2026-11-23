@@ -1509,7 +1509,7 @@ char *swrUI_GetTrackNameFromId_delta(int trackId) {
 }
 
 // 0x00440aa0
-bool swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
+int swrObjHang_IsTrackPlayable_delta(swrObjHang *hang, char circuitIdx, char trackIdx) {
     // DELTA custom circuits
     if (circuitIdx >= 4)
         return true;
