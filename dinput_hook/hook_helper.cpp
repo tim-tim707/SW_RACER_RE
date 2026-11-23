@@ -44,6 +44,17 @@ extern "C" void patchMemoryAccess(uint32_t address, void *newAddress) {
     PatchPointer("patchMemoryAccess", (void *) address, (uint32_t) newAddress);
 }
 
+// Detours moves the stock entry to the delta, but our src body of that function would still run for
+// any caller that names the symbol (a live reimpl, or delta code). Send those to the delta too, so
+// every caller reaches the same code as retail's callers do.
+static void route_reimpl_to(void *reimpl, void *delta) {
+    uint8_t jmp[5] = {0xE9};
+    const int32_t rel = (int32_t) ((uintptr_t) delta - ((uintptr_t) reimpl + sizeof(jmp)));
+    memcpy(&jmp[1], &rel, sizeof(rel));
+    if (memcmp(reimpl, jmp, sizeof(jmp)) != 0)
+        WriteMemory("hook_replace_route", reimpl, jmp, sizeof(jmp));
+}
+
 static int delta_owned(uint32_t reimpl_addr) {
     return hook_replacements.contains((void *) reimpl_addr);
 }
@@ -65,9 +76,11 @@ extern "C" void init_hooks() {
         }
         if (hook_replacements.contains(info.original_address)) {
             auto &replacement = hook_replacements.at(info.original_address);
+            void *reimpl = info.original_address;
             std::swap(info.address, info.original_address);
             info.hook_state = info.original_address;
             info.address = replacement;
+            route_reimpl_to(reimpl, replacement);
         }
 
         fprintf(hook_log, "    hooking %s (address=%p original_address=%p)", info.name.c_str(),
