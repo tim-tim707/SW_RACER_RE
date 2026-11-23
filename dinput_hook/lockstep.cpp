@@ -37,7 +37,7 @@ constexpr int kJdgeStateRacing = 1;
 constexpr int kMaxRacers = 20;// swrScores[20]
 constexpr int kMaxAnimations = 300;// swrScene_animations[300]
 constexpr uint32_t kFileMagic = 0x31534b4c;// "LKS1"
-constexpr uint32_t kFileVersion = 1;
+constexpr uint32_t kFileVersion = 2;
 
 enum Mode { MODE_OFF, MODE_RECORD, MODE_REPLAY };
 
@@ -80,6 +80,22 @@ constexpr size_t kAnimScalarsBegin = offsetof(swrModel_Animation, loop_transitio
 constexpr size_t kAnimScalarsEnd = offsetof(swrModel_Animation, key_frame_times);
 constexpr size_t kAnimScalarsSize = kAnimScalarsEnd - kAnimScalarsBegin;
 
+// The hangar's race setup at swrObjHang_StartRace, so a replay can start the same race itself.
+struct RaceSetup {
+    int32_t demoMode;
+    int8_t trackIndex;
+    int8_t circuitIdx;
+    int8_t isTournamentMode;
+    int8_t timeAttackMode;
+    int8_t mirror;
+    int8_t localPlayers;
+    int8_t numPlayers;
+    int8_t vehiclePlayer;
+    int8_t numLaps;
+    int8_t aiSpeed;
+    int8_t pad[2];
+};
+
 struct FileHeader {
     uint32_t magic;
     uint32_t version;
@@ -89,6 +105,7 @@ struct FileHeader {
     int32_t animCount;
     int32_t racerCount;
     int32_t startRaceRandState;// at swrObjHang_StartRace entry: seeds the AI roster
+    RaceSetup setup;
 };
 
 struct FrameHashes {
@@ -121,6 +138,11 @@ struct State {
     bool haveStartRaceRand = false;
     bool headerRead = false;
     FileHeader hdr = {};
+    RaceSetup setup = {};// record: captured at StartRace
+    bool autostart = false;// replay: start the recorded race from the main menu, no menu input
+    bool exitWhenDone = false;
+    bool autostarted = false;
+    bool fastForward = false;
     char lastSignature[512] = "";
     bool haveInputs = false;// replay: the next frame's input block is loaded; ProcessInputs pins it
     std::vector<uint8_t> inputs;
@@ -191,6 +213,10 @@ void read_config() {
                 snprintf(s.path, sizeof(s.path), "%s", val);
         } else if (strcmp(key, "hz") == 0) {
             s.hz = (float) atof(val);
+        } else if (strcmp(key, "autostart") == 0) {
+            s.autostart = true;
+        } else if (strcmp(key, "exit_when_done") == 0) {
+            s.exitWhenDone = true;
         } else if (strcmp(key, "dump_at") == 0) {
             s.dumpAt = atoi(val);
             s.dumpTo = val2[0] ? atoi(val2) : s.dumpAt;
@@ -367,6 +393,11 @@ void stop(const char *why) {
         fprintf(hook_log, "[lockstep] %s: %u frames, %u mismatched\n", why, s.frame, s.mismatches);
         fflush(hook_log);
     }
+    if (s.exitWhenDone) {
+        if (s.log)
+            fclose(s.log);
+        ExitProcess(s.mismatches == 0 ? 0 : 1);
+    }
 }
 
 bool open_replay() {
@@ -402,7 +433,7 @@ bool start() {
         }
         FileHeader hdr = {kFileMagic,   kFileVersion,  s.hz,
                           (uint32_t) s.inputs.size(), swrUtils_randState, animCount,
-                          racer_count(), s.haveStartRaceRand ? s.startRaceRand : swrUtils_randState};
+                          racer_count(), s.haveStartRaceRand ? s.startRaceRand : swrUtils_randState, s.setup};
         if (!s.haveStartRaceRand)
             log_line("lockstep: StartRace not seen, the AI roster won't be pinned");
         fwrite(&hdr, sizeof(hdr), 1, s.file);
@@ -557,6 +588,10 @@ extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *ros
         if (s.mode == MODE_RECORD) {
             s.startRaceRand = swrUtils_randState;
             s.haveStartRaceRand = true;
+            s.setup = {hang->demo_mode,      hang->track_index,       hang->circuitIdx, hang->isTournamentMode,
+                       hang->timeAttackMode, hang->bMirror,           hang->num_local_players,
+                       hang->num_players,    hang->vehiclePlayer,     hang->numLaps,    hang->AISpeed,
+                       {0, 0}};
         } else if (s.headerRead || open_replay()) {
             s.hz = s.hdr.hz;
             swrUtils_randState = s.hdr.startRaceRandState;
@@ -570,3 +605,58 @@ extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *ros
     }
     hook_call_original((StartRace_t) swrObjHang_StartRace_ADDR, hang, rosterArg, noBroadcast);
 }
+
+typedef void(__cdecl *LoadScreen_t)(swrObjHang *, int, int);
+
+// Frames the main menu must have been up before autostart, so the profile and hangar are settled.
+constexpr int kAutostartMenuFrames = 30;
+
+extern "C" void lockstep_frame_service(void) {
+    if (!s.configRead)
+        read_config();
+    s.fastForward = s.mode == MODE_REPLAY && s.pinDt && !s.finished;
+}
+
+// Called after the hangar's own F0, the slot where retail's menus call LoadScreen, so the rest of
+// that frame (the new racers' first tick) runs exactly as it does after a menu-driven start.
+extern "C" void lockstep_hang_f0(swrObjHang *hang) {
+    static bool inService = false;
+    if (inService)
+        return;
+    if (!s.configRead)
+        read_config();
+    if (s.mode != MODE_REPLAY || !s.autostart || s.autostarted || s.finished)
+        return;
+    static int menuFrames = 0;
+    if (hang == nullptr ||
+        (hang->menuScreen != swrObjHang_STATE_SPLASH && hang->menuScreen != swrObjHang_STATE_MAIN_MENU)) {
+        menuFrames = 0;
+        return;
+    }
+    if (++menuFrames < kAutostartMenuFrames)
+        return;
+    if (!s.headerRead && !open_replay()) {
+        s.finished = true;
+        return;
+    }
+    const RaceSetup &r = s.hdr.setup;
+    hang->demo_mode = r.demoMode;
+    hang->track_index = r.trackIndex;
+    hang->circuitIdx = r.circuitIdx;
+    hang->isTournamentMode = r.isTournamentMode;
+    hang->timeAttackMode = r.timeAttackMode;
+    hang->bMirror = r.mirror;
+    hang->num_local_players = r.localPlayers;
+    hang->num_players = r.numPlayers;
+    hang->vehiclePlayer = r.vehiclePlayer;
+    hang->numLaps = r.numLaps;
+    hang->AISpeed = r.aiSpeed;
+    s.autostarted = true;
+    log_line("lockstep: autostart track %d, %d racers, %d laps, pod %d", r.trackIndex, r.numPlayers, r.numLaps,
+             r.vehiclePlayer);
+    inService = true;
+    ((LoadScreen_t) swrObjHang_LoadScreen_ADDR)(hang, 1, 0);
+    inService = false;
+}
+
+extern "C" bool lockstep_fast_forward(void) { return s.fastForward; }

@@ -20,6 +20,12 @@ void __cdecl swrRace_IncrementFrameTimer_lockstep(void);
 // Called at the end of swrControl_ProcessInputs_delta: records or pins this frame's inputs.
 void lockstep_pin_inputs(void);
 
+// Once per presented frame, outside the ImGui frame: autostarts a replay from the main menu.
+void lockstep_frame_service(void);
+void lockstep_hang_f0(struct swrObjHang *hang);
+// True while a replay runs on the pinned dt: the frame limiter and vsync are skipped.
+bool lockstep_fast_forward(void);
+
 // Forward hook on swrObjHang_StartRace (0x0045b290): pins the RNG the AI roster is rolled from.
 struct swrObjHang;
 void __cdecl swrObjHang_StartRace_lockstep(struct swrObjHang *hang, int *rosterArg, int noBroadcast);

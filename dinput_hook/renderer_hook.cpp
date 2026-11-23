@@ -2297,6 +2297,7 @@ static void limit_framerate(int target_fps) {
 extern "C" int stdDisplay_Update_Hook() {
     // Earliest frame boundary where the game's own init has finished (see reimpl_verify.h).
     reimpl_verify_tick(hook_log);
+    lockstep_frame_service();
 
     if (swrDisplay_SkipNextFrameUpdate == 1) {
         swrDisplay_SkipNextFrameUpdate = 0;
@@ -2306,10 +2307,12 @@ extern "C" int stdDisplay_Update_Hook() {
 
     // Runtime vsync toggle (default on, matching the glfwSwapInterval(1) set at GL open). Applied
     // here so it can be flipped from the imgui graphics settings while profiling.
+    // A lockstep replay runs on a pinned dt, so it fast-forwards with vsync and the limiter off.
     static bool applied_vsync = true;
-    if (imgui_state.vsync != applied_vsync) {
-        glfwSwapInterval(imgui_state.vsync ? 1 : 0);
-        applied_vsync = imgui_state.vsync;
+    const bool want_vsync = imgui_state.vsync && !lockstep_fast_forward();
+    if (want_vsync != applied_vsync) {
+        glfwSwapInterval(want_vsync ? 1 : 0);
+        applied_vsync = want_vsync;
     }
 
     // Before imgui_Update, so the debug overlay stays out of the shot.
@@ -2345,7 +2348,7 @@ extern "C" int stdDisplay_Update_Hook() {
 
     crash_logger_heartbeat();// tell the hang watchdog a frame completed
 
-    limit_framerate(imgui_state.target_fps);
+    limit_framerate(lockstep_fast_forward() ? 0 : imgui_state.target_fps);
     perf_frame_begin();
 
     return 0;
