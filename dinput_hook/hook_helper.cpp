@@ -4,6 +4,7 @@
 
 #include "hook_helper.h"
 #include "patch.h"
+#include "lockstep.h"
 #include <iterator>
 #include <vector>
 #include <filesystem>
@@ -50,6 +51,7 @@ static int delta_owned(uint32_t reimpl_addr) {
 extern "C" void init_hooks() {
     fprintf(hook_log, "[init_hooks]\n");
 
+    lockstep_vanilla_filter();
     hook_mode_delta_owned = delta_owned;
     hook_generated(hook_log);
 

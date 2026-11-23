@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include <windows.h>
@@ -14,6 +15,9 @@ extern "C" {
 #include <Swr/swrRace.h> // swrRace_IncrementFrameTimer_ADDR
 #include <Swr/swrObj.h>  // swrObjHang_StartRace_ADDR
 #include <Swr/swrEvent.h>// swrEvent_GetItem_ADDR
+#include <Swr/swrSpline.h>
+#include <Engine/rdCamera.h>
+#include <Main/swrControl.h>
 #include <engine_config.h>
 #include <globals.h>
 #include <types.h>
@@ -143,6 +147,9 @@ struct State {
     bool exitWhenDone = false;
     bool autostarted = false;
     bool fastForward = false;
+    bool vanilla = false;// no sim-affecting deltas or mods: retail plus whatever reimpl_config.txt makes live
+    char rerecordPath[MAX_PATH] = "";// replay: also write the inputs with this run's hashes as a new recording
+    FILE *out = nullptr;
     char lastSignature[512] = "";
     bool haveInputs = false;// replay: the next frame's input block is loaded; ProcessInputs pins it
     std::vector<uint8_t> inputs;
@@ -215,6 +222,10 @@ void read_config() {
             s.hz = (float) atof(val);
         } else if (strcmp(key, "autostart") == 0) {
             s.autostart = true;
+        } else if (strcmp(key, "vanilla") == 0) {
+            s.vanilla = true;
+        } else if (strcmp(key, "rerecord") == 0 && val[0]) {
+            snprintf(s.rerecordPath, sizeof(s.rerecordPath), "%s", val);
         } else if (strcmp(key, "exit_when_done") == 0) {
             s.exitWhenDone = true;
         } else if (strcmp(key, "dump_at") == 0) {
@@ -375,6 +386,11 @@ void stop(const char *why) {
         fclose(s.file);
         s.file = nullptr;
     }
+    if (s.out) {
+        fclose(s.out);
+        s.out = nullptr;
+        log_line("lockstep: rerecorded %u frames to %s", s.frame, s.rerecordPath);
+    }
     swr_FastMode = s.savedFastMode;
     swr_fixedDeltaTimeSecs = s.savedFixedDt;
     s.pinDt = false;
@@ -396,7 +412,7 @@ void stop(const char *why) {
     if (s.exitWhenDone) {
         if (s.log)
             fclose(s.log);
-        ExitProcess(s.mismatches == 0 ? 0 : 1);
+        ExitProcess(s.mismatches == 0 || s.rerecordPath[0] ? 0 : 1);
     }
 }
 
@@ -452,6 +468,15 @@ bool start() {
         if (!restore_anim_scalars(s.file, animCount)) {
             log_line("lockstep: truncated header");
             return false;
+        }
+        if (s.rerecordPath[0]) {
+            s.out = fopen(s.rerecordPath, "wb");
+            if (s.out == nullptr) {
+                log_line("lockstep: cannot write %s", s.rerecordPath);
+                return false;
+            }
+            fwrite(&hdr, sizeof(hdr), 1, s.out);
+            write_anim_scalars(s.out);
         }
     }
     s.frame = 0;
@@ -519,7 +544,12 @@ void frame_step() {
             stop("recording ended");
             return;
         }
-        compare(want, hash_state());
+        const FrameHashes got = hash_state();
+        compare(want, got);
+        if (s.out) {
+            fwrite(s.inputs.data(), s.inputs.size(), 1, s.out);
+            fwrite(&got, sizeof(got), 1, s.out);
+        }
         s.haveInputs = fread(s.inputs.data(), s.inputs.size(), 1, s.file) == 1;
     }
     if ((int) s.frame >= s.dumpAt && (int) s.frame <= s.dumpTo)
@@ -660,3 +690,74 @@ extern "C" void lockstep_hang_f0(swrObjHang *hang) {
 }
 
 extern "C" bool lockstep_fast_forward(void) { return s.fastForward; }
+
+extern "C" bool lockstep_vanilla(void) {
+    if (!s.configRead) {
+        read_config();
+        char cwd[MAX_PATH] = "";
+        GetCurrentDirectoryA(sizeof(cwd), cwd);
+        fprintf(hook_log, "[lockstep] config read from %s: mode %d vanilla %d\n", cwd, (int) s.mode, (int) s.vanilla);
+        fflush(hook_log);
+    }
+    return s.vanilla;
+}
+
+// Vanilla mode keeps lockstep's own pins on these two; everything else the deltas did is dropped.
+extern "C" void __cdecl swrControl_ProcessInputs_lockstep(void) {
+    hook_call_original(swrControl_ProcessInputs);
+    lockstep_pin_inputs();
+}
+
+extern "C" void __cdecl swrObjHang_F0_lockstep(swrObjHang *hang) {
+    hook_call_original(swrObjHang_F0, hang);
+    lockstep_hang_f0(hang);
+}
+
+namespace {
+
+// Delta registrations that can reach the sim. Renderer, platform, asset loading (passthrough on stock
+// data), text/sprite/UI drawing, sound and networking stay: retail can't run without the GL takeover.
+const char *const kSimPrefixes[] = {"swrRace_", "swrObj", "swrSpline_", "swrControl_", "swrMain_", "swrWeather_",
+                                    "rdMatrix_", "rdCamera_"};
+
+bool sim_delta(const std::string &name) {
+    if (name == "swrRace_IncrementFrameTimer" || name == "swrObjHang_StartRace")
+        return false;// lockstep's own hooks
+    for (const char *p: kSimPrefixes)
+        if (name.compare(0, strlen(p), p) == 0)
+            return true;
+    return false;
+}
+
+}// namespace
+
+// Runs before hook_generated(): what is dropped here is no longer delta-owned, so reimpl_config.txt
+// can bring those functions live too.
+extern "C" void lockstep_vanilla_filter(void) {
+    if (!lockstep_vanilla())
+        return;
+    int dropped = 0;
+    for (auto it = hooks.begin(); it != hooks.end();) {
+        if (sim_delta(it->second.name)) {
+            fprintf(hook_log, "[lockstep vanilla] dropping delta %s\n", it->second.name.c_str());
+            hook_replacements.erase(it->second.address);
+            hook_replacements.erase(it->second.original_address);
+            it = hooks.erase(it);
+            dropped++;
+        } else {
+            ++it;
+        }
+    }
+    // Replacements on reverse-hooked bodies that never went through hook_function().
+    void *const reverseOnly[] = {(void *) rdCamera_Update,           (void *) swrObjHang_ResultsMenu,
+                                 (void *) swrObjJdge_F0,             (void *) swrObjJdge_F2,
+                                 (void *) swrObjJdge_InitTrack,      (void *) swrRace_CopyProfileFromSave,
+                                 (void *) swrRace_InRaceEndStatistics, (void *) swrSpline_CursorSeekToProgress,
+                                 (void *) swrSpline_EvaluateToMatrix, (void *) swrSpline_LoadSplineById};
+    for (void *f: reverseOnly)
+        dropped += (int) hook_replacements.erase(f);
+    hook_replacements[(void *) swrControl_ProcessInputs] = (void *) swrControl_ProcessInputs_lockstep;
+    hook_replacements[(void *) swrObjHang_F0] = (void *) swrObjHang_F0_lockstep;
+    fprintf(hook_log, "[lockstep vanilla] dropped %d sim deltas\n", dropped);
+    fflush(hook_log);
+}

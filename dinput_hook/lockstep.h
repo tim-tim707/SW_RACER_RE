@@ -25,6 +25,10 @@ void lockstep_frame_service(void);
 void lockstep_hang_f0(struct swrObjHang *hang);
 // True while a replay runs on the pinned dt: the frame limiter and vsync are skipped.
 bool lockstep_fast_forward(void);
+// `vanilla` in lockstep.txt: drop every sim-affecting delta and mod, so the run is retail + reimpls.
+bool lockstep_vanilla(void);
+// Called by init_hooks() before the reimpl table is installed.
+void lockstep_vanilla_filter(void);
 
 // Forward hook on swrObjHang_StartRace (0x0045b290): pins the RNG the AI roster is rolled from.
 struct swrObjHang;
