@@ -710,7 +710,7 @@ swrUI_unk* swrUI_NewButton(swrUI_unk* parent, int id, int font, char* text, int 
     ui = swrUI_New(parent, id, font, text, flags, param10, 0, (swrUI_unk_F1)swrUI_ButtonProc, NULL);
     swrUI_SetSize(ui, width, height);
     swrUI_SetPos(ui, x, y);
-    ui->text_flags = flags & SWR_UI_TEXT_FLAGS_MASK;
+    ui->frame_style = flags & SWR_UI_TEXT_FLAGS_MASK;
     swrUI_RunCallbacksScreenText(ui, text, swrUI_TEXT_ALIGN_CENTER);
     swrUI_BuildHighlightSprites(ui, 0);
     swrUI_RunCallbacks2(ui, 1);
@@ -727,15 +727,15 @@ swrUI_unk* swrUI_NewScreenText(swrUI_unk* parent, int id, int index, char* text,
     ui = swrUI_New(parent, id, index, text, flags, sizeUnk, 0, (swrUI_unk_F1)swrUI_ScreenTextProc, NULL);
     swrUI_SetSize(ui, width, height);
     swrUI_SetPos(ui, x, y);
-    ui->text_flags = flags & SWR_UI_TEXT_FLAGS_MASK;
+    ui->frame_style = flags & SWR_UI_TEXT_FLAGS_MASK;
     swrUI_BuildHighlightSprites(ui, 0);
-    if (ui->text_flags & swrUI_SCREEN_TEXT_INDENT_1) {
+    if (ui->frame_style & swrUI_SCREEN_TEXT_INDENT_1) {
         textFlags = swrUI_TEXT_ALIGN_INDENT_1;
     } else {
         textFlags = swrUI_TEXT_ALIGN_CENTER_Y;
-        if ((ui->text_flags & swrUI_SCREEN_TEXT_PLAIN) == 0) {
+        if ((ui->frame_style & swrUI_SCREEN_TEXT_PLAIN) == 0) {
             swrUI_SetValue(ui, swrUI_TEXT_ALIGN_CENTER_Y);
-            if (ui->text_flags != 0)
+            if (ui->frame_style != 0)
                 textFlags = swrUI_TEXT_ALIGN_INDENT_5 | swrUI_TEXT_ALIGN_CENTER_Y;
         }
     }
