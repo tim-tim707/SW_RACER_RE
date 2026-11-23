@@ -22,7 +22,8 @@ void lockstep_pin_inputs(void);
 
 // Once per presented frame: reads lockstep.txt and updates the fast-forward state.
 void lockstep_frame_service(void);
-// After swrObjHang_F0: autostarts a replay from the main menu.
+// After swrObjHang_F0: autostarts the race from the main menu (replay: the recorded one; record:
+// the hangar's choice, overridden by `track`/`laps`/`pod`/`mirror`/`racers` in lockstep.txt).
 void lockstep_hang_f0(struct swrObjHang *hang);
 // True while a replay runs on the pinned dt: the frame limiter and vsync are skipped.
 bool lockstep_fast_forward(void);
