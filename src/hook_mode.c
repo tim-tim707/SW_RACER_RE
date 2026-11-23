@@ -145,11 +145,18 @@ int hook_verify_requested(void)
     return hook_mode_verify;
 }
 
-void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, int force_reimpl, FILE* hook_log)
+void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, FILE* hook_log)
 {
-    hook_mode mode = force_reimpl ? HOOK_MODE_REIMPL : hook_mode_for(function_name);
+    hook_mode mode;
 
-    if (!force_reimpl && mode != HOOK_MODE_ORIGINAL && hook_mode_delta_owned != NULL && hook_mode_delta_owned(reimpl_addr)) {
+    if (kind == HOOK_INSTALL_FORCE_REIMPL)
+        mode = HOOK_MODE_REIMPL;
+    else if (kind == HOOK_INSTALL_PIN_ORIGINAL)
+        mode = HOOK_MODE_ORIGINAL;
+    else
+        mode = hook_mode_for(function_name);
+
+    if (kind == HOOK_INSTALL_CONFIGURABLE && mode != HOOK_MODE_ORIGINAL && hook_mode_delta_owned != NULL && hook_mode_delta_owned(reimpl_addr)) {
         fprintf(hook_log, "\t[Delta] %s: replaced by the delta layer, configured mode ignored\n", function_name);
         mode = HOOK_MODE_ORIGINAL;
     }

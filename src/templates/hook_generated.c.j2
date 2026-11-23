@@ -11,11 +11,11 @@
 // src are changed
 
 // Each entry pairs our reimplementation with its retail address; hook_install() decides which the
-// game reaches (see hook_mode.h). The last argument marks `// 0xADDR HOOK` functions, always live.
+// game reaches (see hook_mode.h and hook_install_kind).
 void hook_generated(FILE* hook_log)
 {
 {%- for f in functions %}
-    hook_install("{{f.name}}", (uint32_t){{f.reimpl_addr}}, (uint32_t){{f.retail_addr}}, {{f.force_reimpl}}, hook_log);
+    hook_install("{{f.name}}", (uint32_t){{f.reimpl_addr}}, (uint32_t){{f.retail_addr}}, {{f.kind}}, hook_log);
 {% endfor -%}
     hook_mode_log_summary(hook_log);
 }

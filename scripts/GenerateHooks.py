@@ -24,7 +24,8 @@ project_root = script_dir.parent.absolute()
 c_files = []
 h_files = []
 ignore_list = ["hook_generated.c"]
-# reverse_hooks_blacklist = []
+# Retail entries a delta hooks by hand (renderer_hook.cpp). These never follow reimpl_config.txt:
+# they are emitted pinned to `original`, so our symbol still lands where retail's callers do.
 hooks_blacklist = [
     # main
     "WinMain",
@@ -148,6 +149,7 @@ h_files = [h for h in h_files if os.path.basename(h) != "hook_mode.h"]
 
 ccode = {"functions": [], "headers": h_files}
 hook_count = 0
+pinned_count = 0
 total_count = 0
 hook_address = ""
 next_line_is_hooked = False
@@ -159,7 +161,7 @@ for source in c_files:
             # Both annotations emit the same pair (our body, the retail address); only
             # `HOOK` forces the redirect to point at our body. Which way an unforced
             # entry is wired is a runtime decision -- see src/hook_mode.h.
-            function = {"reimpl_addr": "", "retail_addr": "", "force_reimpl": 0}
+            function = {"reimpl_addr": "", "retail_addr": "", "kind": "HOOK_INSTALL_CONFIGURABLE"}
             if next_line_is_hooked:
                 next_line_is_hooked = False
                 # check if function is commented out
@@ -170,14 +172,16 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
-                    if (function_name in hooks_blacklist):
-                        continue
                     function["name"] = function_name
                     function["reimpl_addr"] = function_name
                     function["retail_addr"] = hook_address
-                    function["force_reimpl"] = 1
+                    if function_name in hooks_blacklist:
+                        function["kind"] = "HOOK_INSTALL_PIN_ORIGINAL"
+                        pinned_count += 1
+                    else:
+                        function["kind"] = "HOOK_INSTALL_FORCE_REIMPL"
+                        hook_count += 1
                     ccode["functions"].append(function)
-                    hook_count += 1
                     total_count += 1
                 continue
             if next_line_is_reverse_hooked:
@@ -189,12 +193,12 @@ for source in c_files:
                 f = function_match.search(line)
                 if f != None:
                     function_name = f.group(1)
-                    if (function_name in hooks_blacklist):
-                        continue
                     function["name"] = function_name
                     function["reimpl_addr"] = function_name
                     function["retail_addr"] = hook_address
-                    function["force_reimpl"] = 0
+                    if function_name in hooks_blacklist:
+                        function["kind"] = "HOOK_INSTALL_PIN_ORIGINAL"
+                        pinned_count += 1
                     ccode["functions"].append(function)
                     total_count += 1
                 continue
@@ -212,8 +216,8 @@ for source in c_files:
 if (total_count > 0):
     # The runtime counts are what actually matter now (hook_mode_log_summary writes
     # them to hook.log); this is just the codegen-time tally for the build output.
-    print(f"{total_count} reimplementations, {hook_count} force-hooked, "
-          f"{total_count - hook_count} runtime-configurable")
+    print(f"{total_count} reimplementations, {hook_count} force-hooked, {pinned_count} pinned original, "
+          f"{total_count - hook_count - pinned_count} runtime-configurable")
 else:
     print("Total Hook Count is 0 ! Something is wrong in GenerateHooks.py")
 
