@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include <windows.h>
@@ -14,6 +15,9 @@ extern "C" {
 #include <Swr/swrRace.h> // swrRace_IncrementFrameTimer_ADDR
 #include <Swr/swrObj.h>  // swrObjHang_StartRace_ADDR
 #include <Swr/swrEvent.h>// swrEvent_GetItem_ADDR
+#include <Swr/swrSpline.h>
+#include <Engine/rdCamera.h>
+#include <Main/swrControl.h>
 #include <engine_config.h>
 #include <globals.h>
 #include <types.h>
@@ -37,7 +41,7 @@ constexpr int kJdgeStateRacing = 1;
 constexpr int kMaxRacers = 20;// swrScores[20]
 constexpr int kMaxAnimations = 300;// swrScene_animations[300]
 constexpr uint32_t kFileMagic = 0x31534b4c;// "LKS1"
-constexpr uint32_t kFileVersion = 1;
+constexpr uint32_t kFileVersion = 2;
 
 enum Mode { MODE_OFF, MODE_RECORD, MODE_REPLAY };
 
@@ -80,6 +84,22 @@ constexpr size_t kAnimScalarsBegin = offsetof(swrModel_Animation, loop_transitio
 constexpr size_t kAnimScalarsEnd = offsetof(swrModel_Animation, key_frame_times);
 constexpr size_t kAnimScalarsSize = kAnimScalarsEnd - kAnimScalarsBegin;
 
+// The hangar's race setup at swrObjHang_StartRace, so a replay can start the same race itself.
+struct RaceSetup {
+    int32_t demoMode;
+    int8_t trackIndex;
+    int8_t circuitIdx;
+    int8_t isTournamentMode;
+    int8_t timeAttackMode;
+    int8_t mirror;
+    int8_t localPlayers;
+    int8_t numPlayers;
+    int8_t vehiclePlayer;
+    int8_t numLaps;
+    int8_t aiSpeed;
+    int8_t pad[2];
+};
+
 struct FileHeader {
     uint32_t magic;
     uint32_t version;
@@ -89,6 +109,7 @@ struct FileHeader {
     int32_t animCount;
     int32_t racerCount;
     int32_t startRaceRandState;// at swrObjHang_StartRace entry: seeds the AI roster
+    RaceSetup setup;
 };
 
 struct FrameHashes {
@@ -121,6 +142,14 @@ struct State {
     bool haveStartRaceRand = false;
     bool headerRead = false;
     FileHeader hdr = {};
+    RaceSetup setup = {};// record: captured at StartRace
+    bool autostart = false;// replay: start the recorded race from the main menu, no menu input
+    bool exitWhenDone = false;
+    bool autostarted = false;
+    bool fastForward = false;
+    bool vanilla = false;// no sim-affecting deltas or mods: retail plus whatever reimpl_config.txt makes live
+    char rerecordPath[MAX_PATH] = "";// replay: also write the inputs with this run's hashes as a new recording
+    FILE *out = nullptr;
     char lastSignature[512] = "";
     bool haveInputs = false;// replay: the next frame's input block is loaded; ProcessInputs pins it
     std::vector<uint8_t> inputs;
@@ -191,6 +220,14 @@ void read_config() {
                 snprintf(s.path, sizeof(s.path), "%s", val);
         } else if (strcmp(key, "hz") == 0) {
             s.hz = (float) atof(val);
+        } else if (strcmp(key, "autostart") == 0) {
+            s.autostart = true;
+        } else if (strcmp(key, "vanilla") == 0) {
+            s.vanilla = true;
+        } else if (strcmp(key, "rerecord") == 0 && val[0]) {
+            snprintf(s.rerecordPath, sizeof(s.rerecordPath), "%s", val);
+        } else if (strcmp(key, "exit_when_done") == 0) {
+            s.exitWhenDone = true;
         } else if (strcmp(key, "dump_at") == 0) {
             s.dumpAt = atoi(val);
             s.dumpTo = val2[0] ? atoi(val2) : s.dumpAt;
@@ -349,6 +386,11 @@ void stop(const char *why) {
         fclose(s.file);
         s.file = nullptr;
     }
+    if (s.out) {
+        fclose(s.out);
+        s.out = nullptr;
+        log_line("lockstep: rerecorded %u frames to %s", s.frame, s.rerecordPath);
+    }
     swr_FastMode = s.savedFastMode;
     swr_fixedDeltaTimeSecs = s.savedFixedDt;
     s.pinDt = false;
@@ -366,6 +408,11 @@ void stop(const char *why) {
     if (hook_log) {
         fprintf(hook_log, "[lockstep] %s: %u frames, %u mismatched\n", why, s.frame, s.mismatches);
         fflush(hook_log);
+    }
+    if (s.exitWhenDone) {
+        if (s.log)
+            fclose(s.log);
+        ExitProcess(s.mismatches == 0 || s.rerecordPath[0] ? 0 : 1);
     }
 }
 
@@ -402,7 +449,7 @@ bool start() {
         }
         FileHeader hdr = {kFileMagic,   kFileVersion,  s.hz,
                           (uint32_t) s.inputs.size(), swrUtils_randState, animCount,
-                          racer_count(), s.haveStartRaceRand ? s.startRaceRand : swrUtils_randState};
+                          racer_count(), s.haveStartRaceRand ? s.startRaceRand : swrUtils_randState, s.setup};
         if (!s.haveStartRaceRand)
             log_line("lockstep: StartRace not seen, the AI roster won't be pinned");
         fwrite(&hdr, sizeof(hdr), 1, s.file);
@@ -421,6 +468,15 @@ bool start() {
         if (!restore_anim_scalars(s.file, animCount)) {
             log_line("lockstep: truncated header");
             return false;
+        }
+        if (s.rerecordPath[0]) {
+            s.out = fopen(s.rerecordPath, "wb");
+            if (s.out == nullptr) {
+                log_line("lockstep: cannot write %s", s.rerecordPath);
+                return false;
+            }
+            fwrite(&hdr, sizeof(hdr), 1, s.out);
+            write_anim_scalars(s.out);
         }
     }
     s.frame = 0;
@@ -488,7 +544,12 @@ void frame_step() {
             stop("recording ended");
             return;
         }
-        compare(want, hash_state());
+        const FrameHashes got = hash_state();
+        compare(want, got);
+        if (s.out) {
+            fwrite(s.inputs.data(), s.inputs.size(), 1, s.out);
+            fwrite(&got, sizeof(got), 1, s.out);
+        }
         s.haveInputs = fread(s.inputs.data(), s.inputs.size(), 1, s.file) == 1;
     }
     if ((int) s.frame >= s.dumpAt && (int) s.frame <= s.dumpTo)
@@ -557,6 +618,11 @@ extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *ros
         if (s.mode == MODE_RECORD) {
             s.startRaceRand = swrUtils_randState;
             s.haveStartRaceRand = true;
+            const RaceSetup setup = {hang->demo_mode,      hang->track_index,   hang->circuitIdx,
+                                     hang->isTournamentMode, hang->timeAttackMode, hang->bMirror,
+                                     hang->num_local_players, hang->num_players,  hang->vehiclePlayer,
+                                     hang->numLaps,        hang->AISpeed,       {0, 0}};
+            memcpy(&s.setup, &setup, sizeof(setup));
         } else if (s.headerRead || open_replay()) {
             s.hz = s.hdr.hz;
             swrUtils_randState = s.hdr.startRaceRandState;
@@ -569,4 +635,130 @@ extern "C" void __cdecl swrObjHang_StartRace_lockstep(swrObjHang *hang, int *ros
         }
     }
     hook_call_original((StartRace_t) swrObjHang_StartRace_ADDR, hang, rosterArg, noBroadcast);
+}
+
+typedef void(__cdecl *LoadScreen_t)(swrObjHang *, int, int);
+
+// Frames the main menu must have been up before autostart, so the profile and hangar are settled.
+constexpr int kAutostartMenuFrames = 30;
+
+extern "C" void lockstep_frame_service(void) {
+    if (!s.configRead)
+        read_config();
+    s.fastForward = s.mode == MODE_REPLAY && s.pinDt && !s.finished;
+}
+
+// Called after the hangar's own F0, the slot where retail's menus call LoadScreen, so the rest of
+// that frame (the new racers' first tick) runs exactly as it does after a menu-driven start.
+extern "C" void lockstep_hang_f0(swrObjHang *hang) {
+    static bool inService = false;
+    if (inService)
+        return;
+    if (!s.configRead)
+        read_config();
+    if (s.mode != MODE_REPLAY || !s.autostart || s.autostarted || s.finished)
+        return;
+    static int menuFrames = 0;
+    if (hang == nullptr ||
+        (hang->menuScreen != swrObjHang_STATE_SPLASH && hang->menuScreen != swrObjHang_STATE_MAIN_MENU)) {
+        menuFrames = 0;
+        return;
+    }
+    if (++menuFrames < kAutostartMenuFrames)
+        return;
+    if (!s.headerRead && !open_replay()) {
+        s.finished = true;
+        return;
+    }
+    const RaceSetup &r = s.hdr.setup;
+    hang->demo_mode = r.demoMode;
+    hang->track_index = r.trackIndex;
+    hang->circuitIdx = r.circuitIdx;
+    hang->isTournamentMode = r.isTournamentMode;
+    hang->timeAttackMode = r.timeAttackMode;
+    hang->bMirror = r.mirror;
+    hang->num_local_players = r.localPlayers;
+    hang->num_players = r.numPlayers;
+    hang->vehiclePlayer = r.vehiclePlayer;
+    hang->numLaps = r.numLaps;
+    hang->AISpeed = r.aiSpeed;
+    s.autostarted = true;
+    log_line("lockstep: autostart track %d, %d racers, %d laps, pod %d", r.trackIndex, r.numPlayers, r.numLaps,
+             r.vehiclePlayer);
+    inService = true;
+    ((LoadScreen_t) swrObjHang_LoadScreen_ADDR)(hang, 1, 0);
+    inService = false;
+}
+
+extern "C" bool lockstep_fast_forward(void) { return s.fastForward; }
+
+extern "C" bool lockstep_vanilla(void) {
+    if (!s.configRead) {
+        read_config();
+        char cwd[MAX_PATH] = "";
+        GetCurrentDirectoryA(sizeof(cwd), cwd);
+        fprintf(hook_log, "[lockstep] config read from %s: mode %d vanilla %d\n", cwd, (int) s.mode, (int) s.vanilla);
+        fflush(hook_log);
+    }
+    return s.vanilla;
+}
+
+// Vanilla mode keeps lockstep's own pins on these two; everything else the deltas did is dropped.
+extern "C" void __cdecl swrControl_ProcessInputs_lockstep(void) {
+    hook_call_original(swrControl_ProcessInputs);
+    lockstep_pin_inputs();
+}
+
+extern "C" void __cdecl swrObjHang_F0_lockstep(swrObjHang *hang) {
+    hook_call_original(swrObjHang_F0, hang);
+    lockstep_hang_f0(hang);
+}
+
+namespace {
+
+// Delta registrations that can reach the sim. Renderer, platform, asset loading (passthrough on stock
+// data), text/sprite/UI drawing, sound and networking stay: retail can't run without the GL takeover.
+const char *const kSimPrefixes[] = {"swrRace_", "swrObj", "swrSpline_", "swrControl_", "swrMain_", "swrWeather_",
+                                    "rdMatrix_", "rdCamera_"};
+
+bool sim_delta(const std::string &name) {
+    if (name == "swrRace_IncrementFrameTimer" || name == "swrObjHang_StartRace")
+        return false;// lockstep's own hooks
+    for (const char *p: kSimPrefixes)
+        if (name.compare(0, strlen(p), p) == 0)
+            return true;
+    return false;
+}
+
+}// namespace
+
+// Runs before hook_generated(): what is dropped here is no longer delta-owned, so reimpl_config.txt
+// can bring those functions live too.
+extern "C" void lockstep_vanilla_filter(void) {
+    if (!lockstep_vanilla())
+        return;
+    int dropped = 0;
+    for (auto it = hooks.begin(); it != hooks.end();) {
+        if (sim_delta(it->second.name)) {
+            fprintf(hook_log, "[lockstep vanilla] dropping delta %s\n", it->second.name.c_str());
+            hook_replacements.erase(it->second.address);
+            hook_replacements.erase(it->second.original_address);
+            it = hooks.erase(it);
+            dropped++;
+        } else {
+            ++it;
+        }
+    }
+    // Replacements on reverse-hooked bodies that never went through hook_function().
+    void *const reverseOnly[] = {(void *) rdCamera_Update,           (void *) swrObjHang_ResultsMenu,
+                                 (void *) swrObjJdge_F0,             (void *) swrObjJdge_F2,
+                                 (void *) swrObjJdge_InitTrack,      (void *) swrRace_CopyProfileFromSave,
+                                 (void *) swrRace_InRaceEndStatistics, (void *) swrSpline_CursorSeekToProgress,
+                                 (void *) swrSpline_EvaluateToMatrix, (void *) swrSpline_LoadSplineById};
+    for (void *f: reverseOnly)
+        dropped += (int) hook_replacements.erase(f);
+    hook_replacements[(void *) swrControl_ProcessInputs] = (void *) swrControl_ProcessInputs_lockstep;
+    hook_replacements[(void *) swrObjHang_F0] = (void *) swrObjHang_F0_lockstep;
+    fprintf(hook_log, "[lockstep vanilla] dropped %d sim deltas\n", dropped);
+    fflush(hook_log);
 }

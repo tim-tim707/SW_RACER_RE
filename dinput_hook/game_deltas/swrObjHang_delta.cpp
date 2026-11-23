@@ -8,6 +8,7 @@ extern "C" {
 }
 
 #include "../hook_helper.h"
+#include "../lockstep.h"
 #include "../imgui_utils.h"// imgui_state cutscene-skip toggles ("Game" settings panel)
 
 // Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
@@ -38,6 +39,7 @@ void swrObjHang_F0_delta(swrObjHang *hang) {
     }
 
     hook_call_original(swrObjHang_F0, hang);
+    lockstep_hang_f0(hang);
 }
 
 // --- cutscene auto-skip ----------------------------------------------------------------------

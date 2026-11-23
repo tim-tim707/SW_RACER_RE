@@ -2,6 +2,7 @@
 // Mod module registry (modding API, issue #153). See mod_registry.h.
 //
 #include "mod_registry.h"
+#include "lockstep.h"
 
 #include <cstdarg>
 #include <cstdio>
@@ -74,6 +75,10 @@ bool enable_mod(ModId id) {
     ModEntry &e = g_mods[id];
     if (e.enabled)
         return true;
+    if (lockstep_vanilla()) {
+        log("[mods] '%s' skipped: lockstep vanilla\n", e.mod->name);
+        return true;
+    }
 
     if (e.mod->depends_on) {
         for (const char *const *req = e.mod->depends_on; *req; req++) {
