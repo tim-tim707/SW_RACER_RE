@@ -4558,7 +4558,7 @@ void swrObjHang_VehicleStatisticsSubMenu(swrObjHang* hang, float x, float y)
 // (flicker, "New Record" blink, fanfare guard, FINAL LAP banner), the running TIME when no popup
 // is up, the LAP and POS counters, and the speed dial.
 // 0x00460950
-void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
+RETAIL_FP void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
 {
     swrRace* pod;
     char* text;
@@ -4567,7 +4567,7 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     float speed;
     float lastLapTime;
     float fade;
-    float flicker;
+    long double flicker;// truncated straight from ST in retail
     int numLocal;
     int isPlayer2;
     int dialY;
@@ -4586,8 +4586,10 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
     pod = score->obj_test_ptr;
     isPlayer2 = (score == secondLocalPlayer) ? 1 : 0;
     if (swrRace_GetPauseState() == 0) {
-        pod->vibrationMagnitude = (float)(pod->vibrationMagnitude - swrRace_deltaTimeSecs);
-        if (pod->vibrationMagnitude < 0.0f)
+        // retail tests the unrounded difference
+        long double vib = pod->vibrationMagnitude - swrRace_deltaTimeSecs;
+        pod->vibrationMagnitude = vib;
+        if (vib < 0.0f)
             pod->vibrationMagnitude = 0.0f;
     }
     swrObjJdge_LayoutHudFrameSprites(jdge->hud_mode == swrObjJdge_HUDMODE_PROGRESS_RING ? 5 : (jdge->hud_mode == swrObjJdge_HUDMODE_GAP_ARROWS ? 2 : 0));
@@ -4653,9 +4655,9 @@ void swrRace_InRaceTimer(swrScore* score, swrObjJdge* jdge)
             if (lap + 1 == jdge->num_laps) {
                 if (numLocalPlayers < 2) {
                     // FINAL LAP banner, fading in over the second half of the popup window
-                    fade = (fade - 0.5f) * 2.0f;
-                    if (0.0f < fade) {
-                        alpha = (int)(fade * 255.0f) * 4;
+                    long double bannerFade = (fade - 0.5f) * 2.0f;// unrounded in retail
+                    if (0.0f < bannerFade) {
+                        alpha = (int)(bannerFade * 255.0f) * 4;
                         if (255 < alpha)
                             alpha = 255;
                         colR = (int)(pauseState == 0 ? (long double)swrUtils_Rand() * (1.0f / 2147483648.0f) * 255.0f : 191.25f);
@@ -8646,7 +8648,7 @@ RETAIL_FP void swrRace_ApplyTraction(swrRace* player, float b, rdVector3* c, rdV
 }
 
 // 0x0044acb0
-int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
+RETAIL_FP int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
 {
     rdVector3 seg;
     seg.x = curPos->x - prevPos->x;
@@ -8654,9 +8656,9 @@ int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* m
     seg.z = curPos->z - prevPos->z;
 
     float len = rdVector_Len3(&seg);
-    if (0.001f < len) {
+    if ((float)0.001f < len) {
         // Cast a ray from prevPos along the unit movement direction, over the segment length.
-        float inv = 1.0f / len;
+        long double inv = 1.0f / len;// unrounded in retail
         float ray[7];
         ray[0] = prevPos->x;
         ray[1] = prevPos->y;
@@ -8671,8 +8673,9 @@ int swrRace_CollideTrack(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* m
         if (0.0f <= dist) {
             // Push curPos back out past the contact plane along the normal (+2.0 of clearance,
             // i.e. the stored -2.0 skin subtracted).
+            // retail sums the second dot product y, z, x
             float push = (normal.x * hitPoint.x + normal.y * hitPoint.y + normal.z * hitPoint.z) -
-                         (normal.x * curPos->x + normal.y * curPos->y + normal.z * curPos->z) + 2.0f;
+                         (normal.y * curPos->y + normal.z * curPos->z + curPos->x * normal.x) + 2.0f;
             curPos->x += normal.x * push;
             curPos->y += normal.y * push;
             curPos->z += normal.z * push;
@@ -9357,7 +9360,7 @@ void swrRace_IncrementFrameTimer(void)
 }
 
 // 0x0044abc0
-int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
+RETAIL_FP int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Node* model, rdVector3* outNormal)
 {
     rdVector3 hit;
     float ray[7]; // origin xyz, unit direction xyz, max distance
@@ -9368,8 +9371,8 @@ int swrRace_CollideBlockMove(rdVector3* curPos, rdVector3* prevPos, swrModel_Nod
     delta.y = curPos->y - prevPos->y;
     delta.z = curPos->z - prevPos->z;
     ray[6] = rdVector_Len3(&delta);
-    if (0.001f < ray[6]) {
-        float invLen = 1.0f / ray[6];
+    if ((float)0.001f < ray[6]) {
+        long double invLen = 1.0f / ray[6];// unrounded in retail
         ray[0] = prevPos->x;
         ray[1] = prevPos->y;
         ray[2] = prevPos->z;
