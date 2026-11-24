@@ -1327,7 +1327,7 @@ extern "C" CallOut *shadow_dispatch(uint32_t *frame) {
     if (r.popped != 0)
         fn->disabled = true;
 
-    g_result = r;
+    memcpy(&g_result, &r, sizeof(r));
 
     QueryPerformanceCounter(&t1);
     g_ticks += t1.QuadPart - t0.QuadPart;
