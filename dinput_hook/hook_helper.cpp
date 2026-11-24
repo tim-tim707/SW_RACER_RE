@@ -55,8 +55,9 @@ static void route_reimpl_to(void *reimpl, void *delta) {
         WriteMemory("hook_replace_route", reimpl, jmp, sizeof(jmp));
 }
 
-static int delta_owned(uint32_t reimpl_addr) {
-    return hook_replacements.contains((void *) reimpl_addr);
+// A delta owns a function it hook_replace()s, or whose retail entry it hooks directly.
+static int delta_owned(uint32_t reimpl_addr, uint32_t retail_addr) {
+    return hook_replacements.contains((void *) reimpl_addr) || hooks.contains((void *) retail_addr);
 }
 
 extern "C" void init_hooks() {

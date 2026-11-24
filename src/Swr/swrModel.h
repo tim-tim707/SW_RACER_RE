@@ -324,7 +324,7 @@ void swrModel_MeshCollisionFaceCallback(swrModel_CollisionVertex* vertices, int1
 
 void swrModel_MeshCollisionFaceCallback2Indexed(swrModel_CollisionVertex* a1, int16_t primitive_type, uint16_t* indices);
 void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t primitive_type);
-void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh);
+float swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh);
 
 // Broad-phase: triangle/quad vs the active collision bounds.
 int swrModel_QuadInCollisionBounds(float* a, float* b, float* c, float* d);
