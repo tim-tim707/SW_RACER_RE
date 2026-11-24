@@ -24,11 +24,20 @@ void* c_realloc(void* ptr, size_t size);
 
 #ifndef CSTDLIB_HEAP_ONLY
 
-// ctype.h
+// io.h
+#define _close_ADDR (0x004a03e0)
+#define _close c__close
+int _close(int fd);
+
 #define _filelength_ADDR (0x004a04e0)
 #define _filelength c__filelength
 long _filelength(int fd);
 
+#define _open_ADDR (0x004a0590)
+#define _open c__open
+int _open(const char* filename, int oflag);
+
+// ctype.h
 #define _isctype_ADDR (0x0049f440)
 #define _isctype c__isctype
 int _isctype(int c, int desc);

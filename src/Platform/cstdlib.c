@@ -9,9 +9,21 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
-// ctype.h
+// io.h
+// 0x004a03e0
+int c__close(int fd)
+{
+    HANG("game CRT, reverse-hooked to retail");
+}
+
 // 0x004a04e0
 long c__filelength(int fd)
+{
+    HANG("game CRT, reverse-hooked to retail");
+}
+
+// 0x004a0590
+int c__open(const char* filename, int oflag)
 {
     HANG("game CRT, reverse-hooked to retail");
 }

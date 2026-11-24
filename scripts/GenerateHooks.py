@@ -102,6 +102,10 @@ hooks_blacklist = [
     "swrViewport_Render",
     # swrModel
     "swrModel_LoadFromId",
+    # swrModel_InitializeTextureBuffer_delta repoints these at its resizable texture buffer by
+    # patching their instructions, so our bodies (which use the fixed retail array) can't stand in
+    "swrModel_LoadModelTexture",
+    "swrAssetBuffer_InvalidateTexturesBelow",
     # Window
     "Window_SetActivated",
     "Window_Resize",
