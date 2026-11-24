@@ -18,7 +18,24 @@ typedef enum hook_mode
     // Redirect neither: the game keeps running retail, and a harness can call our symbol directly
     // and reach retail through hook_retail_ptr().
     HOOK_MODE_BOTH = 2,
+    // The game keeps running retail, and every call also runs our body on the same state; the shadow
+    // harness (dinput_hook/shadow.cpp) compares the two and keeps retail's result.
+    HOOK_MODE_SHADOW = 3,
 } hook_mode;
+
+// What a function returns, as written on its definition, so the shadow harness knows which
+// registers carry the result.
+typedef enum hook_ret_kind
+{
+    HOOK_RET_VOID = 0,
+    HOOK_RET_INT32 = 1,
+    HOOK_RET_INT8 = 2,
+    HOOK_RET_INT16 = 3,
+    HOOK_RET_INT64 = 4,
+    HOOK_RET_FLOAT = 5,
+    // Not __cdecl: the shadow harness cannot call it on a copy of the arguments.
+    HOOK_RET_UNSUPPORTED = 6,
+} hook_ret_kind;
 
 // Read from the working directory at first use. An absent file leaves every reimplementation
 // dormant, i.e. the shipped behaviour.
@@ -39,6 +56,11 @@ int hook_verify_requested(void);
 // and its hook_call_original() needs the original-mode registration. NULL without a delta layer.
 extern int (*hook_mode_delta_owned)(uint32_t reimpl_addr, uint32_t retail_addr);
 
+// Set by the shadow harness before hook_generated() runs. Returns the entry the retail address
+// should be redirected to, or NULL when the function cannot be shadowed (it then falls back to
+// `both`). NULL when the harness is not linked.
+extern void* (*hook_mode_shadow_entry)(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_ret_kind ret);
+
 typedef enum hook_install_kind
 {
     // `// 0xADDR`: the mode comes from reimpl_config.txt.
@@ -51,7 +73,7 @@ typedef enum hook_install_kind
     HOOK_INSTALL_PIN_ORIGINAL = 2,
 } hook_install_kind;
 
-void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, FILE* hook_log);
+void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, hook_ret_kind ret, FILE* hook_log);
 
 // Log what hook_install() actually did across the whole table.
 void hook_mode_log_summary(FILE* hook_log);

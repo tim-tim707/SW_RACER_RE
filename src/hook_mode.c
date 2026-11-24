@@ -19,11 +19,12 @@ static int hook_mode_rule_count = 0;
 static int hook_mode_verify = 0;
 static int hook_mode_config_loaded = 0;
 
-static int hook_mode_counts[3] = { 0, 0, 0 };
+static int hook_mode_counts[4] = { 0, 0, 0, 0 };
 
 static uint8_t* hook_mode_image_base = NULL;
 
 int (*hook_mode_delta_owned)(uint32_t reimpl_addr, uint32_t retail_addr) = NULL;
+void* (*hook_mode_shadow_entry)(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_ret_kind ret) = NULL;
 
 uint8_t* hook_retail_ptr(uint32_t retail_addr)
 {
@@ -63,11 +64,15 @@ static int hook_mode_parse_mode(const char* token, hook_mode* out)
         *out = HOOK_MODE_BOTH;
         return 1;
     }
+    if (strcmp(token, "shadow") == 0) {
+        *out = HOOK_MODE_SHADOW;
+        return 1;
+    }
     return 0;
 }
 
 // Config grammar, one directive per line, '#' starts a comment:
-//   <mode> <pattern>   mode = original | reimpl | both; pattern may end in '*'
+//   <mode> <pattern>   mode = original | reimpl | both | shadow; pattern may end in '*'
 //   verify             run the differential self-test once at startup
 // Later rules win, so `reimpl *` followed by `original swrSound_*` reads naturally.
 static void hook_mode_load_config(void)
@@ -145,9 +150,10 @@ int hook_verify_requested(void)
     return hook_mode_verify;
 }
 
-void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, FILE* hook_log)
+void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t retail_addr, hook_install_kind kind, hook_ret_kind ret, FILE* hook_log)
 {
     hook_mode mode;
+    void* shadow_entry = NULL;
 
     if (kind == HOOK_INSTALL_FORCE_REIMPL)
         mode = HOOK_MODE_REIMPL;
@@ -159,6 +165,15 @@ void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t reta
     if (kind == HOOK_INSTALL_CONFIGURABLE && mode != HOOK_MODE_ORIGINAL && hook_mode_delta_owned != NULL && hook_mode_delta_owned(reimpl_addr, retail_addr)) {
         fprintf(hook_log, "\t[Delta] %s: replaced by the delta layer, configured mode ignored\n", function_name);
         mode = HOOK_MODE_ORIGINAL;
+    }
+
+    if (mode == HOOK_MODE_SHADOW) {
+        if (hook_mode_shadow_entry != NULL)
+            shadow_entry = hook_mode_shadow_entry(function_name, reimpl_addr, retail_addr, ret);
+        if (shadow_entry == NULL) {
+            fprintf(hook_log, "\t[Shadow] %s: cannot be shadowed, left unredirected\n", function_name);
+            mode = HOOK_MODE_BOTH;
+        }
     }
 
     hook_mode_counts[mode]++;
@@ -176,6 +191,13 @@ void hook_install(const char* function_name, uint32_t reimpl_addr, uint32_t reta
         // Deliberately unredirected so both bodies stay comparable.
         fprintf(hook_log, "\t[Both] %s <-> 0x%08x\n", function_name, retail_addr);
         break;
+    case HOOK_MODE_SHADOW:
+        // Our symbol reaches retail like in original mode; retail's entry reaches the harness,
+        // which runs both bodies through the Detours trampolines of these two redirects.
+        fprintf(hook_log, "\t[Shadow] %s <-> 0x%08x\n", function_name, retail_addr);
+        hook_function(function_name, reimpl_addr, (uint8_t*)retail_addr);
+        hook_function(function_name, retail_addr, (uint8_t*)shadow_entry);
+        break;
     }
 }
 
@@ -184,9 +206,10 @@ void hook_mode_log_summary(FILE* hook_log)
     int live = hook_mode_counts[HOOK_MODE_REIMPL];
     int dormant = hook_mode_counts[HOOK_MODE_ORIGINAL];
     int compared = hook_mode_counts[HOOK_MODE_BOTH];
-    int total = dormant + live + compared;
+    int shadowed = hook_mode_counts[HOOK_MODE_SHADOW];
+    int total = dormant + live + compared + shadowed;
     double percent = total > 0 ? (double)live * 100.0 / (double)total : 0.0;
 
-    fprintf(hook_log, "Hooked [%d/%d] functions (%.2f%%), %d left original, %d unredirected for comparison\n", live, total, percent, dormant, compared);
+    fprintf(hook_log, "Hooked [%d/%d] functions (%.2f%%), %d left original, %d unredirected for comparison, %d shadowed\n", live, total, percent, dormant, compared, shadowed);
     fflush(hook_log);
 }

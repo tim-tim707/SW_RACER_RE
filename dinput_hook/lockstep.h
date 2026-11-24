@@ -29,6 +29,9 @@ void lockstep_hang_f0(struct swrObjHang *hang);
 bool lockstep_fast_forward(void);
 // `vanilla` in lockstep.txt: drop every sim-affecting delta and mod, so the run is retail + reimpls.
 bool lockstep_vanilla(void);
+// Frame number inside a running lockstep race, -1 outside one (the shadow harness logs it).
+int lockstep_shadow_frame(void);
+
 // Called by init_hooks() before the reimpl table is installed.
 void lockstep_vanilla_filter(void);
 
@@ -38,4 +41,35 @@ void __cdecl swrObjHang_StartRace_lockstep(struct swrObjHang *hang, int *rosterA
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+#include <cstdint>
+
+// Read-out and controls for the Verification window (Debug > Verification).
+struct LockstepStatus {
+    int mode;// 0 off, 1 record, 2 replay
+    bool armed;// record: waiting for the next race to start
+    bool active;// inside a captured race
+    bool finished;
+    uint32_t frame;
+    float hz;
+    uint32_t mismatches;// replay
+    int first_mismatch;
+    const char *path;
+    const char *last_result;// last race's outcome, "" before one
+    bool continuous;
+    bool auto_name;
+    bool fixed_timestep_on;// recording refuses to start while it is on
+    bool vanilla;
+    bool dt_pinned;
+};
+
+void lockstep_get_status(LockstepStatus *st);
+// Arms recording of the next race started from the menus (a race already under way is skipped),
+// to recordings/race_<time>_t<track>.bin at a fixed dt of 1/hz. False while a replay or capture runs.
+bool lockstep_arm_record(float hz, bool continuous);
+void lockstep_set_continuous(bool on);
+// Stops a capture in progress (the file keeps what was recorded) or cancels the armed one.
+void lockstep_disarm(void);
 #endif

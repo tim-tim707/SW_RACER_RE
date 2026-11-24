@@ -15,7 +15,7 @@
 void hook_generated(FILE* hook_log)
 {
 {%- for f in functions %}
-    hook_install("{{f.name}}", (uint32_t){{f.reimpl_addr}}, (uint32_t){{f.retail_addr}}, {{f.kind}}, hook_log);
+    hook_install("{{f.name}}", (uint32_t){{f.reimpl_addr}}, (uint32_t){{f.retail_addr}}, {{f.kind}}, {{f.ret}}, hook_log);
 {% endfor -%}
     hook_mode_log_summary(hook_log);
 }

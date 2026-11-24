@@ -6,6 +6,7 @@
 #include "camera/camera.h"
 #include "camera/player_camera.h"
 #include "ai_tuning.h"
+#include "verify_ui.h"
 #include "audio_mix.h"
 
 #include <string>
@@ -739,6 +740,7 @@ void imgui_Update() {
         freecam_LoadSettings();// camera system (dinput_hook/camera)
         playercam_RegisterPanel();
         ai_tuning_RegisterPanels();// AI difficulty / pacing / behavior (dinput_hook/ai_tuning)
+        verify_ui_RegisterPanels();// lockstep recording + shadow mode (dinput_hook/verify_ui)
         debug_ui_register_builtin_shell_panels();
         debug_ui_load_settings();
     }
