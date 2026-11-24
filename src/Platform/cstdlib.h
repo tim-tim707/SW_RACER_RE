@@ -38,7 +38,6 @@ long _filelength(int fd);
 int _open(const char* filename, int oflag);
 
 // ctype.h
-
 #define _isctype_ADDR (0x0049f440)
 #define _isctype c__isctype
 int _isctype(int c, int desc);
