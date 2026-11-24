@@ -5464,7 +5464,7 @@ long double swrObjJdge_GetRacerRankValue(swrScore* score)
 // AI nearest to local player 1 (AI_TETHER_LOCAL1) and, in 2-player, to local player 2
 // (AI_TETHER_LOCAL2); swrRace_AI paces those pods directly on their gap to that player.
 // 0x0045d4a0
-void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
+RETAIL_FP void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 {
     float rankValues[20];
     float leaderProgress = -1.0f;
@@ -5615,16 +5615,16 @@ void swrObjJdge_UpdateStandings(swrObjJdge* jdge)
 
     // tag the two nearest rivals behind (2-player only) and ahead of the local player(s)
     if (secondLocalPlayer != NULL) {
-        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - 0.1f)
+        if (behindIdx1 != -1 && rankValues[behindIdx1] < (float)jdge->num_laps - (float)0.1f)
             swrScoresPtr[behindIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
-        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - 0.1f)
+        if (behindIdx2 != -1 && rankValues[behindIdx2] < (float)jdge->num_laps - (float)0.1f)
             swrScoresPtr[behindIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
-    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - 0.1f) {
+    if (aheadIdx1 != -1 && rankValues[aheadIdx1] < (float)jdge->num_laps - (float)0.1f) {
         swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
         swrScoresPtr[aheadIdx1].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
-    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - 0.1f) {
+    if (aheadIdx2 != -1 && rankValues[aheadIdx2] < (float)jdge->num_laps - (float)0.1f) {
         swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 |= swrObjTest_FLAG0_AI_TETHER_LOCAL1;
         swrScoresPtr[aheadIdx2].obj_test_ptr->flags0 &= ~swrObjTest_FLAG0_AI_TETHER_LOCAL2;
     }
