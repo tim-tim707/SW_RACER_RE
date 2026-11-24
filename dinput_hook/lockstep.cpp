@@ -154,6 +154,11 @@ struct State {
     int forceRacers = -1;
     int recordFrames = 0;// record: stop after this many frames, 0 = when the race is left
     bool exitWhenDone = false;
+    bool stopAtMismatch = false;// replay: stop at the first mismatching frame (bisecting needs only that)
+    bool textureHash = false;// log a hash of every texture the renderer uploads (render-path oracle)
+    FILE *textureLog = nullptr;
+    int textureDump = -1;// write this texture index's pixels to lockstep_texdump.bin
+    uint32_t textureCount = 0;
     bool autostarted = false;
     bool fastForward = false;
     bool vanilla = false;// no sim-affecting deltas or mods: retail plus whatever reimpl_config.txt makes live
@@ -203,6 +208,8 @@ void log_line(const char *fmt, ...) {
         s.log = fopen("lockstep.log", "w");
     if (s.log == nullptr)
         return;
+    static const DWORD t0 = GetTickCount();
+    fprintf(s.log, "[%6.1fs] ", (GetTickCount() - t0) / 1000.0);
     va_list ap;
     va_start(ap, fmt);
     vfprintf(s.log, fmt, ap);
@@ -247,6 +254,12 @@ void read_config() {
             s.forceRacers = atoi(val);
         } else if (strcmp(key, "frames") == 0) {
             s.recordFrames = atoi(val);
+        } else if (strcmp(key, "texture_hash") == 0) {
+            s.textureHash = true;
+        } else if (strcmp(key, "texture_dump") == 0) {
+            s.textureDump = atoi(val);
+        } else if (strcmp(key, "stop_at_mismatch") == 0) {
+            s.stopAtMismatch = true;
         } else if (strcmp(key, "exit_when_done") == 0) {
             s.exitWhenDone = true;
         } else if (strcmp(key, "dump_at") == 0) {
@@ -567,6 +580,10 @@ void frame_step() {
         }
         const FrameHashes got = hash_state();
         compare(want, got);
+        if (s.stopAtMismatch && s.mismatches != 0) {
+            stop("stopped at first mismatch");
+            return;
+        }
         if (s.out) {
             fwrite(s.inputs.data(), s.inputs.size(), 1, s.out);
             fwrite(&got, sizeof(got), 1, s.out);
@@ -764,6 +781,8 @@ extern "C" void lockstep_hang_f0(swrObjHang *hang) {
     hang->vehiclePlayer = r.vehiclePlayer;
     hang->numLaps = r.numLaps;
     hang->AISpeed = r.aiSpeed;
+    // the planet intro is a real-time cinematic; mark every planet seen so no run waits on one
+    swrRace_saveData.profiles[0].planetIntrosSeen = 0xffffffffu;
     s.autostarted = true;
     log_line("lockstep: autostart track %d, %d racers, %d laps, pod %d", r.trackIndex, r.numPlayers, r.numLaps,
              r.vehiclePlayer);
@@ -773,6 +792,32 @@ extern "C" void lockstep_hang_f0(swrObjHang *hang) {
 }
 
 extern "C" bool lockstep_fast_forward(void) { return s.fastForward; }
+
+// One line per texture upload, in load order: a run with no reimpls live is the reference, and the
+// first differing line names the texture a live reimpl decoded differently.
+extern "C" void lockstep_log_texture(int width, int height, int format, const void *pixels, size_t bytes) {
+    if (!s.configRead)
+        read_config();
+    if (!s.textureHash || pixels == nullptr)
+        return;
+    if (s.textureLog == nullptr)
+        s.textureLog = fopen("lockstep_textures.txt", "w");
+    if (s.textureLog == nullptr)
+        return;
+    uint32_t h = 2166136261u;
+    const uint8_t *p = (const uint8_t *) pixels;
+    for (size_t i = 0; i < bytes; i++)
+        h = (h ^ p[i]) * 16777619u;
+    if ((int) s.textureCount == s.textureDump) {
+        FILE *f = fopen("lockstep_texdump.bin", "wb");
+        if (f) {
+            fwrite(pixels, 1, bytes, f);
+            fclose(f);
+        }
+    }
+    fprintf(s.textureLog, "%u %dx%d fmt%d %08x\n", s.textureCount++, width, height, format, h);
+    fflush(s.textureLog);
+}
 
 extern "C" bool lockstep_vanilla(void) {
     if (!s.configRead) {
