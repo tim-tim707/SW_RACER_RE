@@ -1491,7 +1491,8 @@ void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_typ
     } else if (texture_type_a == swrTexelFormat_CI && texture_type_b == swrTexelSize_8BIT) {
         for (row = 0; row < orig_height; row++) {
             for (x = 0; x < orig_width; x++) {
-                uint16_t color = SWAP16(palette[*src++]);
+                uint16_t color = SWAP16(palette[*src]);
+                src++;
                 *out++ = (uint16_t)((color >> 1) | (color << 15));
             }
             for (; x < width; x++) {
@@ -1524,7 +1525,8 @@ void swrModel_ConvertTextureDataToRdMaterial(int texture_type_a, int texture_typ
         in = (uint16_t*)src;
         for (row = 0; row < orig_height; row++) {
             for (x = 0; x < orig_width; x++) {
-                uint16_t color = SWAP16(*in++);
+                uint16_t color = SWAP16(*in);
+                in++;
                 *out++ = (uint16_t)((color >> 1) | (color << 15));
             }
             for (; x < width; x++) {
