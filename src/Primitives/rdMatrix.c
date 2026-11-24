@@ -80,55 +80,39 @@ void rdMatrix_Multiply44Acc(rdMatrix44* out, rdMatrix44* mat2)
     out->vD.w = m2.vD.w * m1.vD.w + m2.vC.w * m1.vD.z + m2.vB.w * m1.vD.y + m2.vA.w * m1.vD.x;
 }
 
+// Inverse of a rotation-scale matrix: each basis row divided by its squared length, transposed,
+// and the negated translation rotated into it. Retail keeps row B's squared length unrounded in ST
+// but divides rows A and C by float spills; the sums follow its x87 order.
 // 0x00430310
 void rdMatrix_Unk1(rdMatrix44* m1, rdMatrix44* m2)
 {
-    float fVar1;
-    float fVar2;
-    float fVar3;
-    float fVar4;
-    float fVar5;
-    float fVar6;
-    float fVar7;
+    long double lenB = ((long double)m2->vB.x * m2->vB.x + (long double)m2->vB.y * m2->vB.y) +
+                       (long double)m2->vB.z * m2->vB.z;
+    float lenC = ((long double)m2->vC.x * m2->vC.x + (long double)m2->vC.y * m2->vC.y) +
+                 (long double)m2->vC.z * m2->vC.z;
+    float lenA = ((long double)m2->vA.y * m2->vA.y + (long double)m2->vA.z * m2->vA.z) +
+                 (long double)m2->vA.x * m2->vA.x;
 
-    fVar3 = (m2->vB).y;
-    fVar4 = (m2->vB).x;
-    fVar1 = (m2->vB).z;
-    fVar2 = (m2->vC).x;
-    fVar7 = fVar1 * fVar1 + fVar3 * fVar3 + fVar4 * fVar4;
-    fVar1 = (m2->vC).y;
-    fVar4 = (m2->vA).y;
-    fVar3 = (m2->vC).z;
-    fVar5 = (m2->vA).z;
-    fVar6 = (m2->vA).x;
-    fVar2 = fVar3 * fVar3 + fVar1 * fVar1 + fVar2 * fVar2;
-    (m1->vA).y = (m2->vB).x / fVar7;
-    (m1->vA).z = (m2->vC).x / fVar2;
-    (m1->vB).z = (m2->vC).y / fVar2;
-    fVar1 = fVar6 * fVar6 + fVar5 * fVar5 + fVar4 * fVar4;
-    (m1->vB).x = (m2->vA).y / fVar1;
-    (m1->vC).x = (m2->vA).z / fVar1;
-    (m1->vC).y = (m2->vB).z / fVar7;
-    (m1->vA).x = (m2->vA).x / fVar1;
-    (m1->vB).y = (m2->vB).y / fVar7;
-    fVar1 = (m2->vC).z;
-    (m1->vA).w = 0.0;
-    (m1->vB).w = 0.0;
-    (m1->vC).w = 0.0;
-    (m1->vD).w = 1.0;
-    (m1->vC).z = fVar1 / fVar2;
+    m1->vA.x = m2->vA.x / lenA;
+    m1->vA.y = m2->vB.x / lenB;
+    m1->vA.z = m2->vC.x / lenC;
+    m1->vB.x = m2->vA.y / lenA;
+    m1->vB.y = m2->vB.y / lenB;
+    m1->vB.z = m2->vC.y / lenC;
+    m1->vC.x = m2->vA.z / lenA;
+    m1->vC.y = m2->vB.z / lenB;
+    m1->vC.z = m2->vC.z / lenC;
+    m1->vA.w = 0.0f;
+    m1->vB.w = 0.0f;
+    m1->vC.w = 0.0f;
+    m1->vD.w = 1.0f;
 
-    fVar6 = (m2->vD).x;
-    fVar1 = (m2->vD).z;
-    fVar7 = (m2->vD).y;
-    fVar2 = (m1->vC).y;
-    fVar3 = (m1->vA).z;
-    fVar4 = (m1->vB).z;
-    fVar5 = (m1->vC).z;
-    (m1->vD).x = -((m1->vA).x * fVar6 + fVar7 * (m1->vB).x + fVar1 * (m1->vC).x);
-    (m1->vD).y = -(fVar7 * (m1->vB).y + fVar6 * (m1->vA).y + fVar1 * fVar2);
-    (m1->vD).z = -(fVar1 * fVar5 + fVar7 * fVar4 + fVar6 * fVar3);
-    return;
+    const float dx = m2->vD.x;
+    const float dy = m2->vD.y;
+    const float dz = m2->vD.z;
+    m1->vD.x = -(((long double)dy * m1->vB.x + (long double)dz * m1->vC.x) + (long double)dx * m1->vA.x);
+    m1->vD.y = -(((long double)dz * m1->vC.y + (long double)dx * m1->vA.y) + (long double)dy * m1->vB.y);
+    m1->vD.z = -(((long double)dx * m1->vA.z + (long double)dy * m1->vB.z) + (long double)dz * m1->vC.z);
 }
 
 // 0x00480690
