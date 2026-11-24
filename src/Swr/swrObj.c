@@ -6570,7 +6570,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
                 float py = (trackPoints[k].y * 25.0f) / zoomRange;
                 float sx = py * rotA + px * rotB;
                 float sy = px * dir.x + py * dir.y;
-                swrSprite_AddDotToMiniMap(swrMiniMapDot_TRACK, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                swrSprite_AddDotToMiniMap(swrMiniMapDot_TRACK, (short)(int)(sx - swrObjJdge_minimapAnchorX), (short)(int)(82.0f - sy));
             }
         }
 
@@ -6583,7 +6583,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                swrSprite_AddDotToMiniMap(swrMiniMapDot_START_LINE, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                swrSprite_AddDotToMiniMap(swrMiniMapDot_START_LINE, (short)(int)(sx - swrObjJdge_minimapAnchorX), (short)(int)(82.0f - sy));
         }
 
         // rival racers
@@ -6598,7 +6598,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f) {
                 char type = (jdge->hud_mode == swrObjJdge_HUDMODE_MINIMAP_FAR) ? swrMiniMapDot_RIVAL : swrMiniMapDot_RIVAL_CROSS;
-                swrSprite_AddDotToMiniMap(type, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                swrSprite_AddDotToMiniMap(type, (short)(int)(sx - swrObjJdge_minimapAnchorX), (short)(int)(82.0f - sy));
             }
         }
 
@@ -6610,7 +6610,7 @@ void swrObjJdge_DrawRaceHUD(swrObjJdge* jdge)
             float sx = py * rotA + px * rotB;
             float sy = px * dir.x + py * dir.y;
             if (sx < 25.0f && -sx < 25.0f && sy < 25.0f && -sy < 25.0f)
-                swrSprite_AddDotToMiniMap(swrMiniMapDot_PLAYER_CROSS, (short)(int)(sx - -264.0f), (short)(int)(82.0f - sy));
+                swrSprite_AddDotToMiniMap(swrMiniMapDot_PLAYER_CROSS, (short)(int)(sx - swrObjJdge_minimapAnchorX), (short)(int)(82.0f - sy));
         }
     } else if (mode == swrObjJdge_HUDMODE_SPLIT_COLUMN || mode == swrObjJdge_HUDMODE_SPLIT_COLUMN_TIME) {
         // splitscreen: a per-player vertical progress column with a position number
