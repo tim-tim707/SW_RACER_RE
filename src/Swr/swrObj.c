@@ -1408,7 +1408,7 @@ void swrObjcMan_UpdateFogAndViewport(swrObjcMan* cman)
 }
 
 // 0x00453e00
-void swrObjcMan_UpdateCamera(swrObjcMan* cman)
+NOINLINE void swrObjcMan_UpdateCamera(swrObjcMan* cman)
 {
     swrRace* pod;
     swrTranslationRotation current;
