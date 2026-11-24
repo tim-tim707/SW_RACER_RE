@@ -11392,7 +11392,7 @@ void swrObjToss_F2(swrObjToss* toss)
 
 // Dust puff grows and fades over its lifetime; color channels are clamped to [1, 254].
 // 0x0047ba30
-void swrObjToss_F3(swrObjToss* toss)
+RETAIL_FP void swrObjToss_F3(swrObjToss* toss)
 {
     rdMatrix44 mat;
     float t;
