@@ -807,9 +807,12 @@ swrModel_Animation** swrModel_LoadAllAnimationsOfModel(swrModel_Header* model_he
     curr++;
     if (curr->value == TAG("Data"))
     {
+        // tag, size, then size entries
         curr++;
-        uint32_t size = curr->value;
-        curr += size;
+        int size = (int)curr->value;
+        curr++;
+        if (size > 0)
+            curr += size;
     }
 
     uint32_t min_anim_ptr = 0xFFFFFFFF;
@@ -1124,13 +1127,14 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
     else if (anim->flags & ANIMATION_TRANSITION)
     {
         anim->flags |= ANIMATION_TRANSITIONING_NOW;
-        anim->transition_interp_factor += swrRace_deltaTimeSecs / anim->transition_speed;
-        if (anim->transition_interp_factor >= 1)
+        // retail tests the unrounded factor, then carries the overshoot at the animation's speed
+        long double factor = swrRace_deltaTimeSecs / anim->transition_speed + anim->transition_interp_factor;
+        anim->transition_interp_factor = factor;
+        if (factor >= 1)
         {
             // transition is finished.
             anim->flags &= ~ANIMATION_TRANSITION;
-            // i dont really understand this calculation...
-            anim->animation_time += (anim->transition_interp_factor - 1) * swrModel_GlobalAnimationSpeed * anim->transition_speed;
+            anim->animation_time = (anim->transition_interp_factor - 1.0f) * anim->animation_speed * swrModel_GlobalAnimationSpeed * anim->transition_speed + anim->animation_time;
         }
     }
     else
@@ -1177,12 +1181,14 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
             }
             else
             {
-                // rewind
-                while (anim->animation_time > end_time)
+                // rewind; retail tests the unrounded difference
+                long double t;
+                do
                 {
+                    t = anim->animation_time - duration;
                     anim->flags |= ANIMATION_TRANSITIONING_NOW;
-                    anim->animation_time -= duration;
-                }
+                    anim->animation_time = t;
+                } while (t > end_time);
             }
         }
         else
@@ -1202,12 +1208,14 @@ void swrModel_AnimationUpdateTime(swrModel_Animation* anim)
             }
             else
             {
-                // rewind
-                while (anim->animation_time < start_time)
+                // rewind; retail tests the unrounded sum
+                long double t;
+                do
                 {
+                    t = duration + anim->animation_time;
                     anim->flags |= ANIMATION_TRANSITIONING_NOW;
-                    anim->animation_time += duration;
-                }
+                    anim->animation_time = t;
+                } while (t < start_time);
             }
         }
         else
@@ -2553,17 +2561,17 @@ int swrModel_PointInTriangle(float* origin, float* a, float* b, float* c,
     rdVector_Cross3(&n1, &toB, edgeBC);
     rdVector_Cross3(&n2, &toC, edgeCA);
 
+    // the abs values only feed the threshold and the axis pick; the sign tests below read the
+    // signed components (retail takes |z| on the x87 stack and never writes it back)
     float ax = (n0.x < 0.0f) ? -n0.x : n0.x;
     float ay = (n0.y < 0.0f) ? -n0.y : n0.y;
-    if (n0.z < 0.0f) n0.z = -n0.z; // abs in place (matches the asm); n0.x/n0.y stay signed
-    float az = n0.z;
+    float az = (n0.z < 0.0f) ? -n0.z : n0.z;
 
     if (az + ay + ax <= 0.0001f) {
         // n0 ~ 0 (hit near vertex a): decide from n1's dominant axis against n2
         ax = (n1.x < 0.0f) ? -n1.x : n1.x;
         ay = (n1.y < 0.0f) ? -n1.y : n1.y;
-        if (n1.z < 0.0f) n1.z = -n1.z;
-        az = n1.z;
+        az = (n1.z < 0.0f) ? -n1.z : n1.z;
         if (az + ay + ax < 0.001f)
             return 1;
         int axis = (ay <= ax) ? ((az <= ax) ? 0 : 2) : ((az <= ay) ? 1 : 2);
@@ -2958,25 +2966,50 @@ void swrModel_ClipAndTestTriangle(float* closest, float* a, float* b, float* c, 
     }
 }
 
+// Squared distances exactly as retail CollideSphereTriangle inlines them: each difference is
+// stored as a float and the unrounded difference multiplied by that stored copy (the XZ variant
+// squares dy unrounded), and the sum is left unrounded for the caller to compare.
+static RETAIL_FP long double distSqXZRounded(const float* p, const float* q)
+{
+    long double dx = p[0] - q[0];
+    long double dy = p[1] - q[1];
+    long double dz = p[2] - q[2];
+    float dxf = dx;
+    float dzf = dz;
+    return (dx * dxf + dy * dy) + dz * dzf;
+}
+
+static RETAIL_FP long double distSqXYZRounded(const float* p, const float* q)
+{
+    long double dx = p[0] - q[0];
+    long double dy = p[1] - q[1];
+    long double dz = p[2] - q[2];
+    float dxf = dx;
+    float dyf = dy;
+    float dzf = dz;
+    return (dx * dxf + dy * dyf) + dz * dzf;
+}
+
 // Sphere vs one triangle (faceNormal = plane xyz + offset). Projects the center onto the plane,
 // falls back to the closest edge point when the projection is outside the triangle, and keeps the
 // point if it is within the radius and closer than the current best. In sweep mode (unkE1c == 3)
 // the candidate is handed to swrModel_ClipAndTestTriangle instead.
 // 0x00442090
-void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point)
+RETAIL_FP void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float* c, float* point)
 {
     rdVector3 closest;
     rdVector3 edgeAB, edgeBC, edgeCA;
     int behind = 0;
 
-    if ((point[1] - a[1]) * faceNormal[1] + (point[2] - a[2]) * faceNormal[2] + (point[0] - a[0]) * faceNormal[0] < 0.0f) {
+    if (((point[0] - a[0]) * faceNormal[0] + (point[2] - a[2]) * faceNormal[2]) + (point[1] - a[1]) * faceNormal[1] < 0.0f) {
         if (swrModel_collisionSphereAcceptBackFaces == 0)
             return;
         behind = 1;
     }
     rdMath_ProjectPointOntoPlane(faceNormal, (rdVector3*)point, &closest);
-    float distSq = distSq3(point, &closest.x);
-    if (swrModel_collisionSphereRadiusSq < distSq)
+    long double distRaw = distSqXZRounded(point, &closest.x);
+    float distSq = distRaw;
+    if (swrModel_collisionSphereRadiusSq < distRaw)
         return;
 
     edgeAB.x = b[0] - a[0];
@@ -2993,14 +3026,14 @@ void swrModel_CollideSphereTriangle(float* faceNormal, float* a, float* b, float
         rdMath_ClosestPointOnSegment(&closest, (rdVector3*)a, (rdVector3*)b, &edgeAB);
         rdMath_ClosestPointOnSegment(&closest, (rdVector3*)b, (rdVector3*)c, &edgeBC);
         rdMath_ClosestPointOnSegment(&closest, (rdVector3*)c, (rdVector3*)a, &edgeCA);
-        distSq = distSq3(point, &edgeAB.x);
+        distSq = distSqXYZRounded(point, &edgeAB.x);
         closest = edgeAB;
-        float d = distSq3(point, &edgeBC.x);
+        long double d = distSqXZRounded(point, &edgeBC.x);
         if (d < distSq) {
             closest = edgeBC;
             distSq = d;
         }
-        d = distSq3(point, &edgeCA.x);
+        d = distSqXZRounded(point, &edgeCA.x);
         if (d < distSq) {
             closest = edgeCA;
             distSq = d;
@@ -3267,8 +3300,9 @@ void swrModel_MeshCollisionFaceCallback2(swrModel_CollisionVertex* a1, int16_t p
 
 // Walks every collision face of a mesh, handing each to the active face callback. Sequential and
 // indexed primitives use different callbacks; triangle strips (types 5/7) flip winding each step.
+// Retail leaves 0.0f in ST0 on every return and its callers pop it, so the return type is float.
 // 0x004439f0
-void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
+float swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
 {
     swrModel_collisionCurrentMesh = mesh;
     int primitive_type = swrModel_MeshGetPrimitiveType(mesh);
@@ -3278,7 +3312,7 @@ void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
     uint16_t* indices;
     swrModel_MeshGetCollisionData(mesh, 0, &vertices, &indices);
     if (vertices == NULL)
-        return;
+        return 0.0f;
 
     if (indices == NULL) {
         switch (primitive_type) {
@@ -3331,6 +3365,7 @@ void swrModel_MeshIterateOverCollisionFaces(swrModel_Mesh* mesh)
         }
         }
     }
+    return 0.0f;
 }
 
 // Moves the sphere query (center, sweep axis, slab bounds) into the matrix-stack top's space.
@@ -3395,7 +3430,7 @@ void swrModel_TransformCollisionResult(unsigned char flags)
 }
 
 // Is the sphere's bounding box [lo, hi] overlapping aabb (min xyz, max xyz)?
-static int sphereAABBOverlaps(const float* aabb, const float* lo, const float* hi)
+static RETAIL_FP int sphereAABBOverlaps(const float* aabb, const float* lo, const float* hi)
 {
     for (int axis = 0; axis < 3; axis++) {
         if (aabb[axis + 3] < lo[axis] || hi[axis] < aabb[axis])
@@ -3407,7 +3442,7 @@ static int sphereAABBOverlaps(const float* aabb, const float* lo, const float* h
 // Sphere counterpart of swrModel_CollideMeshNodeRay: AABB-culls the node and its meshes against the
 // sphere, iterates the surviving faces, and maps a hit back out of the node's space.
 // 0x00443f10
-void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int flags)
+RETAIL_FP void swrModel_CollideMeshNode(swrModel_Node* node, void* query, unsigned int flags)
 {
     if (node == NULL)
         return;
@@ -3492,7 +3527,8 @@ void swrModel_SetupSphereCollision(float* center, float radius, float* axis, flo
     swrModel_collisionSweepAxisWorld.y = axis[1];
     swrModel_collisionSweepAxisWorld.z = axis[2];
     swrModel_collisionUnkE1c = 3;
-    float along = center[0] * axis[0] + axis[2] * center[2] + axis[1] * center[1];
+    // stays unrounded on the x87 stack in retail until each slab bound is stored
+    long double along = ((long double)axis[1] * center[1] + (long double)axis[2] * center[2]) + (long double)center[0] * axis[0];
     swrModel_collisionResultNode = NULL;
     swrModel_collisionUnkE70 = 0;
     swrModel_collisionUnk250 = 0;

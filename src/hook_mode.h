@@ -33,10 +33,11 @@ hook_mode hook_mode_for(const char* function_name);
 // Non-zero when the config contains a bare `verify` line.
 int hook_verify_requested(void);
 
-// Set by the delta layer before hook_generated() runs; non-zero when it hook_replace()s that body.
-// Such a function stays `original` whatever the config says: the delta owns the retail entry and
-// its hook_call_original() needs the original-mode registration. NULL when there is no delta layer.
-extern int (*hook_mode_delta_owned)(uint32_t reimpl_addr);
+// Set by the delta layer before hook_generated() runs; non-zero when it owns that function, by
+// hook_replace() of our body or by hooking the retail entry itself. Such a function stays
+// `original` whatever the config says: a second redirect of the same entry would fight the delta's,
+// and its hook_call_original() needs the original-mode registration. NULL without a delta layer.
+extern int (*hook_mode_delta_owned)(uint32_t reimpl_addr, uint32_t retail_addr);
 
 typedef enum hook_install_kind
 {
