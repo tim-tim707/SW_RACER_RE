@@ -1447,7 +1447,7 @@ void swrModel_AnimationsResetToZero(swrModel_Animation** anims)
     while (*anims)
     {
         swrModel_Animation* anim = *anims;
-        swrModel_AnimationSetFlags(anim, ANIMATION_ENABLED);
+        swrModel_AnimationClearFlags(anim, ANIMATION_ENABLED);
         swrModel_AnimationSetTime(anim, 0.0f);
 
         anims++;
