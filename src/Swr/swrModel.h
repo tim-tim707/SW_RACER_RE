@@ -218,7 +218,7 @@ void* swrModel_ExtractTextureTile(void* outTile, void* src, int x, int y, int ti
 
 void swrModel_ClearSceneAnimations();
 void swrModel_LoadAnimation(swrModel_Animation* animation);
-double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index);
+long double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index);
 void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index);
 void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index);
 void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animation* animation, float time, int key_frame_index);

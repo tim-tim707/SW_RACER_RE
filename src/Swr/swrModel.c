@@ -866,14 +866,15 @@ swrModel_Animation* swrModel_FindLoadedAnimation(void* affected_object, int anim
     return NULL;
 }
 
+// retail returns the quotient unrounded in ST0
 // 0x00425980
-double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index)
+RETAIL_FP long double swrModel_AnimationComputeInterpFactor(swrModel_Animation* anim, float anim_time, int key_frame_index)
 {
     return (anim_time - anim->key_frame_times[key_frame_index]) / (anim->key_frame_times[key_frame_index + 1] - anim->key_frame_times[key_frame_index]);
 }
 
 // 0x004259B0
-void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index)
+RETAIL_FP void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
     const float t0 = anim->key_frame_times[key_frame_index];
     const float t1 = anim->key_frame_times[key_frame_index + 1];
@@ -897,7 +898,7 @@ void swrModel_AnimationInterpolateSingleValue(float* result, swrModel_Animation*
 }
 
 // 0x00425A60
-void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index)
+RETAIL_FP void swrModel_AnimationInterpolateVec3(rdVector3* result, swrModel_Animation* anim, float time, int key_frame_index)
 {
     const float t0 = anim->key_frame_times[key_frame_index];
     const float t1 = anim->key_frame_times[key_frame_index + 1];
@@ -958,32 +959,40 @@ void swrModel_AnimationInterpolateAxisAngle(rdVector4* result, swrModel_Animatio
 }
 
 // 0x00425D10
-void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
+RETAIL_FP void swrModel_UpdateTranslationAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
     swrModel_AnimationInterpolateVec3(&result, anim, anim->animation_time, anim->key_frame_index);
     if (anim->flags & ANIMATION_TRANSITION)
     {
-        // lerp result with transition position
+        // lerp result with transition position; retail stores factor * result before adding
+        // transition * (1 - factor)
         rdVector3 transition_result;
         swrModel_AnimationInterpolateVec3(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
-        rdVector_Scale3Add3_both(&result, (1 - anim->transition_interp_factor), &transition_result, anim->transition_interp_factor, &result);
+        result.x = anim->transition_interp_factor * result.x;
+        result.y = anim->transition_interp_factor * result.y;
+        result.z = anim->transition_interp_factor * result.z;
+        rdVector_Scale3Add3(&result, &result, 1 - anim->transition_interp_factor, &transition_result);
     }
     if (anim->node_ptr)
         swrModel_NodeSetTranslation(anim->node_ptr, result.x, result.y, result.z);
 }
 
 // 0x00425DE0
-void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
+RETAIL_FP void swrModel_UpdateScaleAnimation(swrModel_Animation* anim)
 {
     rdVector3 result;
     swrModel_AnimationInterpolateVec3(&result, anim, anim->animation_time, anim->key_frame_index);
     if (anim->flags & ANIMATION_TRANSITION)
     {
-        // lerp result with transition position
+        // lerp result with transition position; retail stores factor * result before adding
+        // transition * (1 - factor)
         rdVector3 transition_result;
         swrModel_AnimationInterpolateVec3(&transition_result, anim, anim->transition_from_this_animation_time, anim->transition_from_this_key_frame_index);
-        rdVector_Scale3Add3_both(&result, (1 - anim->transition_interp_factor), &transition_result, anim->transition_interp_factor, &result);
+        result.x = anim->transition_interp_factor * result.x;
+        result.y = anim->transition_interp_factor * result.y;
+        result.z = anim->transition_interp_factor * result.z;
+        rdVector_Scale3Add3(&result, &result, 1 - anim->transition_interp_factor, &transition_result);
     }
     if (anim->node_ptr)
     {

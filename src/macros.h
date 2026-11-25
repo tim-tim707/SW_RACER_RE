@@ -82,4 +82,12 @@ extern "C"
 #define RETAIL_FP
 #endif
 
+// Keeps a retail call boundary: inlined into its caller, x87 values can skip the float rounding
+// retail does when passing and spilling across the call.
+#if defined(__GNUC__)
+#define NOINLINE __attribute__((noinline))
+#else
+#define NOINLINE
+#endif
+
 #endif // MACROS_H
