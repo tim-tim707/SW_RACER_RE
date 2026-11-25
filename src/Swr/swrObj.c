@@ -9539,18 +9539,21 @@ void swrObjSmok_F0(swrObjSmok* smok)
 }
 
 // 0x00469fb0
-void swrObjSmok_F3(swrObjSmok* smok)
+RETAIL_FP void swrObjSmok_F3(swrObjSmok* smok)
 {
     for (int i = 0; i < smok->particleCount; i++) {
         swrModel_Node* node = smok->particleNodes[i];
         if (node == NULL)
             continue;
 
-        float phase = (float)i / (float)smok->particleCount + smok->lifetime / smok->totalLifetime;
-        // Wrap into [0,1): subtracting almost-one biases the truncation below toward -inf.
+        // retail keeps phase unrounded through the wrap and the truncation
+        long double phase = (long double)smok->lifetime / smok->totalLifetime + (long double)i / smok->particleCount;
+        // Wrap into [0,1): the almost-one bias pushes the truncation toward -inf; retail applies it
+        // to the truncated copy only and subtracts the integer from the unbiased phase.
+        long double biased = phase;
         if (phase < 0.0f)
-            phase -= 0.99999899f;
-        float t = 1.0f - (phase - (float)(int)phase);
+            biased -= (float)0.99999899f;
+        float t = 1.0f - (phase - (int)biased);
         if (t < 0.0f)
             t = 0.0f;
         if (t > 1.0f)
@@ -9562,7 +9565,7 @@ void swrObjSmok_F3(swrObjSmok* smok)
         float absZ = forward.z < 0.0f ? -forward.z : forward.z;
         rdVector3 up;
         up.x = 0.0f;
-        if (absZ <= 0.9) { // double compare, as in the original
+        if (absZ <= (double)0.9) { // double compare, as in the original
             up.y = 0.0f;
             up.z = 1.0f;
         } else {
@@ -9577,10 +9580,14 @@ void swrObjSmok_F3(swrObjSmok* smok)
 
         rdMatrix44 transform;
         rdMatrix_SetIdentity44(&transform);
-        float width = (smok->widthStart + (smok->widthEnd - smok->widthStart) * t * t) * 0.01f;
+        // retail stores each curve value as a float before the 0.01 scale
+        long double tt = (long double)t * t;
+        float widthCurve = (smok->widthEnd - smok->widthStart) * tt + smok->widthStart;
+        float lengthCurve = (smok->lengthEnd - smok->lengthStart) * tt + smok->lengthStart;
+        float width = widthCurve * (float)0.01f;
         rdVector_Scale3((rdVector3*)&transform.vA, width, &right);
         rdVector_Scale3((rdVector3*)&transform.vB, width, &up);
-        rdVector_Scale3((rdVector3*)&transform.vC, ((smok->lengthEnd - smok->lengthStart) * t * t + smok->lengthStart) * 0.01f, &forward);
+        rdVector_Scale3((rdVector3*)&transform.vC, lengthCurve * (float)0.01f, &forward);
 
         float spin = ((smok->spinRateEnd - smok->spinRateStart) * t + smok->spinRateStart) * swrRace_deltaTimeSecs + smok->particleSpin[i];
         smok->particleSpin[i] = spin;
