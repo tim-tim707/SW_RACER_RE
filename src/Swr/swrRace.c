@@ -10131,7 +10131,7 @@ RETAIL_FP void swrRace_TiltEngines(swrRace* player)
 }
 
 // 0x0046e2c0
-void swrRace_AnimateEngineWobble(swrRace* player)
+RETAIL_FP void swrRace_AnimateEngineWobble(swrRace* player)
 {
     rdVector3 push;
     rdVector3 toPod;
@@ -10153,19 +10153,24 @@ void swrRace_AnimateEngineWobble(swrRace* player)
         player->wobbleAmplitude = (float)(player->wobbleAmplitude - swrRace_deltaTimeSecs * 0.5f);
     else
         player->wobbleAmplitude = (float)(player->wobbleAmplitude - swrRace_deltaTimeSecs * -0.5f);
-    if (player->wobbleAmplitude < 0.4f)
+    if (player->wobbleAmplitude < (float)0.4f)
         player->wobbleAmplitude = 0.4f;
     else if (player->wobbleAmplitude > 1.0f)
         player->wobbleAmplitude = 1.0f;
 
     // collision push direction; engines on the struck side are shoved along it
-    push.x = player->velocityCollision.x + player->velocityCollisionOpponent.x;
-    push.y = player->velocityCollision.y + player->velocityCollisionOpponent.y;
-    push.z = player->velocityCollision.z + player->velocityCollisionOpponent.z;
-    float pushSq = push.x * push.x + push.y * push.y + push.z * push.z;
+    // retail squares each unrounded sum by its stored float and compares the unrounded total
+    long double sumX = (long double)player->velocityCollision.x + player->velocityCollisionOpponent.x;
+    long double sumY = (long double)player->velocityCollision.y + player->velocityCollisionOpponent.y;
+    long double sumZ = (long double)player->velocityCollision.z + player->velocityCollisionOpponent.z;
+    push.x = sumX;
+    push.y = sumY;
+    push.z = sumZ;
+    long double pushSqWide = sumZ * push.z + (sumX * push.x + sumY * push.y);
+    float pushSq = pushSqWide;
     // pushSq doubles as the left bob when there is no left engine
     bobLeft = pushSq;
-    if (pushSq > 0.5f) {
+    if (pushSqWide > 0.5f) {
         rdVector_Normalize3Acc(&push);
     } else {
         push.x = 0.0f;
@@ -10173,7 +10178,7 @@ void swrRace_AnimateEngineWobble(swrRace* player)
         push.z = 0.0f;
     }
 
-    float amplitude = player->wobbleAmplitude * 0.4f;
+    float amplitude = player->wobbleAmplitude * (float)0.4f;
     if (player->partNodes[1] != NULL) {
         stdMath_SinCos(player->wobblePhase[0] * 72.0f, &sinPhase, &cosPhase);
         rdVector_Scale3Add3((rdVector3*)&player->engineXfR.vD, (rdVector3*)&player->engineXfR.vD, sinPhase * amplitude, (rdVector3*)&player->engineXfR.vC);
@@ -10181,17 +10186,17 @@ void swrRace_AnimateEngineWobble(swrRace* player)
             rdVector_Scale3Add3((rdVector3*)&player->engineXfR.vD, (rdVector3*)&player->engineXfR.vD, pushSq / (pushSq + 30.0f), &push);
         bobRight = sinPhase * amplitude;
     }
-    amplitude = player->wobbleAmplitude * 0.4f;
+    amplitude = player->wobbleAmplitude * (float)0.4f;
     if (player->partNodes[2] != NULL) {
-        stdMath_SinCos(player->wobblePhase[1] * 79.200005f, &sinPhase, &cosPhase);
+        stdMath_SinCos(player->wobblePhase[1] * (float)79.200005f, &sinPhase, &cosPhase);
         rdVector_Scale3Add3((rdVector3*)&player->engineXfL.vD, (rdVector3*)&player->engineXfL.vD, sinPhase * amplitude, (rdVector3*)&player->engineXfL.vC);
         if (player->engineXfL.vA.x * push.x + player->engineXfL.vA.y * push.y + player->engineXfL.vA.z * push.z > 0.0f)
             rdVector_Scale3Add3((rdVector3*)&player->engineXfL.vD, (rdVector3*)&player->engineXfL.vD, pushSq / (pushSq + 30.0f), &push);
         bobLeft = sinPhase * amplitude;
     }
-    amplitude = player->wobbleAmplitude * 0.2f;
+    amplitude = player->wobbleAmplitude * (float)0.2f;
     if (player->partNodes[5] != NULL) {
-        stdMath_SinCos(player->wobblePhase[2] * 86.4f, &sinPhase, &cosPhase);
+        stdMath_SinCos(player->wobblePhase[2] * (float)86.4f, &sinPhase, &cosPhase);
         rdVector_Scale3Add3((rdVector3*)&player->cockpitXf.vD, (rdVector3*)&player->cockpitXf.vD, sinPhase * amplitude, (rdVector3*)&player->cockpitXf.vC);
     }
     if (player->partNodes[3] != NULL)
@@ -10209,10 +10214,12 @@ void swrRace_AnimateEngineWobble(swrRace* player)
         tether = -tether;
     if (player->partNodes[5] == NULL)
         return;
+    // retail squares z as its unrounded difference times the stored float, like the push above
+    long double diffZ = (long double)player->transform.vD.z - player->cockpitXf.vD.z;
     toPod.x = player->transform.vD.x - player->cockpitXf.vD.x;
     toPod.y = player->transform.vD.y - player->cockpitXf.vD.y;
-    toPod.z = player->transform.vD.z - player->cockpitXf.vD.z;
-    if (tether * tether < toPod.x * toPod.x + toPod.y * toPod.y + toPod.z * toPod.z) {
+    toPod.z = diffZ;
+    if (tether * tether < (toPod.x * toPod.x + toPod.y * toPod.y) + diffZ * toPod.z) {
         float dist = rdVector_Normalize3Acc(&toPod);
         rdVector_Scale3Add3((rdVector3*)&player->cockpitXf.vD, (rdVector3*)&player->cockpitXf.vD, dist - tether, &toPod);
     }
