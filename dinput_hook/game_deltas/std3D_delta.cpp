@@ -13,6 +13,7 @@ extern "C" {
 #include <Win95/DirectX.h>
 #include <Win95/Window.h>
 #include <Win95/stdDisplay.h>
+#include "../lockstep.h"
 
 extern void renderer_drawRenderList(int verticesCount, LPD3DTLVERTEX aVerticies, int indexCount,
                                     LPWORD lpwIndices);
@@ -323,6 +324,8 @@ void std3D_AllocSystemTexture_delta(tSystemTexture *pTexture, tVBuffer **apVBuff
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format, info->width, info->height, 0, format, type,
                  buff->pPixels);
+    lockstep_log_texture(info->width, info->height, formatType, buff->pPixels,
+                         (size_t) info->width * info->height * 2);
     glGenerateMipmap(GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY, imgui_state.anisotropy);
     // The magnification filter is chosen per-draw from the render state in std3D_DrawRenderList_delta

@@ -9,6 +9,8 @@
 //
 // Configured by lockstep.txt in the game directory; no file = inactive.
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,6 +29,8 @@ void lockstep_frame_service(void);
 void lockstep_hang_f0(struct swrObjHang *hang);
 // True while a replay runs on the pinned dt: the frame limiter and vsync are skipped.
 bool lockstep_fast_forward(void);
+// `texture_hash` in lockstep.txt: hash every uploaded texture into lockstep_textures.txt.
+void lockstep_log_texture(int width, int height, int format, const void *pixels, size_t bytes);
 // `vanilla` in lockstep.txt: drop every sim-affecting delta and mod, so the run is retail + reimpls.
 bool lockstep_vanilla(void);
 // Called by init_hooks() before the reimpl table is installed.
