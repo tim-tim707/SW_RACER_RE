@@ -566,8 +566,18 @@ HRESULT __stdcall DirectX_DirectDrawCreate(GUID* lpGuid, LPDIRECTDRAW* lplpDD, I
 }
 
 // 0x0049d39c
-HRESULT DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter)
+HRESULT __stdcall DirectX_DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* lplpDirectInput, LPUNKNOWN punkOuter)
 {
-    HANG("TODO");
-    return DIERR_GENERIC;
+    // dinput.lib import thunk
+    typedef HRESULT(WINAPI * DirectInputCreateA_fn)(HINSTANCE, DWORD, LPDIRECTINPUTA*, LPUNKNOWN);
+    static DirectInputCreateA_fn create = NULL;
+    if (create == NULL) {
+        HMODULE dinput = GetModuleHandleA("dinput.dll");
+        if (dinput == NULL)
+            dinput = LoadLibraryA("dinput.dll");
+        create = dinput ? (DirectInputCreateA_fn)GetProcAddress(dinput, "DirectInputCreateA") : NULL;
+        if (create == NULL)
+            return DIERR_GENERIC;
+    }
+    return create(hinst, dwVersion, lplpDirectInput, punkOuter);
 }

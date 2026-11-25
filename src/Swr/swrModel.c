@@ -219,7 +219,7 @@ void swrModel_ClearSceneAnimations(void)
     swrScene_animations_count = 0;
 }
 
-// 0x00448780 TODO broken...
+// 0x00448780
 swrModel_Header* swrModel_LoadFromId(MODELID id)
 {
     swrLoader_OpenBlock(swrLoader_TYPE_TEXTURE_BLOCK);
@@ -285,6 +285,8 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
             swrLoader_ReadAt(swrLoader_TYPE_MODEL_BLOCK, offsets.model_offset + 12, compressed_data_buff, model_size - 12);
             swrLoader_DecompressLZSS(compressed_data_buff, (char*)model_buff);
             swrAssetBuffer_SetBuffer((char*)model_buff + decompressed_size);
+            // the pointer fix-up below covers the decompressed model
+            model_size = decompressed_size;
         }
         else
         {
@@ -332,7 +334,7 @@ swrModel_Header* swrModel_LoadFromId(MODELID id)
     swrModel_ByteSwapModelData(header);
 
     uint32_t type = header->entries[0].value;
-    if (type == TAG("Modl") || type == TAG("Trak") || type == TAG("Podd") || type == TAG("Part") || type == TAG("Scen") || type == TAG("Malt") || type == TAG("Pupp"))
+    if (type == TAG("Modl") || type == TAG("Trak") || type == TAG("Podd") || type == TAG("Part") || type == TAG("Scen") || type == TAG("MAlt") || type == TAG("Pupp"))
     {
         // skip type part in model header
         header = (swrModel_Header*)(model_buff + 1);

@@ -353,7 +353,7 @@ void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, u
     if (IDirectDraw4_CreateSurface(std3D_pDirectDraw, &surface_desc, &surface, 0) != S_OK)
         goto error;
 
-    if (IDirectDraw4_QueryInterface(std3D_pDirectDraw, &IID_IDirect3DTexture2, (void**)&texture) != S_OK)
+    if (IDirectDrawSurface4_QueryInterface(surface, &IID_IDirect3DTexture2, (void**)&texture) != S_OK)
         goto error;
 
     for (int level = 0; level < numMipLevels; level++)
@@ -396,8 +396,11 @@ void std3D_AllocSystemTexture(tSystemTexture* pTexture, tVBuffer** apVBuffers, u
     pTexture->pD3DSrcTexture = texture;
     pTexture->ddsd = surface_desc;
     pTexture->textureSize = (valid_width * valid_height * apVBuffers[0]->rasterInfo.colorInfo.bpp) / 8;
+    return;
 
 error:
+    if (texture)
+        IDirect3DTexture2_Release(texture);
     if (surface)
         IDirectDrawSurface4_Release(surface);
 }
