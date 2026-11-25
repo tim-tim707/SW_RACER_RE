@@ -4240,7 +4240,6 @@ void swrRace_SetEngineNodeRotScale(void** nodePair, float scale, float angle)
     rdMatrix44 rotScale;
     rdMatrix44 current;
     rdMatrix44 partner;
-    rdVector3 pos;
     swrModel_NodeTransformed* node;
     swrModel_NodeTransformed* partnerNode;
 
@@ -4253,12 +4252,13 @@ void swrRace_SetEngineNodeRotScale(void** nodePair, float scale, float angle)
     rdMatrix_SetRotation44(&rotScale, angle, 0.0f, 0.0f);
     rdMatrix_ScaleBasis44(&rotScale, scale, scale, scale, &rotScale);
     swrModel_NodeGetTransform(node, &current);
-    // the original computes this offset position and never uses it
-    rdVector_Copy3(&pos, (rdVector3*)&current.vD);
+    // keep the node's position, re-applying the partner's height offset along the new basis
+    rdVector3* pos = (rdVector3*)&rotScale.vD;
+    rdVector_Copy3(pos, (rdVector3*)&current.vD);
     if (partnerNode != NULL) {
         swrModel_NodeGetTransform(partnerNode, &partner);
-        rdVector_Scale3Add3(&pos, &pos, partner.vD.y, (rdVector3*)&current.vB);
-        rdVector_Scale3Add3(&pos, &pos, -partner.vD.y, (rdVector3*)&rotScale.vB);
+        rdVector_Scale3Add3(pos, pos, partner.vD.y, (rdVector3*)&current.vB);
+        rdVector_Scale3Add3(pos, pos, -partner.vD.y, (rdVector3*)&rotScale.vB);
     }
     swrModel_NodeSetTransform(node, &rotScale);
 }

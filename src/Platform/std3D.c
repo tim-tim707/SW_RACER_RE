@@ -709,22 +709,24 @@ int std3D_SetTexFilterMode(void)
 }
 
 // 0x0048b260
-int std3D_SetProjection(float fov, float aspectRatio, float nearPlane, float farPlane)
+RETAIL_FP int std3D_SetProjection(float fov, float aspectRatio, float nearPlane, float farPlane)
 {
-    if (fabs(farPlane - nearPlane) < 0.009999999776482582)
+    const float depth = farPlane - nearPlane;
+    if (fabsl((long double)farPlane - nearPlane) < 0.009999999776482582)
         return E_INVALIDARG;
 
-    const float sf = sin(fov * 0.5);
-    const float cf = cos(fov * 0.5);
-
-    if (fabs(sf) < 0.009999999776482582)
+    const long double sf = sinl(fov * 0.5f);
+    if (fabsl(sf) < 0.009999999776482582)
         return E_INVALIDARG;
 
+    // w = view depth (m[2][3] = 1, m[3][3] = 0): D3D derives fog depth from this matrix
+    const float cot = cosl(fov * 0.5f) / sf;
+    const long double zScale = farPlane / (long double)depth;
     rdMatrix44 proj_mat = {
-        { aspectRatio * cf / sf, 0, 0 },
-        { 0, cf / sf, 0, 0 },
-        { 0, 0, farPlane / (farPlane - nearPlane), 0 },
-        { 0, 0, -(farPlane / (farPlane - nearPlane) * nearPlane), 1 },
+        { aspectRatio * cot, 0, 0, 0 },
+        { 0, cot, 0, 0 },
+        { 0, 0, (float)zScale, 1 },
+        { 0, 0, (float)-(zScale * nearPlane), 0 },
     };
 
     return IDirect3DDevice3_SetTransform(std3D_pD3Device, D3DTRANSFORMSTATE_PROJECTION, (D3DMATRIX*)&proj_mat);
