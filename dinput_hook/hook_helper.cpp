@@ -5,6 +5,7 @@
 #include "hook_helper.h"
 #include "patch.h"
 #include "lockstep.h"
+#include "shadow.h"
 #include <iterator>
 #include <vector>
 #include <filesystem>
@@ -65,6 +66,7 @@ extern "C" void init_hooks() {
 
     lockstep_vanilla_filter();
     hook_mode_delta_owned = delta_owned;
+    shadow_init();
     hook_generated(hook_log);
 
     fprintf(hook_log, "[init_hooks]: found %zu hooked functions.\n", hooks.size());
@@ -107,4 +109,6 @@ extern "C" void init_hooks() {
             DetourTransactionCommit();
         }
     }
+
+    shadow_resolve();
 }

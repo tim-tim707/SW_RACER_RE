@@ -142,6 +142,28 @@ else:
 print(f"Running with {h_files} and {c_files}")
 
 
+
+# How the shadow harness compares a call's result (src/hook_mode.h hook_ret_kind), read from the
+# return type written in front of the name on the definition line.
+def ret_kind(prefix):
+    if re.search(r"__(stdcall|fastcall|thiscall)|WINAPI|CALLBACK", prefix):
+        return "HOOK_RET_UNSUPPORTED"
+    t = re.sub(r"\b(static|inline|extern|const|volatile|__cdecl|signed|RETAIL_FP|NOINLINE)\b", " ", prefix)
+    if "*" in t:
+        return "HOOK_RET_INT32"
+    toks = t.split()
+    if not toks or toks == ["void"]:
+        return "HOOK_RET_VOID"
+    if "float" in toks or "double" in toks:
+        return "HOOK_RET_FLOAT"
+    if "int64_t" in toks or "uint64_t" in toks or "__int64" in toks or toks.count("long") == 2:
+        return "HOOK_RET_INT64"
+    if set(toks) & {"char", "bool", "_Bool", "uint8_t", "int8_t", "BYTE"}:
+        return "HOOK_RET_INT8"
+    if set(toks) & {"short", "uint16_t", "int16_t", "WORD"}:
+        return "HOOK_RET_INT16"
+    return "HOOK_RET_INT32"
+
 hook_regex = re.compile(r"//\s*(0x[0-9A-Fa-f]{8})\s+HOOK\s*")
 no_hook_regex = re.compile(r"//\s*(0x[0-9A-Fa-f]{8})\s+")
 function_match = re.compile(r"(\w+)(?=\()")
@@ -165,7 +187,7 @@ for source in c_files:
             # Both annotations emit the same pair (our body, the retail address); only
             # `HOOK` forces the redirect to point at our body. Which way an unforced
             # entry is wired is a runtime decision -- see src/hook_mode.h.
-            function = {"reimpl_addr": "", "retail_addr": "", "kind": "HOOK_INSTALL_CONFIGURABLE"}
+            function = {"reimpl_addr": "", "retail_addr": "", "kind": "HOOK_INSTALL_CONFIGURABLE", "ret": "HOOK_RET_UNSUPPORTED"}
             if next_line_is_hooked:
                 next_line_is_hooked = False
                 # check if function is commented out
@@ -179,6 +201,7 @@ for source in c_files:
                     function["name"] = function_name
                     function["reimpl_addr"] = function_name
                     function["retail_addr"] = hook_address
+                    function["ret"] = ret_kind(line[:f.start()])
                     if function_name in hooks_blacklist:
                         function["kind"] = "HOOK_INSTALL_PIN_ORIGINAL"
                         pinned_count += 1
@@ -200,6 +223,7 @@ for source in c_files:
                     function["name"] = function_name
                     function["reimpl_addr"] = function_name
                     function["retail_addr"] = hook_address
+                    function["ret"] = ret_kind(line[:f.start()])
                     if function_name in hooks_blacklist:
                         function["kind"] = "HOOK_INSTALL_PIN_ORIGINAL"
                         pinned_count += 1

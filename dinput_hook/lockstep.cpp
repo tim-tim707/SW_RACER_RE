@@ -1,4 +1,5 @@
 #include "lockstep.h"
+#include "shadow.h"
 
 #include <cstdarg>
 #include <cstddef>
@@ -167,6 +168,9 @@ struct State {
     char lastSignature[512] = "";
     bool haveInputs = false;// replay: the next frame's input block is loaded; ProcessInputs pins it
     std::vector<uint8_t> inputs;
+    bool autoName = false;// Verification window: recordings/race_<time>.bin, named at race start
+    bool continuous = false;// Verification window: re-arm after each recorded race
+    char lastResult[160] = "";
 } s;
 
 GetItem_t get_item() { return (GetItem_t) swrEvent_GetItem_ADDR; }
@@ -436,9 +440,13 @@ void stop(const char *why) {
         else
             log_line("lockstep: %s after %u frames - %u mismatched, first at frame %d", why, s.frame,
                      s.mismatches, s.firstMismatch);
+        snprintf(s.lastResult, sizeof(s.lastResult), "%s: %u frames, %s", s.path, s.frame,
+                 s.mismatches == 0 ? "ALL MATCH" : "diverged");
     } else {
         log_line("lockstep: %s, recorded %u frames", why, s.frame);
+        snprintf(s.lastResult, sizeof(s.lastResult), "%s: %u frames (%s)", s.path, s.frame, why);
     }
+    shadow_report();
     if (hook_log) {
         fprintf(hook_log, "[lockstep] %s: %u frames, %u mismatched\n", why, s.frame, s.mismatches);
         fflush(hook_log);
@@ -447,6 +455,14 @@ void stop(const char *why) {
         if (s.log)
             fclose(s.log);
         ExitProcess(s.mismatches == 0 || s.rerecordPath[0] ? 0 : 1);
+    }
+    if (s.mode == MODE_RECORD && s.continuous) {
+        s.autostart = false;// the next recording waits for a race started from the menus
+        s.finished = false;
+        s.sawRace = false;
+        s.haveStartRaceRand = false;
+        s.loadTicks = 0;
+        s.frame = 0;
     }
 }
 
@@ -476,6 +492,13 @@ bool start() {
     if (s.inputs.size() != input_block_size())
         s.inputs.assign(input_block_size(), 0);
     if (s.mode == MODE_RECORD) {
+        if (s.autoName) {
+            CreateDirectoryA("recordings", nullptr);
+            SYSTEMTIME t;
+            GetLocalTime(&t);
+            snprintf(s.path, sizeof(s.path), "recordings\\race_%04d%02d%02d_%02d%02d%02d_t%d.bin", t.wYear, t.wMonth,
+                     t.wDay, t.wHour, t.wMinute, t.wSecond, (int) s.setup.trackIndex);
+        }
         s.file = fopen(s.path, "wb");
         if (s.file == nullptr) {
             log_line("lockstep: cannot write %s", s.path);
@@ -615,14 +638,27 @@ void begin_pin_dt();
 extern "C" void __cdecl swrRace_IncrementFrameTimer_lockstep(void) {
     if (!s.configRead)
         read_config();
+    shadow_frame_tick();
+    static bool raceWasReady = false;
+    const bool raceReady = race_scene_ready(judge());
+    if (raceReady && !raceWasReady)
+        shadow_race_loaded();
+    raceWasReady = raceReady;
     if (!s.pinDt && !s.finished && !s.active && autostart_run())
         begin_pin_dt();
     if (s.mode != MODE_OFF && !s.finished) {
         swrObjJdge *j = judge();
         const bool running = race_running(j);
-        if (!s.active && race_scene_ready(j)) {
+        // A recording starts only in a race begun after it was armed (StartRace pins dt).
+        if (!s.active && race_scene_ready(j) && (s.mode != MODE_RECORD || s.pinDt)) {
             if (swr_fixedTimestep) {
                 log_line("lockstep: fixed-timestep is on; it changes the sim, turn it off");
+                snprintf(s.lastResult, sizeof(s.lastResult), "not recorded: fixed timestep is on");
+                if (s.pinDt) {
+                    swr_FastMode = s.savedFastMode;
+                    swr_fixedDeltaTimeSecs = s.savedFixedDt;
+                    s.pinDt = false;
+                }
                 s.finished = true;
             } else if (!start()) {
                 s.finished = true;
@@ -858,6 +894,72 @@ bool sim_delta(const std::string &name) {
 }
 
 }// namespace
+
+void lockstep_get_status(LockstepStatus *st) {
+    if (!s.configRead)
+        read_config();
+    st->mode = (int) s.mode;
+    st->armed = s.mode == MODE_RECORD && !s.finished && !s.active;
+    st->active = s.active;
+    st->finished = s.finished;
+    st->frame = s.frame;
+    st->hz = s.hz;
+    st->mismatches = s.mismatches;
+    st->first_mismatch = s.firstMismatch;
+    st->path = s.path;
+    st->last_result = s.lastResult;
+    st->continuous = s.continuous;
+    st->auto_name = s.autoName;
+    st->fixed_timestep_on = swr_fixedTimestep;
+    st->vanilla = s.vanilla;
+    st->dt_pinned = s.pinDt;
+}
+
+bool lockstep_arm_record(float hz, bool continuous) {
+    if (!s.configRead)
+        read_config();
+    if (s.active || (s.mode == MODE_REPLAY && !s.finished))
+        return false;
+    s.mode = MODE_RECORD;
+    s.hz = hz >= 1.0f ? hz : 60.0f;
+    s.autoName = true;
+    s.continuous = continuous;
+    s.autostart = false;
+    s.exitWhenDone = false;
+    s.recordFrames = 0;
+    s.finished = false;
+    s.sawRace = false;
+    s.haveStartRaceRand = false;
+    s.loadTicks = 0;
+    s.frame = 0;
+    s.lastResult[0] = '\0';
+    log_line("lockstep: recording armed from the Verification window at %.3f Hz%s", s.hz,
+             continuous ? ", every race" : "");
+    return true;
+}
+
+void lockstep_set_continuous(bool on) {
+    s.continuous = on;
+}
+
+void lockstep_disarm(void) {
+    if (s.mode != MODE_RECORD)
+        return;
+    s.continuous = false;
+    if (s.active) {
+        stop("stopped from the Verification window");
+    } else if (s.pinDt) {
+        swr_FastMode = s.savedFastMode;
+        swr_fixedDeltaTimeSecs = s.savedFixedDt;
+        s.pinDt = false;
+    }
+    s.finished = true;
+    s.mode = MODE_OFF;
+}
+
+extern "C" int lockstep_shadow_frame(void) {
+    return s.active ? (int) s.frame : -1;
+}
 
 // Runs before hook_generated(): what is dropped here is no longer delta-owned, so reimpl_config.txt
 // can bring those functions live too.
