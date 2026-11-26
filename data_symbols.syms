@@ -813,6 +813,10 @@ swrLoader_sprite_file 0x0050c08c FILE*
 swrLoader_spline_file 0x0050c090 FILE*
 swrLoader_texture_file 0x0050c094 FILE*
 swrLoader_model_file 0x0050c098 FILE*
+swrLoader_sprite_path 0x004b958c char*
+swrLoader_spline_path 0x004b9590 char*
+swrLoader_texture_path 0x004b9594 char*
+swrLoader_model_path 0x004b9598 char*
 
 swrText_halfScale 0x0050c0ac uint8_t # 1 = render text at half scale (the 0.5 at 0x004ac64c); set by the "~F" code in swrText_RenderString, read by rdProcEntry_Add2DQuad2
 swrText_bboxMinY 0x0050c09c int16_t # accumulated on-screen text bounding box (empty when bboxMaxX < bboxMinX), grown by rdProcEntry_Add2DQuad2

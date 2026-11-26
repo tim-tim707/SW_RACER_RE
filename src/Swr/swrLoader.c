@@ -87,19 +87,25 @@ void swrLoader_OpenBlock(swrLoader_TYPE type)
     FILE* opened_file;
     char* filename;
 
+    // the paths are read through pointer slots, not as literals
     switch (type)
     {
     case swrLoader_TYPE_MODEL_BLOCK:
-        filename = "data/lev01/out_modelblock.bin";
+        filename = swrLoader_model_path;
         break;
     case swrLoader_TYPE_SPRITE_BLOCK:
-        filename = "data/lev01/out_spriteblock.bin";
+        filename = swrLoader_sprite_path;
         break;
     case swrLoader_TYPE_SPLINE_BLOCK:
-        filename = "data/lev01/out_splineblock.bin";
+        filename = swrLoader_spline_path;
         break;
     case swrLoader_TYPE_TEXTURE_BLOCK:
-        filename = "data/lev01/out_textureblock.bin";
+        filename = swrLoader_texture_path;
+        break;
+    default:
+        // faithful: the original reuses the argument's register
+        filename = (char*)type;
+        break;
     }
     file = swrLoader_TypeToFile(type);
     if (*file == NULL)
