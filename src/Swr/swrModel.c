@@ -2769,15 +2769,21 @@ void swrModel_RecordClosestHit(float distSq, float* point, float* hitPoint, floa
     }
 }
 
-static float distSq3(const float* a, const float* b)
+// Squared distance as retail evaluates it: unrounded differences, x and z each multiplied by their
+// float-rounded copy, summed x, y, z, and left unrounded for the caller.
+RETAIL_FP static long double edgeDistSq(const float* center, const rdVector3* p)
 {
-    return (a[2] - b[2]) * (a[2] - b[2]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[0] - b[0]) * (a[0] - b[0]);
+    long double dx = (long double)center[0] - p->x;
+    long double dy = (long double)center[1] - p->y;
+    long double dz = (long double)center[2] - p->z;
+    return (dx * (float)dx + dy * dy) + dz * (float)dz;
 }
 
 // Closest point to `point` on the edges of triangle a,b,c; records it if it is within the current
-// best distance of the sphere center.
+// best distance of the sphere center. The first distance is stored as a float, the later ones are
+// compared unrounded against it.
 // 0x004414e0
-void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* center, float* normal)
+RETAIL_FP void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, float* center, float* normal)
 {
     rdVector3 onAB, onBC, onCA;
 
@@ -2785,17 +2791,17 @@ void swrModel_TestTriangleEdges(float* point, float* a, float* b, float* c, floa
     rdMath_ClosestPointOnSegment((rdVector3*)point, (rdVector3*)b, (rdVector3*)c, &onBC);
     rdMath_ClosestPointOnSegment((rdVector3*)point, (rdVector3*)c, (rdVector3*)a, &onCA);
 
-    float best = distSq3(center, &onAB.x);
+    float best = (float)edgeDistSq(center, &onAB);
     rdVector3 closest = onAB;
-    float d = distSq3(center, &onBC.x);
+    long double d = edgeDistSq(center, &onBC);
     if (d < best) {
         closest = onBC;
-        best = d;
+        best = (float)d;
     }
-    d = distSq3(center, &onCA.x);
+    d = edgeDistSq(center, &onCA);
     if (d < best) {
         closest = onCA;
-        best = d;
+        best = (float)d;
     }
     if (best <= swrModel_collisionResultDist)
         swrModel_RecordClosestHit(best, center, &closest.x, normal);
