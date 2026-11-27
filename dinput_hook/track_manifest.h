@@ -43,6 +43,10 @@ struct TrackManifest {
     TrackAsset spline;
     std::vector<TrackAsset> textures;
 
+    // A track whose spline does not loop ends after one traversal, so it has no lap count to ask
+    // for. Recorded when the track is converted, so a catalog entry knows before it is downloaded.
+    bool point_to_point;
+
     TrackPlacement placement;
     std::filesystem::path directory;
 };
