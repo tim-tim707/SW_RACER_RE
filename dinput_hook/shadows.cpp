@@ -650,7 +650,14 @@ bool shadows_hide_blob() {
     return shadows_enabled() && s.hide_blob;
 }
 
+static bool g_scene_depth_ready = false;
+
+unsigned int shadows_scene_depth_texture() {
+    return g_scene_depth_ready ? g_scene_depth_tex : 0;
+}
+
 void shadows_begin_viewport() {
+    g_scene_depth_ready = false;
     g_frame.clear();
     g_frame_cables.clear();
     g_mask_frame[0].clear();
@@ -867,6 +874,7 @@ void shadows_render(const rdMatrix44& proj, const rdMatrix44& view, unsigned int
     glBindFramebuffer(GL_READ_FRAMEBUFFER, scene_fbo);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_scene_depth_fbo);
     glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    g_scene_depth_ready = true;
 
     // ---- 2b) screen mask of the pod exhaust (r) / energy binders (g) drawn this frame ----
     glBindFramebuffer(GL_FRAMEBUFFER, g_mask_fbo);

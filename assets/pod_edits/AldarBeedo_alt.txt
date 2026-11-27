@@ -1,0 +1,8 @@
+# SW_RACER_RE in-game pod edits for AldarBeedo_alt (written by Build & install)
+# The full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine -1.64 -2.7178 2.0168
+binder 3.1562 0.9916 1.0315
+rearcam 2.5 0
+trailnode 9:aaf8 R -1.4944 -5.56 0.4707 1 1 1
+trailnode 9:ab98 L 1.4944 -5.56 0.4707 1 1 1

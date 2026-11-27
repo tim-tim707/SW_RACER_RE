@@ -14,6 +14,7 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -32,6 +33,8 @@ extern FILE* hook_log;
 
 #include "../config.h"
 #include "../debug_ui.h"
+#include "../camera/player_camera.h"// playercam_FovOffset (export: the camera preview's FOV)
+#include "../imgui_utils.h"         // imgui_state.fov_scale (export: the camera preview's FOV)
 #include "../node_utils.h"
 #include "../replacements.h"// modelid_cstr
 #include "../model_replacement.h"// refresh_replacement_models
@@ -122,6 +125,8 @@ namespace {
         // "exhaustscale <sx> <sy> <sz>": the stock exhaust trails scaled about their anchor.
         bool exhaust_light_set = false;// "exhaustlight <aim> <reach> <width> <strength>"
         float exhaust_light[4] = {0.7f, 1.0f, 1.0f, 1.0f};
+        bool nozzle_flame_set = false;// "nozzleflame <width> <length> [<height>]": the nozzle flame cones' size (x stock)
+        float nozzle_flame[3] = {1.0f, 1.0f, 1.0f};
         bool exhaust_scale_set = false;
         float exhaust_scale[3] = {1.0f, 1.0f, 1.0f};
         bool cable2_set[2] = {};// extra cable pair: cockpit end, engine end
@@ -139,6 +144,9 @@ namespace {
         std::vector<std::array<float, 4>> fx[4][2];
         bool gamefire_streak_set = false;// "gamefirestreak <length> <rx> <ry> <rz>"
         float gamefire_streak[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+        std::vector<float> nozzle_len[2];// per edited nozzle (same order as fx[0]): its flame's length (x stock)
+        std::vector<float> nozzle_hgt[2];// ... its height (vertical size, x its radius: 1 = round)
+        std::vector<float> nozzle_wid[2];// ... and its width (horizontal size, x its radius: 1 = round)
         // Per cable ("owncable1".."owncable4"; older files "cable1".."cable4"): own ends.
         bool cable_end_set[4][2] = {};
         float cable_end[4][2][3] = {};
@@ -157,6 +165,19 @@ namespace {
     const auto g_t0 = std::chrono::steady_clock::now();
 
     void load_file(const std::filesystem::path& path, int file_model);
+    void load_stream(std::istream& f, const std::string& path, int file_model);
+
+    // Edits a model carries inside its own data: Build appends the pod's in-game edits to the model it
+    // writes, so a .bin passed to another player brings its cables, binder, exhaust, effects and
+    // cameras with it (and they survive "Write into out_modelblock.bin"). Read when the model loads
+    // (pod_edits_note_model); used like an edit file named after that model, unless such a file is
+    // newer. `when`: the time of the file the model came from (its .bin, or out_modelblock.bin).
+    struct EmbeddedEdits {
+        std::string text;
+        std::filesystem::file_time_type when{};
+        std::string source;
+    };
+    std::map<int, EmbeddedEdits> g_embedded;
 
     // Every edit file, from the game folder's assets/pod_edits and the workspace's pod_edits (which
     // wins for a file of the same name). Each file is named after a model; its lines can still edit
@@ -174,13 +195,34 @@ namespace {
                 if (e.is_regular_file() && e.path().extension() == ".txt")
                     files[e.path().stem().string()] = e.path();
         }
+        std::set<int> from_file;
         for (const auto& [stem, path]: files) {
             int file_model = -1;
             for (int id = 0; id < 323; id++)
                 if (modelid_cstr[id] && stem == modelid_cstr[id])
                     file_model = id;
+            // The model carries its own edits, written after this file: those win (a .bin someone
+            // sent over is newer than an old edit file of the same pod here).
+            if (file_model >= 0) {
+                const auto it = g_embedded.find(file_model);
+                std::error_code tec;
+                const auto t = std::filesystem::last_write_time(path, tec);
+                if (it != g_embedded.end() && (tec || t < it->second.when)) {
+                    fprintf(hook_log, "[PodEdits] %s is older than the edits model %d carries: using those\n",
+                            path.string().c_str(), file_model);
+                    continue;
+                }
+                from_file.insert(file_model);
+            }
             g_any_files = true;
             load_file(path, file_model);
+        }
+        for (const auto& [id, e]: g_embedded) {
+            if (from_file.count(id))
+                continue;
+            std::istringstream in(e.text);
+            g_any_files = true;
+            load_stream(in, e.source, id);
         }
     }
 
@@ -223,9 +265,11 @@ namespace {
 
     void load_file(const std::filesystem::path& file, int file_model) {
         std::ifstream f(file);
-        if (!f)
-            return;
-        const std::string path = file.string();
+        if (f)
+            load_stream(f, file.string(), file_model);
+    }
+
+    void load_stream(std::istream& f, const std::string& path, int file_model) {
         // Layout lines (cables / binder) belong to the pod the file is named after.
         ModelEdits dummy;
         ModelEdits& m = file_model >= 0 ? g_models[file_model] : dummy;
@@ -318,6 +362,19 @@ namespace {
                     m.fx_set[kind] = true;
                     m.found = true;
                     m.fx[kind][side == "R" ? 0 : 1].push_back(v);
+                    if (kind == 0) {// nozzle: an optional flame length factor after the radius
+                        float l = 1.0f, h = 1.0f;
+                        if (!(in >> l) || !(l > 0.0f))
+                            l = 1.0f;
+                        if (!(in >> h) || !(h > 0.0f))
+                            h = 1.0f;
+                        float w = 1.0f;
+                        if (!(in >> w) || !(w > 0.0f))
+                            w = 1.0f;
+                        m.nozzle_len[side == "R" ? 0 : 1].push_back(l);
+                        m.nozzle_hgt[side == "R" ? 0 : 1].push_back(h);
+                        m.nozzle_wid[side == "R" ? 0 : 1].push_back(w);
+                    }
                     continue;
                 }
             } else if (cmd == "cables") {// "cables extra": a bake option, nothing to do here
@@ -337,6 +394,17 @@ namespace {
                 }
             } else if (cmd == "trail") {// an extra trail for the bake; its node comes as "trailnode"
                 continue;
+            } else if (cmd == "nozzleflame") {
+                float v[3] = {1.0f, 1.0f, 1.0f};
+                if (in >> v[0] >> v[1]) {
+                    if (!(in >> v[2]))// optional (older files: width and length only)
+                        v[2] = 1.0f;
+                    m.found = true;
+                    m.nozzle_flame_set = true;
+                    for (int j = 0; j < 3; j++)
+                        m.nozzle_flame[j] = v[j] > 0.0f ? v[j] : 1.0f;
+                    continue;
+                }
             } else if (cmd == "exhaustlight") {
                 float v[4];
                 if (in >> v[0] >> v[1] >> v[2] >> v[3]) {
@@ -387,6 +455,8 @@ namespace {
                     m.found = true;
                     continue;
                 }
+            } else if (cmd == "facesig" || cmd == "basemodel") {
+                continue;// the pod editor's face signatures / base model stamps: for the editor only
             } else if (cmd == "exhaustscale") {
                 float v[3];
                 if (in >> v[0] >> v[1] >> v[2]) {
@@ -555,6 +625,18 @@ namespace {
             return;
         }
         fprintf(f, "{\"format\":\"swr-pod-export-1\",\"model\":\"%s\",", name);
+        // Baked models in use while exporting: their meshes sit at other offsets than the stock
+        // models the editor's Build reads, so the editor warns and won't build from this export.
+        {
+            fputs("\"baked\":[", f);
+            bool first = true;
+            for (const auto& [id, path]: current_replacement_models()) {
+                fprintf(f, "%s%d", first ? "" : ",", id);
+                first = false;
+            }
+            std::error_code bec;
+            fprintf(f, "],\"bakedBlock\":%s,", std::filesystem::exists(MODELBLOCK_ORIGINAL_PATH, bec) ? "true" : "false");
+        }
         auto local = [&](const rdMatrix44& m, float out[3]) {
             const float p[3] = {m.vD.x, m.vD.y, m.vD.z};
             xf(inv_pod, p, out);
@@ -580,6 +662,13 @@ namespace {
             float rear_cam;
             memcpy(&rear_cam, (const char*) r + 0xa8, sizeof(rear_cam));
             fprintf(f, ",\"rearCam\":%.5g", rear_cam);
+            // How the game draws its view, for the editor's camera preview: the race cameras' FOV
+            // (100 degrees horizontal at 4:3, plus the player camera's FOV offset), the user FOV
+            // scale the renderer applies (Hor+), and the window's aspect.
+            const float aspect = swrDisplay_screenHeight > 0 ? (float) swrDisplay_screenWidth / (float) swrDisplay_screenHeight
+                                                             : 4.0f / 3.0f;
+            fprintf(f, ",\"view\":{\"fov\":%.5g,\"fovScale\":%.5g,\"aspect\":%.5g}", 100.0f + playercam_FovOffset(),
+                    imgui_state.fov_scale > 0.0f ? imgui_state.fov_scale : 1.0f, aspect);
             fputs(",\"frames\":{", f);
             const rdMatrix44* frames[5] = {&r->cockpitXf, &r->engineXfR, &r->engineXfL, &r->engineXfR2, &r->engineXfL2};
             const char* names[5] = {"cockpit", "engineR", "engineL", "engineR2", "engineL2"};
@@ -653,9 +742,65 @@ namespace {
         }
         glBindTexture(GL_TEXTURE_2D, (GLuint) prev_tex);
         fputs("},", f);
-
         // Meshes: positions in the pod's frame, plus the mesh->pod matrix (row-vector convention:
         // p_pod = p_mesh * localToPod) so the editor can store pivots in the mesh's own frame.
+        // The base models (the stock block's entries, as the editor's Build reads them) the meshes
+        // below sit in: Build bakes against these, so it never disagrees with the export.
+        {
+            std::set<int> ids;
+            for (const ExMesh& m: g_ex)
+                if (m.file_off >= 0)
+                    ids.insert(m.model);
+            fputs("\"baseModels\":{", f);
+            bool first_base = true;
+            // As loaded: a baked replacement (or a model written into the game's block) is what the
+            // meshes above come from, so Build can rebuild on top of it (e.g. an older .bin put back).
+            // stockFp: the game's own base model, which Build stamps the result with.
+            for (const int id: ids) {
+                std::vector<uint8_t> mask, data, smask, sdata;
+                if (!read_loaded_model(id, mask, data))
+                    continue;
+                const std::string fp = model_fingerprint(mask, data);
+                const std::string stock_fp = read_base_model(id, smask, sdata) ? model_fingerprint(smask, sdata) : fp;
+                fprintf(f, "%s\"%d\":{\"fp\":\"%s\",\"stockFp\":\"%s\",\"mask\":\"%s\",\"data\":\"%s\"}",
+                        first_base ? "" : ",", id, fp.c_str(), stock_fp.c_str(), base64(mask.data(), mask.size()).c_str(),
+                        base64(data.data(), data.size()).c_str());
+                first_base = false;
+            }
+            fputs("},", f);
+            // The edits text each model is driven by now (carried in the model, else the winning edit
+            // file): a .bin without carried edits still brings its spinning parts, cables, ... to the editor.
+            fputs("\"edits\":{", f);
+            bool first_edit = true;
+            for (const int id: ids) {
+                std::string text;
+                const auto it = g_embedded.find(id);
+                if (it != g_embedded.end())
+                    text = it->second.text;
+                else if (modelid_cstr[id]) {
+                    for (const std::filesystem::path& d: {pod_workspace() / L"pod_edits", std::filesystem::path(kDir)}) {
+                        std::ifstream in(d / (std::string(modelid_cstr[id]) + ".txt"), std::ios::binary);
+                        if (!in)
+                            continue;
+                        text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+                        break;
+                    }
+                }
+                if (text.empty())
+                    continue;
+                std::string esc;
+                for (const char c: text) {
+                    if (c == '"' || c == '\\') { esc += '\\'; esc += c; }
+                    else if (c == '\n') esc += "\\n";
+                    else if (c == '\r') {}
+                    else if (c == '\t') esc += "\\t";
+                    else esc += c;
+                }
+                fprintf(f, "%s\"%d\":\"%s\"", first_edit ? "" : ",", id, esc.c_str());
+                first_edit = false;
+            }
+            fputs("},", f);
+        }
         fputs("\"meshes\":[", f);
         for (size_t i = 0; i < g_ex.size(); i++) {
             const ExMesh& m = g_ex[i];
@@ -718,6 +863,75 @@ namespace {
     } g_rec;
     constexpr float kRecSecs = 4.0f, kRecStep = 1.0f / 30.0f;
 
+    // Scrolling textures (binder beam, exhaust dust, flames ...): the game moves a mesh material's
+    // texture_offset itself (swrModel_MeshMaterialSetTextureUVOffset / scroll animations). Every mesh the
+    // export lists is watched while a motion is recorded, and its measured scroll rate (texture widths /
+    // heights per second) goes into the motion file for the editor to animate. Pointers are only used
+    // while a recording runs in a race, and dropped when it ends.
+    struct ScrollProbe {
+        std::string key;
+        const swrModel_MeshMaterial* mat;
+        int16_t last[2];
+        bool have = false;
+        double acc[2] = {0, 0};
+    };
+    std::vector<ScrollProbe> g_probes;
+    double g_probe_secs = 0.0;
+
+    // Where each exported mesh is while a motion records (mesh -> pod frame, per sample): parts the game
+    // moves itself (steering flaps, spinning fans, pistons) need their own frames, not just the main
+    // parts'. Filled by the renderer (pod_edits_record_mesh), sampled by tick_recording.
+    struct MeshMotion {
+        std::string key;
+        int part;
+        rdMatrix44 cur{};
+        bool seen = false;     // drawn since the last sample
+        bool have_last = false;// has frames
+        size_t lead = 0;       // samples before its first sighting (filled in with the first frame)
+        std::vector<float> frames;
+    };
+    std::vector<MeshMotion> g_mmot;
+    std::unordered_map<const swrModel_Mesh*, size_t> g_mmot_idx;
+
+    void probe_reset() {
+        for (MeshMotion& mo: g_mmot) {
+            mo.frames.clear();
+            mo.have_last = false;
+            mo.lead = 0;
+        }
+        for (ScrollProbe& pr: g_probes) {
+            pr.have = false;
+            pr.acc[0] = pr.acc[1] = 0.0;
+        }
+        g_probe_secs = 0.0;
+    }
+    void probe_sample(float dt) {
+        for (ScrollProbe& pr: g_probes) {
+            const swrModel_MaterialTexture* mt = pr.mat->material_texture;
+            if (mt == nullptr)
+                continue;
+            for (int c = 0; c < 2; c++) {
+                const int res = mt->res[c];
+                const int16_t cur = pr.mat->texture_offset[c];
+                if (pr.have && res > 1) {
+                    int d = (int) cur - (int) pr.last[c];
+                    if (d > res / 2)
+                        d -= res;
+                    if (d < -res / 2)
+                        d += res;
+                    pr.acc[c] += (double) d / res;
+                }
+                pr.last[c] = cur;
+            }
+            pr.have = true;
+        }
+        g_probe_secs += dt;
+    }
+    // "Export my pod" also records the idle motion (right away: the pod sits on the start line) and then
+    // the top-speed motion (once the pod is flat out), so no extra buttons are needed.
+    bool g_auto_motion = true;
+    bool g_rec_chain = false;// the idle recording running now is followed by the top-speed one
+
     swrRace* local_racer() {
         const int n = swrEvent_GetEventCount(0x54657374);// 'Test': one per racer
         for (int i = 0; i < n; i++) {
@@ -768,6 +982,47 @@ namespace {
             }
             fputc(']', f);
         }
+        fputs("},\"scroll\":{", f);
+        {
+            bool first_scroll = true;
+            for (const ScrollProbe& pr: g_probes) {
+                if (g_probe_secs <= 0.0 || (std::fabs(pr.acc[0]) < 1e-6 && std::fabs(pr.acc[1]) < 1e-6))
+                    continue;
+                fprintf(f, "%s\"%s\":[%.6g,%.6g]", first_scroll ? "" : ",", pr.key.c_str(), pr.acc[0] / g_probe_secs,
+                        pr.acc[1] / g_probe_secs);
+                first_scroll = false;
+            }
+        }
+        fputs("},\"meshes\":{", f);
+        {
+            // Meshes the main parts' frames above don't explain: any that moved, other than the engines' and
+            // cockpit's own (and their glows / exhaust), the binder, cables and shadows.
+            const auto main_part = [](int p) {
+                return (p >= 1 && p <= 13) || p == 0x1c || p == 0x1d || p == 0x2a || p == 0x2b || (p >= 0x3d && p <= 0x46);
+            };
+            bool first_mesh = true;
+            int written = 0;
+            for (const MeshMotion& mo: g_mmot) {
+                if (!mo.have_last || mo.frames.size() != n * 16 || main_part(mo.part))
+                    continue;
+                float dev = 0.0f;
+                for (size_t i = 1; i < n; i++)
+                    for (int c = 0; c < 16; c++)
+                        dev = std::fmax(dev, std::fabs(mo.frames[i * 16 + c] - mo.frames[c]));
+                if (dev < 1e-3f)
+                    continue;
+                fprintf(f, "%s\"%s\":[", first_mesh ? "" : ",", mo.key.c_str());
+                for (size_t i = 0; i < n; i++) {
+                    if (i)
+                        fputc(',', f);
+                    write_floats(f, &mo.frames[i * 16], 16);
+                }
+                fputc(']', f);
+                first_mesh = false;
+                written++;
+            }
+            fprintf(hook_log, "[PodEdits] motion: %d moving mesh(es) recorded\n", written);
+        }
         fputs("}}", f);
         fclose(f);
         std::string where = path;
@@ -783,6 +1038,11 @@ namespace {
         if (g_rec.kind < 0)
             return;
         swrRace* r = local_racer();
+        if (r != g_ex_racer) {
+            g_probes.clear();// from another race / pod: their material pointers are stale
+            g_mmot.clear();
+            g_mmot_idx.clear();
+        }
         if (r == nullptr) {
             g_rec.kind = -1;
             g_status = "Recording stopped: the race ended.";
@@ -792,7 +1052,7 @@ namespace {
         if (dt <= 0.0f)
             return;// paused
         if (g_rec.waiting) {
-            if (r->speedValue < 0.92f * r->podStats.maxSpeed)
+            if (r->speedValue < 0.60f * r->podStats.maxSpeed)
                 return;
             g_rec.waiting = false;
             g_status = "Recording top-speed motion (hold top speed)...";
@@ -801,6 +1061,9 @@ namespace {
             g_rec.kind = -1;
             return;
         }
+        if (g_rec.t == 0.0f)
+            probe_reset();
+        probe_sample(dt);
         g_rec.t += dt;
         while (g_rec.t >= g_rec.next && g_rec.next <= kRecSecs) {
             rdMatrix44 ref = g_rec.inv_ref;
@@ -811,11 +1074,33 @@ namespace {
                 const rdMatrix44 rel = mul(*m, ref);
                 g_rec.frames.insert(g_rec.frames.end(), &rel.vA.x, &rel.vA.x + 16);
             }
+            for (MeshMotion& mo: g_mmot) {
+                if (mo.seen) {
+                    const rdMatrix44 rel = mul(mo.cur, ref);
+                    for (size_t i = 0; i <= mo.lead; i++)// (earlier samples it wasn't drawn in: its first frame)
+                        mo.frames.insert(mo.frames.end(), &rel.vA.x, &rel.vA.x + 16);
+                    mo.lead = 0;
+                    mo.have_last = true;
+                    mo.seen = false;
+                } else if (mo.have_last) {
+                    float last[16];
+                    std::copy(mo.frames.end() - 16, mo.frames.end(), last);
+                    mo.frames.insert(mo.frames.end(), last, last + 16);
+                } else
+                    mo.lead++;
+            }
             g_rec.next += kRecStep;
         }
         if (g_rec.next > kRecSecs) {
             write_motion();
+            const bool chain = g_rec_chain && g_rec.kind == 0;
             g_rec.kind = -1;
+            g_rec_chain = false;
+            if (chain) {
+                const std::string done = g_status;
+                start_recording(1);
+                g_status = done + " Now waiting for top speed...";
+            }
         }
     }
 
@@ -829,6 +1114,9 @@ namespace {
             g_export_frames = 0;
             g_ex.clear();
             g_ex_seen.clear();
+            g_probes.clear();
+            g_mmot.clear();
+            g_mmot_idx.clear();
             g_ex_racer = nullptr;
             g_ex_model = -1;
             g_status = "Waiting for a race frame...";
@@ -849,6 +1137,11 @@ namespace {
             ImGui::SetTooltip("Waits until you are flat out, then records 4 seconds of how the pod's cockpit and engines\n"
                               "move, for the editor's Top speed preview.");
         ImGui::EndDisabled();
+        ImGui::Checkbox("Export also records idle + top-speed motion", &g_auto_motion);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("After the export, records 4 s of idle motion at once (keep the pod still), then 4 s at\n"
+                              "top speed once you are flat out. Open the export and both .motion.json files together\n"
+                              "in the editor.");
         if (ImGui::Checkbox("Apply pod edits", &g_apply))
             config::set_int("pod_edits", "apply", g_apply ? 1 : 0);
         if (ImGui::Checkbox("Push cables out of the pod", &g_cable_clear))
@@ -884,6 +1177,10 @@ namespace {
             std::error_code ec;
             const bool written = std::filesystem::exists(MODELBLOCK_ORIGINAL_PATH, ec);
             ImGui::TextWrapped("Baked / replacement models: %s", repl.empty() ? "none" : ids.c_str());
+            ImGui::TextDisabled("Loaded: %zu spinning part(s) the mod turns (alt models), %zu baked pod animation(s)",
+                                pod_edits_spin_node_count(), pod_edits_baked_anim_count());
+            for (const auto& [id, why]: skipped_replacement_models())
+                ImGui::TextColored(ImVec4(1.0f, 0.65f, 0.3f, 1.0f), "Model %d ignored: %s", id, why.c_str());
             ImGui::TextDisabled(written ? "out_modelblock.bin holds written models (stock copy kept)."
                                         : "out_modelblock.bin is the stock one.");
             if (ImGui::Button("Write into out_modelblock.bin")) {
@@ -990,6 +1287,35 @@ void pod_edits_export_mesh(const swrRace* racer, int part, const swrModel_Mesh* 
     uint32_t foff;
     const int64_t file_off = find_model_offset(mesh, &fid, &foff) ? (int64_t) foff : -1;
     g_ex.push_back({off, (int) id, file_off, part, texture, textured, model_matrix, world_pos, uv});
+    {
+        char mkey[32];
+        if (file_off >= 0)
+            snprintf(mkey, sizeof(mkey), "%d:%x", (int) id, (unsigned) file_off);
+        else
+            snprintf(mkey, sizeof(mkey), "%x", off);
+        g_mmot_idx[mesh] = g_mmot.size();
+        g_mmot.push_back(MeshMotion{mkey, part});
+        if (mesh->mesh_material != nullptr)
+            g_probes.push_back({mkey, mesh->mesh_material, {0, 0}});
+    }
+}
+
+bool pod_edits_recording() {
+    return g_rec.kind >= 0 && !g_mmot.empty();
+}
+
+void pod_edits_record_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh, const rdMatrix44& model_matrix) {
+    (void) part;
+    if (g_rec.kind < 0 || racer == nullptr || racer != g_ex_racer)
+        return;
+    const auto it = g_mmot_idx.find(mesh);
+    if (it == g_mmot_idx.end())
+        return;
+    MeshMotion& mo = g_mmot[it->second];
+    if (mo.seen)
+        return;// (the first placement it is drawn at)
+    mo.cur = model_matrix;
+    mo.seen = true;
 }
 
 void pod_edits_export_end_frame(bool in_race) {
@@ -1000,6 +1326,10 @@ void pod_edits_export_end_frame(bool in_race) {
         g_export_armed = false;
         g_ex.clear();
         g_ex_seen.clear();
+        if (g_auto_motion && g_rec.kind < 0) {
+            start_recording(0);
+            g_rec_chain = g_rec.kind == 0;
+        }
         return;
     }
     (void) in_race;
@@ -1085,9 +1415,101 @@ namespace {
     }
 }// namespace
 
+namespace {
+    swrModel_Node* parent_of(swrModel_Node* n, const swrModel_Node* target, int depth) {
+        if (n == nullptr || depth > 48 || n->type == NODE_MESH_GROUP || !(n->type & 0x4000))
+            return nullptr;
+        for (uint32_t i = 0; i < n->num_children && i < 256; i++) {
+            swrModel_Node* c = n->children.nodes[i];
+            if (c == target)
+                return n;
+            if (swrModel_Node* p = parent_of(c, target, depth + 1))
+                return p;
+        }
+        return nullptr;
+    }
+    // Neva Kee's pod model (fused engines) puts each engine's nozzle ring and star glow on the other
+    // side: the node above each sits 126 units out to the far side (other pods: 0), so the right
+    // engine's branch carries the left ring and the other way round. Intact, that looks the same; but
+    // when an engine comes off, its ring goes with it and the one left behind floats where the lost
+    // engine was. Turning that offset round puts each ring and glow on its own engine.
+    void fix_neva_kee_nozzles(swrModel_Header* header) {
+        int count = 0;
+        while (count < 128 && header->entries[count].value != 0xFFFFFFFFu)
+            count++;
+        if (count <= 0x2b)
+            return;
+        std::set<swrModel_Node*> done;
+        for (const int part: {0x1c, 0x1d, 0x2a, 0x2b}) {
+            const swrModel_Node* target = header->entries[part].node;
+            if (target == nullptr)
+                continue;
+            swrModel_Node* parent = nullptr;
+            for (int i = 0; i < count && parent == nullptr; i++)
+                if (header->entries[i].node != nullptr && header->entries[i].node != target)
+                    parent = parent_of(header->entries[i].node, target, 0);
+            if (parent == nullptr || !done.insert(parent).second ||
+                (parent->type != NODE_TRANSFORMED && parent->type != NODE_TRANSFORMED_WITH_PIVOT))
+                continue;
+            float& x = ((swrModel_NodeTransformed*) parent)->transform.scale.x;
+            if (std::fabs(x) > 1.0f) {
+                x = -x;
+                parent->flags_3 |= 3;
+            }
+        }
+    }
+}// namespace
+
 void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end, int model_id) {
     if (header == nullptr)
         return;
+    if (model_id == MODELID_neva_kee_pod)
+        fix_neva_kee_nozzles(header);
+    // Edits the model carries: Build appends them at the very end of the model data as
+    //   <text> <zero padding> <u32 text length, little-endian> "SWRPEDT1"
+    // (padded so the whole trailer is a multiple of 8 bytes). The loader reads the model data as it
+    // is and only fixes up the words its mask marks, so these bytes reach memory unchanged. They are
+    // not at the end of the load's range, though: the model's textures are loaded after its data (and
+    // the buffer may be aligned), so the trailer is looked for from the model data onward.
+    const char* trailer = nullptr;
+    uint32_t len = 0, padded = 0;
+    if (model_id >= 0) {
+        const char* data = std::max((const char*) header - 4, asset_begin);
+        for (const char* p = data + 12; p + 8 <= asset_end; p++) {
+            if (*p != 'S' || memcmp(p, "SWRPEDT1", 8) != 0)
+                continue;
+            uint32_t l = 0;
+            memcpy(&l, p - 4, 4);
+            uint32_t pd = l;
+            while ((pd + 12) % 8 != 0)
+                pd++;
+            if (l == 0 || l >= (1u << 20) || p - 4 - pd < data)
+                continue;
+            const char* t = p - 4 - pd;
+            if (memchr(t, 0, l) != nullptr)// the text has no zero bytes: not the trailer
+                continue;
+            trailer = t, len = l, padded = pd;
+            break;
+        }
+    }
+    if (trailer != nullptr) {
+        {
+            std::string text(trailer, len);
+            // Its time: the file it came from (its replacement .bin, or the game's model block).
+            const auto& repl = current_replacement_models();
+            const auto it = repl.find(model_id);
+            const std::filesystem::path src = it != repl.end() ? it->second : std::filesystem::path(MODELBLOCK_PATH);
+            std::error_code tec;
+            const auto when = std::filesystem::last_write_time(src, tec);
+            EmbeddedEdits& slot = g_embedded[model_id];
+            if (slot.text != text || slot.when != when) {
+                slot = {std::move(text), when, src.string() + " (edits carried in model " + std::to_string(model_id) + ")"};
+                fprintf(hook_log, "[PodEdits] model %d carries its own edits (%u bytes)\n", model_id, len);
+                fflush(hook_log);
+                scan_dir();// apply them (or keep a newer edit file)
+            }
+        }
+    }
     // Extra exhaust trails listed for this model.
     if (ModelEdits* me = model_edits(model_id)) {
         const char* data = (const char*) header - 4;
@@ -1102,6 +1524,7 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
         }
     }
     // Alt-model spinning parts listed for this model: their nodes, by file offset.
+    int registered_spin = 0;
     if (ModelEdits* me = model_edits(model_id)) {
         const char* data = (const char*) header - 4;// the type tag: the model file's first byte
         for (const ModelEdits::SpinNodeLine& sl: me->spin_nodes) {
@@ -1117,7 +1540,18 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
             SpinNode sn{node, asset_begin, asset_end, sl.rpm, {sl.axis[0], sl.axis[1], sl.axis[2]},
                         std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z), node->transform.scale};
             g_spin_nodes.push_back(sn);
+            registered_spin++;
+            fprintf(hook_log, "[PodEdits] spinnode %d:%x registered (%.0f rpm, axis %.2f %.2f %.2f)\n", model_id, sl.off, sl.rpm,
+                    sl.axis[0], sl.axis[1], sl.axis[2]);
         }
+    }
+    // A baked replacement of an alt model (not a Podd model: those turn through their own baked
+    // animations) with nothing the mod will turn: say why, since the pod would just sit there.
+    if (registered_spin == 0 && ((const uint32_t*) header)[-1] != kTagPodd && current_replacement_models().count(model_id)) {
+        fprintf(hook_log,
+                "[PodEdits] model %d is a baked replacement but %s: any spinning parts baked into it will not turn "
+                "(Build writes the spinnode lines into pod_edits/<Pod>.txt; Mods > Pod Editor > Reload edits)\n",
+                model_id, model_edits(model_id) ? "its pod_edits file has no spinnode lines" : "no pod_edits file for it was found");
     }
     const uint32_t* words = (const uint32_t*) header;
     if (words[-1] != kTagPodd)// the loader skips the type tag: header points just past it
@@ -1134,9 +1568,18 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
         g_pod_anims.push_back({e->animation, asset_begin, asset_end});
 }
 
+size_t pod_edits_spin_node_count() {
+    return g_spin_nodes.size();
+}
+size_t pod_edits_baked_anim_count() {
+    return g_pod_anims.size();
+}
+
 void pod_edits_drop_models_from(const char* asset_begin) {
-    std::erase_if(g_pod_anims, [&](const PodAnim& a) { return a.begin >= asset_begin; });
-    std::erase_if(g_spin_nodes, [&](const SpinNode& s) { return s.begin >= asset_begin; });
+    // Anything that reaches past asset_begin is overwritten by the new load (an old model overlapping
+    // the new one too): stale pointers there would turn parts of other models (e.g. the pit droids).
+    std::erase_if(g_pod_anims, [&](const PodAnim& a) { return a.end > asset_begin; });
+    std::erase_if(g_spin_nodes, [&](const SpinNode& s) { return s.end > asset_begin; });
     std::erase_if(g_trail_nodes, [&](const TrailNode& t) { return t.begin >= asset_begin; });
 }
 
@@ -1262,6 +1705,33 @@ const std::vector<std::array<float, 4>>* pod_edits_fx_points(int pilot, int kind
         scan_dir();
     const ModelEdits* e = pilot_edits(pilot, [kind](const ModelEdits& m) { return m.fx_set[kind]; });
     return e ? &e->fx[kind][side] : nullptr;
+}
+
+const std::vector<float>* pod_edits_nozzle_lengths(int pilot, int side) {
+    if (side < 0 || side > 1)
+        return nullptr;
+    if (!g_scanned)
+        scan_dir();
+    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.fx_set[0]; });
+    return e ? &e->nozzle_len[side] : nullptr;
+}
+
+const std::vector<float>* pod_edits_nozzle_heights(int pilot, int side) {
+    if (side < 0 || side > 1)
+        return nullptr;
+    if (!g_scanned)
+        scan_dir();
+    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.fx_set[0]; });
+    return e ? &e->nozzle_hgt[side] : nullptr;
+}
+
+const std::vector<float>* pod_edits_nozzle_widths(int pilot, int side) {
+    if (side < 0 || side > 1)
+        return nullptr;
+    if (!g_scanned)
+        scan_dir();
+    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.fx_set[0]; });
+    return e ? &e->nozzle_wid[side] : nullptr;
 }
 
 void pod_edits_place_trails(swrRace* player) {
@@ -1500,6 +1970,16 @@ bool pod_edits_cable_end(int pilot, int index, int end, float out[3]) {
         return false;
     for (int j = 0; j < 3; j++)
         out[j] = e->cable_end[index][end][j];
+    return true;
+}
+
+bool pod_edits_nozzle_flame(int pilot, float out[3]) {
+    const ModelEdits* e = pilot_edits(pilot, [](const ModelEdits& m) { return m.nozzle_flame_set; });
+    if (e == nullptr)
+        return false;
+    out[0] = e->nozzle_flame[0];
+    out[1] = e->nozzle_flame[1];
+    out[2] = e->nozzle_flame[2];
     return true;
 }
 

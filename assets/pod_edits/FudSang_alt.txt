@@ -1,0 +1,13 @@
+# SW_RACER_RE in-game pod edits for FudSang_alt (written by Build & install)
+# The full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable cockpit 1.3291 1.0928 0.4466
+cable engine 0 -5.9309 2.0081
+binder 2.689 0.101 0.0569
+exhaust 0 -6.8497 0.4791
+podheight 0.5
+chasecam near 2.5 1
+chasecam far 1 0
+rearcam 2.5 1.5
+cockpitgap 1.25
+cockpitmove 0 0 -0.5

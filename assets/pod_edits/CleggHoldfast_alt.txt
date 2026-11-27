@@ -1,0 +1,12 @@
+# SW_RACER_RE in-game pod edits for CleggHoldfast_alt (written by Build & install)
+# The full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine -0.033 -2.8799 2.403
+binder 2.8237 3.3723 0
+exhaust 0 -4.5 -0.1797
+rearcam 5.5 0
+enginegap 1.1
+# engine effects: Flame cones (nozzles)
+nozzle R -0.0004 -4.1009 -0.2004 0.271 1 3 3
+nozzle L 0.0004 -4.1009 -0.2004 0.271 1 3 3
+spinnode 25:13080 -240 0 -1 0

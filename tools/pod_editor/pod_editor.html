@@ -39,7 +39,9 @@
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
   #app { display: flex; height: 100vh; }
-  #side { width: 340px; min-width: 300px; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 10px 12px 40px; }
+  #side { width: 340px; min-width: 300px; max-width: 75vw; flex: none; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 10px 12px 40px; }
+  #splitter { flex: none; width: 6px; margin-left: -3px; margin-right: -3px; cursor: col-resize; z-index: 5; position: relative; }
+  #splitter:hover, #splitter.drag { background: var(--accent2); opacity: .6; }
   #view { flex: 1; position: relative; overflow: hidden; }
   #view canvas { display: block; }
   h1 { font-size: 15px; margin: 2px 0 8px; }
@@ -63,6 +65,8 @@
   .tag { font-size: 11px; padding: 1px 6px; border-radius: 9px; background: #333a45; color: var(--dim); }
   .tag.spin { background: #2d3f2a; color: #9fdc8c; }
   .tag.hide { background: #432b2b; color: #e6a0a0; }
+  .tag.place { background: #2a3a4a; color: #9cc8f0; }
+  .tag.reshape { background: #3f3a2a; color: #f0d08c; }
   .vec { display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 4px; align-items: center; margin: 3px 0; }
   .vec input { width: 100%; }
   #status { position: absolute; left: 10px; bottom: 8px; color: var(--dim); font-size: 12px; pointer-events: none; text-shadow: 0 1px 2px #000; }
@@ -118,6 +122,8 @@
     <div class="row">
       <button id="btnSpin" disabled title="Split the selected faces into a part that spins in game">New spin group</button>
       <button id="btnHide" disabled title="Hide the selected faces in game">New hide group</button>
+      <button id="btnPlace" disabled title="Move, rotate and (optionally) mirror the selected faces into a new place; baked into the model on Build">Move / place</button>
+      <button id="btnReshape" disabled title="Bend the model itself: move, turn, scale or flatten the selected faces' corners. Faces next to them that share those corners follow, so the mesh stays in one piece. Baked into the model on Build">Reshape</button>
     </div>
     <div id="groups"></div>
 
@@ -160,6 +166,7 @@
       <code>pod_edits/&lt;Pod&gt;.txt</code> there (the full edits go to <code>pod_edits/source/</code>).
       The mod uses them before the game folder's. In game: Mods › Pod Editor › “Reload edits”, and restart the race for a new model.</div>
   </div>
+  <div id="splitter" title="Drag to make the side panel wider or narrower (double-click: back to normal)"></div>
 
   <div id="view">
     <div id="drop">Drop a pod export (.json) here<br>or an edits file (.txt) after it</div>
@@ -179,6 +186,17 @@ const { bakePod } = window.PodBake || {};
 // ---------------------------------------------------------------------------------------------
 // Row-vector affine matrices, game layout: m = [Ax,Ay,Az,Aw, Bx,..., Cx,..., Dx,Dy,Dz,Dw];
 // p' = p.x*A + p.y*B + p.z*C + D.
+// Rotation of a placed part (degrees, XYZ order, pod frame), about its pivot.
+const _rotE = new THREE.Euler(), _rotV = new THREE.Vector3();
+function rotV(v, rot) {
+  _rotE.set(rot[0] * Math.PI / 180, rot[1] * Math.PI / 180, rot[2] * Math.PI / 180, 'XYZ');
+  _rotV.set(v[0], v[1], v[2]).applyEuler(_rotE);
+  return [_rotV.x, _rotV.y, _rotV.z];
+}
+const hasRot = g => !!(g.rot && (g.rot[0] || g.rot[1] || g.rot[2]));
+// A reshape group's stretch (per pod axis, about the pivot; 0 flattens that axis).
+const hasStretch = g => !!(g.stretch && g.stretch.some(v => v !== 1));
+const stretchV = (v, s) => s ? [v[0] * s[0], v[1] * s[1], v[2] * s[2]] : v;
 const xfPoint = (m, p) => [p[0]*m[0]+p[1]*m[4]+p[2]*m[8]+m[12], p[0]*m[1]+p[1]*m[5]+p[2]*m[9]+m[13], p[0]*m[2]+p[1]*m[6]+p[2]*m[10]+m[14]];
 const xfDir = (m, p) => [p[0]*m[0]+p[1]*m[4]+p[2]*m[8], p[0]*m[1]+p[1]*m[5]+p[2]*m[9], p[0]*m[2]+p[1]*m[6]+p[2]*m[10]];
 function invAffine(m) {
@@ -295,6 +313,15 @@ let moverDragging = false, moverUsed = false;
 mover.addEventListener('dragging-changed', e => { moverDragging = e.value; controls.enabled = !e.value; if (e.value) moverUsed = true; });
 mover.addEventListener('objectChange', () => {
   const g = state.groups[state.active]; if (!g || g.type !== 'spin') return;
+  if (mover.mode === 'rotate') {
+    const e = moveProxy.rotation;
+    g.rot = [e.x, e.y, e.z].map(v => +(v * 180 / Math.PI).toFixed(2));
+    for (const mi of g.tris.keys()) refreshMesh(mi);
+    const row = document.getElementById('rotRow');
+    if (row) row.querySelectorAll('input').forEach((inp, i) => { inp.value = fmt(g.rot[i]); });
+    markDirty();
+    return;
+  }
   const pc = movingPiece(g);
   const gd = groupGapDelta(g);
   if (pc) {
@@ -336,6 +363,11 @@ const TRAIL_PARTS = { R: [0x43, 0x45], L: [0x44, 0x46] };
 // shown they are hidden and each cable is drawn as a tube along its edited curve instead.
 const CABLE_PARTS = new Set([10, 11, 12, 13]);
 const cableTubesShown = () => !!(state.layout && state.layout.frames && document.getElementById('showLayout')?.checked);
+// The energy binder: the export catches the binder model's cards unstretched and off to the side (the
+// game stretches them between the engines every frame), so while the layout is shown they give way
+// to a beam drawn between the binder ends, with the binder's own textures, like the game draws it.
+const BINDER_PARTS = new Set([6, 7, 8, 9]);
+const binderBeamShown = () => cableTubesShown() && state.layout.pilot !== NEVA_KEE;
 // The tube's radius: the game's cable is a prism 20 units across in its own frame.
 function cableRadius() {
   const m = state.meshes.find(x => CABLE_PARTS.has(x.part));
@@ -471,7 +503,22 @@ function meshXf(m) {
       if (d < best) { best = d; m.owner = k; }
     }
   }
+  const mrec = motionActive() && state.motion[previewMode()], mframes = mrec && mrec.meshes && mrec.meshes[m.key];
+  if (mframes && mframes.length) return meshMotionXf(m, mrec, mframes);
   return (m.owner && L.partXf[m.owner]) || null;
+}
+// A mesh the game moves on its own (steering flaps, game-driven spinning parts): the frames recorded
+// for it, as the move from where it was exported (pod frame). The part it hangs from is moved by the
+// spacing edits as for any mesh, replacing that part's recorded motion, which the mesh's own already holds.
+function meshMotionXf(m, rec, frames) {
+  const L = state.layout, f = Math.floor(animT / rec.dt) % frames.length;
+  if (m.invM0 === undefined) m.invM0 = invAffine(m.localToPod);
+  const own = m.owner && L.partXf[m.owner] || null;
+  if (!m.invM0) return own;
+  const D = mulRow(m.invM0, frames[f]);
+  const o = m.owner, pf = o && rec.parts[o], recO = pf && pf.length ? pf[f % pf.length] : null, st = o && L.framesStock[o];
+  const invS = st && invAffine(st), ownRec = invS && recO && mulRow(invS, recO), invOwn = ownRec && invAffine(ownRec);
+  return invOwn && own ? mulRow(mulRow(D, invOwn), own) : D;
 }
 function xfArray(mx, arr) {
   for (let o = 0; o < arr.length; o += 3) {
@@ -563,6 +610,48 @@ function layoutFromHandle(kind, podPos) {
   const l = xfPoint(invAffine(frame), podPos);
   return kind === 'binder' ? [-l[0], l[1], l[2]] : l;// cable 0: mx = pair = +1; binder right end: x mirrored
 }
+// How the game blends these parts: the energy binder and the nozzle glows / discs add light; the
+// exhaust ribbons (part slots 0x43..0x46: the grey trail streaks behind the engines) are smoke.
+const BLEND_ADD_PARTS = new Set([6, 7, 8, 9, 0x1c, 0x1d, 0x2a, 0x2b]);
+const BLEND_ALPHA_PARTS = new Set([0x43, 0x44, 0x45, 0x46]);
+// The binder beam between two ends (pod frame): the binder's long strip texture on two crossed
+// quads (it reads as a beam from every side), adding light, as thick as the game's binder for that
+// gap (the game scales the binder with the distance it spans).
+const binderMats = new Map();
+function binderBeam(a, b) {
+  const tex = binderTexture(); if (!tex) return;
+  let mat = binderMats.get(tex);
+  if (!mat) binderMats.set(tex, mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false }));
+  const d = sub(b, a), L = len(d); if (L < 1e-3) return;
+  const u = scl(d, 1 / L);
+  let s1 = cross(u, [0, 0, 1]); if (len(s1) < 1e-3) s1 = cross(u, [1, 0, 0]);
+  s1 = nrm(s1);
+  const s2 = nrm(cross(u, s1)), w = L * 0.15;
+  for (const s of [s1, s2]) {
+    const c = [add(a, scl(s, -w)), add(b, scl(s, -w)), add(b, scl(s, w)), add(a, scl(s, w))];
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(c.flat(), 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    g.setIndex([0, 1, 2, 0, 2, 3]);
+    const q = new THREE.Mesh(g, mat); q.raycast = () => {}; q.renderOrder = 8;
+    q.userData.keepMaterial = true;
+    layoutRoot.add(q);
+  }
+}
+// The binder's beam texture: the long strip one among the binder cards' textures (the 32x32 one is
+// its glow).
+function binderTexture() {
+  if (state.binderTex !== undefined) return state.binderTex;
+  let best = null;
+  for (const m of state.meshes) {
+    if (!BINDER_PARTS.has(m.part)) continue;
+    const id = state.pod.meshes.find(q => q.key === m.key)?.texture, t = state.textures && state.textures[id];
+    const img = t && t.image; if (!img) continue;
+    if (img.width > img.height && (!best || img.width * img.height > best.image.width * best.image.height)) best = t;
+  }
+  return (state.binderTex = best);
+}
 // The camera markers and the ground (also for Neva Kee, whose fused pod has no cables / binder).
 function drawPodRefs(F) {
   // The cameras.
@@ -590,7 +679,7 @@ function drawPodRefs(F) {
 
 }
 function drawLayout() {
-  for (const o of layoutRoot.children) { if (!o.geometry) continue; o.geometry.dispose(); o.material.dispose(); }
+  for (const o of layoutRoot.children) { if (!o.geometry) continue; o.geometry.dispose(); if (!o.userData.keepMaterial) o.material.dispose(); }
   layoutRoot.clear();
   if (state.layout?.pilot === NEVA_KEE && state.layout.frames) {
     layoutRoot.visible = true; layoutMover.visible = layoutMover.enabled = false;
@@ -602,7 +691,7 @@ function drawLayout() {
   layoutRoot.visible = show;
   if (!show) {
     layoutMover.visible = layoutMover.enabled = false;
-    state.meshes.forEach((m, i) => { if (CABLE_PARTS.has(m.part)) refreshMesh(i); });
+    state.meshes.forEach((m, i) => { if (CABLE_PARTS.has(m.part) || BINDER_PARTS.has(m.part)) refreshMesh(i); });
     return;
   }
   const size = Math.max(0.04, camera.position.distanceTo(controls.target) * 0.006);
@@ -630,9 +719,9 @@ function drawLayout() {
   };
   const cableR = cableRadius();
   // The exported cable meshes give way to the tubes (and come back when the layout is hidden).
-  state.meshes.forEach((m, i) => { if (CABLE_PARTS.has(m.part)) refreshMesh(i); });
+  state.meshes.forEach((m, i) => { if (CABLE_PARTS.has(m.part) || BINDER_PARTS.has(m.part)) refreshMesh(i); });
   P.cables.forEach(([a, b], i) => { curveOf(a, b, F[ENGINE_FRAMES[i]], 0x60c0ff); dotAt(a, LAYOUT.cockpit.color); dotAt(b, LAYOUT.engine.color); });
-  for (const [a, b] of P.binders) { lineOf(a, b, LAYOUT.binder.color); dotAt(a, LAYOUT.binder.color); dotAt(b, LAYOUT.binder.color); }
+  for (const [a, b] of P.binders) { binderBeam(a, b); lineOf(a, b, LAYOUT.binder.color); dotAt(a, LAYOUT.binder.color); dotAt(b, LAYOUT.binder.color); }
   P.extra.forEach(([a, b], i) => { curveOf(a, b, F[i === 0 ? 'engineR' : 'engineL'], 0x40e0c0); dotAt(a, LAYOUT.cockpit2.color); dotAt(b, LAYOUT.engine2.color); });
   for (const a of P.exhaust) dotAt(a, LAYOUT.exhaust.color);
   drawPodRefs(F);
@@ -711,6 +800,18 @@ function podDimsPanel(fused) {// fused: Neva Kee (one piece: only the height and
   cpOn.onchange = () => { state.camPreview = { on: cpOn.checked, which: cpWhich.value }; };
   cpWhich.onchange = () => { state.camPreview = { on: cpOn.checked, which: cpWhich.value }; };
   box.appendChild(cpRow);
+  {
+    // The game's zoom: the mod's Settings > FOV scale (and its window shape), as exported.
+    if (!state.view) state.view = { fov: 100, fovScale: 1, aspect: 4 / 3, fromExport: false };
+    const fr = document.createElement('div'); fr.className = 'row';
+    fr.title = 'The FOV scale set in the mod (Settings > FOV scale; below 1 = zoomed in), so the preview is zoomed like your game. ' +
+      (state.view.fromExport ? 'Taken from the export.' : 'This export is older than that setting: set it by hand, or export again with the current mod.');
+    fr.innerHTML = `<span class="small dim">Game FOV scale</span><input type="number" step="0.05" min="0.5" max="2" style="width:64px" value="${state.view.fovScale}">` +
+      `<span class="small dim">${Math.round(state.view.fov)}°, ${state.view.aspect.toFixed(2)}:1</span>`;
+    const fi = fr.querySelector('input');
+    fi.onchange = () => { const v = parseFloat(fi.value); if (v >= 0.5 && v <= 2) state.view.fovScale = v; };
+    box.appendChild(fr);
+  }
   if (L.camStock && L.camStock.rear === null)
     box.appendChild(Object.assign(document.createElement('div'), { className: 'dim', textContent: 'Looking behind: export the pod again with the current mod to see where that camera sits.' }));
   if (fused) return box;
@@ -916,6 +1017,7 @@ function fxInit(json) {
   const copy = k => ({ R: (auto?.R?.[k] || []).map(p => p.slice()), L: (auto?.L?.[k] || []).map(p => p.slice()) });
   state.fx = { auto, set: { trail: true }, moving: null, pts: Object.fromEntries(Object.keys(FX_KINDS).map(k => [k, copy(k)])),
                light: { set: false, v: [0.7, 1, 1, 1] },// exhaust light: aim, reach, width, strength
+               flame: { set: false, v: [1, 1, 1] },// nozzle flame cones: width, length, height (x stock)
                streak: { set: false, v: [1, 0, 0, 0] } };// overheat fire drift: length, turn x y z
   // Exports from before the game fire was exported: its stock spot, 2 units behind the engine.
   for (const side of ['R', 'L']) if (!state.fx.pts.gamefire[side].length) state.fx.pts.gamefire[side] = [[0, -2, 0, 0]];
@@ -949,6 +1051,30 @@ function drawExhaustLight(F) {
     }
   }
 }
+// The nozzle flame cones: from each nozzle, back along the engine, as wide / long as the mod draws them at
+// full throttle (radius clamped to 1.2-9% of the pod length; flame length 0.32 of it, shared out between a
+// side's nozzles), times the Width / Length factors.
+function drawNozzleFlames(F) {
+  const Fr = state.layout.frames, fl = F.flame.set ? F.flame.v : [1, 1, 1];
+  const mid = scl(add([Fr.engineR[12], Fr.engineR[13], Fr.engineR[14]], [Fr.engineL[12], Fr.engineL[13], Fr.engineL[14]]), 0.5);
+  const Lp = len(sub([Fr.cockpit[12], Fr.cockpit[13], Fr.cockpit[14]], mid)) || 10;
+  for (const [side] of FX_SIDES) {
+    const f = fxFrame(side), back = nrm([-f[4], -f[5], -f[6]]);
+    const noz = (F.set.nozzle ? F.pts.nozzle[side] : F.auto?.[side]?.nozzle) || [];
+    for (const p of noz) {
+      const r = Math.min(Math.max(p[3] || 0, Lp * 0.012), Lp * 0.09) * fl[0];
+      const flen = Lp * 0.32 / Math.sqrt(Math.max(noz.length, 1)) * fl[1] * (p[4] > 0 ? p[4] : 1);
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(r, flen, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xffa040, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }));
+      // the cone's tip (+y) points away from the nozzle: its base sits at the nozzle
+      const hgt = (p[5] > 0 ? p[5] : 1) * (fl[2] ?? 1) / fl[0], right = nrm([f[0], f[1], f[2]]), up = nrm(cross(right, back));// the oval: wide along the engine's right, `hgt` x as tall along its up
+      cone.matrixAutoUpdate = false;
+      const c = add(fxToPod(side, p), scl(back, flen / 2));
+      cone.matrix.makeBasis(new THREE.Vector3(...scl(right, p[6] > 0 ? p[6] : 1)), new THREE.Vector3(...back), new THREE.Vector3(...scl(up, hgt))).setPosition(c[0], c[1], c[2]);
+      cone.raycast = () => {}; cone.renderOrder = 8; fxRoot.add(cone);
+    }
+  }
+}
 function drawFx() {
   for (const o of fxRoot.children) { o.geometry.dispose(); o.material.dispose(); }
   fxRoot.clear();
@@ -979,6 +1105,7 @@ function drawFx() {
     }
   }
   if (F.light.set || F.showAuto) drawExhaustLight(F);
+  if (F.flame.set || F.set.nozzle || F.showAuto) drawNozzleFlames(F);
   // The overheat fire's drift: an arrow from each fire point along where its flames fly.
   if (F.set.gamefire || F.streak.set || F.showAuto) {
     const [ln, rx, ry, rz] = F.streak.set ? F.streak.v : [1, 0, 0, 0];
@@ -1035,19 +1162,29 @@ function renderFx() {
       renderFx(); drawFx(); markDirty();
     };
     if (F.set[k]) {
+      if (info.radius) {// column names for the nozzles' boxes
+        const hd = document.createElement('div'); hd.className = 'vec dim small';
+        hd.style.gridTemplateColumns = '26px repeat(7, minmax(0, 1fr)) auto auto';
+        hd.innerHTML = '<span></span>' + ['x', 'y', 'z', 'size', 'width', 'height', 'length'].map(n => `<span style="text-align:center">${n}</span>`).join('') +
+          '<span style="width:30px"></span><span style="width:30px"></span>';
+        sec.appendChild(hd);
+      }
       for (const [side] of FX_SIDES) {
         F.pts[k][side].forEach((p, i) => {
           const row = document.createElement('div'); row.className = 'vec';
-          const idx = info.radius ? [0, 1, 2, 3] : info.scale ? [0, 1, 2, 4, 5, 6] : [0, 1, 2];
+          const idx = info.radius ? [0, 1, 2, 3, 6, 5, 4] : info.scale ? [0, 1, 2, 4, 5, 6] : [0, 1, 2];
           row.style.gridTemplateColumns = `26px repeat(${idx.length}, minmax(0, 1fr)) auto auto`;
           row.innerHTML = `<span class="dim">${side}${i + 1}</span>`;
           if (info.scale) for (const j of [4, 5, 6]) if (p[j] === undefined) p[j] = 1;
+          if (info.radius && p[4] === undefined) p[4] = 1;
+          if (info.radius && p[5] === undefined) p[5] = 1;
+          if (info.radius && p[6] === undefined) p[6] = 1;
           for (const j of idx) {
             const inp = document.createElement('input'); inp.type = 'number'; inp.step = 'any';
             inp.style.padding = '3px 2px'; inp.style.fontSize = '12px'; inp.style.minWidth = '0';
             inp.dataset.fx = `${k}:${side}:${i}:${j}`; inp.value = fmt(p[j]);
-            inp.title = j === 3 ? 'radius' : j >= 4 ? 'scale ' + ['x (width)', 'y (length)', 'z (height)'][j - 4] : 'xyz'[j] + ' (engine frame)';
-            if (j >= 4) inp.style.background = '#2a2f3a';
+            inp.title = info.radius && j === 3 ? 'size (radius of the glow and flame: resizes it all)' : info.radius && j === 4 ? 'length (x stock flame length)' : info.radius && j === 5 ? 'height (vertical size x the size: 1 = round)' : info.radius && j === 6 ? 'width (horizontal size x the size: 1 = round, more = a wide oval)' : j === 3 ? 'radius' : j >= 4 ? 'scale ' + ['x (width)', 'y (length)', 'z (height)'][j - 4] : 'xyz'[j] + ' (engine frame)';
+            if (j >= 4 || (info.radius && j === 3)) inp.style.background = '#2a2f3a';
             inp.onchange = () => { p[j] = parseFloat(inp.value) || 0; drawFx(); markDirty(); };
             row.appendChild(inp);
           }
@@ -1073,7 +1210,7 @@ function renderFx() {
           const from = list[list.length - 1] || anchor || F.auto?.[side]?.[k]?.[0] || [0, 0, 0, info.radius ? 10 : 0];
           const w = fxToPod(side, from);
           const l = fxFromPod(side, k === 'trail' ? [w[0] + (side === 'R' ? 0.4 : -0.4), w[1], w[2]] : [w[0], w[1] - 0.3, w[2]]);
-          const np = [l[0], l[1], l[2], from[3] ?? 0, from[4] ?? 1, from[5] ?? 1, from[6] ?? 1];
+          const np = info.radius ? [l[0], l[1], l[2], from[3] ?? 0, from[4] ?? 1, from[5] ?? 1, from[6] ?? 1] : [l[0], l[1], l[2], from[3] ?? 0, from[4] ?? 1, from[5] ?? 1, from[6] ?? 1];
           list.push(np); F.moving = { kind: k, side, i: list.length - 1 };
         } else if (a === 'mirror') {
           // Mirrored the way the game mirrors its own engine offsets: in the engine's frame, x
@@ -1119,6 +1256,26 @@ function renderFx() {
     box.appendChild(sec);
   }
   {
+    // The nozzle flame cones' size.
+    const sec = document.createElement('div'); sec.className = 'group';
+    sec.title = 'The exhaust flame cones at each nozzle: make them wider (horizontal) and longer (vertical). 1 = stock. Each nozzle has its own width and length above; this scales all of them on top.';
+    sec.innerHTML = `<div class="title"><span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffa040"></span> Nozzle flame size</span>
+      <label class="small"><input type="checkbox" ${F.flame.set ? 'checked' : ''}> Custom</label></div>`;
+    sec.querySelector('input').onchange = e => { F.flame.set = e.target.checked; renderFx(); drawFx(); markDirty(); };
+    if (F.flame.set) {
+      [['Width', 'Horizontal size of the flame cones and glow (x stock)'], ['Length', 'Length of the flame cones (x stock)'], ['Height', 'Vertical size of the flame cones and glow (x stock)']].forEach(([lab, tip], j) => {
+        const row = document.createElement('div'); row.className = 'vec';
+        row.style.gridTemplateColumns = '60px minmax(0, 1fr)'; row.title = tip;
+        row.innerHTML = `<span class="dim">${lab}</span>`;
+        const inp = document.createElement('input'); inp.type = 'number'; inp.step = '0.1'; inp.min = '0.05';
+        inp.value = fmt(F.flame.v[j] ?? 1); inp.style.padding = '3px 2px'; inp.style.fontSize = '12px';
+        inp.onchange = () => { F.flame.v[j] = Math.max(0.05, parseFloat(inp.value) || 1); drawFx(); markDirty(); };
+        row.appendChild(inp); sec.appendChild(row);
+      });
+    }
+    box.appendChild(sec);
+  }
+  {
     // The exhaust light: the warm spotlight each nozzle throws onto the ground (the orange streak).
     const sec = document.createElement('div'); sec.className = 'group';
     sec.title = 'The orange streak on the track behind the engines: a warm light each nozzle shines down and back onto the ground (brighter while boosting). It starts at the nozzles (move them above); here: where it lands and how big / bright it is.';
@@ -1152,10 +1309,11 @@ function fxLines() {
     const lines = [];
     for (const [side] of FX_SIDES)
       for (const p of F.pts[k][side]) lines.push(`${k} ${side} ${p.slice(0, 3).map(fmt).join(' ')}` +
-        (FX_KINDS[k].radius ? ' ' + fmt(p[3] ?? 0) : '') + (FX_KINDS[k].scale ? ' ' + [p[4] ?? 1, p[5] ?? 1, p[6] ?? 1].map(fmt).join(' ') : ''));
+        (FX_KINDS[k].radius ? ' ' + fmt(p[3] ?? 0) + ' ' + fmt(p[4] ?? 1) + ' ' + fmt(p[5] ?? 1) + ' ' + fmt(p[6] ?? 1) : '') + (FX_KINDS[k].scale ? ' ' + [p[4] ?? 1, p[5] ?? 1, p[6] ?? 1].map(fmt).join(' ') : ''));
     if (lines.length) out.push(`# engine effects: ${FX_KINDS[k].label}`, ...lines);
   }
   if (F.light.set) out.push('# engine effects: exhaust light (lands, reach, width, brightness)', `exhaustlight ${F.light.v.map(fmt).join(' ')}`);
+  if (F.flame.set) out.push('# engine effects: nozzle flame size (width, length, height)', `nozzleflame ${F.flame.v.map(fmt).join(' ')}`);
   if (F.streak.set) out.push('# engine effects: overheat fire streak (length, turn x y z)', `gamefirestreak ${F.streak.v.map(fmt).join(' ')}`);
   return out;
 }
@@ -1171,6 +1329,21 @@ function resize() {
 }
 new ResizeObserver(resize).observe(view);
 resize();
+// The side panel's width: drag the line between it and the view (remembered in this browser).
+{
+  const side = document.getElementById('side'), split = document.getElementById('splitter');
+  const setW = w => { side.style.width = Math.round(Math.max(300, Math.min(w, window.innerWidth * 0.75))) + 'px'; };
+  try { const w = +localStorage.getItem('podEditorSideWidth'); if (w > 0) setW(w); } catch {}
+  let drag = null;
+  split.addEventListener('pointerdown', e => { drag = { x: e.clientX, w: side.getBoundingClientRect().width }; split.classList.add('drag'); split.setPointerCapture(e.pointerId); e.preventDefault(); });
+  split.addEventListener('pointermove', e => { if (drag) setW(drag.w + e.clientX - drag.x); });
+  const end = () => {
+    if (!drag) return; drag = null; split.classList.remove('drag');
+    try { localStorage.setItem('podEditorSideWidth', String(side.getBoundingClientRect().width)); } catch {}
+  };
+  split.addEventListener('pointerup', end); split.addEventListener('pointercancel', end);
+  split.addEventListener('dblclick', () => { side.style.width = ''; try { localStorage.removeItem('podEditorSideWidth'); } catch {} });
+}
 
 // ---------------------------------------------------------------------------------------------
 // Loading
@@ -1206,10 +1379,14 @@ function loadExport(json) {
     // Where the game puts its cameras (pod table: chase distance behind / height above; the racer's
     // look-behind size, exported by the current mod).
     state.layout.camStock = { trail: stock ? stock[19] : null, height: stock ? stock[20] : null, rear: json.rearCam ?? null };
+    // How the game draws its view (exported by the current mod): the race cameras' horizontal FOV at
+    // 4:3, the mod's FOV scale (applied Hor+, keeping the 4:3 vertical view) and the window's aspect.
+    state.view = { fov: json.view?.fov ?? 100, fovScale: json.view?.fovScale ?? 1, aspect: json.view?.aspect ?? 4 / 3, fromExport: !!json.view };
     resetPodDims();
   }
 
   const textures = {};
+  state.textures = textures; state.binderTex = undefined;
   for (const [id, t] of Object.entries(json.textures || {})) {
     const tex = new THREE.DataTexture(b64ToBytes(t.rgba), t.w, t.h, THREE.RGBAFormat);
     tex.wrapS = t.clampS ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
@@ -1218,13 +1395,20 @@ function loadExport(json) {
     tex.colorSpace = THREE.SRGBColorSpace; tex.needsUpdate = true;
     textures[id] = tex;
   }
+  // Materials by how the game blends the part: the binder and the nozzle glows / discs add light;
+  // the exhaust ribbons (the grey trail streaks) are see-through smoke; everything else is solid with
+  // see-through texels cut out.
   const matCache = {};
-  const matFor = id => {
-    if (matCache[id]) return matCache[id];
+  const matFor = (id, part) => {
+    const kind = BLEND_ADD_PARTS.has(part) ? 'add' : BLEND_ALPHA_PARTS.has(part) ? 'alpha' : 'solid', ck = id + '|' + kind;
+    if (matCache[ck]) return matCache[ck];
     const tex = textures[id];
-    return (matCache[id] = tex
-      ? new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: 0.25 })
-      : new THREE.MeshLambertMaterial({ color: 0x9aa3ad, side: THREE.DoubleSide }));
+    if (!tex) return (matCache[ck] = new THREE.MeshLambertMaterial({ color: 0x9aa3ad, side: THREE.DoubleSide }));
+    return (matCache[ck] = kind === 'add'
+      ? new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+      : kind === 'alpha'
+      ? new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true, depthWrite: false })
+      : new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: 0.25 }));
   };
 
   // Exports made before the mod recorded mesh copies ("instances") hold one engine only (the
@@ -1255,7 +1439,7 @@ function loadExport(json) {
     geo.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
     if (m.uv && m.uv.length) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(m.uv), 2));
     geo.computeVertexNormals();
-    const obj = new THREE.Mesh(geo, matFor(m.texture));
+    const obj = new THREE.Mesh(geo, matFor(m.texture, m.part));
     obj.userData.meshIndex = idx;
     const overlay = new THREE.Mesh(new THREE.BufferGeometry(), selMat);
     const grp = new THREE.Mesh(new THREE.BufferGeometry(), grpMat);
@@ -1269,7 +1453,8 @@ function loadExport(json) {
     // Other places the game draws this same mesh (e.g. the left engine = the right engine's meshes
     // mirrored): pod-frame -> pod-frame matrices from this copy to each other one.
     const instances = (podToLocal ? m.instances || [] : []).map(i => ({ part: i.part, matrix: new THREE.Matrix4().fromArray(mulRow(podToLocal, i.localToPod)) }));
-    const rec = { key: m.key, part: m.part, base, tris: base.length / 9, obj, overlay, grp, instances,
+    const rec = { key: m.key, part: m.part, texId: m.texture, base, tris: base.length / 9, obj, overlay, grp, instances,
+      uv0: m.uv && m.uv.length ? new Float32Array(m.uv) : null,
       localToPod: m.localToPod, podToLocal, visible: true, far: false, adj: null,
       centre: [cx / nv, cy / nv, cz / nv] };
     state.meshes.push(rec);
@@ -1313,7 +1498,11 @@ function loadExport(json) {
   renderLayout(); renderFx();
   refreshAll(); markDirty(false);
   historyReset();
-  setStatus('Loaded ' + json.model);
+  prepareBase(json);
+  const carriedNote = loadCarried(json);
+  setStatus('Loaded ' + json.model + carriedNote);
+  const bw = bakedExportWarning(json);
+  if (bw) { setStatus(bw); buildReport('error', bw); }
 }
 
 function buildPartsList() {
@@ -1445,7 +1634,8 @@ function spinPoints(g, arr) {
   const spin = document.getElementById('animate').checked && g.rpm;
   const a = nrm(g.axis), ang = spin ? ((animT * g.rpm * spinShare() / 60) % 1) * Math.PI * 2 : 0, cs = Math.cos(ang), sn = Math.sin(ang);
   for (let o = 0; o < arr.length; o += 3) {
-    const v = [(arr[o] - g.pivot[0]) * sc, (arr[o+1] - g.pivot[1]) * sc, (arr[o+2] - g.pivot[2]) * sc];
+    let v = [(arr[o] - g.pivot[0]) * sc, (arr[o+1] - g.pivot[1]) * sc, (arr[o+2] - g.pivot[2]) * sc];
+    if (hasRot(g)) v = rotV(v, g.rot);
     const d = dot(a, v), cr = cross(a, v);
     arr[o]   = g.pivot[0] + v[0]*cs + cr[0]*sn + a[0]*d*(1-cs) + off[0];
     arr[o+1] = g.pivot[1] + v[1]*cs + cr[1]*sn + a[1]*d*(1-cs) + off[1];
@@ -1487,11 +1677,35 @@ function defaultCut(g) {
   }
   g.cut.rx = +(Math.max(mu, 0.01) * 0.8).toFixed(3); g.cut.ry = +(Math.max(mv, 0.01) * 0.8).toFixed(3);
 }
+// Reshape groups: every corner of the mesh that sits where a selected face's corner sits moves with
+// it (scaled / stretched about the pivot, turned, then moved), so the neighbours follow.
+const vkey = (b, o) => Math.round(b[o] * 2000) + ',' + Math.round(b[o + 1] * 2000) + ',' + Math.round(b[o + 2] * 2000);
+function reshapeKeys(g, mi, set) {
+  const c = g._rk && g._rk.get(mi);
+  if (c && c.set === set && c.size === set.size) return c.keys;
+  const b = state.meshes[mi].base, keys = new Set();
+  for (const t of set) for (let k = 0; k < 3; k++) keys.add(vkey(b, t * 9 + k * 3));
+  if (!g._rk) g._rk = new Map();
+  g._rk.set(mi, { set, size: set.size, keys });
+  return keys;
+}
+function applyReshape(g, mi, set, out) {
+  const keys = reshapeKeys(g, mi, set), b = state.meshes[mi].base, off = g.offset || [0, 0, 0], sc = g.scale ?? 1;
+  for (let i = 0; i < b.length; i += 3) {
+    if (!keys.has(vkey(b, i))) continue;
+    let v = [(out[i] - g.pivot[0]) * sc, (out[i+1] - g.pivot[1]) * sc, (out[i+2] - g.pivot[2]) * sc];
+    v = stretchV(v, g.stretch);
+    if (hasRot(g)) v = rotV(v, g.rot);
+    out[i] = g.pivot[0] + v[0] + off[0]; out[i+1] = g.pivot[1] + v[1] + off[1]; out[i+2] = g.pivot[2] + v[2] + off[2];
+  }
+}
 function displayPositions(mi, out) {
   out.set(state.meshes[mi].base);
   const anim = document.getElementById('animate').checked;
   const showHidden = document.getElementById('showHidden').checked;
+  for (const g of state.groups) if (g.reshape && g.type === 'spin') { const s = g.tris.get(mi); if (s && s.size) applyReshape(g, mi, s, out); }
   for (const g of state.groups) {
+    if (g.reshape) continue;
     let set = g.tris.get(mi); if (!set || set.size === 0) continue;
     if (g.type === 'spin' && g.cut) {// drawn as exact split pieces (updateCutPieces)
       for (const t of set) { const o = t * 9; for (let k = 3; k < 9; k += 3) { out[o+k] = out[o]; out[o+k+1] = out[o+1]; out[o+k+2] = out[o+2]; } }
@@ -1506,7 +1720,8 @@ function displayPositions(mi, out) {
         const o = (t * 3 + k) * 3;
         const po = pre && pre.get(t);
         if (po) { out[o] += po[0]; out[o+1] += po[1]; out[o+2] += po[2]; }// the piece's own move first
-        const v = [(out[o] - g.pivot[0]) * sc, (out[o+1] - g.pivot[1]) * sc, (out[o+2] - g.pivot[2]) * sc];
+        let v = [(out[o] - g.pivot[0]) * sc, (out[o+1] - g.pivot[1]) * sc, (out[o+2] - g.pivot[2]) * sc];
+        if (hasRot(g)) v = rotV(v, g.rot);
         const d = dot(a, v), cr = cross(a, v);
         out[o]   = g.pivot[0] + v[0]*cs + cr[0]*sn + a[0]*d*(1-cs) + off[0];
         out[o+1] = g.pivot[1] + v[1]*cs + cr[1]*sn + a[1]*d*(1-cs) + off[1];
@@ -1527,6 +1742,36 @@ function triGeometry(set, pos, geo) {
   geo.computeBoundingSphere();
 }
 
+// Mirrored copies of placed parts (group "Mirror"): the group's faces as displayed, across the pod's
+// centre plane (x -> -x, winding flipped). Drawn with the mesh's own material; not pickable.
+const ghosts = new Map();// "<group id>:<mesh>" -> THREE.Mesh
+function updateGhosts(mi, shown) {
+  const m = state.meshes[mi], pos = m.obj.geometry.getAttribute('position').array;
+  for (const g of state.groups) {
+    const key = g.id + ':' + mi, set = g.tris.get(mi);
+    let gh = ghosts.get(key);
+    if (!g.mirror || g.baked || !set || !set.size || !shown) { if (gh) gh.visible = false; continue; }
+    if (!gh) {
+      gh = new THREE.Mesh(new THREE.BufferGeometry(), m.obj.material); gh.raycast = () => {}; gh.renderOrder = m.obj.renderOrder;
+      podRoot.add(gh); ghosts.set(key, gh);
+    }
+    const arr = new Float32Array(set.size * 9); let j = 0;
+    for (const t of set) {
+      const o = t * 9;
+      for (const k of [0, 6, 3]) { arr[j++] = -pos[o + k]; arr[j++] = pos[o + k + 1]; arr[j++] = pos[o + k + 2]; }// x mirrored, corners 1 and 2 swapped
+    }
+    gh.geometry.dispose(); gh.geometry = new THREE.BufferGeometry();
+    gh.geometry.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+    gh.geometry.computeVertexNormals(); gh.geometry.computeBoundingSphere();
+    gh.material = m.obj.material; gh.visible = true;
+  }
+}
+function pruneGhosts() {
+  for (const [key, gh] of [...ghosts]) {
+    const [gid, mi] = key.split(':').map(Number), g = state.groups.find(x => x.id === gid);
+    if (!g || !g.mirror || !g.tris.get(mi)) { podRoot.remove(gh); gh.geometry.dispose(); ghosts.delete(key); }
+  }
+}
 function refreshMesh(mi) {
   const m = state.meshes[mi];
   const posAttr = m.obj.geometry.getAttribute('position');
@@ -1534,9 +1779,11 @@ function refreshMesh(mi) {
   posAttr.needsUpdate = true;
   m.obj.geometry.computeVertexNormals();
   m.obj.geometry.computeBoundingSphere();
-  const shown = m.visible && (!m.far || document.getElementById('showFar').checked) && !(CABLE_PARTS.has(m.part) && cableTubesShown());
+  const shown = m.visible && (!m.far || document.getElementById('showFar').checked) && !(CABLE_PARTS.has(m.part) && cableTubesShown()) &&
+                !(BINDER_PARTS.has(m.part) && binderBeamShown());
   m.obj.visible = shown; m.obj.material.wireframe = document.getElementById('wire').checked;
   updateCutPieces(mi, shown);
+  updateGhosts(mi, shown);
   const sel = state.sel.get(mi);
   if (sel && sel.size && shown) { triGeometry(sel, posAttr.array, m.overlay.geometry); m.overlay.visible = true; }
   else m.overlay.visible = false;
@@ -1562,6 +1809,7 @@ function animatedMeshes() {
 
 function refreshAll() {
   state.meshes.forEach((_, i) => refreshMesh(i));
+  pruneGhosts();
   updateSelInfo(); renderGroups(); updateGizmo();
 }
 
@@ -1574,6 +1822,8 @@ function updateSelInfo() {
   document.getElementById('selInfo').textContent = `${n} face${n === 1 ? '' : 's'}` + (meshes > 1 ? ` in ${meshes} meshes` : '');
   document.getElementById('btnSpin').disabled = n === 0;
   document.getElementById('btnHide').disabled = n === 0;
+  document.getElementById('btnPlace').disabled = n === 0;
+  document.getElementById('btnReshape').disabled = n === 0;
 }
 function applySel(mi, tris, op) {
   if (op === 'replace') state.sel.clear();
@@ -1728,14 +1978,19 @@ function cloneSel() { const m = new Map(); for (const [k, s] of state.sel) if (s
 function newGroup(type) {
   const tris = cloneSel(); if (!tris.size) return;
   const st = selectionStats(tris);
-  state.groups.push({ id: state.nextId++, type, name: (type === 'spin' ? 'Spin ' : 'Hide ') + (state.groups.length + 1), tris,
-    pivot: st.centre, axis: st.normal, rpm: 240, offset: [0, 0, 0], scale: 1 });
+  const reshape = type === 'reshape', placed = type === 'place' || reshape; if (placed) type = 'spin';// a placed part is a spin group that doesn't spin
+  state.groups.push({ id: state.nextId++, type, name: (reshape ? 'Reshape ' : placed ? 'Place ' : type === 'spin' ? 'Spin ' : 'Hide ') + (state.groups.length + 1), tris,
+    pivot: st.centre, axis: st.normal, rpm: placed ? 0 : 240, offset: [0, 0, 0], scale: 1, rot: [0, 0, 0], mirror: false,
+    reshape, stretch: [1, 1, 1] });
+  if (placed) state.gizmoMode = 'translate';
   state.active = state.groups.length - 1;
   state.sel.clear();
   refreshAll(); markDirty();
 }
 document.getElementById('btnSpin').onclick = () => newGroup('spin');
 document.getElementById('btnHide').onclick = () => newGroup('hide');
+document.getElementById('btnPlace').onclick = () => newGroup('place');
+document.getElementById('btnReshape').onclick = () => newGroup('reshape');
 
 function vecRow(label, v, onChange) {
   const row = document.createElement('div'); row.className = 'vec';
@@ -1753,19 +2008,49 @@ function renderGroups() {
   state.groups.forEach((g, gi) => {
     const el = document.createElement('div'); el.className = 'group' + (gi === state.active ? ' active' : '');
     const nt = [...g.tris.values()].reduce((a, s) => a + s.size, 0);
-    el.innerHTML = `<div class="title"><span><span class="tag ${g.type}">${g.type}</span> <input type="text" value="${g.name.replace(/"/g, '&quot;')}"></span>
+    el.innerHTML = `<div class="title"><span><span class="tag ${g.reshape ? 'reshape' : g.type === 'spin' && !g.rpm && !g.baked ? 'place' : g.type}">${g.reshape ? 'reshape' : g.type === 'spin' && !g.rpm && !g.baked ? 'place' : g.type}</span> <input type="text" value="${g.name.replace(/"/g, '&quot;')}"></span>
       <span class="dim">${nt} faces</span></div>`;
     el.querySelector('input').onchange = e => { g.name = e.target.value; markDirty(); };
     el.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; state.active = gi; refreshAll(); };
-    if (gi === state.active) {
+    if (gi === state.active && g.baked) {
+      const info = document.createElement('div'); info.className = 'dim small';
+      info.textContent = `Already in the model (${fmt(Math.abs(g.rpm))} RPM): it spins in game and stays when the pod is built again. Read-only here.`;
+      el.appendChild(info);
+    } else if (gi === state.active) {
       if (g.type === 'spin') {
-        el.appendChild(vecRow('Pivot', g.pivot, () => { updateGizmo(); markDirty(); }));
-        el.appendChild(vecRow('Axis', g.axis, () => { updateGizmo(); markDirty(); }));
+        el.appendChild(vecRow('Pivot', g.pivot, () => { for (const mi of g.tris.keys()) refreshMesh(mi); updateGizmo(); markDirty(); }));
+        if (!g.reshape) el.appendChild(vecRow('Axis', g.axis, () => { updateGizmo(); markDirty(); }));
         if (!g.offset) g.offset = [0, 0, 0];
         const offRow = vecRow('Offset', g.offset, () => { for (const mi of g.tris.keys()) refreshMesh(mi); updateGizmo(); markDirty(); });
         offRow.id = 'offsetRow';
         offRow.title = 'Move the part (pod frame: x right, y forward, z up) before it spins. Or drag the arrows in the view.';
         el.appendChild(offRow);
+        if (!g.rot) g.rot = [0, 0, 0];
+        const rotRow = vecRow('Rotate °', g.rot, () => { for (const mi of g.tris.keys()) refreshMesh(mi); updateGizmo(); markDirty(); });
+        rotRow.id = 'rotRow';
+        rotRow.title = 'Turn the part about its pivot (degrees about the pod\'s x, y, z), before it spins. Or use the Rotate handle.';
+        el.appendChild(rotRow);
+        if (g.reshape) {
+          if (!g.stretch) g.stretch = [1, 1, 1];
+          const stRow = vecRow('Stretch ×', g.stretch, () => { for (const mi of g.tris.keys()) refreshMesh(mi); markDirty(); });
+          stRow.title = 'Scale the selected corners along the pod\'s x, y, z about the pivot (1 = unchanged; 0 flattens that axis onto the pivot).';
+          el.appendChild(stRow);
+          const note = document.createElement('div'); note.className = 'dim small';
+          note.textContent = 'Reshape bends the model itself: neighbouring faces that share the selected corners follow them. Made when you Build (not in game edit files).';
+          el.appendChild(note);
+        }
+        const mr = document.createElement('div'); mr.className = 'row';
+        mr.innerHTML = `<button data-m="translate" class="${(state.gizmoMode || 'translate') === 'translate' ? 'on' : ''}" title="Drag handle: move">Move</button>
+          <button data-m="rotate" class="${state.gizmoMode === 'rotate' ? 'on' : ''}" title="Drag handle: rotate about the pivot">Rotate</button>
+          ${g.reshape ? '' : `<label class="small" title="Also place a mirrored copy of the part across the pod's centre plane (x -> -x). Needs RPM 0."><input type="checkbox" ${g.mirror ? 'checked' : ''}> Mirror copy</label>`}
+          <button data-m="reset" title="Put the part back where it was">Reset</button>`;
+        mr.onclick = e => {
+          const a = e.target.dataset.m;
+          if (a === 'translate' || a === 'rotate') { state.gizmoMode = a; renderGroups(); updateGizmo(); }
+          if (a === 'reset') { g.offset = [0, 0, 0]; g.rot = [0, 0, 0]; if (g.reshape) { g.stretch = [1, 1, 1]; g.scale = 1; } refreshAll(); markDirty(); }
+        };
+        if (!g.reshape) mr.querySelector('input').onchange = e => { g.mirror = e.target.checked; refreshAll(); markDirty(); };
+        el.appendChild(mr);
         const r = document.createElement('div'); r.className = 'row';
         r.innerHTML = `<label class="small" style="width:52px">RPM</label><input type="number" step="10" value="${g.rpm}">
           <button title="Flip spin direction">⇄</button><button data-r="off" title="Put the part back where it was">Reset move</button>`;
@@ -1784,12 +2069,12 @@ function renderGroups() {
         r.querySelector('input').onchange = e => { g.rpm = parseFloat(e.target.value) || 0; markDirty(); };
         r.querySelector('button').onclick = () => { g.rpm = -g.rpm; renderGroups(); markDirty(); };
         r.querySelector('[data-r=off]').onclick = () => { g.offset = [0, 0, 0]; refreshAll(); markDirty(); };
-        el.appendChild(r);
+        if (!g.reshape) el.appendChild(r);
         el.appendChild(rs);
         const rc = document.createElement('div'); rc.className = 'row';
         rc.innerHTML = `<label class="small" title="Split the faces along an ellipse around the pivot: only the inside spins, the rim stays put. Applied when baking (bake_pod_edits.py); plain in-game edit files spin the whole faces."><input type="checkbox" ${g.cut ? 'checked' : ''}> Cut to ellipse</label>`;
-        el.appendChild(rc);
-        if (g.cut) {
+        if (!g.reshape) el.appendChild(rc);
+        if (g.cut && !g.reshape) {
           const rr = document.createElement('div'); rr.className = 'vec';
           rr.innerHTML = `<span class="dim" title="Radii across the axis (pod units) and the ellipse's turn about the axis (degrees)">A / B / °</span>`;
           for (const k of ['rx', 'ry', 'angle']) {
@@ -1804,6 +2089,7 @@ function renderGroups() {
           refreshAll(); markDirty();
         };
         const r2 = document.createElement('div'); r2.className = 'row';
+        if (g.reshape) r2.style.display = 'none';
         r2.innerHTML = `<button data-a="centre">Pivot = centre</button><button data-a="normal">Axis = face normal</button>
           <button data-a="fwd">Axis = forward</button>`;
         r2.onclick = e => {
@@ -1815,7 +2101,7 @@ function renderGroups() {
           refreshAll(); markDirty();
         };
         el.appendChild(r2);
-        el.appendChild(piecesPanel(g));
+        if (!g.reshape) el.appendChild(piecesPanel(g));
       }
       const r3 = document.createElement('div'); r3.className = 'row';
       r3.innerHTML = `<button data-a="sel">Select its faces</button><button data-a="addsel">Add selection</button>
@@ -1907,6 +2193,10 @@ function updateGizmo() {
   const g = state.groups[state.active];
   gizmo.visible = !!(g && g.type === 'spin');
   mover.visible = mover.enabled = gizmo.visible;
+  const rotating = gizmo.visible && state.gizmoMode === 'rotate' && !movingPiece(g);
+  mover.setMode(rotating ? 'rotate' : 'translate'); mover.setSpace(rotating ? 'local' : 'world');
+  if (rotating && !moverDragging) moveProxy.rotation.set(...(g.rot || [0, 0, 0]).map(v => v * Math.PI / 180), 'XYZ');
+  else if (!rotating) moveProxy.rotation.set(0, 0, 0);
   cutLine.visible = !!(gizmo.visible && g.cut);
   const gd = g ? groupGapDelta(g) : [0, 0, 0];
   if (cutLine.visible) {
@@ -1939,12 +2229,118 @@ function ranges(set) {
   for (let i = 0; i < a.length; ) { let j = i; while (j + 1 < a.length && a[j + 1] === a[j] + 1) j++; out.push(a[i] === a[j] ? `${a[i]}` : `${a[i]}-${a[j]}`); i = j + 1; }
   return out.join(',');
 }
+// ---- face signatures: edits find their faces by shape, not by number ---------------------------------
+// A face's number depends on the exact model file it was made from, and so does a mesh's file offset
+// (a baked or edited copy of the pod shifts both). So the edits file also carries each edited face's
+// shape: a hash of its corner positions in the mesh's own frame, and a hash of the whole mesh. On
+// load, edits whose numbers don't fit this export are matched up by those hashes instead.
+const hx8 = n => (n >>> 0).toString(16).padStart(8, '0');
+function faceHash(base, t) {
+  const o = t * 9, q = v => Math.round(v * 100) | 0, vs = [];
+  for (let k = 0; k < 3; k++) vs.push([q(base[o + 3 * k]), q(base[o + 3 * k + 1]), q(base[o + 3 * k + 2])]);
+  vs.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);// corner order doesn't matter
+  let h = 2166136261 >>> 0;
+  for (const v of vs) for (const c of v) h = Math.imul(h ^ c, 16777619) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  return h >>> 0;
+}
+function sigOf(mi) {
+  const m = state.meshes[mi];
+  if (m.sig) return m.sig;
+  const faces = new Array(m.tris);
+  for (let t = 0; t < m.tris; t++) faces[t] = faceHash(m.base, t);
+  let h = (2166136261 ^ m.tris) >>> 0;
+  for (const f of faces.slice().sort((a, b) => a - b)) h = Math.imul(h ^ f, 16777619) >>> 0;
+  return m.sig = { faces, mesh: hx8(h) };
+}
+function facesigLine(m, mi, set) {
+  const sig = sigOf(mi);
+  return `facesig ${m.key} ${sig.mesh} ${[...set].filter(f => f < m.tris).sort((a, b) => a - b).map(f => f + ':' + hx8(sig.faces[f])).join(',')}`;
+}
+// The export's own copies of the pod's base models (the mod puts them in the export): Build bakes
+// against exactly these, and their fingerprints go into the edits and the built models' stamps.
+function prepareBase(json) {
+  state.baseBlock = null; state.baseFps = null; state.baseFpBad = new Set(); state.stockFps = {};
+  if (!json.baseModels || !window.PodBake) return;
+  const dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0)), models = {}, fps = {};
+  try {
+    for (const [id, b] of Object.entries(json.baseModels)) {
+      const mask = dec(b.mask), data = dec(b.data), fp = window.PodBake.fingerprint(mask, data);
+      models[id] = { mask, data }; fps[id] = fp;
+      // The game's own base model for this id (the export may carry a baked model as loaded): what
+      // built models are stamped with, so the mod checks them against the game's base model.
+      state.stockFps[id] = b.stockFp || fp;
+      if (b.fp && b.fp !== fp) { state.baseFpBad.add(String(id)); console.warn(`model ${id}: the export's fingerprint ${b.fp} differs from the one computed here (${fp})`); }
+    }
+    state.baseBlock = window.PodBake.blockFromBase(models); state.baseFps = fps;
+  } catch (err) { console.warn('could not read the export\'s base models', err); }
+}
+// What the export's model data carries (an export of a baked pod, e.g. from an older .bin): the
+// spinning parts already in the models -- shown spinning, read-only (they stay in the model when it is
+// built again) -- and the in-game edits the model carries (cables, binder, effects, cameras, hides:
+// loaded here to edit; its spinning / trail node and extra cable lines are kept as they are for the
+// next Build, since those parts are already in the model). Returns a note for the status line.
+const CARRY_CMDS = new Set(['spinnode', 'trailnode']);
+function loadCarried(json) {
+  state.bakedGroups = []; state.carry = [];
+  const PB = window.PodBake;
+  if (!state.baseBlock || !PB) return '';
+  const ids = Object.keys(json.baseModels || {}).map(Number);
+  let carried = '';
+  for (const id of ids) {
+    const t = PB.embeddedText(PB.readBlockEntry(state.baseBlock, id)[1]);
+    const e = t || (json.edits && json.edits[id]);// an older .bin carries none: the export has what drives it
+    if (e) carried += e + '\n';
+  }
+  const byKey = new Map(state.meshes.map((m, i) => [m.key.toLowerCase(), i]));
+  for (const id of ids) for (const sp of PB.bakedSpins(state.baseBlock, id, carried)) {
+    const tris = new Map(); let ref = null;
+    for (const off of sp.meshes) {
+      const mi = byKey.get(`${id}:${off.toString(16)}`); if (mi === undefined) continue;
+      tris.set(mi, new Set(Array.from({ length: state.meshes[mi].tris }, (_, t) => t)));
+      if (!ref && state.meshes[mi].localToPod) ref = state.meshes[mi];
+    }
+    if (!tris.size || !ref) continue;
+    // The axis goes through the node's pivot, in the frame its meshes are drawn in.
+    state.bakedGroups.push({ id: state.nextId++, type: 'spin', baked: true, name: `Spinning part ${state.bakedGroups.length + 1} (in the model)`,
+      tris, pivot: xfPoint(ref.localToPod, sp.pivot), axis: nrm(xfDir(ref.localToPod, sp.axis)), rpm: sp.rpm * meshSense(ref),
+      offset: [0, 0, 0], scale: 1, cut: null });
+  }
+  if (carried) {
+    const keep = [];
+    for (const line of carried.split(/\r?\n/)) {
+      const t = line.trim().split(/\s+/);
+      if (CARRY_CMDS.has(t[0])) state.carry.push(line.trim()); else keep.push(line);
+    }
+    loadEdits(keep.join('\n'));
+  } else {
+    state.groups = [...state.bakedGroups]; state.active = -1; refreshAll();
+  }
+  historyReset();
+  const n = state.bakedGroups.length;
+  return (carried ? ' · it carries its own edits (loaded)' : '') + (n ? ` · ${n} spinning part${n > 1 ? 's' : ''} already in the model (shown, read-only)` : '');
+}
+// The carried node lines for the next Build: a node moved by however much this Build grew the head of
+// its model (the bake inserts at the header, moving everything after it).
+function carryLines(baked) {
+  const shift = new Map((baked ? baked.models : []).map(r => [r.modelId, r.keyShift || 0]));
+  return (state.carry || []).map(line => {
+    const t = line.split(/\s+/);
+    if ((t[0] === 'spinnode' || t[0] === 'trailnode') && t[1] && t[1].includes(':')) {
+      const [mid, off] = t[1].split(':'), sh = shift.get(+mid) || 0;
+      if (sh) t[1] = `${mid}:${(parseInt(off, 16) + sh).toString(16)}`;
+    }
+    return t.join(' ');
+  });
+}
 function buildEditsText() {
   const p = state.pod; const L = [];
   L.push(`# SW_RACER_RE pod edits for ${p.model} (made with tools/pod_editor/pod_editor.html)`);
   L.push(`# Put this file in <game>/assets/pod_edits/${p.model}.txt`);
   L.push(`# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)`);
+  for (const [id, fp] of Object.entries(state.baseFps || {})) L.push(`basemodel ${id} ${fp}`);
   for (const g of state.groups) {
+    if (g.baked) continue;// already in the model
     L.push(`# ${g.type}: ${g.name}`);
     for (const [mi, set] of g.tris) {
       if (!set.size) continue;
@@ -1958,12 +2354,30 @@ function buildEditsText() {
         const sc = g.scale ?? 1;
         // Optional trailing fields: offset (mesh frame), then scale (needs the offset before it).
         let tail = (off[0] || off[1] || off[2] || sc !== 1) ? ` ${ofl.map(fmt).join(' ')}` + (sc !== 1 ? ` ${fmt(sc)}` : '') : '';
+        // Placement: the rotation (the editor's degrees, and the bake's mesh-frame row matrix) and the
+        // mirrored copy (mesh-frame linear part + move).
+        let placeTok = '';
+        if (hasRot(g) || g.mirror || (g.reshape && hasStretch(g))) {
+          const f6 = v => String(+v.toFixed(6)), E = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+          const toLoc = v => xfDir(m.podToLocal, v), toPod = v => xfDir(m.localToPod, v);
+          const rotm = E.flatMap(e => toLoc(rotV(stretchV(toPod(e), g.reshape ? g.stretch : null), g.rot || [0, 0, 0])));
+          placeTok = ` rot ${(g.rot || [0, 0, 0]).map(f6).join(' ')} rotm ${rotm.map(f6).join(' ')}`;
+          if (g.reshape && hasStretch(g)) placeTok += ` stretch ${g.stretch.map(f6).join(' ')}`;
+          if (g.mirror) {
+            const mm = E.flatMap(e => { const q = toPod(e); return toLoc([-q[0], q[1], q[2]]); });
+            const tp = [m.localToPod[12], m.localToPod[13], m.localToPod[14]], tt = toLoc([-2 * tp[0], 0, 0]);
+            placeTok += ` mirror ${mm.map(f6).join(' ')} ${tt.map(f6).join(' ')}`;
+          }
+          if (!g.cut) tail = ` ${ofl.map(fmt).join(' ')} ${fmt(sc)}`;
+        }
         if (g.cut) {
           // "ellipse ux uy uz rx ry" (mesh frame) after the full offset + scale fields.
           const { u, v } = cutBasis(g);
           const ul = xfDir(m.podToLocal, u), vl = xfDir(m.podToLocal, v);
           tail = ` ${ofl.map(fmt).join(' ')} ${fmt(sc)} ellipse ${nrm(ul).map(fmt).join(' ')} ${fmt(g.cut.rx * len(ul))} ${fmt(g.cut.ry * len(vl))}`;
         }
+        tail += placeTok;
+        if (g.reshape) tail += ' reshape';
         // The rpm turns about the axis in the mesh's own frame: a mirrored mesh frame turns the
         // other way in the pod, so its rpm is written negated (what spins one way here spins the
         // same way in game).
@@ -1976,11 +2390,12 @@ function buildEditsText() {
           const mine = [...ps].filter(t => rest.has(t)); if (!mine.length) continue;
           if (pc.merged && !pc.offset.some(Boolean)) continue;// merged and not moved: plain faces
           mine.forEach(t => rest.delete(t));
-          const full = g.cut ? tail : ` ${ofl.map(fmt).join(' ')} ${fmt(sc)}`;
+          const full = g.cut ? tail : ` ${ofl.map(fmt).join(' ')} ${fmt(sc)}${placeTok}`;
           L.push(`${head} ${ranges(new Set(mine))}${full} ${pc.merged ? 'pre' : 'piece'} ${xfDir(m.podToLocal, pc.offset).map(fmt).join(' ')}`);
         }
         if (rest.size) L.push(`${head} ${ranges(rest)}${tail}`);
       } else L.push(`hide ${m.key} ${ranges(set)}`);
+      L.push(facesigLine(m, mi, set));
     }
   }
   L.push(...layoutLines());
@@ -2053,7 +2468,7 @@ function loadEdits(text) {
       if (best) byKey.set(k, best.i);
     }
   }
-  state.groups = [];
+  state.groups = [...(state.bakedGroups || [])];// the model's own spinning parts stay
   state.layout.cur = Object.fromEntries(BASE_KINDS.map(k => [k, state.layout.stock[k].slice()]));
   Object.assign(state.layout.cur, extraDefaults(state.layout.cur));
   state.layout.set = {}; state.layout.moving = null; state.layout.extra = false;
@@ -2066,11 +2481,62 @@ function loadEdits(text) {
   state.layout.pairMirror = [true, true];
   fxInit(state.pod);
   const fxSeen = {};
-  let name = null, missing = 0;
+  let name = null, missing = 0, gi = -1, rematched = 0, droppedFaces = 0;
+  // Face signatures ("facesig") and base model stamps ("basemodel") the edits were saved with.
+  const sigs = new Map(), fileBase = new Map();
+  {
+    let g0 = -1;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (line.startsWith('#')) { if (/^#\s*(spin|hide):/.test(line)) g0++; continue; }
+      const t = line.split(/\s+/);
+      if (t[0] === 'facesig' && t.length >= 4) {
+        const faces = new Map();
+        for (const pr of t[3].split(',')) { const [i, h] = pr.split(':'); if (h !== undefined) faces.set(+i, h); }
+        const k = g0 + '|' + t[1].toLowerCase(), old = sigs.get(k);
+        if (old) for (const [i, h] of faces) old.faces.set(i, h); else sigs.set(k, { mesh: t[2], faces });
+      } else if (t[0] === 'basemodel' && t.length >= 3) fileBase.set(t[1], t[2]);
+    }
+  }
+  const keyOff = k => parseInt(k.slice(k.indexOf(':') + 1), 16);
+  // The faces of one spin / hide line in this export: where its numbers say if they fit (each face's
+  // shape agrees with the signature), else wherever that shape is -- the mesh with the same shape (or,
+  // failing that, the one holding most of the faces) and its faces by their shapes.
+  const resolveLine = (key, faces) => {
+    key = key.toLowerCase();
+    const mi0 = byKey.get(key), sig = sigs.get(gi + '|' + key);
+    if (!sig) return mi0 === undefined ? null : { mi: mi0, faces };
+    if (mi0 !== undefined) {
+      const fh = sigOf(mi0).faces;
+      if ([...faces].every(f => f < fh.length && hx8(fh[f]) === sig.faces.get(f))) return { mi: mi0, faces };
+    }
+    let cand = state.meshes.map((_, i) => i).filter(i => sigOf(i).mesh === sig.mesh);
+    if (!cand.length) {
+      const want = new Set(sig.faces.values());
+      let best = -1, bestN = 0;
+      state.meshes.forEach((_, i) => { let n = 0; for (const h of sigOf(i).faces) if (want.has(hx8(h))) n++; if (n > bestN) { bestN = n; best = i; } });
+      if (best >= 0 && bestN >= Math.max(1, Math.ceil(0.6 * sig.faces.size))) cand = [best];
+    }
+    if (!cand.length) return null;
+    const model = key.split(':')[0], same = cand.filter(i => state.meshes[i].key.split(':')[0] === model);
+    const pool = (same.length ? same : cand).sort((a, b) => Math.abs(keyOff(state.meshes[a].key) - keyOff(key)) - Math.abs(keyOff(state.meshes[b].key) - keyOff(key)));
+    const mi = pool[0], byHash = new Map();
+    sigOf(mi).faces.forEach((h, i) => { const k = hx8(h); if (!byHash.has(k)) byHash.set(k, []); byHash.get(k).push(i); });
+    const used = new Set(), out = new Set();
+    let drop = 0;
+    for (const f of [...faces].sort((a, b) => a - b)) {
+      const idx = (byHash.get(sig.faces.get(f)) || []).find(i => !used.has(i));
+      if (idx === undefined) drop++; else { used.add(idx); out.add(idx); }
+    }
+    if (!out.size) return null;
+    rematched++; droppedFaces += drop;
+    return { mi, faces: out };
+  };
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trim();
-    if (line.startsWith('#')) { const m = line.match(/^#\s*(spin|hide):\s*(.*)$/); if (m) name = m[2]; continue; }
+    if (line.startsWith('#')) { const m = line.match(/^#\s*(spin|hide):\s*(.*)$/); if (m) { name = m[2]; gi++; } continue; }
     const t = line.split(/\s+/); if (!t[0]) continue;
+    if (t[0] === 'facesig' || t[0] === 'basemodel') continue;
     if (t[0] === 'cables' && t[1] === 'extra') { state.layout.extra = true; state.layout.fromText = true; continue; }
     if (t[0] === 'exhaustscale') {
       const v = t.slice(1, 4).map(Number);
@@ -2096,6 +2562,11 @@ function loadEdits(text) {
     if (t[0] === 'cableout') {
       const v = t.slice(1, 3).map(Number);
       if (v.length === 2 && v.every(Number.isFinite)) state.layout.cableOut = v;
+      continue;
+    }
+    if (t[0] === 'nozzleflame') {
+      const v = t.slice(1, 4).map(Number);
+      if (v.length >= 2 && v.every(Number.isFinite)) state.fx.flame = { set: true, v: [v[0], v[1], v[2] ?? 1] };
       continue;
     }
     if (t[0] === 'gamefirestreak') {
@@ -2125,10 +2596,10 @@ function loadEdits(text) {
     }
     if (FX_KINDS[t[0]] && (t[1] === 'R' || t[1] === 'L')) {
       const info = FX_KINDS[t[0]];
-      const v = t.slice(2, info.radius ? 6 : info.scale ? 8 : 5).map(Number);
+      const v = t.slice(2, info.radius ? 9 : info.scale ? 8 : 5).map(Number);
       if (v.every(Number.isFinite) && v.length >= 3) {
         if (!fxSeen[t[0]]) { fxSeen[t[0]] = true; state.fx.set[t[0]] = true; state.fx.pts[t[0]] = { R: [], L: [] }; }
-        state.fx.pts[t[0]][t[1]].push(info.scale ? [v[0], v[1], v[2], 0, v[3] ?? 1, v[4] ?? 1, v[5] ?? 1] : [v[0], v[1], v[2], v[3] ?? 0]);
+        state.fx.pts[t[0]][t[1]].push(info.scale ? [v[0], v[1], v[2], 0, v[3] ?? 1, v[4] ?? 1, v[5] ?? 1] : info.radius ? [v[0], v[1], v[2], v[3] ?? 0, v[4] > 0 ? v[4] : 1, v[5] > 0 ? v[5] : 1, v[6] > 0 ? v[6] : 1] : [v[0], v[1], v[2], v[3] ?? 0]);
       }
       continue;
     }
@@ -2142,10 +2613,20 @@ function loadEdits(text) {
       if (LAYOUT[k] && v.length === 3 && v.every(Number.isFinite)) { state.layout.cur[k] = v; state.layout.set[k] = true; state.layout.fromText = true; }
       continue;
     }
-    const mi = byKey.get((t[1] || '').toLowerCase());
+    let mi = byKey.get((t[1] || '').toLowerCase()), lineFaces = null;
+    if (t[0] === 'spin' || t[0] === 'hide') {
+      const r = resolveLine(t[1] || '', parseRanges(t[0] === 'spin' ? t[9] : t[2]));
+      if (r) { mi = r.mi; lineFaces = r.faces; } else mi = undefined;
+    }
     if (mi === undefined) { missing++; continue; }
     const m = state.meshes[mi];
     if (t[0] === 'spin') {
+      // Placement tokens (see buildEditsText): the editor's rotation (degrees) and the mirror flag.
+      const takeTok = (kw, n) => { const i = t.indexOf(kw); if (i < 0) return null; const v = t.slice(i + 1, i + 1 + n).map(Number); t.splice(i, 1 + n); return v.length === n && v.every(Number.isFinite) ? v : null; };
+      const rotTok = takeTok('rot', 3) || [0, 0, 0]; takeTok('rotm', 9);
+      const stretchTok = takeTok('stretch', 3) || [1, 1, 1];
+      const reshapeTok = takeTok('reshape', 0) !== null;
+      const mirrorTok = !!takeTok('mirror', 12);
       // A piece's faces: "piece" / "pre" <move> after the other fields (see buildEditsText).
       let pieceTok = null;
       const pi = t.findIndex(x => x === 'piece' || x === 'pre');
@@ -2165,9 +2646,11 @@ function loadEdits(text) {
       const rpm = rpmFix ? +t[2] * meshSense(m) : +t[2];
       let g = state.groups.find(g => g.type === 'spin' && g.name === name && g.rpm === rpm && len(sub(g.pivot, pv)) < 1e-3 &&
                                      len(sub(g.offset || [0, 0, 0], off)) < 1e-3 && (g.scale ?? 1) === sc &&
+                                     !!g.mirror === mirrorTok && len(sub(g.rot || [0, 0, 0], rotTok)) < 1e-3 && !!g.reshape === reshapeTok &&
+                                     len(sub(g.stretch || [1, 1, 1], stretchTok)) < 1e-3 &&
                                      !g.cut === !cut && (!cut || (Math.abs(g.cut.rx - cut.rx) < 1e-3 && Math.abs(g.cut.ry - cut.ry) < 1e-3)));
       if (!g) {
-        state.groups.push(g = { id: state.nextId++, type: 'spin', name: name || 'Spin ' + (state.groups.length + 1), tris: new Map(), pivot: pv, axis: ax, rpm, offset: off, scale: sc, cut: null });
+        state.groups.push(g = { id: state.nextId++, type: 'spin', name: name || 'Spin ' + (state.groups.length + 1), tris: new Map(), pivot: pv, axis: ax, rpm, offset: off, scale: sc, cut: null, rot: rotTok, mirror: mirrorTok, reshape: reshapeTok, stretch: stretchTok });
         if (cut) {
           // Recover the angle of the saved u direction against this axis's default basis.
           g.cut = { rx: cut.rx, ry: cut.ry, angle: 0 };
@@ -2175,7 +2658,7 @@ function loadEdits(text) {
           g.cut.angle = +(Math.atan2(dot(cut.u, v), dot(cut.u, u)) * 180 / Math.PI).toFixed(2);
         }
       }
-      const faces = parseRanges(t[9]);
+      const faces = lineFaces;
       const cur = g.tris.get(mi);
       if (cur) for (const x of faces) cur.add(x); else g.tris.set(mi, new Set(faces));
       if (pieceTok) {
@@ -2189,7 +2672,7 @@ function loadEdits(text) {
     } else if (t[0] === 'hide') {
       let g = state.groups.find(g => g.type === 'hide' && g.name === name);
       if (!g) state.groups.push(g = { id: state.nextId++, type: 'hide', name: name || 'Hide ' + (state.groups.length + 1), tris: new Map(), pivot: [0,0,0], axis: [0,0,1], rpm: 0 });
-      g.tris.set(mi, parseRanges(t[2]));
+      g.tris.set(mi, lineFaces);
     }
   }
   state.active = state.groups.length ? 0 : -1;
@@ -2203,7 +2686,13 @@ function loadEdits(text) {
   }
   renderLayout(); drawLayout(); renderFx(); drawFx();
   refreshAll(); markDirty(false);
-  setStatus(`Loaded edits: ${state.groups.length} groups` + (missing ? ` · ${missing} lines for meshes not in this export were skipped` : ''));
+  // What was different between these edits and this export, said plainly.
+  const diffBase = [...fileBase].filter(([id, fp]) => state.baseFps && state.baseFps[id] && state.baseFps[id] !== fp).map(([id]) => id);
+  setStatus(`Loaded edits: ${state.groups.length} groups` +
+    (rematched ? ` · ${rematched} line${rematched > 1 ? 's' : ''} matched up by shape (the faces are numbered differently in this export)` : '') +
+    (droppedFaces ? ` · ${droppedFaces} face${droppedFaces > 1 ? 's' : ''} had no match` : '') +
+    (missing ? ` · ${missing} line${missing > 1 ? 's' : ''} could not be placed: no mesh of that shape in this export, so it is another version of this pod than the edits were made on` : '') +
+    (diffBase.length && (missing || rematched) ? ` (model ${diffBase.join(', ')} differs)` : ''));
 }
 
 let dirty = false;
@@ -2366,7 +2855,7 @@ function runtimeEditsText(block, baked) {
       }
       out.push(`${t[0]} ${r.model}:${off.toString(16)} ${rest}`);
     }
-    else if (['podheight', 'rearcam', 'chasecam', 'cockpitmove', 'enginegap', 'cockpitgap', 'cable', 'cable2', 'cables', 'binder', 'exhaust', 'exhaustscale', 'cablestiff', 'cableout', 'cablerot', 'exhaustlight', 'gamefirestreak', 'nozzle', 'firespot', 'dustspot', 'gamefire'].includes(t[0]) || /^(own)?cable[1-4]$/.test(t[0]) ||
+    else if (['podheight', 'rearcam', 'chasecam', 'cockpitmove', 'enginegap', 'cockpitgap', 'cable', 'cable2', 'cables', 'binder', 'exhaust', 'exhaustscale', 'cablestiff', 'cableout', 'cablerot', 'exhaustlight', 'gamefirestreak', 'nozzleflame', 'nozzle', 'firespot', 'dustspot', 'gamefire'].includes(t[0]) || /^(own)?cable[1-4]$/.test(t[0]) ||
              /^#\s*(hide|spin|pod layout|extra cable|engine effects)/.test(line)) out.push(line);
   }
   return out.join('\n') + '\n';
@@ -2383,18 +2872,49 @@ function buildReport(kind, text, details) {
   box.textContent = text + (details && details.length ? '\n\n' + details.join('\n') : '');
   setStatus(text);
 }
+// An export made while this pod's baked models were loaded in game: its meshes are at the baked
+// models' offsets, which the stock models Build reads don't have.
+function bakedExportWarning(json) {
+  if (!json) return null;
+  const ids = new Set(json.meshes.map(m => String(m.key).split(':')[0]));
+  // Exports from the current mod carry the models as loaded (stockFp next to them): a baked pod's
+  // export then builds on top of its baked model (e.g. an older .bin put back over a newer one).
+  const carriesLoaded = id => !!(json.baseModels && json.baseModels[id] && json.baseModels[id].stockFp);
+  const baked = (json.baked || []).filter(id => ids.has(String(id)) && !carriesLoaded(id));
+  const blockOk = json.bakedBlock && [...ids].every(id => !json.baseModels || !json.baseModels[id] || carriesLoaded(id));
+  if (!baked.length && (!json.bakedBlock || blockOk)) {
+    // Older mods didn't record baked models: the export's own base models say if its meshes fit.
+    if (state.baseBlock && window.PodBake) {
+      const keys = json.meshes.map(m => String(m.key)), miss = window.PodBake.exportMismatch(state.baseBlock, keys);
+      if (miss.length > Math.max(2, keys.length * 0.2))
+        return `${miss.length} of this export's ${keys.length} meshes (e.g. ${miss[0]}) are not in the model data it came with: it was made while a baked or edited version of this pod was loaded in game, so Build can’t use it. Remove that pod's replacement_models/<id>.bin in the SWEP1R Pod Editor folder on your Desktop (and Restore original if you wrote models into out_modelblock.bin), restart the game, export the pod again, then open your edits on the new export.`;
+    }
+    return null;
+  }
+  return 'This export was made while ' + (baked.length ? 'this pod’s baked model' + (baked.length > 1 ? 's (' : ' (') + baked.join(', ') + ')' : 'baked models written into out_modelblock.bin') +
+    (baked.length === 1 ? ' was' : ' were') + ' loaded in game, so Build can’t use it. Delete ' + (baked.length ? baked.map(id => 'replacement_models/' + id + '.bin').join(', ') + ' in the SWEP1R Pod Editor folder on your Desktop' : 'them with Mods › Pod Editor › Restore original') +
+    ', restart the game, export the pod again, then open your edits (the .txt in pod_edits/source) on the new export.';
+}
 async function buildAndInstall(e) {
   if (!bakePod) { buildReport('error', 'Build needs bake.js next to pod_editor.html (tools/pod_editor/bake.js).'); return; }
+  { const bw = bakedExportWarning(state.pod); if (bw) { buildReport('error', bw); return; } }
   const btn = document.getElementById('btnBuild'); btn.disabled = true;
   try {
     const fsApi = typeof showDirectoryPicker === 'function';
     let dir = null, block, out = [];
+    // The export carries its own copy of the pod's base models: bake against those (they are what
+    // the export was made from). Older exports don't: read the model block from the folder.
+    const embedded = !!state.baseBlock;
     if (fsApi) {
       const picked = await gameDirHandle(e && e.shiftKey);
       dir = picked.dir; out = picked.layout.out;
-      buildReport('info', 'Reading the game models…');
-      block = new Uint8Array(await (await picked.layout.block.getFile()).arrayBuffer());
-    } else {
+      if (embedded) block = state.baseBlock;
+      else {
+        buildReport('info', 'Reading the game models…');
+        block = new Uint8Array(await (await picked.layout.block.getFile()).arrayBuffer());
+      }
+    } else if (embedded) block = state.baseBlock;
+    else {
       buildReport('info', 'Pick out_modelblock.bin (Desktop\\SWEP1R Pod Editor, or the game\'s data\\lev01).');
       const inp = document.getElementById('fileBlock');
       const file = await new Promise(res => { inp.onchange = () => res(inp.files[0]); inp.click(); });
@@ -2402,7 +2922,7 @@ async function buildAndInstall(e) {
       block = new Uint8Array(await file.arrayBuffer());
     }
     const full = buildEditsText(), model = state.pod.model;
-    const hasSpins = state.groups.some(g => g.type === 'spin' && [...g.tris.values()].some(s => s.size));
+    const hasSpins = state.groups.some(g => g.type === 'spin' && !g.baked && [...g.tris.values()].some(s => s.size));
     const extraCables = !!(state.layout && state.layout.extra) ||
       !!(state.fx && (state.fx.pts.trail.R.length || state.fx.pts.trail.L.length));// extra cables or trails
     let baked = null, note = '';
@@ -2413,15 +2933,45 @@ async function buildAndInstall(e) {
       note = `No spin groups or extra cables, so there is no model to bake.` +
              (ids.length ? ` If replacement_models/ holds ${ids.map(i => i + '.bin').join(' or ')} from an earlier bake of this pod, delete it.` : '');
     }
-    const runtime = runtimeEditsText(block, baked);
+    const runtime = runtimeEditsText(block, baked) + carryLines(baked).map(l => l + '\n').join('');
+    // The pod's edits also go into its model (the alt model, named like the edits file), so the .bin
+    // carries them: a .bin passed to another player brings its cables, binder, exhaust, effects and
+    // cameras with it, and they survive "Write into out_modelblock.bin". The model is written even
+    // when nothing was baked into it this time (a copy of it, carrying the edits).
+    {
+      const PB = window.PodBake, idx = PB.podIndex(block);
+      const ids = [...new Set(state.meshes.map(m => +m.key.split(':')[0]).filter(Number.isFinite))];
+      const carrier = ids.find(id => idx.get(id)?.tag === 'MAlt') ?? ids.find(id => idx.get(id)?.tag === 'Podd');
+      const hasEdits = runtime.split('\n').some(l => l.trim() && !l.trim().startsWith('#'));
+      if (carrier !== undefined && hasEdits) {
+        if (!baked) baked = { models: [], log: [] };
+        let r = baked.models.find(x => x.modelId === carrier);
+        if (!r) {
+          baked.models.push(r = { modelId: carrier, bytes: PB.rawmFromBlock(block, carrier), baseFp: PB.fingerprint(...PB.readBlockEntry(block, carrier)) });
+          note = (note ? note + ' ' : '') + `Model ${carrier} is written as it is, carrying the edits.`;
+        }
+        r.bytes = PB.rawmWithEdits(r.bytes, runtime);
+        baked.log.push(`model ${carrier} carries the in-game edits (${runtime.length} characters)`);
+      }
+    }
+    const stampOf = r => (state.stockFps && state.stockFps[r.modelId]) || r.baseFp;
     const written = [];
     const put = async (path, data) => { await writeFile(dir, [...out, ...path], data); written.push([...out, ...path].join('/')); };
     if (dir) {
-      for (const r of baked ? baked.models : []) await put(['replacement_models', r.modelId + '.bin'], r.bytes);
+      for (const r of baked ? baked.models : []) {
+        await put(['replacement_models', r.modelId + '.bin'], r.bytes);
+        // The stamp: which base model this was built from (the mod ignores the model on a game whose
+        // base model for that id is a different one). Left out if the export's own fingerprint
+        // disagrees with the one computed here (then the mod's check can't be trusted).
+        if (!state.baseFpBad.has(String(r.modelId))) await put(['replacement_models', r.modelId + '.base'], stampOf(r) + '\n');
+      }
       await put(['pod_edits', 'source', model + '.txt'], full);
       await put(['pod_edits', model + '.txt'], runtime);
     } else {
-      for (const r of baked ? baked.models : []) download(r.modelId + '.bin', r.bytes);
+      for (const r of baked ? baked.models : []) {
+        download(r.modelId + '.bin', r.bytes);
+        if (!state.baseFpBad.has(String(r.modelId))) download(r.modelId + '.base', stampOf(r) + '\n');
+      }
       download(model + '.txt', runtime);
     }
     dirty = false;
@@ -2454,7 +3004,10 @@ async function openFile(file) {
       if (!state.motion) state.motion = {};
       state.motion[json.kind] = json;
       updatePreviewNote();
-      setStatus(`Loaded the ${json.kind === 'idle' ? 'idle' : 'top-speed'} motion (${Object.values(json.parts)[0].length} frames).`);
+      const nScroll = json.scroll ? Object.keys(json.scroll).length : 0, nMoving = json.meshes ? Object.keys(json.meshes).length : 0;
+      setStatus(`Loaded the ${json.kind === 'idle' ? 'idle' : 'top-speed'} motion (${Object.values(json.parts)[0].length} frames` +
+                (nMoving ? `, ${nMoving} moving mesh${nMoving > 1 ? 'es' : ''}` : '') +
+                (nScroll ? `, ${nScroll} scrolling texture${nScroll > 1 ? 's' : ''}` : '') + ').');
       return;
     }
     loadExport(json);
@@ -2480,9 +3033,37 @@ view.addEventListener('drop', async e => {
 for (const id of ['wire', 'showHidden', 'animate', 'showFar']) document.getElementById(id).onchange = refreshAll;
 
 // ---------------------------------------------------------------------------------------------
+// Scrolling textures (binder beam, exhaust dust, flames ...): the rates the mod measured in game (the
+// motion recordings' "scroll": texture widths / heights per second, in the game's texture-offset sense,
+// so the UV moves the other way). Moving UVs need the texture to wrap.
+function scrollRates() {
+  if (!document.getElementById('animate').checked || !state.motion) return null;
+  const mode = previewMode();
+  const rec = mode === 'still' ? (state.motion.idle || state.motion.top) : state.motion[mode];
+  return rec && rec.scroll && Object.keys(rec.scroll).length ? rec.scroll : null;
+}
+let scrollDirty = new Set();
+function updateScroll() {
+  const rates = scrollRates();
+  if (!rates && !scrollDirty.size) return;
+  const now = new Set();
+  state.meshes.forEach((m, mi) => {
+    const r = rates && rates[m.key];
+    if (!m.uv0) return;
+    const attr = m.obj.geometry.getAttribute('uv'); if (!attr) return;
+    if (!r) { if (scrollDirty.has(mi)) { attr.array.set(m.uv0); attr.needsUpdate = true; } return; }
+    const tex = m.obj.material && m.obj.material.map;
+    if (tex && tex.wrapS !== THREE.RepeatWrapping) { tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.needsUpdate = true; }
+    const du = -r[0] * animT, dv = -r[1] * animT, a = attr.array, b = m.uv0;
+    for (let i = 0; i < a.length; i += 2) { a[i] = b[i] + du; a[i + 1] = b[i + 1] + dv; }
+    attr.needsUpdate = true; now.add(mi);
+  });
+  scrollDirty = now;
+}
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   animT += clock.getDelta();
+  updateScroll();
   if (motionActive() && state.layout && state.layout.framesStock) {
     applyGaps();// the parts' preview motion
     state.meshes.forEach((_, i) => refreshMesh(i));
@@ -2502,7 +3083,13 @@ view.appendChild(camPreviewFrame);
 function renderCamPreview() {
   const cp = state.camPreview, pose = cp && cp.on && state.layout && camPose(cp.which);
   if (!pose) { camPreviewFrame.style.display = 'none'; return; }
-  const W = view.clientWidth, H = view.clientHeight, w = Math.round(Math.min(W * 0.34, 420)), h = Math.round(w * 3 / 4);
+  // The game's view: its horizontal FOV is for 4:3; the renderer keeps that 4:3 vertical view on any
+  // window shape (Hor+) and divides it by the FOV scale setting (< 1 = zoomed in).
+  const gv = state.view || { fov: 100, fovScale: 1, aspect: 4 / 3 };
+  const aspect = gv.aspect > 0.5 && gv.aspect < 5 ? gv.aspect : 4 / 3;
+  const vfov = 2 * Math.atan(Math.tan(gv.fov * Math.PI / 360) / (4 / 3) * (gv.fovScale || 1)) * 180 / Math.PI;
+  if (previewCam.fov !== vfov || previewCam.aspect !== aspect) { previewCam.fov = vfov; previewCam.aspect = aspect; previewCam.updateProjectionMatrix(); }
+  const W = view.clientWidth, H = view.clientHeight, w = Math.round(Math.min(W * 0.34, 420)), h = Math.round(w / aspect);
   previewCam.position.set(...pose.pos);
   previewCam.lookAt(...pose.target);
   const hidden = [camMarkers, gizmo, mover, layoutMover, fxMover, cutLine].filter(o => o && o.visible);

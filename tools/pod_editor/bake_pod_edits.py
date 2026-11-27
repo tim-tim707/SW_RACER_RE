@@ -501,6 +501,30 @@ def add_extra_cables(m):
         print(f'  extra cable: part slot {dst_slot} = copy of cable {src_slot} ({src:#x} -> {node:#x}, under {owner:#x})')
 
 
+def strip_embedded(data):
+    """The model data without the in-game edits a model can carry at its end (pod_editor.html's
+    Build appends them: <text> <padding> <u32 length, little-endian> b'SWRPEDT1'). This script
+    doesn't write them; it bakes from the model without them, like bake.js."""
+    if len(data) < 20 or bytes(data[-8:]) != b'SWRPEDT1':
+        return data
+    n = struct.unpack_from('<I', data, len(data) - 12)[0]
+    padded = n
+    while (padded + 12) % 8:
+        padded += 1
+    start = len(data) - 12 - padded
+    return data[:start] if start >= 0 else data
+
+
+def fingerprint(mask, data):
+    """A short fingerprint of a model's mask + data ("<mask bytes>.<data bytes>-<FNV-1a 32>", hex), the
+    same as bake.js and the mod compute. A baked model is stamped with its base model's (<id>.base),
+    so the mod can tell when a model built on other game data doesn't fit this game."""
+    h = 2166136261
+    for b in bytes(mask) + bytes(data):
+        h = ((h ^ b) * 16777619) & 0xFFFFFFFF
+    return f'{len(mask):x}.{len(data):x}-{h:08x}'
+
+
 def read_block_entry(block, model_id):
     mask_off, model_off, end = struct.unpack_from('>III', block, 8 * model_id + 4)
     return block[mask_off:model_off], block[model_off:end]
@@ -652,7 +676,8 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
             os.path.join(game_dir, 'assets', 'replacement_models')
     written = []
     for mid in sorted(per_model):
-        m = Model(*read_block_entry(block, mid))
+        entry_mask, entry_data = read_block_entry(block, mid)
+        m = Model(entry_mask, strip_embedded(entry_data))
         print(f'model {mid}: {m.data[:4].decode()}, {len(m.data)} bytes')
         out = bake_model(m, mid, per_model[mid], mid == cable_model and extra_cables, dry_run, moves_per_model.get(mid, {}),
                          trails if mid == cable_model else [])
@@ -663,6 +688,7 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
         open(path, 'wb').write(out)
         print(f'wrote {path} ({len(out)} bytes)')
         written.append(path)
+        open(os.path.join(out_dir, f'{mid}.base'), 'w').write(fingerprint(*read_block_entry(block, mid)) + '\n')
         fmt = lambda v: f'{round(v * 1e4) / 1e4:g}'
         if bake_model.trail_nodes:
             print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod places them:')

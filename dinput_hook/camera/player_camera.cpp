@@ -494,6 +494,10 @@ float playercam_NearClipScale() {
     return g_cockpit_cman != nullptr ? std::clamp(g_cfg.cockpit_near_scale, 0.02f, 1.0f) : 1.0f;
 }
 
+float playercam_FovOffset() {
+    return g_cfg.fov_offset;
+}
+
 void playercam_RegisterPanel() {
     load_config();
     debug_ui_register(&g_panel);

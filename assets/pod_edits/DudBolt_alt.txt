@@ -1,0 +1,7 @@
+# SW_RACER_RE in-game pod edits for DudBolt_alt (written by Build & install)
+# The spin groups are baked into replacement_models; the full edits are in pod_edits/source/.
+# spin: Place 1
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine -1.1852 -1.2722 0.1724
+binder 1.6561 -0.4957 -0.1114
+rearcam 1.5 1

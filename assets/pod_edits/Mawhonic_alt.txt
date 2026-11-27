@@ -1,0 +1,11 @@
+# SW_RACER_RE in-game pod edits for Mawhonic_alt (written by Build & install)
+# The spin groups are baked into replacement_models; the full edits are in pod_edits/source/.
+# spin: Place 1
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine -0.4432 -2.5407 0.3722
+binder 1.0686 0.9855 -0.0157
+rearcam -1.5 0
+owncable1 cockpit 1 2.16 -0.26
+owncable1 engine 0.0031 -2.556 0.6138
+owncable2 cockpit -1 2.16 -0.26
+owncable2 engine -0.0031 -2.556 0.6138

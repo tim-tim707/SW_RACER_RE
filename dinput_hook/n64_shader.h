@@ -210,6 +210,11 @@ struct ColorCombineShader {
     GLint alpha_is_coverage_pos;
     GLint alpha_cutoff_pos;
     GLint alpha_to_coverage_pos;
+    GLint soft_depth_pos;
+    GLint soft_depth_tex_pos;
+    GLint soft_proj_pos;
+    GLint soft_range_pos;
+    GLint soft_bias_pos;
     N64UniformShadow shadow;
 };
 

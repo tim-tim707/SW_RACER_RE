@@ -27,6 +27,9 @@ struct SceneLight {
 bool shadows_enabled();
 // True when pod meshes should be recorded at all: shadows on, or the exhaust tint in use.
 bool shadows_capture_active();
+// The scene's depth resolved this frame by shadows_render (a sampleable texture), for soft
+// sprites drawn after it; 0 when there is none this frame.
+unsigned int shadows_scene_depth_texture();
 bool shadows_hide_blob();// skip the stock pod blob-shadow nodes
 
 // Start of a viewport's traversal: forget last viewport's casters.

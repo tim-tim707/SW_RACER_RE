@@ -1,0 +1,5 @@
+# SW_RACER_RE in-game pod edits for ToyDampner_alt (written by Build & install)
+# The spin groups are baked into replacement_models; the full edits are in pod_edits/source/.
+# spinning parts of the alt model (turned by the mod): node, rpm, axis
+spinnode 43:9f40 -240 0 -1 0
+# spin: Spin 1

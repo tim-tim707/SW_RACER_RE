@@ -31,6 +31,7 @@ extern FILE* hook_log;
 #include "../shadows.h"// SceneLight
 #include "pod_edits.h"// pod_edits_fx_points (the pod editor's effect points)
 #include "pod_wreck.h"// pod_wreck_side_gone (an engine knocked off the pod)
+#include "../shaders_utils.h"// compileProgram
 
 // Drawing follows swrWeather_delta.cpp: particles live in world space (z up), are projected
 // through the scene view/projection handed in by the renderer, and are emitted as screen-space
@@ -261,6 +262,12 @@ namespace {
         return add(v3(e.vD), add(mul(v3(e.vA), l.x), add(mul(v3(e.vB), l.y), mul(v3(e.vC), l.z))));
     }
     const rdMatrix44& engine_of(const swrRace* r, int side) { return side == 0 ? r->engineXfR : r->engineXfL; }
+    // Fused engines (Neva Kee): both engine transforms are the same one, at the pod's centre, so a
+    // side can't be told by its transform -- only by which side of the pod (engine x) a point is on.
+    // (Her model also tags its per-nozzle glow parts the wrong way round: the "right" one is on the left.)
+    bool fused_engines(const swrRace* r) {
+        return len(sub(v3(r->engineXfR.vD), v3(r->engineXfL.vD))) < 1e-3f;
+    }
 
     // False once an engine has blown off: the game hides that engine's model node (partNodes[1]
     // = right, [2] = left; flags_1 bit 0x2 = visible), e.g. the engine lost in a crash while the
@@ -311,6 +318,11 @@ namespace {
         const rdVector3 e_pos = v3(e.vD);
         static std::vector<std::pair<rdVector3, float>> noz;
         nozzles_world(r, side, noz);
+        if (noz.size() == 1 && fused_engines(r)) {// the side's own nozzle, as far forward as the engine centre
+            const rdVector3 fwd = norm(v3(e.vB));
+            out.push_back(add(noz[0].first, mul(fwd, dot(sub(e_pos, noz[0].first), fwd))));
+            return;
+        }
         if (noz.size() < 2) {
             out.push_back(e_pos);
             return;
@@ -365,6 +377,8 @@ namespace {
     struct ExhaustSprite {
         rdVector3 pos, dir;
         float radius, intensity, flame_len, flicker;
+        float height = 1.0f;// vertical size of the glow / flame relative to its radius (1 = round)
+        float width = 1.0f; // horizontal size relative to its radius
         float ground_z = NAN;// ground height under the engine (for the light pool)
         float unit = 10.0f;  // pod length
     };
@@ -598,7 +612,9 @@ namespace {
                 static std::vector<rdVector3> centres;
                 engine_centres(r, left ? 1 : 0, L, centres);
                 rdVector3 outward = e_right;
-                if (dot(sub(eng_mid, e_pos), outward) > 0.0f)
+                if (fused_engines(r))// both engines on the one transform: out to this side
+                    outward = left ? mul(e_right, -1.0f) : e_right;
+                else if (dot(sub(eng_mid, e_pos), outward) > 0.0f)
                     outward = mul(outward, -1.0f);
                 const float seg = (i % 3 == 0) ? 1.0f : (i % 3 == 1 ? 0.0f : -1.0f);
                 const rdVector3 seg_dir = norm(add(outward, mul(e_up, seg * 1.5f)));
@@ -671,6 +687,8 @@ namespace {
             const float target = clampf(0.25f + 0.75f * speed, 0.0f, 1.2f) + (boosting ? 0.6f : 0.0f);
             fx.throttle += (target - fx.throttle) * (1.0f - std::exp(-dt / 0.15f));
             const size_t first = g_exhaust.size();
+            float nf[3] = {1.0f, 1.0f, 1.0f};// the pod editor's nozzle flame size: width, length, height
+            pod_edits_nozzle_flame(pilot_of(r), nf);
             const bool local = (r->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
             // Overheat: engineTemp drains from 100 toward 0 while boosting; below ~45 the trail
             // smoke starts going dark, fully black when the engines are about to blow.
@@ -688,6 +706,9 @@ namespace {
                 std::vector<std::pair<rdVector3, float>> points = noz[side];
                 if (points.empty())
                     points.push_back({sub(v3(e.vD), mul(fwd, L * 0.15f)), L * 0.05f});
+                const auto* own_len = edited_points(r, 0, side) ? pod_edits_nozzle_lengths(pilot_of(r), side) : nullptr;
+                const auto* own_hgt = edited_points(r, 0, side) ? pod_edits_nozzle_heights(pilot_of(r), side) : nullptr;
+                const auto* own_wid = edited_points(r, 0, side) ? pod_edits_nozzle_widths(pilot_of(r), side) : nullptr;
                 const float spread = 1.0f / std::sqrt((float) points.size());// many small nozzles share the output
                 // Ground under this engine: the game lays each engine's shadow flat on the ground.
                 const float ground = side == 0 ? r->shadowXf1.vD.z : r->shadowXf2.vD.z;
@@ -697,9 +718,13 @@ namespace {
                         ExhaustSprite sp;
                         sp.pos = points[k].first;
                         sp.dir = back;
-                        sp.radius = clampf(points[k].second, L * 0.012f, L * 0.09f) * s.size;
+                        sp.radius = clampf(points[k].second, L * 0.012f, L * 0.09f) * s.size * nf[0];
                         sp.intensity = fx.throttle * fx.accel;
-                        sp.flame_len = L * (0.06f + 0.26f * fx.throttle) * spread * s.exhaust_flame;
+                        sp.flame_len = L * (0.06f + 0.26f * fx.throttle) * spread * s.exhaust_flame * nf[1] *
+                                       (own_len && k < own_len->size() ? (*own_len)[k] : 1.0f);
+                        // height is relative to the width, which nf[0] already scales: the overall height factor on its own
+                        sp.height = (own_hgt && k < own_hgt->size() ? (*own_hgt)[k] : 1.0f) * nf[2] / nf[0];
+                        sp.width = own_wid && k < own_wid->size() ? (*own_wid)[k] : 1.0f;
                         sp.flicker = 0.85f + 0.15f * std::sin(g_time * 37.0f + (float) k * 2.1f + side) *
                                                  std::sin(g_time * 23.0f + (float) k + side * 1.7f);
                         sp.ground_z = ground;
@@ -931,6 +956,7 @@ namespace {
     struct Batch {
         std::vector<D3DTLVERTEX> v;
         std::vector<WORD> i;
+        float rhw = 1.0f;// the soft batch: each sprite's fade range (world units)
         void clear() {
             v.clear();
             i.clear();
@@ -945,7 +971,7 @@ namespace {
                 t.sx = pts[k][0];
                 t.sy = pts[k][1];
                 t.sz = wz;
-                t.rhw = 1.0f;
+                t.rhw = rhw;
                 t.color = k < 2 ? head : tail;
                 t.tu = uvs[k][0];
                 t.tv = uvs[k][1];
@@ -1007,6 +1033,129 @@ namespace {
         }
     };
     Batch g_alpha, g_add, g_add_soft, g_chips;
+    // The exhaust glows with soft depth: sz = the sprite's distance from the camera, rhw = its fade
+    // range. Hidden where the scene is in front of it (the engine around a nozzle set inside it),
+    // fading out over `range` where something is just behind it, instead of a hard cut.
+    Batch g_add_depth;
+
+    const char* kSoftVS = R"(#version 330 core
+layout(location = 0) in vec4 position;// screen x, y; distance; fade range
+layout(location = 1) in vec4 color;   // BGRA bytes
+layout(location = 2) in vec2 uv;
+uniform vec2 screen;
+out vec4 passColor;
+out vec2 passUV;
+out float passDist;
+out float passRange;
+void main() {
+    gl_Position = vec4(position.x / screen.x * 2.0 - 1.0, 1.0 - position.y / screen.y * 2.0, 0.0, 1.0);
+    passColor = color.zyxw;
+    passUV = uv;
+    passDist = position.z;
+    passRange = position.w;
+}
+)";
+    const char* kSoftFS = R"(#version 330 core
+in vec4 passColor;
+in vec2 passUV;
+in float passDist;
+in float passRange;
+uniform sampler2D tex;
+uniform sampler2D sceneDepth;
+uniform vec2 proj;// A, B: view distance = B / (ndc z + A)
+out vec4 outColor;
+void main() {
+    vec4 c = texture(tex, passUV) * passColor;
+    float d = texture(sceneDepth, gl_FragCoord.xy / vec2(textureSize(sceneDepth, 0))).r;
+    float k = 1.0;
+    if (d < 0.99999) {
+        float sceneDist = proj.y / ((d * 2.0 - 1.0) + proj.x);
+        k = clamp((sceneDist - passDist) / max(passRange, 1e-3), 0.0, 1.0);
+        k = k * k * (3.0 - 2.0 * k);
+    }
+    outColor = c * k;
+}
+)";
+
+    // Draws the soft batch; false (batch kept) when there is no scene depth this frame.
+    bool flush_soft(Batch& b, GLuint tex) {
+        const GLuint depth = shadows_scene_depth_texture();
+        if (depth == 0)
+            return false;
+        static GLuint prog = 0, vao = 0, vbo = 0, ebo = 0;
+        static bool tried = false;
+        if (!tried) {
+            tried = true;
+            const char* vs = kSoftVS;
+            const char* fs = kSoftFS;
+            if (auto p = compileProgram(1, &vs, 1, &fs)) {
+                prog = *p;
+                glGenVertexArrays(1, &vao);
+                glGenBuffers(1, &vbo);
+                glGenBuffers(1, &ebo);
+            }
+        }
+        if (prog == 0)
+            return false;
+        if (b.v.empty())
+            return true;
+        GLint prev_prog = 0, prev_vao = 0, prev_tex = 0, prev_active = 0;
+        glGetIntegerv(GL_CURRENT_PROGRAM, &prev_prog);
+        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &prev_vao);
+        glGetIntegerv(GL_ACTIVE_TEXTURE, &prev_active);
+        const GLboolean had_depth = glIsEnabled(GL_DEPTH_TEST), had_blend = glIsEnabled(GL_BLEND);
+        GLboolean prev_mask = GL_TRUE;
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &prev_mask);
+        glUseProgram(prog);
+        glUniform2f(glGetUniformLocation(prog, "screen"), (float) swrDisplay_screenWidth, (float) swrDisplay_screenHeight);
+        glUniform2f(glGetUniformLocation(prog, "proj"), g_proj.vC.z, g_proj.vD.z);
+        glUniform1i(glGetUniformLocation(prog, "tex"), 0);
+        glUniform1i(glGetUniformLocation(prog, "sceneDepth"), 1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, depth);
+        glActiveTexture(GL_TEXTURE0);
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev_tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+        glBindVertexArray(vao);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, (GLsizeiptr) (b.v.size() * sizeof(D3DTLVERTEX)), b.v.data(), GL_STREAM_DRAW);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, sizeof(D3DTLVERTEX), (void*) offsetof(D3DTLVERTEX, sx));
+        glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(D3DTLVERTEX), (void*) offsetof(D3DTLVERTEX, color));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(D3DTLVERTEX), (void*) offsetof(D3DTLVERTEX, tu));
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, (GLsizeiptr) (b.i.size() * sizeof(WORD)), b.i.data(), GL_STREAM_DRAW);
+        glDrawElements(GL_TRIANGLES, (GLsizei) b.i.size(), GL_UNSIGNED_SHORT, nullptr);
+        glDisableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+        // Back as it was (the game's own draws cache their state).
+        glBindVertexArray((GLuint) prev_vao);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        if (!had_blend)
+            glDisable(GL_BLEND);
+        if (had_depth)
+            glEnable(GL_DEPTH_TEST);
+        glDepthMask(prev_mask);
+        glBindTexture(GL_TEXTURE_2D, (GLuint) prev_tex);
+        glActiveTexture((GLenum) prev_active);
+        glUseProgram((GLuint) prev_prog);
+        b.clear();
+        return true;
+    }
+
+    // Distance from the camera along its view (world point w).
+    float view_dist(rdVector3 w) {
+        rdVector4 in = {w.x, w.y, w.z, 1.0f}, vp;
+        rdMatrix_TransformPoint44(&vp, &in, &g_view);
+        return -vp.z;
+    }
 
     D3DCOLOR argb(float a, float r, float g, float b) {
         auto c = [](float x) { return (uint32_t) (clampf(x, 0.0f, 1.0f) * 255.0f + 0.5f); };
@@ -1246,21 +1395,41 @@ namespace {
         }
 
         // Exhaust: wide orange halo, white-hot core, and a flame streaking back from the nozzle.
+        const bool have_depth = shadows_scene_depth_texture() != 0;
         for (const ExhaustSprite& e: g_exhaust) {
             float hx, hy, wz, vw;
             if (!project(e.pos, &hx, &hy, &wz, &vw))
                 continue;
-            // Drawn as a layer over its own engine: pulled toward the camera by about the halo's
-            // size, so the nozzle rim doesn't cut it off.
-            wz = pulled_depth(e.pos, std::max(e.radius * 3.4f, e.unit * 0.15f), wz);
+            // With the scene's depth: soft -- hidden where the engine is in front (a nozzle point set
+            // inside the engine), fading where a surface is just behind. Without it: drawn as a
+            // layer over its own engine (depth pulled toward the camera by about the halo's size).
+            Batch* gb = &g_add_soft;
+            if (have_depth) {
+                gb = &g_add_depth;
+                gb->rhw = std::max(e.radius * 1.5f, e.unit * 0.02f);
+                wz = view_dist(e.pos) - e.radius;
+            } else
+                wz = pulled_depth(e.pos, std::max(e.radius * 3.4f, e.unit * 0.15f), wz);
+            Batch& g_glow = *gb;
             const float r = e.radius * focal / vw;
             const float in = clampf(e.intensity, 0.0f, 1.8f) * e.flicker;
             // Fades in with the moving factor (folded into intensity) as the pod gets going.
             const float glow = s.exhaust_glow * clampf(e.intensity / 0.25f, 0.0f, 1.0f);
-            g_add_soft.sprite(hx, hy, clampf(r * (2.6f + 0.8f * in), 2.0f, 500.0f),
-                              argb(0.25f * in * glow, 1.0f, 0.22f, 0.05f), wz);
-            g_add_soft.sprite(hx, hy, clampf(r * 1.2f, 1.5f, 250.0f), argb(0.55f * glow, 1.0f, 0.45f, 0.18f), wz);
-            g_add_soft.sprite(hx, hy, clampf(r * 0.6f, 1.0f, 120.0f), argb(0.8f * glow, 1.0f, 0.85f, 0.65f), wz);
+            // The wide orange halo. (No bright core of its own: the pod's own nozzle glow quads are
+            // the core, drawn with soft depth by the renderer.)
+            const float halo = clampf(r * (2.6f + 0.8f * in), 2.0f, 500.0f);
+            if (std::fabs(e.height - 1.0f) < 1e-3f && std::fabs(e.width - 1.0f) < 1e-3f)
+                g_glow.sprite(hx, hy, halo, argb(0.25f * in * glow, 1.0f, 0.22f, 0.05f), wz);
+            else// an oval: `width` times as wide, `height` times as tall
+                g_glow.ellipse(hx, hy, clampf(halo * e.width, 2.0f, 500.0f), 0.0f, clampf(halo * e.height, 2.0f, 500.0f),
+                               argb(0.25f * in * glow, 1.0f, 0.22f, 0.05f), wz);
+            // A streak's width across its on-screen direction, for an oval nozzle: the ellipse's extent there.
+            const auto across = [&](float tx, float ty, float k) {
+                const float dx = tx - hx, dy = ty - hy, l = std::sqrt(dx * dx + dy * dy);
+                if (l < 1e-3f)
+                    return k;
+                return k * std::sqrt((dy / l) * (dy / l) * e.width * e.width + (dx / l) * (dx / l) * e.height * e.height);
+            };
 
             // A faint beam cone thrown backward from the nozzle. (The light it casts on the ground
             // and walls is done properly by the lighting pass -- see pod_fx_gather_lights.)
@@ -1269,19 +1438,29 @@ namespace {
                 const rdVector3 beam_end = add(e.pos, mul(e.dir, e.unit * 0.9f));
                 float bx, by, bwz, bvw;
                 if (project(beam_end, &bx, &by, &bwz, &bvw))
-                    g_add_soft.streak(hx, hy, bx, by, clampf(r * 2.2f, 2.0f, 300.0f), argb(0.10f * lit, 1.0f, 0.35f, 0.1f),
-                                      argb(0.0f, 1.0f, 0.2f, 0.05f), wz);
+                    g_glow.streak(hx, hy, bx, by, clampf(across(bx, by, r * 2.2f), 2.0f, 300.0f), argb(0.10f * lit, 1.0f, 0.35f, 0.1f),
+                                  argb(0.0f, 1.0f, 0.2f, 0.05f), wz);
             }
             if (s.exhaust_flame > 0.0f) {
                 const rdVector3 tip = add(e.pos, mul(e.dir, e.flame_len * e.flicker));
                 float tx, ty, twz, tvw;
                 if (project(tip, &tx, &ty, &twz, &tvw)) {
-                    g_add_soft.streak(hx, hy, tx, ty, clampf(r * 0.9f, 1.0f, 200.0f),
-                                      argb(0.4f * in * s.flame_opacity, 1.0f, 0.3f, 0.08f),
-                                      argb(0.0f, 0.8f, 0.08f, 0.02f), wz);
-                    g_add_soft.streak(hx, hy, tx, ty, clampf(r * 0.4f, 1.0f, 100.0f),
-                                      argb(0.5f * in * s.flame_opacity, 1.0f, 0.6f, 0.3f),
-                                      argb(0.0f, 1.0f, 0.25f, 0.06f), wz);
+                    g_glow.streak(hx, hy, tx, ty, clampf(across(tx, ty, r * 0.9f), 1.0f, 200.0f),
+                                  argb(0.4f * in * s.flame_opacity, 1.0f, 0.3f, 0.08f),
+                                  argb(0.0f, 0.8f, 0.08f, 0.02f), wz);
+                    g_glow.streak(hx, hy, tx, ty, clampf(across(tx, ty, r * 0.4f), 1.0f, 100.0f),
+                                  argb(0.5f * in * s.flame_opacity, 1.0f, 0.6f, 0.3f),
+                                  argb(0.0f, 1.0f, 0.25f, 0.06f), wz);
+                    // An oval nozzle (pod editor width / height): the ribbon alone is only wide across its
+                    // own on-screen direction, which for flames coming back at the camera runs diagonally
+                    // outward. Oval slices of the flame along it, narrowing to the tip, give it its shape.
+                    if (std::fabs(e.width - 1.0f) > 1e-3f || std::fabs(e.height - 1.0f) > 1e-3f)
+                        for (int i = 0; i < 5; i++) {
+                            const float t = (i + 0.3f) / 5.0f, sh = 1.0f - 0.75f * t;
+                            g_glow.ellipse(hx + (tx - hx) * t, hy + (ty - hy) * t, clampf(r * 0.9f * e.width * sh, 1.0f, 300.0f), 0.0f,
+                                           clampf(r * 0.9f * e.height * sh, 1.0f, 300.0f),
+                                           argb(0.3f * in * s.flame_opacity * (1.0f - t), 1.0f, 0.3f + 0.15f * (1.0f - t), 0.08f), wz);
+                        }
                 }
             }
         }
@@ -1297,6 +1476,8 @@ namespace {
         g_alpha.flush(puff_texture(), false);
         g_add_soft.flush(soft_texture(), true);
         g_add.flush(soft_texture(), true);
+        if (!flush_soft(g_add_depth, soft_texture()))
+            g_add_depth.clear();
     }
 
     // ---- settings UI -----------------------------------------------------------------------
@@ -1513,6 +1694,7 @@ void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const s
     if (kind < 0 || kind > 3)
         return;
     std::vector<Nozzle>& stage = pn.staging[side][kind];
+    const bool fused = fused_engines(racer);// sides by position, not by the part's tag
     const rdMatrix44& e = engine_of(racer, side);
     const float e_scale = len(v3(e.vA));
     const float m_scale = len(v3(model.vA));
@@ -1525,13 +1707,14 @@ void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const s
         const float ext = std::max(mesh->aabb[3] - mesh->aabb[0],
                                    std::max(mesh->aabb[4] - mesh->aabb[1], mesh->aabb[5] - mesh->aabb[2]));
         const Nozzle n{to_local(e, to_world(model, c)), 0.5f * ext * m_scale / e_scale};
-        for (const Nozzle& o: stage) {
+        std::vector<Nozzle>& st = fused ? pn.staging[n.local.x >= 0.0f ? 0 : 1][kind] : stage;
+        for (const Nozzle& o: st) {
             const rdVector3 d = sub(o.local, n.local);
             if (dot(d, d) < (n.radius * 0.5f) * (n.radius * 0.5f) + 1e-6f)
                 return;// same nozzle seen again this frame
         }
-        if (stage.size() < 16)
-            stage.push_back(n);
+        if (st.size() < 16)
+            st.push_back(n);
         return;
     }
     const rdVector3 e_pos = v3(e.vD);
@@ -1562,17 +1745,18 @@ void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const s
                 radius = rmax;
         }
         const Nozzle n{to_local(e, w), radius / e_scale};
+        std::vector<Nozzle>& st = fused ? pn.staging[n.local.x >= 0.0f ? 0 : 1][kind] : stage;
         // The same nozzle arrives once per viewport / per frame: keep one copy.
         bool dup = false;
-        for (const Nozzle& o: stage) {
+        for (const Nozzle& o: st) {
             const rdVector3 d = sub(o.local, n.local);
             if (dot(d, d) < (n.radius * 0.5f) * (n.radius * 0.5f) + 1e-6f) {
                 dup = true;
                 break;
             }
         }
-        if (!dup && stage.size() < 16)
-            stage.push_back(n);
+        if (!dup && st.size() < 16)
+            st.push_back(n);
     }
 }
 

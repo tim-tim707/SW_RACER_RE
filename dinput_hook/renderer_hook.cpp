@@ -621,7 +621,7 @@ static void rebuild_pod_shadow_nodes() {
             if (entity->partNodes[np.part] != nullptr)
                 g_pod_nozzle_nodes.push_back({entity->partNodes[np.part], entity, np.side, np.kind});
         }
-        if ((debug_parts || pod_edits_export_armed()) && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+        if ((debug_parts || pod_edits_export_armed() || pod_edits_recording()) && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
             for (int part = 0; part <= 0x46; part++)
                 if (entity->partNodes[part] != nullptr)
                     g_debug_part_nodes.push_back({entity->partNodes[part], entity, part, 0});
@@ -649,7 +649,10 @@ struct DeferredTranslucentMesh {
     float view_distance;
     int preparsed_first;// into g_deferred_vertices, -1 when the defer-time parse was skipped
     int preparsed_count;
+    bool soft = false;// a pod's own exhaust glow quad: soft depth against the scene (after shadows)
 };
+// Set while a soft-depth deferred mesh is drawn (see debug_render_mesh's uniforms).
+static bool g_soft_draw = false;
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
 // Glowing pod parts (energy binders, exhaust flames / glows): drawn after the shadow / dynamic-light pass so neither touches
 // them (that pass works on the finished frame, where a blended glow can't be told apart from the
@@ -1148,6 +1151,8 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
     if (pod_edits_export_armed() && g_active_debug_part != nullptr && !g_preparsed_vertices)
         export_pod_mesh(g_active_debug_part->racer, g_active_debug_part->side, mesh, model_matrix);
+    else if (g_active_debug_part != nullptr && !g_preparsed_vertices && pod_edits_recording())
+        pod_edits_record_mesh(g_active_debug_part->racer, g_active_debug_part->side, mesh, model_matrix);
     // Cable clearance: the pod's engines and cockpit, as the cables' obstacles.
     if (g_active_body != nullptr && !g_preparsed_vertices && pod_edits_cable_clearance() >= 0.0f)
         record_cable_obstacle(g_active_body->racer, g_active_body->part, mesh, model_matrix);
@@ -1322,6 +1327,10 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
                  model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
                  preparsed_count});
+            // The exhaust glow quads (kind 1: the engine glow, kind 2: the per-nozzle glows) get
+            // soft depth: no hard cut where they meet the engine, and not seen through it.
+            if (emissive && (g_active_nozzle_tag->kind == 1 || g_active_nozzle_tag->kind == 2))
+                g_deferred_after_shadows.back().soft = true;
             return;
         }
     }
@@ -1534,6 +1543,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform1f(shader.alpha_cutoff_pos, alpha_cutoff);
     if (shadow_seti(sh.alpha_to_coverage, g_cutout_alpha_to_coverage ? 1 : 0))
         glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
+    {
+        // Soft depth (a pod's exhaust glow quad drawn after the shadow pass): its scene depth.
+        const GLuint depth_tex = g_soft_draw ? shadows_scene_depth_texture() : 0;
+        glUniform1i(shader.soft_depth_pos, depth_tex != 0 ? 1 : 0);
+        if (depth_tex != 0) {
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, depth_tex);
+            glActiveTexture(GL_TEXTURE0);
+            glUniform1i(shader.soft_depth_tex_pos, 7);
+            glUniform2f(shader.soft_proj_pos, proj_matrix.vC.z, proj_matrix.vD.z);
+            glUniform1f(shader.soft_range_pos, 0.8f);
+            glUniform1f(shader.soft_bias_pos, 1.2f);// the nozzle recess: the exhaust face doesn't hide it
+        }
+    }
 
     if (shadow_seti(sh.enable_gouraud, vertices_have_normals ? 1 : 0))
         glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
@@ -2086,8 +2109,10 @@ static void flush_deferred_translucent(std::vector<DeferredTranslucentMesh> &lis
             g_preparsed_vertices = g_deferred_vertices.data() + d.preparsed_first;
             g_preparsed_count = d.preparsed_count;
         }
+        g_soft_draw = d.soft;
         debug_render_mesh(d.mesh, d.light_index, d.num_enabled_lights, d.mirrored, d.proj_matrix,
                           d.view_matrix, d.model_matrix, d.model_id);
+        g_soft_draw = false;
         g_preparsed_vertices = nullptr;
         g_preparsed_count = 0;
     }
@@ -2457,8 +2482,10 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
-    // Baked spinning parts (pod model animations) run only during races.
-    pod_edits_animations_frame(currentPlayer_Test != nullptr);
+    // Baked spinning parts (pod model animations) run only during races. The race manager ('Jdge')
+    // exists only while a race runs; currentPlayer_Test is set at the first race and never cleared,
+    // so it would keep them spinning on the racer-select screen and in the hangar afterwards.
+    pod_edits_animations_frame(swrEvent_GetItem('Jdge', 0) != nullptr && (uint32_t) root_node == (uint32_t) &someRootNode);
     pod_edits_layout_frame();
     if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();

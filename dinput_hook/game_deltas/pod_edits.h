@@ -53,6 +53,11 @@ void pod_edits_export_mesh(const swrRace* racer, int part, const swrModel_Mesh* 
                            const std::vector<float>& world_pos, const std::vector<float>& uv, unsigned texture,
                            bool textured);
 void pod_edits_export_end_frame(bool in_race);
+// Motion recording: while a pod motion is being recorded the renderer also reports where each mesh it
+// draws for the local pod is (the exported meshes' own motion: steering flaps, game-driven spinning
+// parts ... goes into the .motion.json for the editor's Idle / Top speed preview).
+bool pod_edits_recording();
+void pod_edits_record_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh, const rdMatrix44& model_matrix);
 
 void pod_edits_register_panel();
 
@@ -64,7 +69,6 @@ float pod_edits_cable_clearance();
 // (stock: straight back at 20 x the engine's forward axis) scaled by length and turned by the angles
 // (degrees, about the engine's x, y, z in that order; mirrored on the left). False when not set.
 bool pod_edits_gamefire_streak(int pilot, float out[4]);
-
 // One cable's own settings (index 0..3 = part slots 10..13: right, left, second right, second left),
 // overriding the shared ones for that cable only, with no mirroring:
 //   owncable<N> cockpit <x y z>   its cockpit end, in the cockpit's frame        (N = index + 1)
@@ -77,6 +81,20 @@ bool pod_edits_cable_end(int pilot, int index, int end, float out[3]);// end: 0 
 // the nozzle it lands (pod lengths, stock 0.7), reach / width / strength = multipliers of its range,
 // cone angle and brightness. False (out untouched) when the pod's edits don't set it.
 bool pod_edits_exhaust_light(int pilot, float out[4]);
+// "nozzleflame <width> <length> [<height>]": the nozzle flame cones (the mod's exhaust glow / flame) made
+// wider, longer and taller by those factors (1 = stock). False when not set.
+bool pod_edits_nozzle_flame(int pilot, float out[3]);
+// Each edited nozzle's own flame length factor ("nozzle R|L x y z radius [length]"), in the order of its
+// points (pod_edits_fx_points kind 0); nullptr when the pod's nozzles aren't edited.
+#ifdef __cplusplus
+#include <vector>
+const std::vector<float>* pod_edits_nozzle_lengths(int pilot, int side);
+// ... and each one's height factor ("nozzle R|L x y z radius length height": its vertical size relative to its
+// width, 1 = round), same order.
+const std::vector<float>* pod_edits_nozzle_heights(int pilot, int side);
+// ... and each one's width factor (a 4th optional number after height: horizontal size x its radius).
+const std::vector<float>* pod_edits_nozzle_widths(int pilot, int side);
+#endif
 
 // The pod editor's workspace: Desktop\SWEP1R Pod Editor. Browsers won't write into Program Files,
 // so tools/pod_editor/pod_editor.html builds into this folder, and the mod reads from it too:
@@ -96,6 +114,9 @@ const std::filesystem::path& pod_workspace();
 // fans (e.g. Ratts Tyrell's), they turn slowly while the pod idles and speed up with the pod: the
 // baked RPM is the top-speed rate.
 void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, const char* asset_end, int model_id);// after a model loads
+// How many spinning parts the mod turns (baked into alt models) / baked pod animations are loaded.
+size_t pod_edits_spin_node_count();
+size_t pod_edits_baked_anim_count();
 void pod_edits_drop_models_from(const char* asset_begin);                     // buffer rewound
 void pod_edits_animations_frame(bool in_race);                                 // once per frame
 
@@ -136,7 +157,7 @@ void pod_edits_place_trails(swrRace* player);
 void pod_edits_extra_cable_values(int pilot, float cockpit[3], float engine[3]);
 
 // Engine effect points of a pilot's pod, each in its engine's own frame (engineXfR / engineXfL):
-//   nozzle R|L <x> <y> <z> <radius>   exhaust nozzles (the mod's flame cones, glow, embers, trails)
+//   nozzle R|L <x> <y> <z> <radius> [<length> [<height> [<width>]]]   exhaust nozzles (the mod's flame cones, glow, embers, trails)
 //   firespot R|L <x> <y> <z>          damage fire / smoke spots (the mod's and the game's)
 //   dustspot R|L <x> <y> <z>          ground dust spots (dropped to the ground under that engine)
 //   gamefire R|L <x> <y> <z>          the game's overheat engine fire (its fire / smoke emitter,

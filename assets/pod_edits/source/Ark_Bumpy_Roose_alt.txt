@@ -1,0 +1,42 @@
+# SW_RACER_RE pod edits for Ark_Bumpy_Roose_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/Ark_Bumpy_Roose_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 13 b5c.16b70-831a3502
+basemodel 14 584.b068-e2c945d9
+basemodel 146 80.f94-a0340a82
+# spin: Spin 1
+spin 13:6800 -240 -129.7 78 13.2712 0 -1 0 48-57
+facesig 13:6800 0b2963ba 48:67a4d31a,49:35b96ca4,50:f68dbe05,51:8687177e,52:3c0ccddb,53:73135c86,54:6f8de3cd,55:5a02b018,56:d434a3f7,57:6d9be151
+spin 13:5e58 -240 -129.7 78 13.2712 0 -1 0 0-59 0 0 0 1 pre 0 0 -0.625
+facesig 13:5e58 8bea5569 0:05a186ad,1:34b0d097,2:73ae5de0,3:e3e25218,4:9976e1db,5:d5038607,6:b16e89f2,7:cca32c7d,8:5fd4b31e,9:4d76fa3e,10:3ce22d1a,11:36fdd6ad,12:04fe35ab,13:bf163604,14:72c2d954,15:138dc3cd,16:474b6f8c,17:e05c67d4,18:4df8aefa,19:8c6c72b6,20:e7640abb,21:6f5fa4c5,22:39f41470,23:ea0b5fe3,24:8c02d759,25:cb2a5362,26:14c98eae,27:f5540f5c,28:93883eda,29:74d0f88a,30:5a2a31fc,31:6b7258ee,32:89c1c6cd,33:d3af3771,34:76ab2b93,35:79d9568d,36:dba518ff,37:1106b645,38:4d77f581,39:07ad5f6d,40:39dadbcb,41:4a5addd3,42:2186c720,43:a706f8ba,44:9a12dcd2,45:a9b65f0c,46:f522fdbb,47:cd52c5d9,48:9c65d0b3,49:c8353dc4,50:70c955cc,51:bc998828,52:9493e5a5,53:702817d7,54:794705b9,55:26280f50,56:d4802745,57:eddf9b63,58:a6fbfe8b,59:c014ca79
+# spin: Spin 2
+spin 13:99b0 240 129.675 78 13.2712 0 -1 0 0,49-57
+facesig 13:99b0 4c0eb89e 0:8831b007,49:0dc5a05d,50:1f8016a2,51:a69543f6,52:7d3d8842,53:5ca25781,54:48680d1d,55:7c58ef2d,56:7e2c8ff0,57:30f6e0ac
+spin 13:9008 240 129.675 78 13.2712 0 -1 0 0-59 0 0 0 1 pre 0 0 -0.625
+facesig 13:9008 a3be3f72 0:cdcca4bb,1:bd1c2d0b,2:6534bc7a,3:bd132f23,4:4ddfd1ea,5:31697337,6:1c71abb9,7:b4e247ca,8:99ac6be9,9:04c2df8b,10:e195ccab,11:df75793c,12:a184e3d6,13:9c7ba383,14:45781b3f,15:8be34bf8,16:79d7a95d,17:2642b862,18:5ec7d119,19:f7c49a38,20:a821b9b3,21:ed3f6287,22:81482a9e,23:c6c6e90f,24:70e97e9a,25:4c8918e9,26:dd6fc286,27:16e8c9bb,28:946e96ea,29:f2301328,30:9853c1db,31:88f166bb,32:71d20afc,33:12f77fd5,34:15ca3a4b,35:9c646129,36:f2b10bd6,37:7da715d9,38:27c73683,39:05d8879e,40:81bf6790,41:aa06bc67,42:d3739002,43:10a446b9,44:d7c5e18a,45:21f15b78,46:6192f3fe,47:b90c604e,48:96d79b22,49:9e8f115c,50:5c3b4b31,51:3db57786,52:a2e7d06f,53:89a4194b,54:37ba1e1c,55:6e00dde4,56:a56e017a,57:c56a46db,58:cfcc8d90,59:afc6c41f
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+binder 3.1104 -0.6247 -0.0007
+exhaust 2.0976 -1.48 0.194
+exhaustscale 0.8 0.8 0.8
+# the whole pod (visual / camera only): height offset, cameras (further, higher), engine / cockpit spacing
+podheight 0.5
+enginegap 1.05
+cockpitmove 0 0 -0.5117
+owncable1 cockpit 0.58 1.2 -1
+owncable1 engine 0 -1.5138 1.5819
+owncable2 cockpit -0.58 1.2 -1
+owncable2 engine 0 -1.5138 1.5819
+owncable3 cockpit 0.58 1.2 -1
+owncable3 engine -1.0304 -0.7915 -0.1977
+owncable4 cockpit -0.58 1.2 -1
+owncable4 engine 1.0304 -0.7915 -0.1977
+# extra cable pair: baked into the model ("cables extra"), placed in game from the cable2 lines
+cables extra
+cable2 cockpit 0.58 1.2 -1
+cable2 engine 0 -2.88 -1.65
+# engine effects: Engine fire (overheat)
+gamefire R 2.0696 -1.483 0.1888
+gamefire L -2.0696 -1.483 0.1888
+# engine effects: Extra dust trails
+trail R -2.0741 -1.48 0.194 0.8 0.8 0.8
+trail L 2.0741 -1.48 0.194 0.8 0.8 0.8
