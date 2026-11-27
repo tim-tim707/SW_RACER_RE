@@ -2430,6 +2430,82 @@ extern "C" int Window_PlayCinematic_delta(char *znmFile) {
     return result;
 }
 
+// "Music on final lap only". swrObjJdge_F3 (0x00463580) already re-arms the music on the final lap of a
+// multi-lap race, so there we only hold it. A 1-lap race gets no final-lap arm, so it is armed here
+// from two thirds of the lap on.
+enum MusicGate { MUSIC_GATE_OFF, MUSIC_GATE_HOLD, MUSIC_GATE_ARM };
+
+constexpr float kOneLapMusicStart = 2.0f / 3.0f;
+// The grid sits just behind the line (lap fraction ~1), so the release window stops short of it.
+constexpr float kOneLapMusicWindowEnd = 0.9f;
+
+static const swrObjJdge *s_musicGateJdge = nullptr;
+static bool s_oneLapMusicReleased = false;
+static bool s_oneLapMusicQueued = false;
+
+static MusicGate music_final_lap_gate(const swrObjJdge **outJdge) {
+    typedef float(__cdecl * getRacerProgress_t)(swrScore *);
+    if (!imgui_state.music_final_lap_only || swrScoresPtr == nullptr)
+        return MUSIC_GATE_OFF;
+    const swrObjJdge *jdge = (const swrObjJdge *) swrEvent_GetItem('Jdge', 0);
+    if (jdge == nullptr || jdge->num_laps <= 0)
+        return MUSIC_GATE_OFF;
+    *outJdge = jdge;
+    const int state = jdge->flag & swrObjJdge_STATE_MASK;
+    if (jdge != s_musicGateJdge || state == swrObjJdge_STATE_COUNTDOWN) {
+        s_musicGateJdge = jdge;
+        s_oneLapMusicReleased = false;
+        s_oneLapMusicQueued = false;
+    }
+    const bool racing = state == swrObjJdge_STATE_GO_HOLD || state == swrObjJdge_STATE_RACING;
+    const int numRacers = jdge->num_players < 20 ? jdge->num_players : 20;
+    bool anyLocal = false;
+    for (int i = 0; i < numRacers; i++) {
+        swrScore *score = &swrScoresPtr[i];
+        if (score->identifier != SWR_SCORE_ID_LOCAL)
+            continue;
+        anyLocal = true;
+        if (score->results_P1_Lap >= jdge->num_laps - (jdge->num_laps > 1 ? 1 : 0))
+            return MUSIC_GATE_OFF;
+        if (jdge->num_laps == 1 && racing && score->obj_test_ptr != nullptr) {
+            const float progress =
+                ((getRacerProgress_t) swrObjJdge_GetRacerProgress_ADDR)(score);
+            if (progress >= kOneLapMusicStart && progress < kOneLapMusicWindowEnd)
+                s_oneLapMusicReleased = true;
+        }
+    }
+    if (!anyLocal)
+        return MUSIC_GATE_OFF;
+    return s_oneLapMusicReleased ? MUSIC_GATE_ARM : MUSIC_GATE_HOLD;
+}
+
+// swrSound_UpdateMusic (0x00427880). Music is refreshed every frame through swrSound_RequestVoice on channel 7, which drops the
+// request (and so lets the streamed voice die) when sound_music_volume is 0. Zero it for the call while
+// held; once released the next refresh restarts the track theme.
+typedef void(__cdecl *swrSound_UpdateMusic_t)(void);
+static void swrSound_UpdateMusic_delta(void) {
+    typedef float(__cdecl * getPauseScroll_t)(void);
+    const swrObjJdge *jdge = nullptr;
+    const MusicGate gate = music_final_lap_gate(&jdge);
+    if (gate == MUSIC_GATE_ARM && swrRace_music_enabled != 0 && swrRace_creditsMode == 0 &&
+        swrObjJdge_postRaceHudState == 0 &&
+        ((getPauseScroll_t) swrRace_GetPauseMenuScrollInOut_ADDR)() <= 0.0f) {
+        if (!s_oneLapMusicQueued) {
+            swrSound_SelectTrackMusic(jdge->planetId, jdge->planet_track_number, 0);
+            s_oneLapMusicQueued = true;
+        }
+        swrSound_SetMusicFade(1);
+    }
+    if (gate != MUSIC_GATE_HOLD) {
+        hook_call_original((swrSound_UpdateMusic_t) swrSound_UpdateMusic_ADDR);
+        return;
+    }
+    const short saved = sound_music_volume;
+    sound_music_volume = 0;
+    hook_call_original((swrSound_UpdateMusic_t) swrSound_UpdateMusic_ADDR);
+    sound_music_volume = saved;
+}
+
 // swrSound_Startup ends with an unconditional swrSound_SetOutputGain(1.0), so the A3D device output
 // gain (the one knob scaling every channel) is reset to full on every boot -- and on every sound /
 // hi-res toggle, which re-runs Startup. The engine never persisted a master volume, so re-apply the
@@ -2702,6 +2778,9 @@ extern "C" void init_renderer_hooks() {
     hook_function("Window_PlayCinematic", (uint32_t) Window_PlayCinematic,
                   (uint8_t *) Window_PlayCinematic_ADDR);
     hook_replace(Window_PlayCinematic, Window_PlayCinematic_delta);
+
+    hook_function("swrSound_UpdateMusic", (uint32_t) swrSound_UpdateMusic_ADDR,
+                  (uint8_t *) swrSound_UpdateMusic_delta);
 
     // main
     hook_function("WinMain", (uint32_t) WinMain_ADDR, (uint8_t *) WinMain_delta);

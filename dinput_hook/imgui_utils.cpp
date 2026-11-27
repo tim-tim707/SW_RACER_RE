@@ -338,6 +338,7 @@ void read_settings_ini() {
     const float cutscene_volume = config::get_float("settings", "cutscene_volume", 0.7f);
     imgui_state.cutscene_volume =
         (cutscene_volume >= 0.0f && cutscene_volume <= 1.0f) ? cutscene_volume : 0.7f;
+    imgui_state.music_final_lap_only = config::get_int("settings", "music_final_lap_only", 0);
     audio_mix_LoadSettings();
 
     imgui_state.show_pod_names = config::get_int("settings", "show_pod_names", 1);
@@ -448,6 +449,7 @@ void save_settings_ini() {
     config::set_float("settings", "near_clip_scale", imgui_state.near_clip_scale);
     config::set_float("settings", "master_volume", imgui_state.master_volume);
     config::set_float("settings", "cutscene_volume", imgui_state.cutscene_volume);
+    config::set_bool("settings", "music_final_lap_only", imgui_state.music_final_lap_only);
     audio_mix_SaveSettings();
     config::set_bool("settings", "hd_replacement", imgui_state.HD_replacement);
     config::set_bool("settings", "show_imgui", show_imgui);
@@ -1788,6 +1790,13 @@ static void panel_audio() {
             swrSound_SetMusicFade(music_pct > 0 ? 1 : 0);// 1 = arm/resume, 0 = stop now
         }
     }
+    ImGui::BeginDisabled(swrRace_music_enabled == 0);
+    if (ImGui::Checkbox("Music on final lap only", &imgui_state.music_final_lap_only))
+        save_settings_ini();
+    ImGui::EndDisabled();
+    ImGui::SetItemTooltip("Races stay silent until you start the last lap (or reach the final third "
+                          "of a 1-lap race), then the track theme kicks in. Menus and the results "
+                          "screen are unaffected.");
 
     int sfx_pct = (sound_sfx_volume * 100 + 127) / 255;
     if (ImGui::SliderInt("Sound effects", &sfx_pct, 0, 100, "%d%%"))
