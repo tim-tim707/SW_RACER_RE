@@ -3,9 +3,12 @@
 #include <cstdio>
 #include "swrObjJdge_delta.h"
 #include "swrRace_delta.h"
+#include "../track_env.h"// track_env_Current (AI table + fog overrides)
+#include "../ai_tuning.h"// swrObjJdge_InitAISettingsForTrack_delta
 #include "../track_registry.h"// track_registry_ApplyForCurrentTrack
 #include "swrSpline_delta.h"// spline_cursor_has_usable_spline (fly-by gate)
 #include "swrControl_delta.h"// rumble trigger hook, advance edge + boost-start guard
+#include "../track_times.h"
 
 extern "C" {
 #include <Swr/swrObj.h>
@@ -19,6 +22,8 @@ extern "C" {
 #include <Swr/swrSound.h>
 #include <Swr/swrModel.h>       // ClearSceneAnimations / Reset*Sprites addresses
 #include <Swr/swrWeather.h>     // swrWeather_ResetParticles address
+#include <Swr/swrRender.h>      // swrRender_SetFogParameters / swrRender_SetClearColor / rdModel_SetFogEnabled
+#include <Swr/swrPlayerHUD.h>   // swrPlayerHUD_SetupTrackOverlay_ADDR (the track's own sun)
 #include <Platform/stdControl.h>// stdControl_ReadControls_ADDR (boost-start Enter suppression)
 #include "stdControl_delta.h"     // stdControl_NeutralizeLostJoysticks, ClampZeroReadInterval
 #include <globals.h>
@@ -40,6 +45,11 @@ extern "C" void hook_function(const char *function_name, uint32_t original_addre
 // Fresh accept/cancel skip edge (defined in swrControl_delta.cpp): 1 for one frame on a genuine
 // press, never for a held key -- so a key held from the race-start menu press can't cascade.
 extern "C" int g_cutscene_skip_edge;
+
+// Set by InitTrack, consumed on the first race frame: the game's own per-track weather setup
+// (swrPlayerHUD_SetupTrackOverlay) runs between the two, and the descriptor's weather has to land
+// after it.
+static bool g_weather_setup_pending = false;
 
 // Snapshot the freshly-loaded scene-animation state so a fast restart can restore it (defined in
 // the fast-restart section; called from InitTrack_delta after each real track load).
@@ -97,6 +107,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
     // Map the selected track's assets before the original loads them (and unmap the previous
     // track's, so a stock track never inherits another track's geometry).
     track_registry_ApplyForCurrentTrack();
+    track_times_OnRaceStart();// a custom track records its own times (track_times.h)
     // Drop cable nodes from the previous track so freed pointers aren't matched against new meshes.
     swrRace_ClearCableBends();
     const unsigned int x = hook_call_original(swrObjJdge_InitTrack, judge, scores);
@@ -106,6 +117,7 @@ unsigned int swrObjJdge_InitTrack_delta(swrObjJdge *judge, swrScore *scores) {
                         judge->unk1b0_modelId, judge->unk1b4_splineId, judge->planetId,
                         swrAssetBuffer_RemainingSize());
     reset_lap_tracking(scores);
+    g_weather_setup_pending = true;
     capture_scene_animation_state();// record fresh animation state for a later fast restart
     forget_trigger_state();// recorded nodes/descs point into the previous track's asset buffer
     g_countdown_ms = judge->countdownTimer_ms;// fresh countdown duration ('Begn' latched it above)
@@ -557,7 +569,7 @@ static void fast_restart_inplace(swrObjJdge *jdge) {
     for (int i = 0; i < 0x14; i++)
         swrSound_ClearSfxFlag(i, 0xff0000);
 
-    swrObjJdge_InitAISettingsForTrack(jdge);
+    swrObjJdge_InitAISettingsForTrack_delta(jdge);// the delta, not the symbol: a delta caller would run the dormant reimpl
     rearm_fresh_countdown(jdge);
 
     // Re-establish camera<->pod association: reset the camera manager, then re-associate each local
@@ -908,7 +920,14 @@ static void reset_lap_tracking(swrScore *scores) {
 // Wraps swrObjJdge_F2: runs the (de-indexed, crash-safe) original, then reconstructs per-lap times
 // from each racer's total_time so we can report best / worst / average for any lap count.
 void swrObjJdge_F2_delta(swrObjJdge *jdge) {
+    track_times_OnRaceFrame();// per-frame fps evidence for the record (track_times.h)
     hook_call_original(swrObjJdge_F2, jdge);
+
+    if (g_weather_setup_pending) {
+        g_weather_setup_pending = false;
+        track_env_WeatherOnTrackSetup();
+    }
+    track_env_WeatherOnFrame();
 
     if (!g_lapScores)
         return;
@@ -942,6 +961,8 @@ void swrObjJdge_F2_delta(swrObjJdge *jdge) {
             }
             g_prevTotal[r] = total;
             g_prevLap[r] = lap;
+            if (r == 0)
+                track_env_WeatherOnLap(lap);// the player's laps drive the track's weather stages
         }
 
         if (!g_lapFinished[r] && lap < numLaps) {
@@ -1345,4 +1366,61 @@ void swrObjJdge_F0_delta(swrObjJdge *jdge) {
     }
 
     hook_call_original(swrObjJdge_F0, jdge);
+}
+
+// 0x004667E0 post-pass, run from the ai_tuning hook after the original: the track's descriptor
+// overrides (track_env.h) on top of what the stock per-(planet, subtrack) table picked.
+void swrObjJdge_ApplyTrackEnvAISettings(swrObjJdge *judge) {
+    constexpr int JDGE_FLAG_SPECIAL_EVENT = 0x20;// swrObj.c: reverse-track / special-event race
+
+    const TrackEnv &env = track_env_Current();
+    if (env.ai_level >= 0.0f) {
+        float level = env.ai_level * 0.1f;
+        if (judge->aiSpeedSetting == -1)
+            level *= 0.9f;
+        else if (judge->aiSpeedSetting == 1)
+            level *= 1.1f;
+        swrRace_AILevel = level;
+    }
+    if (env.ai_spread_range >= 0.0f && (judge->flag & JDGE_FLAG_SPECIAL_EVENT) == 0)
+        ai_spread = env.ai_spread_range;
+    if (env.ai_script >= -1)
+        ai_track_script = env.ai_script;
+    if (env.ai_spline_variant >= 0)
+        track_spline_variant = env.ai_spline_variant;
+}
+
+// 0x00464b90 -- the original picks the fly-by spline, draw distance, fog and clear colour from
+// (planetId, planet_track_number). It runs unchanged; the descriptor then has the last word on
+// the fog and the draw distance, which are plain outputs. The fly-by spline is not: it is loaded
+// inside, so a track that wants its own declares an asset at the inherited slot's spline index.
+void swrObjJdge_SetupTrackEnvironment_delta(swrObjJdge *judge, int *anims, int model) {
+    hook_call_original(swrObjJdge_SetupTrackEnvironment, judge, anims, model);
+
+    constexpr int FOG_END = 1000;// fixed in the game; only the start varies per track
+    constexpr int FOG_ALPHA = 0xff;
+    const TrackEnv &env = track_env_Current();
+    if (env.draw_distance > 0.0f)
+        drawDistance = env.draw_distance;
+    if (env.has_fog) {
+        if (env.fog_enabled) {
+            rdModel_SetFogEnabled(1);
+            swrRender_SetFogParameters(env.fog_near, FOG_END, env.fog_rgb[0], env.fog_rgb[1], env.fog_rgb[2],
+                             FOG_ALPHA);
+            swrRender_SetClearColor((short) env.fog_rgb[0], (short) env.fog_rgb[1], (short) env.fog_rgb[2]);
+        } else {
+            rdModel_SetFogEnabled(0);
+        }
+    }
+}
+
+// 0x00464010 -- the game's per-planet sun, lens flare and weather setup for the race HUD. The
+// decompiler calls the arguments hudType and weatherLevel; they are the planet and the subtrack.
+// No body in src, so it is hooked by address; the descriptor's sun lands right after it.
+typedef void(__cdecl *swrPlayerHUD_SetupTrackOverlay_t)(int planet, int subtrack);
+
+void __cdecl swrPlayerHUD_SetupTrackOverlay_delta(int planet, int subtrack) {
+    hook_call_original((swrPlayerHUD_SetupTrackOverlay_t) swrPlayerHUD_SetupTrackOverlay_ADDR,
+                       planet, subtrack);
+    track_env_SunOnTrackSetup();
 }
