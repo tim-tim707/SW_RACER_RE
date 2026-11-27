@@ -8,6 +8,7 @@
 #include "ai_tuning.h"
 #include "verify_ui.h"
 #include "audio_mix.h"
+#include "randomizer.h"
 
 #include <string>
 #include <set>
@@ -767,6 +768,9 @@ void imgui_Update() {
         // The FPS overlay is independent of the F5 debug menu (debug_ui_render gates that).
         draw_fps_overlay();
         draw_multiplayer_window();
+        // The randomizer dialog is likewise independent of F5 -- it shows itself only on
+        // the new-profile name-entry screen (no-op otherwise).
+        randomizer_render_overlay();
         debug_ui_render();
         draw_screen_fade_overlay();// restored screen fade-to-black (over the game, under the panels)
 

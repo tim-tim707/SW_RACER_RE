@@ -8,6 +8,7 @@
 #include "mod_registry.h"
 #include "config.h"
 #include "game_deltas/window_mode.h"// persist_settings_ini
+#include "game_deltas/randomizer_game_delta.h"
 
 #include <imgui.h>
 
@@ -289,6 +290,7 @@ typedef void(__cdecl *swrRace_ApplyPodProximityForce_t)(swrRace *player);
 
 extern "C" void __cdecl swrObjJdge_InitAISettingsForTrack_delta(swrObjJdge *judge) {
     hook_call_original((swrObjJdge_InitAISettingsForTrack_t) swrObjJdge_InitAISettingsForTrack_ADDR, judge);
+    randomizer_apply_ai_settings(judge);
 
     g_track_level = swrRace_AILevel;
     g_track_spread = ai_spread;
