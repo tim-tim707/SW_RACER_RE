@@ -3080,6 +3080,14 @@ extern "C" void init_renderer_hooks() {
     hook_function("swrMultiplayer_ApplyRacerPick", (uint32_t) swrMultiplayer_ApplyRacerPick_ADDR,
                   (uint8_t *) swrMultiplayer_ApplyRacerPick_delta);
 
+    // Ready barrier re-arm guard (see swrMultiplayer_delta.cpp). Hooked by address.
+    hook_function("swrMultiplayer_InitPlayerStatus", (uint32_t) swrMultiplayer_InitPlayerStatus_ADDR,
+                  (uint8_t *) swrMultiplayer_InitPlayerStatus_delta);
+    hook_function("swrMultiplayer_PollPlayerStatus", (uint32_t) swrMultiplayer_PollPlayerStatus_ADDR,
+                  (uint8_t *) swrMultiplayer_PollPlayerStatus_delta);
+    hook_function("swrMultiplayer_ApplyReadyMask", (uint32_t) swrMultiplayer_ApplyReadyMask_ADDR,
+                  (uint8_t *) swrMultiplayer_ApplyReadyMask_delta);
+
     // Multiplayer fix: restore racer-selection input after a race (both host and clients).
     hook_function("swrObjHang_F0", (uint32_t) swrObjHang_F0, (uint8_t *) swrObjHang_F0_ADDR);
     hook_replace(swrObjHang_F0, swrObjHang_F0_delta);
