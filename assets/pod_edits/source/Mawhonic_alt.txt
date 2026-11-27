@@ -1,0 +1,18 @@
+# SW_RACER_RE pod edits for Mawhonic_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/Mawhonic_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 11 658.cac0-3ee477b9
+basemodel 12 58c.b138-56203f4d
+basemodel 146 80.f94-a0340a82
+# spin: Place 1
+spin 11:670 0 25.4969 -149.3333 24.8892 -0.5962 0.2982 -0.7454 0-5 -25.8089 0 15.0278
+facesig 11:670 d5fdce1c 0:42088720,1:fdb43447,2:704194ad,3:ee84810d,4:6b58d91c,5:5b27b4ac
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine -0.4432 -2.5407 0.3722
+binder 1.0686 0.9855 -0.0157
+# the whole pod (visual / camera only): height offset, cameras (further, higher), engine / cockpit spacing
+rearcam -1.5 0
+owncable1 cockpit 1 2.16 -0.26
+owncable1 engine 0.0031 -2.556 0.6138
+owncable2 cockpit -1 2.16 -0.26
+owncable2 engine -0.0031 -2.556 0.6138

@@ -18,6 +18,16 @@ void swrRace_ResolvePodCollision_delta(swrRace* player);
 // - swrRace_SpawnGroundDustKick_delta: for non-local pods, reserve Toss-pool headroom (so AI
 //   dust never starves the player's trail) and suppress the splash sound.
 // - playASound_delta: drops the dust-splash sound while a non-local dust kick is being spawned.
+// The game's engine damage smoke / fire moved to (and added at) the pod editor's fire spots.
+void swrRace_UpdateEngineDamageFX_delta(swrRace* player);
+// swrRace_Explode (0x004741d0): a blown engine breaks off as debris; the first one can be
+// survivable (pod_wreck).
+void __cdecl swrRace_Explode_delta(swrRace* player, int side);
+// swrObjTest_F3 (0x00470610): re-place knocked-off engines after it pushes the part matrices.
+void __cdecl swrObjTest_F3_delta(swrRace* player);
+// swrRace_HandleDeathExplosion (0x00474970): the whole pod blows up -- its pieces fly apart.
+void __cdecl swrRace_HandleDeathExplosion_delta(swrRace* player, int arg);
+
 void swrRace_SpawnGroundDustKick_delta(swrRace* player, float* transform, float sx, float sy,
                                              float sz, float param_6, int param_7);
 void playASound_delta(int sound_id, short priority, float volume, float pitch, int flags);
@@ -25,6 +35,17 @@ void playASound_delta(int sound_id, short priority, float volume, float pitch, i
 // Rebuilds the dust-kick Toss pool with more slots (stock is 16) so full-LOD AI dust no longer
 // starves the player's trail. Replaces swrObjToss_AddDustKickModelsToScene (hooked by address).
 void swrObjToss_AddDustKickModelsToScene_delta();
+
+// Time-correct traction: re-scales swrRace_ApplyTraction's per-step slide blend so sliding decays
+// at the same rate per second at any sim rate (identical to vanilla at the reference rate).
+// Hooks swrRace_ApplyTraction by address.
+extern bool swrRace_tractionDtCorrect;
+extern float swrRace_tractionReferenceHz;
+void swrRace_ApplyTraction_delta(swrRace* player, float b, rdVector3* c, rdVector3* d);
+
+// True for the delta-owned dust-kick wrapper nodes (lets the renderer hide the stock dust when
+// Pod FX particle dust replaces it).
+bool swrRace_IsDustKickNode(const swrModel_Node* node);
 
 // Widens far-AI ground contact (clamps lodDistance for visible non-local pods) so distant AI run their
 // full ground/shadow pipeline and kick up dust. Hooks swrObjTest_F0 by address.
@@ -42,6 +63,15 @@ void swrRace_Tilt_delta(swrRace* player, float b);
 // Cable-curve amplitude for a curently-curved cable node (-1.0 = not a curved cable). Consumed by
 // the renderer to bend the cable mesh in the GL path.
 float swrRace_GetCableBendAmplitude(const swrModel_Node* node);
+
+// The racer and engine (part index 1..4) a racing pod's cable node runs to; false for other nodes
+// (and for display pods). For the renderer's cable clearance.
+bool swrRace_GetCableOwner(const swrModel_Node* node, const swrRace** racer, int* engine_part, int* index = nullptr);
+
+// A cable of the character-select display pod: its pilot, index (0..3 = slots 10..13) and the
+// local transforms of the cable, cockpit and engine nodes it joins (siblings under one parent).
+bool swrRace_GetDisplayCable(const swrModel_Node* node, int* pilot, int* index, rdMatrix44* cable,
+                             rdMatrix44* cockpit, rdMatrix44* engine);
 
 // Drop all recorded cable nodes (call on track load so freed node pointers aren't reused).
 void swrRace_ClearCableBends();

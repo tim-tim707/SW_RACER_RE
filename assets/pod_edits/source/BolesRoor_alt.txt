@@ -1,0 +1,25 @@
+# SW_RACER_RE pod edits for BolesRoor_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/BolesRoor_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 33 940.127a8-828a0c0a
+basemodel 34 668.ccf0-18ab34e4
+basemodel 146 80.f94-a0340a82
+# spin: Place 1
+spin 33:4030 0 0.0017 40.2292 135.1503 -0.3846 -0.6984 -0.6036 0-33 99.1925 -17.0401 -37.3207 1 rot 0.18 -44.66 -0.09 rotm 0.711289 0.003779 -0.702889 -0.001117 0.99999 0.004246 0.702898 -0.002235 0.711287
+facesig 33:4030 9fc6d083 0:f28fcd15,1:4fd08562,2:8075bd93,3:edbc4368,4:d2e035e7,5:db049ab0,6:b83d68ef,7:139b51c6,8:1e39a4c6,9:25a8116f,10:6227fb57,11:01e307c8,12:f3dc57c2,13:32627d6e,14:097be85d,15:4fa5242e,16:9916bf32,17:95e5d2a9,18:eac59a74,19:f26b7c67,20:fd327071,21:7e10ecd4,22:8d3c8375,23:cf50bf4e,24:c6c2f54e,25:ee42c346,26:f3f5789b,27:7950f584,28:051c7dd3,29:17ca2797,30:e765c3e4,31:77136123,32:bff7a6d2,33:b393b7bd
+spin 33:44d0 0 0.0017 40.2292 135.1503 -0.3846 -0.6984 -0.6036 0-13 99.1925 -17.0401 -37.3207 1 rot 0.18 -44.66 -0.09 rotm 0.711289 0.003779 -0.702889 -0.001117 0.99999 0.004246 0.702898 -0.002235 0.711287
+facesig 33:44d0 8babd60a 0:ab4b982a,1:53ad25d1,2:da6a0f4c,3:e04beb21,4:9bde75d0,5:db31122e,6:f550bd41,7:adf6ecc9,8:de60238b,9:97bccbfa,10:6e1ed052,11:be418c2a,12:537a8ded,13:d38427bb
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable cockpit 1.1825 2.7868 -0.0699
+cable engine 0 0.0945 2.3236
+binder 2.1784 1.3676 0
+exhaustscale 1.3 1 1.3
+# the whole pod (visual / camera only): height offset, cameras (further, higher), engine / cockpit spacing
+podheight 0.5
+chasecam near -1 -0.5
+rearcam -0.5 0
+cockpitmove 0 0 -0.5
+owncable1 cockpit 1.1825 2.7868 -0.0699
+owncable1 engine -1.6896 -0.1759 1.6889
+owncable2 cockpit -1.1825 2.7868 -0.0699
+owncable2 engine 1.6896 -0.1759 1.6889

@@ -34,6 +34,16 @@ uniform float alphaCutoff;
 // Non-zero when MSAA alpha-to-coverage is antialiasing this cutout's edge, so the shader keeps the
 // real alpha (coverage source) instead of forcing surviving pixels opaque.
 uniform int alphaToCoverage;
+// Soft depth for the pods' own exhaust glow quads: hidden where the scene is in front of them,
+// fading out over softRange (world units) where a surface is just behind, instead of a hard cut.
+// softProj = (A, B) of the projection: view distance = B / (ndc z + A).
+uniform int softDepth;
+uniform sampler2D softDepthTex;
+uniform vec2 softProj;
+uniform float softRange;
+// How far in front of the quad the scene may be before it starts hiding it (the glow quads sit a
+// little inside the nozzle, behind the exhaust face, which must not hide them).
+uniform float softBias;
 
 out vec4 color;
 void main() {
@@ -83,4 +93,14 @@ void main() {
     // the real alpha instead, so multisample coverage antialiases the edge.
     if (isCutout && alphaToCoverage == 0)
         color.a = 1.0;
+
+    if (softDepth != 0) {
+        float d = texture(softDepthTex, gl_FragCoord.xy / vec2(textureSize(softDepthTex, 0))).r;
+        if (d < 0.99999) {
+            float sceneDist = softProj.y / ((d * 2.0 - 1.0) + softProj.x);
+            float fragDist = softProj.y / ((gl_FragCoord.z * 2.0 - 1.0) + softProj.x);
+            float k = clamp((sceneDist - fragDist + softBias) / softRange, 0.0, 1.0);
+            color *= k * k * (3.0 - 2.0 * k);
+        }
+    }
 }

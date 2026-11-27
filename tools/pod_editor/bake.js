@@ -5,8 +5,8 @@
 //   resolveKeys(blockBytes, keys, exportKeys) -> Map(key -> { model, off })
 //
 // blockBytes: <game>/data/lev01/out_modelblock.bin (Uint8Array)
-// editsText:  an edits file from pod_editor.html: spin and hide lines (both baked into the models;
-//             "cables extra" / trail / cable / binder lines need the mod's runtime pod edits)
+// editsText:  an edits file from pod_editor.html (spin lines, "cables extra"; hide / cable /
+//             cable2 / binder lines are runtime edits and are left to the mod)
 // exportKeys: every mesh key of the pod's export (finds its models; resolves older keys)
 //
 // Mesh keys: "<model>:<hex offset>" (offset in that model's file data; current exports) or a plain hex
@@ -303,12 +303,25 @@ function readBlockEntry(block, id) {
 
 // Spin lines grouped like the script: one group per (rpm, pivot, axis, offset, scale, cut).
 function parseEdits(text) {
-  const groups = new Map(), notes = [], hides = new Map(), trails = [];
+  const groups = new Map(), notes = [], hideKeys = [], trails = [];
   let extraCables = false;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.split('#', 1)[0].trim().split(/\s+/).filter(Boolean);
     if (!line.length) continue;
     if (line[0] === 'spin') {
+      // Placement (a part moved / turned / mirrored without spinning): "rot <deg x3>" (the editor's own,
+      // ignored here), "rotm <9 numbers>" (the rotation as a row-vector matrix, mesh frame) and
+      // "mirror <9 numbers + 3>" (a mirrored copy: linear part and move, mesh frame).
+      const take = (kw, n) => { const i = line.indexOf(kw); if (i < 0) return null; const v = line.slice(i + 1, i + 1 + n).map(Number); line.splice(i, 1 + n); return v.length === n && v.every(Number.isFinite) ? v : null; };
+      take('rot', 3);
+      const rotm = take('rotm', 9), mirror = take('mirror', 12);
+      take('stretch', 3);// (the editor's own: it is already in rotm)
+      const reshape = take('reshape', 0) !== null;// bend the mesh itself instead of adding a part
+      // A spin group piece's faces: "piece" / "pre" <dx dy dz> (mesh frame) after the other fields --
+      // moved by that much before the group spins.
+      let pre = null;
+      const pi = line.findIndex(x => x === 'piece' || x === 'pre');
+      if (pi >= 0) { pre = line.slice(pi + 1, pi + 4).map(Number); line.length = pi; if (!pre.every(Number.isFinite) || !pre.some(Boolean)) pre = null; }
       const key = line[1].toLowerCase(), rpm = +line[2];
       const pivot = line.slice(3, 6).map(Number), axis = line.slice(6, 9).map(Number);
       const offset = line.length >= 13 && line[10] !== 'ellipse' ? line.slice(10, 13).map(Number) : [0, 0, 0];
@@ -317,14 +330,16 @@ function parseEdits(text) {
       const cut = ei >= 0 ? line.slice(ei + 1, ei + 6).map(Number) : null;
       const tris = new Set();
       for (const r of line[9].split(',')) { const [a, b] = r.split('-').map(Number); for (let t = a; t <= (isNaN(b) ? a : b); t++) tris.add(t); }
-      const gk = JSON.stringify([rpm, pivot, axis, offset, scale, cut]);
-      if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, meshes: new Map() });
-      groups.get(gk).meshes.set(key, tris);
-    } else if (line[0] === 'hide' && line[2]) {
-      const key = line[1].toLowerCase();
-      if (!hides.has(key)) hides.set(key, new Set());
-      for (const r of line[2].split(',')) { const [a, b] = r.split('-').map(Number); for (let t = a; t <= (isNaN(b) ? a : b); t++) hides.get(key).add(t); }
-    }
+      const gk = JSON.stringify([rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape]);
+      if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape, meshes: new Map(), pre: new Map() });
+      const g = groups.get(gk);
+      // One group can have several lines for a mesh (its pieces): their faces add up.
+      if (g.meshes.has(key)) for (const t of tris) g.meshes.get(key).add(t); else g.meshes.set(key, tris);
+      if (pre) {
+        if (!g.pre.has(key)) g.pre.set(key, new Map());
+        for (const t of tris) g.pre.get(key).set(t, pre);
+      }
+    } else if (line[0] === 'hide') { hideKeys.push(line[1].toLowerCase()); notes.push(`hide line for mesh ${line[1]} stays an in-game edit`); }
     else if (line[0] === 'cables' && line[1] === 'extra') extraCables = true;
     else if (line[0] === 'trail' && (line[1] === 'R' || line[1] === 'L')) {
       const pos = line.slice(2, 5).map(Number), sc = line.slice(5, 8).map(Number);
@@ -332,7 +347,7 @@ function parseEdits(text) {
       if (pos.length === 3 && pos.every(Number.isFinite)) trails.push({ side: line[1], pos, scale });
     }
   }
-  return { groups: [...groups.values()], notes, hides, extraCables, trails };
+  return { groups: [...groups.values()], notes, hideKeys, extraCables, trails };
 }
 
 // "cables extra": copies of cable nodes 10 / 11 in part slots 12 / 13 (2-engine pods), sharing the
@@ -397,6 +412,111 @@ function addExtraCables(m, log) {
     m.setPtr(roots[dstSlot], node);
     log.push(`extra cable: part slot ${dstSlot} = copy of cable ${srcSlot} (${hex(src)} -> ${hex(node)}, under ${hex(owner)})`);
   }
+}
+
+// ---- edits carried in a model ----------------------------------------------------------------
+// Build appends the pod's in-game edits (cables, binder, exhaust, engine effects, cameras, the
+// spinning / trail nodes the mod drives) to the end of the model data it writes:
+//   <text> <zero padding> <u32 text length, little-endian> "SWRPEDT1"
+// padded so the whole trailer is a multiple of 8 bytes. No mask bits cover it, so the game loads it
+// untouched and the mod reads it back (pod_edits_note_model): the .bin carries its own edits.
+const EMBED_MAGIC = [0x53, 0x57, 0x52, 0x50, 0x45, 0x44, 0x54, 0x31];// 'SWRPEDT1'
+function embeddedTrailer(data) {
+  const n = data.length;
+  if (n < 20) return null;
+  for (let i = 0; i < 8; i++) if (data[n - 8 + i] !== EMBED_MAGIC[i]) return null;
+  const len = (data[n - 12] | (data[n - 11] << 8) | (data[n - 10] << 16) | (data[n - 9] << 24)) >>> 0;
+  let padded = len;
+  while ((padded + 12) % 8) padded++;
+  const start = n - 12 - padded;
+  if (start < 0) return null;
+  return { start, text: new TextDecoder().decode(data.subarray(start, start + len)) };
+}
+// The model data without any carried edits.
+function stripEmbedded(data) { const t = embeddedTrailer(data); return t ? data.subarray(0, t.start) : data; }
+// The edits a model's data carries, or null.
+function embeddedText(data) { const t = embeddedTrailer(data); return t ? t.text : null; }
+// A RAWM file (the replacement model format) carrying `text` as its edits (any it carried replaced).
+function rawmWithEdits(rawm, text) {
+  const dv = new DataView(rawm.buffer, rawm.byteOffset, rawm.byteLength);
+  const ms = dv.getUint32(4, true), mm = dv.getUint32(8, true);
+  const mask = rawm.subarray(12, 12 + ms), data = stripEmbedded(rawm.subarray(12 + ms, 12 + ms + mm));
+  const tb = new TextEncoder().encode(text);
+  let padded = tb.length;
+  while ((padded + 12) % 8) padded++;
+  const pad = (8 - data.length % 8) % 8, at = data.length + pad;
+  const nd = new Uint8Array(at + padded + 12);
+  nd.set(data); nd.set(tb, at);
+  new DataView(nd.buffer).setUint32(at + padded, tb.length, true);
+  nd.set(EMBED_MAGIC, at + padded + 4);
+  // The mask covers the new length; the trailer's words have no bits (nothing to fix up there).
+  const words = nd.length >> 2, nm = new Uint8Array(((words + 31) >> 5) * 4);
+  nm.set(mask.subarray(0, Math.min(mask.length, nm.length)));
+  const out = new Uint8Array(12 + nm.length + nd.length);
+  out.set([0x52, 0x41, 0x57, 0x4d]);// 'RAWM'
+  const odv = new DataView(out.buffer);
+  odv.setUint32(4, nm.length, true); odv.setUint32(8, nd.length, true);
+  out.set(nm, 12); out.set(nd, 12 + nm.length);
+  return out;
+}
+// A RAWM file of a block's model as it is.
+function rawmFromBlock(block, id) {
+  const [mask, data] = readBlockEntry(block, id);
+  const out = new Uint8Array(12 + mask.length + data.length);
+  out.set([0x52, 0x41, 0x57, 0x4d]);
+  const odv = new DataView(out.buffer);
+  odv.setUint32(4, mask.length, true); odv.setUint32(8, data.length, true);
+  out.set(mask, 12); out.set(data, 12 + mask.length);
+  return out;
+}
+
+// The spinning parts a model already has: its axis-angle animations (a pod model's own spinning
+// parts and earlier bakes) and, for an alt model (whose animations never run), the nodes its carried
+// edits list as "spinnode" lines (the mod turns those). Each: { node, pivot (the node's own frame:
+// the axis goes through it), axis, rpm, meshes (file offsets) }.
+function bakedSpins(block, id, text) {
+  const [mask, raw] = readBlockEntry(block, id);
+  if (raw.length < 8) return [];
+  const m = new Model(mask, stripEmbedded(raw)), out = [];
+  const meshesUnder = node => {
+    const res = [], stack = [node], seen = new Set();
+    while (stack.length) {
+      const n = stack.pop();
+      if (!n || seen.has(n) || n + 28 > m.len) continue;
+      seen.add(n);
+      const slots = m.childSlots(n);
+      if (m.u32(n) === NODE_MESH_GROUP) { for (const sl of slots) { const x = m.ptr(sl); if (x) res.push(x); } continue; }
+      for (const sl of slots) { const c = m.ptr(sl); if (c) stack.push(c); }
+    }
+    return res;
+  };
+  const pivotOf = node => m.u32(node) === NODE_TRANSFORMED_WITH_PIVOT ? [m.f32(node + 76), m.f32(node + 80), m.f32(node + 84)] : [0, 0, 0];
+  try {
+    const h = m.header();
+    if (h.anim !== undefined)
+      for (let o = h.anim + 4; o < h.anim_end; o += 4) {
+        const a = m.ptr(o);
+        if (!a || a + ANIM_SIZE > m.len) continue;
+        const b = a + 220;
+        if ((m.u32(b + 36) & 0xF) !== ANIM_TYPE_AXIS_ANGLE) continue;
+        const node = m.ptr(b + 72), values = m.ptr(b + 68), nk = m.u32(b + 40), period = m.f32(b + 24);
+        if (!node || !values || !(period > 0) || nk < 2 || nk > 64) continue;
+        const axis = [m.f32(values), m.f32(values + 4), m.f32(values + 8)];
+        const turn = m.f32(values + 16 * (nk - 1) + 12) - m.f32(values + 12);
+        if (!turn) continue;
+        out.push({ node, pivot: pivotOf(node), axis, rpm: turn / 360 * 60 / period, meshes: meshesUnder(node) });
+      }
+  } catch { /* not a readable model */ }
+  for (const line of (text || '').split(/\r?\n/)) {
+    const t = line.trim().split(/\s+/);
+    if (t[0] !== 'spinnode' || !t[1]) continue;
+    const [mid, off] = t[1].split(':');
+    if (+mid !== id) continue;
+    const node = parseInt(off, 16);
+    if (!(node > 0) || node + PIVOT_NODE_SIZE > m.len) continue;
+    out.push({ node, pivot: pivotOf(node), axis: t.slice(3, 6).map(Number), rpm: +t[2], meshes: meshesUnder(node), mod: true });
+  }
+  return out;
 }
 
 // A short fingerprint of a model's mask + data: "<mask bytes>.<data bytes>-<FNV-1a 32>" (hex). The mod
@@ -483,11 +603,12 @@ function podModels(block, exportKeys) {
 // ---- bake -----------------------------------------------------------------------------------
 function bakePod(block, editsText, exportKeys = []) {
   const log = [];
-  const { groups: spinGroups, notes, hides, extraCables, trails } = parseEdits(editsText);
+  const { groups: allGroups, notes, hideKeys, extraCables, trails } = parseEdits(editsText);
+  const spinGroups = allGroups.filter(g => !g.reshape), reshapeGroups = allGroups.filter(g => g.reshape);
   log.push(...notes);
-  if (!spinGroups.length && !hides.size && !extraCables && !trails.length)
-    throw new BakeError('Nothing to bake: no spin or hide groups.');
-  const keys = [...new Set([...spinGroups.flatMap(g => [...g.meshes.keys()]), ...hides.keys()])];
+  if (!allGroups.length && !extraCables && !trails.length)
+    throw new BakeError('Nothing to bake: no spin groups, reshapes, extra cables or extra trails (cable, binder and hide edits are applied in game from the .txt).');
+  const keys = [...new Set([...allGroups.flatMap(g => [...g.meshes.keys()]), ...hideKeys])];
   const resolved = resolveKeys(block, keys, exportKeys);
   const missing = keys.filter(k => !resolved.has(k));
   if (missing.length)
@@ -495,52 +616,47 @@ function bakePod(block, editsText, exportKeys = []) {
   // Spin groups split by model (a group can hold meshes of both of the pod's models).
   const perModel = new Map();
   for (const sg of spinGroups) {
-    const byModel = new Map();
+    const byModel = new Map(), preByModel = new Map();
     for (const [k, tris] of sg.meshes) {
+      const { model, off } = resolved.get(k);
+      if (!byModel.has(model)) { byModel.set(model, new Map()); preByModel.set(model, new Map()); }
+      byModel.get(model).set(off, tris);
+      if (sg.pre && sg.pre.has(k)) preByModel.get(model).set(off, sg.pre.get(k));
+    }
+    for (const [model, meshes] of byModel) {
+      if (!perModel.has(model)) perModel.set(model, []);
+      perModel.get(model).push({ ...sg, meshes, pre: preByModel.get(model) });
+    }
+  }
+  // Reshape groups by model: { meshes: Map(file offset -> faces), pivot, offset, scale, rotm }.
+  const reshapeByModel = new Map();
+  for (const rg of reshapeGroups) {
+    const byModel = new Map();
+    for (const [k, tris] of rg.meshes) {
       const { model, off } = resolved.get(k);
       if (!byModel.has(model)) byModel.set(model, new Map());
       byModel.get(model).set(off, tris);
     }
     for (const [model, meshes] of byModel) {
+      if (!reshapeByModel.has(model)) reshapeByModel.set(model, []);
+      reshapeByModel.get(model).push({ ...rg, meshes });
       if (!perModel.has(model)) perModel.set(model, []);
-      perModel.get(model).push({ ...sg, meshes });
     }
   }
-  // Hidden faces, by model and mesh.
-  const hidesPerModel = new Map();
-  for (const [k, tris] of hides) {
-    const { model, off } = resolved.get(k);
-    if (!hidesPerModel.has(model)) hidesPerModel.set(model, new Map());
-    const hm = hidesPerModel.get(model);
-    if (!hm.has(off)) hm.set(off, new Set());
-    for (const t of tris) hm.get(off).add(t);
-    if (!perModel.has(model)) perModel.set(model, []);
-  }
-  const idx = podIndex(block);
-  const isAltModel = id => idx.get(id)?.tag === 'MAlt';
-  const podId = podModels(block, exportKeys.length ? exportKeys : keys).pod;
   let cableModel = null;
   if (extraCables || trails.length) {
-    cableModel = podId;
+    cableModel = podModels(block, exportKeys.length ? exportKeys : keys).pod;
     if (cableModel === null) throw new BakeError('Extra cables / trails: cannot find this pod\'s model (export again with the current mod).');
     if (!perModel.has(cableModel)) perModel.set(cableModel, []);
   }
-  // Spins in the alt model need an animation in the pod model (the game only animates that one):
-  // bake the alt model first, then the pod model with its animations.
-  const altSpinning = [...perModel].some(([mid, groups]) => isAltModel(mid) && groups.some(g => g.rpm));
-  if (altSpinning) {
-    if (podId === null) throw new BakeError('Spinning parts in the alt model: cannot find this pod\'s main model (export again with the current mod).');
-    if (!perModel.has(podId)) perModel.set(podId, []);
-  }
-  const order = [...perModel].sort((a, b) => (isAltModel(b[0]) - isAltModel(a[0])) || a[0] - b[0]);
-  const models = [], altAnims = [];
-  for (const [mid, groups] of order) {
-    const m = new Model(...readBlockEntry(block, mid));
+  const models = [];
+  for (const [mid, groups] of [...perModel].sort((a, b) => a[0] - b[0])) {
+    const [entryMask, entryData] = readBlockEntry(block, mid);
+    const m = new Model(entryMask, stripEmbedded(entryData));
     log.push(`model ${mid}: ${m.tag(0)}, ${m.len} bytes`);
-    const r = bakeModel(m, mid, groups, mid === cableModel && extraCables, log, mid === cableModel ? trails : [],
-                        hidesPerModel.get(mid) || new Map(), mid === podId ? altAnims : []);
-    if (r.altSpins) altAnims.push(...r.altSpins);
-    models.push({ modelId: mid, baseFp: fingerprint(...readBlockEntry(block, mid)), ...r });
+    models.push({ modelId: mid, baseFp: fingerprint(...readBlockEntry(block, mid)),
+                  ...bakeModel(m, mid, groups, mid === cableModel && extraCables, log,
+                               mid === cableModel ? trails : [], reshapeByModel.get(mid) || []) });
   }
   return { models, resolved, log };
 }
@@ -552,33 +668,63 @@ function notInGroup(mid, mesh) {
 }
 
 // One model: its spin groups (meshes by file offset) and maybe the extra cable pair.
-// hides: hidden faces by mesh (file offset); altAnims: spins of the alt model's parts, animated from
-// this (the pod) model ([{ rpm, axis }], in the order the alt model lists their nodes in AltN).
-function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = new Map(), altAnims = []) {
+function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], reshapes = []) {
 
   let { parents, groups: meshGroups } = m.walk();
   const meshToGroup = new Map();
   for (const [g, ms] of meshGroups) for (const x of ms) meshToGroup.set(x, g);
 
-  // 0) Hidden faces leave their meshes for good. Spin selections in the same meshes are renumbered
-  // to the faces that are left.
-  for (const [mesh, hid] of hides) {
+  // Spin group pieces: their faces moved first (mesh frame), in place in their meshes; the split and
+  // spin below then take them from there.
+  const moves = new Map();// mesh -> face -> move
+  for (const sg of spinGroups) for (const [mesh, faces] of sg.pre || []) {
+    if (!moves.has(mesh)) moves.set(mesh, new Map());
+    for (const [t, v] of faces) moves.get(mesh).set(t, v);
+  }
+  for (const [mesh, faces] of moves) {
     if (!meshToGroup.has(mesh)) throw new BakeError(notInGroup(mid, mesh));
     const { tris, hasNormals } = decodeMesh(m, mesh);
-    if ([...hid].some(t => t < 0 || t >= tris.length))
-      throw new BakeError(`Mesh ${mid + ':' + hex(mesh)}: the hide group names faces past its ${tris.length} faces (export from different game data?).`);
-    let k = 0;
-    const remap = tris.map((_, t) => hid.has(t) ? -1 : k++);
-    writeMesh(m, mesh, tris.filter((_, t) => !hid.has(t)), hasNormals);
-    log.push(`hid ${hid.size} of ${tris.length} faces of mesh ${mid}:${hex(mesh)}`);
-    for (const sg of spinGroups) {
-      const sel = sg.meshes.get(mesh);
-      if (!sel) continue;
-      const kept = new Set([...sel].map(t => remap[t]).filter(t => t !== undefined && t >= 0));
-      if (kept.size) sg.meshes.set(mesh, kept); else sg.meshes.delete(mesh);
+    const moved = tris.map((tri, t) => {
+      const v = faces.get(t);
+      return v ? tri.map(p => [p[0] + v[0], p[1] + v[1], p[2] + v[2], ...p.slice(3)]) : tri;
+    });
+    writeMesh(m, mesh, moved, hasNormals);
+    log.push(`moved ${faces.size} face(s) of mesh ${mid}:${hex(mesh)} (spin group pieces)`);
+  }
+
+  // Reshapes: every corner that sits where a selected face's corner sits (in the mesh as it was) is
+  // scaled about the pivot, turned and moved -- so the neighbouring faces follow and nothing tears.
+  // Faces keep their numbers. All reshapes of a mesh go by the original corner positions.
+  {
+    const perMesh = new Map();
+    for (const rg of reshapes) for (const [mesh, faces] of rg.meshes) {
+      if (!meshToGroup.has(mesh)) throw new BakeError(notInGroup(mid, mesh));
+      if (!perMesh.has(mesh)) perMesh.set(mesh, []);
+      perMesh.get(mesh).push({ rg, faces });
+    }
+    const keyOf = c => c[0] + ',' + c[1] + ',' + c[2];
+    for (const [mesh, list] of perMesh) {
+      const { tris, hasNormals } = decodeMesh(m, mesh);
+      if (list.some(({ faces }) => [...faces].some(t => t < 0 || t >= tris.length)))
+        throw new BakeError(`Mesh ${mid + ':' + hex(mesh)}: a reshape names faces past its ${tris.length} faces (the export does not match the stock model).`);
+      const sets = list.map(({ faces }) => { const s = new Set(); for (const t of faces) for (const c of tris[t]) s.add(keyOf(c)); return s; });
+      let n = 0;
+      const out = tris.map(tri => tri.map(c => {
+        const k = keyOf(c);
+        let p = [c[0], c[1], c[2]], hit = false;
+        list.forEach(({ rg }, i) => {
+          if (!sets[i].has(k)) return;
+          const R = rg.rotm || [1, 0, 0, 0, 1, 0, 0, 0, 1], sc = rg.scale, d = [p[0] - rg.pivot[0], p[1] - rg.pivot[1], p[2] - rg.pivot[2]];
+          p = [0, 1, 2].map(j => rg.pivot[j] + sc * (d[0] * R[j] + d[1] * R[3 + j] + d[2] * R[6 + j]) + rg.offset[j]);
+          hit = true;
+        });
+        if (hit) n++;
+        return hit ? [...p, ...c.slice(3)] : c;
+      }));
+      writeMesh(m, mesh, out, hasNormals);
+      log.push(`reshaped mesh ${mid}:${hex(mesh)}: ${n} corners of ${tris.length} faces moved`);
     }
   }
-  spinGroups = spinGroups.filter(sg => sg.meshes.size);
 
   // A spin group covering whole mesh groups spins those groups as they are; otherwise ("partial")
   // its faces are split off into new meshes in a new mesh group, and the rest stays where it was.
@@ -609,17 +755,10 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   // game merges its AltN parts into the pod model only when AltN follows the part slots directly
   // (swrModel_FixupAltNodePointers), and never runs an alt model's animations anyway -- its spinning
   // nodes are listed instead ("spinnode" lines) and the mod turns them.
-  //
-  // An alt model's spinning pivot nodes are added to its AltN list instead, and the pod model gets
-  // their animations: when the game loads the pod it merges the alt model in, writing each alt AltN
-  // node into the place the pod model's AltN entry at the same index points at -- for these, the
-  // animation's node pointer. Both lists grow by the same number of entries, at the end.
-  const isAlt = m.tag(0) === 'MAlt', spinNodes = [], altSpins = [];
+  const isAlt = m.tag(0) === 'MAlt', spinNodes = [];
   const h = m.header();
   let animSlots = [];
-  const nOwn = isAlt ? 0 : plan.filter(p => p.rpm).length;
-  const nNew = nOwn + altAnims.length;
-  const nAltN = isAlt ? plan.filter(p => p.rpm).length : altAnims.length;
+  const nNew = isAlt ? 0 : plan.filter(p => p.rpm).length;
   if (nNew === 0) { /* nothing */ }
   else if (h.anim !== undefined) {
     const at = h.anim_end; m.insert(at, 4 * nNew);
@@ -632,21 +771,10 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   // Placeholders until the animations exist: a 0 would end the list early and hide the AltN list
   // after it (the alt models' parts) from the walk.
   for (const s of animSlots) m.put32(s, 1);
-  let altnSlots = [];
-  if (nAltN) {
-    const h2 = m.header();
-    let o = (h2.anim_end ?? h2.after_data - 4) + 4;
-    if (m.tag(o) !== 'AltN') throw new BakeError(`Model ${mid} has no AltN list to link the alt model's spinning parts through.`);
-    o += 4;
-    while (m.u32(o)) o += 4;
-    m.insert(o, 4 * nAltN);
-    altnSlots = Array.from({ length: nAltN }, (_, i) => o + 4 * i);
-    for (const s of altnSlots) m.put32(s, 1);
-  }
   ({ parents, groups: meshGroups } = m.walk());
 
   // 2) Cuts, then a pivot node (+ animation) per spin group, appended at the end.
-  const shift = (nNew ? (h.anim === undefined ? 4 + 4 * nNew + 4 : 4 * nNew) : 0) + 4 * nAltN;
+  const shift = nNew ? (h.anim === undefined ? 4 + 4 * nNew + 4 : 4 * nNew) : 0;
   for (const p of plan) {
     p.static = [];
     if (!p.cut || !p.whole) continue;// partial groups are cut after their split
@@ -706,14 +834,36 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
     m.put32(node + 16, flags5); m.put32(node + 20, 1);
     m.setPtr(node + 24, kids);
     const [ox, oy, oz] = p.offset, k = p.scale;
-    [k, 0, 0, 0, k, 0, 0, 0, k, ox, oy, oz].forEach((v, j) => m.putf(node + 28 + 4 * j, v));
-    p.pivot.forEach((v, j) => m.putf(node + 76 + 4 * j, v));
+    // The node's matrix (row vectors): scale * rotation, then the move. A part that doesn't spin is
+    // placed with a zero pivot and the move worked out for it, so the pivot's meaning doesn't matter.
+    const R = p.rotm || [1, 0, 0, 0, 1, 0, 0, 0, 1], L = R.map(v => v * k);
+    const mulV = (v, Mx) => [0, 1, 2].map(j => v[0] * Mx[j] + v[1] * Mx[3 + j] + v[2] * Mx[6 + j]);
+    let tr = [ox, oy, oz], pivotV = p.pivot;
+    if (!p.rpm) { const pl = mulV(p.pivot, L); tr = [0, 1, 2].map(j => p.pivot[j] + p.offset[j] - pl[j]); pivotV = [0, 0, 0]; }
+    const writeNode = (nd, Lm, t) => {
+      [...Lm, ...t].forEach((v, j) => m.putf(nd + 28 + 4 * j, v));
+      pivotV.forEach((v, j) => m.putf(nd + 76 + 4 * j, v));
+    };
+    writeNode(node, L, tr);
     m.setPtr(kids, spinning);
+    const nodes = [node];
+    if (p.mirror) {
+      if (p.rpm) throw new BakeError('A mirrored copy is only for parts that do not spin (set the RPM to 0).');
+      const Mm = p.mirror.slice(0, 9), Tm = p.mirror.slice(9, 12);
+      // The copy is the placed part mirrored: (p * L + tr) * Mm + Tm.
+      const node2 = copyBlock(m, node, PIVOT_NODE_SIZE), kids2 = m.append(4);
+      m.setPtr(node2 + 24, kids2); m.setPtr(kids2, spinning);
+      const t2 = mulV(tr, Mm).map((v, j) => v + Tm[j]);
+      const L2 = [0, 1, 2].flatMap(i => mulV(L.slice(3 * i, 3 * i + 3), Mm));
+      writeNode(node2, L2, t2);
+      nodes.push(node2);
+      log.push(`mirrored copy of mesh group ${hex(p.group)}`);
+    }
     let top = node;
     if (!p.whole) {
       // The original group (the faces that stay), the pivot node and any static rim, side by
       // side under one BASIC node in the group's place (shared by later splits of the same group).
-      const add = [node];
+      const add = [...nodes];
       if (p.static.length) {
         const staticGroup = copyBlock(m, g, MESH_GROUP_SIZE), staticList = m.append(4 * p.static.length);
         p.static.forEach((rim, i) => m.setPtr(staticList + 4 * i, rim));
@@ -734,28 +884,27 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
       for (let i = 0; i < n; i++) m.setPtr(wl + 4 * i, m.ptr(old + 4 * i));
       add.forEach((x, i) => m.setPtr(wl + 4 * (n + i), x));
       m.put32(w + 20, n + add.length); m.setPtr(w + 24, wl);
-    } else if (p.static.length) {
-      const staticGroup = copyBlock(m, g, MESH_GROUP_SIZE), staticList = m.append(4 * p.static.length);
-      p.static.forEach((rim, i) => m.setPtr(staticList + 4 * i, rim));
-      m.put32(staticGroup + 20, p.static.length);
-      m.setPtr(staticGroup + 24, staticList);
+    } else if (p.static.length || nodes.length > 1) {
+      const kidsOf = [...nodes];
+      if (p.static.length) {
+        const staticGroup = copyBlock(m, g, MESH_GROUP_SIZE), staticList = m.append(4 * p.static.length);
+        p.static.forEach((rim, i) => m.setPtr(staticList + 4 * i, rim));
+        m.put32(staticGroup + 20, p.static.length);
+        m.setPtr(staticGroup + 24, staticList);
+        kidsOf.push(staticGroup);
+      }
       top = m.append(BASIC_NODE_SIZE);
-      const topKids = m.append(8);
+      const topKids = m.append(4 * kidsOf.length);
       m.put32(top, 0x5064);
-      m.put32(top + 4, flags1); m.put32(top + 8, flags2); m.put32(top + 16, flags5); m.put32(top + 20, 2);
+      m.put32(top + 4, flags1); m.put32(top + 8, flags2); m.put32(top + 16, flags5); m.put32(top + 20, kidsOf.length);
       m.setPtr(top + 24, topKids);
-      m.setPtr(topKids, node); m.setPtr(topKids + 4, staticGroup);
+      kidsOf.forEach((x, i) => m.setPtr(topKids + 4 * i, x));
     }
     if (p.whole) for (const slot of parents.get(g)) m.setPtr(slot, top);
 
     if (!p.rpm) continue;
     const al = Math.hypot(...p.axis) || 1, ax = p.axis.map(c => c / al), nk = 5;
-    if (isAlt) {
-      m.setPtr(altnSlots[altSpins.length], node);
-      altSpins.push({ rpm: p.rpm, axis: ax });
-      spinNodes.push({ node, rpm: p.rpm, axis: ax });
-      continue;
-    }
+    if (isAlt) { spinNodes.push({ node, rpm: p.rpm, axis: ax }); continue; }
     const period = 60 / Math.abs(p.rpm), sign = p.rpm > 0 ? 1 : -1;
     const times = m.append(4 * nk), values = m.append(16 * nk);
     for (let i = 0; i < nk; i++) {
@@ -765,32 +914,12 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
     }
     const anim = m.append(ANIM_SIZE), b = anim + 220;
     m.putf(b + 24, period); m.putf(b + 28, period); m.putf(b + 32, period);
-    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP);// switched on by the mod in races only
+    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP);// enabled by the mod during races only
     m.put32(b + 40, nk);
     m.putf(b + 44, period); m.putf(b + 48, period); m.putf(b + 52, 1);
     m.setPtr(b + 64, times); m.setPtr(b + 68, values); m.setPtr(b + 72, node);
     m.setPtr(animSlots[slotI++], anim);
   }
-  // The alt model's spinning parts: their animations, each node pointer filled in by the game from
-  // the alt model's AltN list when it merges the two (this model's AltN entry points at it).
-  altAnims.forEach((a, i) => {
-    const nk = 5, period = 60 / Math.abs(a.rpm), sign = a.rpm > 0 ? 1 : -1;
-    const times = m.append(4 * nk), values = m.append(16 * nk);
-    for (let j = 0; j < nk; j++) {
-      m.putf(times + 4 * j, period * j / (nk - 1));
-      for (let c = 0; c < 3; c++) m.putf(values + 16 * j + 4 * c, a.axis[c]);
-      m.putf(values + 16 * j + 12, sign * 360 * j / (nk - 1));
-    }
-    const anim = m.append(ANIM_SIZE), b = anim + 220;
-    m.putf(b + 24, period); m.putf(b + 28, period); m.putf(b + 32, period);
-    m.put32(b + 36, ANIM_TYPE_AXIS_ANGLE | ANIMATION_LOOP);// switched on by the mod in races only
-    m.put32(b + 40, nk);
-    m.putf(b + 44, period); m.putf(b + 48, period); m.putf(b + 52, 1);
-    m.setPtr(b + 64, times); m.setPtr(b + 68, values);// b + 72 (the node): from the alt model
-    m.setPtr(animSlots[slotI++], anim);
-    m.setPtr(altnSlots[i], b + 72);
-    log.push(`animation for the alt model's spinning part ${i + 1} at ${a.rpm} rpm (linked through AltN)`);
-  });
 
   if (extraCables) addExtraCables(m, log);
   const trailNodes = trails.length ? addTrails(m, trails, log) : [];
@@ -802,15 +931,15 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], hides = ne
   const odv = new DataView(out.buffer);
   odv.setUint32(4, mask.length, true); odv.setUint32(8, m.len, true);
   out.set(mask, 12); out.set(m.data.subarray(0, m.len), 12 + mask.length);
-  log.push(`baked model ${mid} with ${nOwn + spinNodes.length} spinning part(s)${spinNodes.length ? ' (animated from the pod model)' : ''}` +
-           `${altAnims.length ? ` and ${altAnims.length} animation(s) for the alt model` : ''}${hides.size ? `, ${hides.size} mesh(es) with hidden faces` : ''}` +
+  log.push(`baked model ${mid} with ${nNew + spinNodes.length} spinning part(s)${spinNodes.length ? ' (turned by the mod)' : ''}` +
            `${extraCables ? ' and an extra cable pair' : ''}${trails.length ? ` and ${trails.length} extra trail(s)` : ''}: ${out.length} bytes`);
   // keyShift: how far every original mesh moved (the header grew); triRemap: faces renumbered in
   // meshes the bake split (by file offset) -- both for the in-game hide lines. spinNodes: the
   // pivot nodes the mod turns (alt models), by file offset.
-  return { bytes: out, keyShift: shift, triRemap, spinNodes, trailNodes, altSpins };
+  return { bytes: out, keyShift: shift, triRemap, spinNodes, trailNodes };
 }
 
 (typeof window !== 'undefined' ? window : globalThis).PodBake = { bakePod, resolveKeys, podModels, BakeError, Model, readBlockEntry,
-                                                                 fingerprint, blockFromBase, exportMismatch };
+                                                                 fingerprint, blockFromBase, exportMismatch, embeddedText,
+                                                                 stripEmbedded, rawmWithEdits, rawmFromBlock, bakedSpins, podIndex };
 })();

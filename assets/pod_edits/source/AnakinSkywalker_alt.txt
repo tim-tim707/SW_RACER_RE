@@ -1,0 +1,9 @@
+# SW_RACER_RE pod edits for AnakinSkywalker_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/AnakinSkywalker_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 0 2f4.5e18-a24d6c90
+basemodel 2 944.12858-3569ef2c
+basemodel 146 80.f94-a0340a82
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine 0 -0.7537 0.6543
+binder 0.6409 0.1761 -0.0559

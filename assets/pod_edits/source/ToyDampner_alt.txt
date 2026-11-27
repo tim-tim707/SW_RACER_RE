@@ -1,0 +1,11 @@
+# SW_RACER_RE pod edits for ToyDampner_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/ToyDampner_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 43 444.8820-1e311cfa
+basemodel 44 584.b068-05363953
+basemodel 146 80.f94-a0340a82
+# spin: Spin 1
+spin 43:2a40 -240 1.25 232 12.3612 0 -1 0 0-17 0 0 0.0563
+facesig 43:2a40 f0af1dd0 0:016f978f,1:f935fc45,2:2fcb7f20,3:5423b8cc,4:3b386787,5:3283c065,6:95db3a07,7:dc955e8a,8:5691921b,9:659b755a,10:9e1647ed,11:4d50fc9f,12:3ce152b6,13:8139e9b7,14:c5329b89,15:c2a6fe8c,16:ff25f3ee,17:1ee6d191
+spin 43:4210 -240 1.25 232 12.3612 0 -1 0 18-53 0 0 0.0563 1 pre -1.25 0 0.625
+facesig 43:4210 e6781505 18:41f5e1dd,19:fee7e5ce,20:5a540e66,21:061b5c17,22:5720110b,23:44fa347c,24:1fe51c57,25:8c34479b,26:09da3805,27:653a3783,28:b908edfa,29:0a8972e2,30:1bc54304,31:fadb132b,32:1c645c62,33:e4b4dff4,34:655f2a03,35:62e5f4ff,36:7184800b,37:6469f916,38:22ea5d36,39:ccddc92f,40:360db05a,41:c1e4517b,42:2b930118,43:dd0d82ca,44:37ef2dbf,45:ff28cb92,46:d629b7ce,47:9c8027e1,48:55acdb12,49:84ca0d87,50:abed7f98,51:ea37547c,52:f8fcc956,53:eb4fbfb4

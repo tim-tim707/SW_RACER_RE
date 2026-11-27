@@ -19,7 +19,6 @@
 #include "ai_tuning.h"
 #include "audio_mix.h"
 #include "game_deltas/swrSound_delta.h"
-#include "game_deltas/pod_edits.h"// pod editor export
 
 extern "C" {
 #include "./game_deltas/DirectX_delta.h"
@@ -47,6 +46,11 @@ extern "C" {
 #include "./game_deltas/swrMultiplayer_delta.h"
 #include "./game_deltas/swrUI_delta.h"
 #include "./game_deltas/swrPlayerHUD_delta.h"
+#include "./game_deltas/pod_motion.h"
+#include "./game_deltas/pod_fx.h"
+#include "./game_deltas/pod_edits.h"
+#include "./game_deltas/pod_wreck.h"
+#include "shadows.h"
 #include "./game_deltas/swrWeather_delta.h"
 #include "./game_deltas/swrObjHang_delta.h"
 #include "./game_deltas/sithRender_delta.h"
@@ -370,6 +374,7 @@ static void stream_ring_end_frame() {
 // rendered, or -1 when the current mesh is not a curved cable. Set by debug_render_node when it
 // descends into a curved cable node and consumed by parse_display_list_commands below.
 static float g_active_cable_amplitude = -1.0f;
+static const swrModel_Node *g_active_cable_node = nullptr;// the cable node being drawn (for clearance)
 
 // Reflective materials (issue #206). The PC port stripped the G_TEXTURE_GEN bit and left no
 // reliable per-mesh material trace -- reflective meshes span several combiner/render-mode configs,
@@ -391,8 +396,203 @@ bool g_pod_shadow_depth = false;
 // partNodes[0x3d..0x40] of every live racer, rebuilt per traversal alongside pod_node_owners.
 static std::vector<const swrModel_Node *> g_pod_shadow_nodes;
 
+// Pod FX nozzle capture: partNodes[0x43/0x44] (exhaust R/L) and [0x45/0x46] (afterburner glow R/L)
+// of every live racer. While debug_render_node is inside one of these subtrees, every mesh drawn is
+// reported to pod_fx so it can locate each individual exhaust nozzle on the engine.
+struct NozzleNodeTag {
+    const swrModel_Node *node;
+    const swrRace *racer;
+    int side;// 0 = right, 1 = left
+    int kind;// 0 = exhaust, 1 = glow
+    bool operator<(const NozzleNodeTag &o) const { return node < o.node; }
+};
+static std::vector<NozzleNodeTag> g_pod_nozzle_nodes;
+static const NozzleNodeTag *g_active_nozzle_tag = nullptr;
+
+// Pod FX diagnostics: every partNodes[] entry of the local pod (side = part index), only while armed.
+static std::vector<NozzleNodeTag> g_debug_part_nodes;
+static const NozzleNodeTag *g_active_debug_part = nullptr;
+static const NozzleNodeTag *find_debug_part(const swrModel_Node *node) {
+    if (g_debug_part_nodes.empty())
+        return nullptr;
+    const NozzleNodeTag key{node, nullptr, 0, 0};
+    auto it = std::lower_bound(g_debug_part_nodes.begin(), g_debug_part_nodes.end(), key);
+    return (it != g_debug_part_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+
+static const NozzleNodeTag *find_nozzle_tag(const swrModel_Node *node) {
+    const NozzleNodeTag key{node, nullptr, 0, 0};
+    auto it = std::lower_bound(g_pod_nozzle_nodes.begin(), g_pod_nozzle_nodes.end(), key);
+    return (it != g_pod_nozzle_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+
+// Cable clearance: each racing pod's engines and cockpit (partNodes[1..5]) as boxes, one per mesh,
+// each in its part's own frame (unk350_mat[part]), collected while the renderer draws them. A
+// cable's tube is pushed out of them (generate_cable_tube) so it never runs through the pod.
+struct BodyNodeTag {
+    const swrModel_Node *node;
+    const swrRace *racer;
+    int part;
+    bool operator<(const BodyNodeTag &o) const { return node < o.node; }
+};
+static std::vector<BodyNodeTag> g_pod_body_nodes;
+static const BodyNodeTag *g_active_body = nullptr;
+static const BodyNodeTag *find_body_tag(const swrModel_Node *node) {
+    const BodyNodeTag key{node, nullptr, 0};
+    auto it = std::lower_bound(g_pod_body_nodes.begin(), g_pod_body_nodes.end(), key);
+    return (it != g_pod_body_nodes.end() && it->node == node) ? &*it : nullptr;
+}
+struct CableObstacle {
+    const swrModel_Mesh *mesh;
+    int part;
+    float lo[3], hi[3];
+};
+// Collected this traversal / used by the cables (the last complete set per racer).
+static std::unordered_map<const swrRace *, std::vector<CableObstacle>> g_cable_obstacles_cur, g_cable_obstacles;
+
+static const rdMatrix44 &part_frame(const swrRace *r, int part) {
+    return (&r->unk350_mat)[part];
+}
+// Inverse of an affine row-vector matrix (rotation * scale + translation); false if singular.
+static bool invert_affine(const rdMatrix44 &m, rdMatrix44 &out) {
+    const float a = m.vA.x, b = m.vA.y, c = m.vA.z, d = m.vB.x, e = m.vB.y, f = m.vB.z, g = m.vC.x, h = m.vC.y,
+                i = m.vC.z;
+    const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
+    if (std::fabs(det) < 1e-12f)
+        return false;
+    const float k = 1.0f / det;
+    out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
+    out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
+    out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
+    const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
+    out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
+              -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
+    return true;
+}
+static rdVector3 xf_point(const rdMatrix44 &m, const rdVector3 &p) {
+    return {p.x * m.vA.x + p.y * m.vB.x + p.z * m.vC.x + m.vD.x, p.x * m.vA.y + p.y * m.vB.y + p.z * m.vC.y + m.vD.y,
+            p.x * m.vA.z + p.y * m.vB.z + p.z * m.vC.z + m.vD.z};
+}
+static void record_cable_obstacle(const swrRace *racer, int part, const swrModel_Mesh *mesh,
+                                  const rdMatrix44 &model_matrix) {
+    std::vector<CableObstacle> &list = g_cable_obstacles_cur[racer];
+    for (const CableObstacle &o: list)
+        if (o.mesh == mesh && o.part == part)
+            return;
+    rdMatrix44 inv;
+    if (!invert_affine(part_frame(racer, part), inv))
+        return;
+    const float *bb = mesh->aabb;
+    CableObstacle o{mesh, part, {1e9f, 1e9f, 1e9f}, {-1e9f, -1e9f, -1e9f}};
+    for (int k = 0; k < 8; k++) {
+        const rdVector3 corner = {bb[(k & 1) ? 3 : 0], bb[(k & 2) ? 4 : 1], bb[(k & 4) ? 5 : 2]};
+        const rdVector3 l = xf_point(inv, xf_point(model_matrix, corner));
+        const float v[3] = {l.x, l.y, l.z};
+        for (int j = 0; j < 3; j++) {
+            o.lo[j] = std::min(o.lo[j], v[j]);
+            o.hi[j] = std::max(o.hi[j], v[j]);
+        }
+    }
+    // Skip what can't be part of the body (parked far-away parts, degenerate boxes).
+    for (int j = 0; j < 3; j++)
+        if (!(o.hi[j] >= o.lo[j]) || o.hi[j] - o.lo[j] > 30.0f || std::fabs(o.lo[j] + o.hi[j]) * 0.5f > 30.0f)
+            return;
+    list.push_back(o);
+}
+
+// Push a cable's ring centres (world) out of its engine's and the cockpit's boxes, smoothing the
+// pushes along the cable; both ends stay put (they plug into the pod). Returns false if nothing to do.
+static bool cable_clearance(const swrModel_Node *cable, const std::vector<rdVector3> &centres,
+                            std::vector<rdVector3> &push) {
+    const float margin = pod_edits_cable_clearance();
+    const swrRace *racer = nullptr;
+    int engine = 0;
+    if (margin < 0.0f || cable == nullptr || !swrRace_GetCableOwner(cable, &racer, &engine))
+        return false;
+    auto it = g_cable_obstacles.find(racer);
+    if (it == g_cable_obstacles.end() || it->second.empty())
+        return false;
+    struct Frame {
+        int part;
+        rdMatrix44 m, inv;
+        float scale;
+    };
+    Frame frames[2];
+    int nf = 0;
+    for (int part: {engine, 5}) {
+        Frame &f = frames[nf];
+        f.part = part;
+        f.m = part_frame(racer, part);
+        f.scale = std::sqrt(f.m.vA.x * f.m.vA.x + f.m.vA.y * f.m.vA.y + f.m.vA.z * f.m.vA.z);
+        if (f.scale > 1e-6f && invert_affine(f.m, f.inv))
+            nf++;
+    }
+    const size_t n = centres.size();
+    push.assign(n, {0.0f, 0.0f, 0.0f});
+    bool any = false;
+    for (int pass = 0; pass < 4; pass++) {
+        for (size_t r = 1; r + 1 < n; r++) {
+            rdVector3 q = {centres[r].x + push[r].x, centres[r].y + push[r].y, centres[r].z + push[r].z};
+            for (int fi = 0; fi < nf; fi++) {
+                const Frame &f = frames[fi];
+                const float m = margin / f.scale;
+                for (const CableObstacle &o: it->second) {
+                    if (o.part != f.part)
+                        continue;
+                    const rdVector3 l = xf_point(f.inv, q);
+                    const float v[3] = {l.x, l.y, l.z};
+                    float best = 1e9f;
+                    int axis = -1;
+                    float dir = 0.0f;
+                    bool inside = true;
+                    for (int j = 0; j < 3 && inside; j++) {
+                        const float lo = o.lo[j] - m, hi = o.hi[j] + m;
+                        if (v[j] <= lo || v[j] >= hi) {
+                            inside = false;
+                            break;
+                        }
+                        if (v[j] - lo < best)
+                            best = v[j] - lo, axis = j, dir = -1.0f;
+                        if (hi - v[j] < best)
+                            best = hi - v[j], axis = j, dir = 1.0f;
+                    }
+                    if (!inside || axis < 0)
+                        continue;
+                    // Out through the nearest face, in world units.
+                    const rdVector4 &row = axis == 0 ? f.m.vA : axis == 1 ? f.m.vB : f.m.vC;
+                    const rdVector3 d = {row.x * best * dir, row.y * best * dir, row.z * best * dir};
+                    push[r] = {push[r].x + d.x, push[r].y + d.y, push[r].z + d.z};
+                    q = {q.x + d.x, q.y + d.y, q.z + d.z};
+                    any = true;
+                }
+            }
+        }
+        if (!any)
+            return false;
+        // Smooth along the cable so it bends round the body instead of kinking.
+        std::vector<rdVector3> s = push;
+        for (size_t r = 1; r + 1 < n; r++)
+            s[r] = {0.25f * push[r - 1].x + 0.5f * push[r].x + 0.25f * push[r + 1].x,
+                    0.25f * push[r - 1].y + 0.5f * push[r].y + 0.25f * push[r + 1].y,
+                    0.25f * push[r - 1].z + 0.5f * push[r].z + 0.25f * push[r + 1].z};
+        if (pass < 3)
+            push = s;
+    }
+    return true;
+}
+
 static void rebuild_pod_shadow_nodes() {
+    // The obstacles collected over the last traversal become the cables' (per racer, only when that
+    // traversal drew its body: mirrors / shadow passes may not).
+    for (auto &[racer, list]: g_cable_obstacles_cur)
+        if (!list.empty())
+            g_cable_obstacles[racer] = std::move(list);
+    g_cable_obstacles_cur.clear();
+    g_pod_body_nodes.clear();
     g_pod_shadow_nodes.clear();
+    g_pod_nozzle_nodes.clear();
+    g_debug_part_nodes.clear();
+    const bool debug_parts = pod_fx_debug_armed();
     for (int i = 0; i < 20; i++) {
         const swrRace *entity = swrScores[i].obj_test_ptr;
         if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr)
@@ -401,8 +601,36 @@ static void rebuild_pod_shadow_nodes() {
             if (entity->partNodes[part] != nullptr)
                 g_pod_shadow_nodes.push_back(entity->partNodes[part]);
         }
+        for (int part = 1; part <= 5; part++)// engines + cockpit: the cables' obstacles
+            if (entity->partNodes[part] != nullptr)
+                g_pod_body_nodes.push_back({entity->partNodes[part], entity, part});
+        // kind 0/1: the generic per-engine exhaust / glow (on the engine centre line);
+        // kind 2: per-nozzle star-glow quads (left engine part 0x1c, right 0x2a);
+        // kind 3: per-nozzle exhaust discs (left 0x1d, right 0x2b). Side 0 = right, 1 = left.
+        for (int part = 0x43; part <= 0x46; part++) {
+            if (entity->partNodes[part] != nullptr)
+                g_pod_nozzle_nodes.push_back(
+                    {entity->partNodes[part], entity, (part - 0x43) % 2, part >= 0x45 ? 1 : 0});
+        }
+        const struct { int part, side, kind; } nozzle_parts[] = {
+            {0x2a, 0, 2}, {0x1c, 1, 2}, {0x2b, 0, 3}, {0x1d, 1, 3},
+            // kind 4: the energy-binder beam parts between the engines (partNodes 6..9). Only
+            // tagged so the shadow pass can recognise their pixels; nozzle capture ignores them.
+            {6, 0, 4}, {7, 0, 4}, {8, 0, 4}, {9, 0, 4}};
+        for (const auto &np: nozzle_parts) {
+            if (entity->partNodes[np.part] != nullptr)
+                g_pod_nozzle_nodes.push_back({entity->partNodes[np.part], entity, np.side, np.kind});
+        }
+        if ((debug_parts || pod_edits_export_armed() || pod_edits_recording()) && (entity->flags0 & swrObjTest_FLAG0_LOCAL) != 0) {
+            for (int part = 0; part <= 0x46; part++)
+                if (entity->partNodes[part] != nullptr)
+                    g_debug_part_nodes.push_back({entity->partNodes[part], entity, part, 0});
+        }
     }
+    std::sort(g_debug_part_nodes.begin(), g_debug_part_nodes.end());
+    std::sort(g_pod_body_nodes.begin(), g_pod_body_nodes.end());
     std::sort(g_pod_shadow_nodes.begin(), g_pod_shadow_nodes.end());// is_pod_shadow_node bsearches
+    std::sort(g_pod_nozzle_nodes.begin(), g_pod_nozzle_nodes.end());
 }
 
 // The PC release queues translucent faces (rdCache_AddAlphaProcFace) and draws them after every
@@ -421,46 +649,20 @@ struct DeferredTranslucentMesh {
     float view_distance;
     int preparsed_first;// into g_deferred_vertices, -1 when the defer-time parse was skipped
     int preparsed_count;
+    bool soft = false;// a pod's own exhaust glow quad: soft depth against the scene (after shadows)
 };
+// Set while a soft-depth deferred mesh is drawn (see debug_render_mesh's uniforms).
+static bool g_soft_draw = false;
 static std::vector<DeferredTranslucentMesh> g_deferred_translucent;
+// Glowing pod parts (energy binders, exhaust flames / glows): drawn after the shadow / dynamic-light pass so neither touches
+// them (that pass works on the finished frame, where a blended glow can't be told apart from the
+// surface seen through it).
+static std::vector<DeferredTranslucentMesh> g_deferred_after_shadows;
 // Vertices parsed when a mesh was deferred, so the flush draws them instead of parsing again.
 static std::vector<Vertex> g_deferred_vertices;
 static std::vector<std::pair<float, int>> g_deferred_order;// (view distance, index), reused
 // Set by flush_deferred_translucent for the mesh being drawn.
 static const Vertex *g_preparsed_vertices = nullptr;
-
-// Pod editor export: every partNodes[] entry of the local pod (part = its index), tagged only
-// while an export is armed; the meshes under one are reported to pod_edits.
-struct ExportPartTag {
-    const swrModel_Node *node;
-    const swrRace *racer;
-    int part;
-    bool operator<(const ExportPartTag &o) const { return node < o.node; }
-};
-static std::vector<ExportPartTag> g_export_parts;
-static const ExportPartTag *g_active_export_part = nullptr;
-static const ExportPartTag *find_export_part(const swrModel_Node *node) {
-    if (g_export_parts.empty())
-        return nullptr;
-    const ExportPartTag key{node, nullptr, 0};
-    auto it = std::lower_bound(g_export_parts.begin(), g_export_parts.end(), key);
-    return (it != g_export_parts.end() && it->node == node) ? &*it : nullptr;
-}
-static void rebuild_export_parts() {
-    g_export_parts.clear();
-    if (!pod_edits_export_armed())
-        return;
-    for (int i = 0; i < 20; i++) {
-        const swrRace *entity = swrScores[i].obj_test_ptr;
-        if (entity == nullptr || entity->score_ptr != &swrScores[i] || entity->partNodes == nullptr ||
-            (entity->flags0 & swrObjTest_FLAG0_LOCAL) == 0)
-            continue;
-        for (int part = 0; part <= 0x46; part++)
-            if (entity->partNodes[part] != nullptr)
-                g_export_parts.push_back({entity->partNodes[part], entity, part});
-    }
-    std::sort(g_export_parts.begin(), g_export_parts.end());
-}
 static int g_preparsed_count = 0;
 static bool g_defer_translucent = false;// only during the main scene traversal
 
@@ -496,13 +698,19 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
         {0.0f, 0.0f, 0.0f, 1.0f},
     };
 
-    Vertex ring[9][3];
-    for (int r = 0; r <= 8; r++) {
-        const float s = cable_ease_ring_param(r * (1.0f / 8.0f));
+    // 16 segments (the game's 8, halved) so a cable pushed round the pod (cable clearance) bends
+    // smoothly; the bend itself is the game's.
+    constexpr int kSegs = 16;
+    Vertex ring[kSegs + 1][3];
+    std::vector<rdVector3> centres(kSegs + 1), push;
+    for (int r = 0; r <= kSegs; r++) {
+        const float s = cable_ease_ring_param(r * (1.0f / kSegs));
         const float y = truncf(-100.0f * s);
-        const float z_bend = (r >= 1 && r <= 7)
+        const float z_bend = (r >= 1 && r < kSegs)
                                  ? truncf(-100.0f * amplitude * sinf(s * 6.28318530717958647692f))
                                  : 0.0f;
+        centres[r] = {0.0f, y, z_bend - 13.333f};// the prism's centre line
+        rdMatrix_Transform3(&centres[r], &centres[r], &model_matrix);
         for (int c = 0; c < 3; c++) {
             Vertex &v = ring[r][c];
             v = Vertex{};
@@ -513,10 +721,15 @@ static void generate_cable_tube(const rdMatrix44 &model_matrix, std::vector<Vert
             v.color = cs_color[c];
         }
     }
+    // The game's own shape; (optionally) pushed clear of the pod, each ring moving with its centre.
+    if (cable_clearance(g_active_cable_node, centres, push))
+        for (int r = 0; r <= kSegs; r++)
+            for (int c = 0; c < 3; c++)
+                ring[r][c].pos = {ring[r][c].pos.x + push[r].x, ring[r][c].pos.y + push[r].y, ring[r][c].pos.z + push[r].z};
 
-    // 8 segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
+    // Segments x 3 prism edges x 2 triangles. End caps are omitted (they sit inside the
     // cockpit/engine). Rendered double-sided by the caller so winding doesn't matter.
-    for (int r = 0; r < 8; r++) {
+    for (int r = 0; r < kSegs; r++) {
         for (int c = 0; c < 3; c++) {
             const int c1 = (c + 1) % 3;
             triangles.push_back(ring[r][c]);
@@ -749,19 +962,76 @@ static void deswizzle_lod_texture(GLuint handle, int ow, int oh, bool mirror_x, 
 // Run the display-list parse a drawn mesh would have run, without drawing, so the N64 shared-vertex
 // staging a later skinned mesh consumes stays identical to the drawn path. Returns the parsed
 // vertices, or nullptr when the drawn path would have hit the geometry cache instead.
-static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
-                                                             const rdMatrix44 &model_matrix) {
-    bool would_parse = true;
-    if (imgui_state.cache_meshes) {
-        const auto it = g_mesh_geometry_cache.find(mesh);
-        would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
-                      memcmp(&it->second.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+// Pod editor edits for the mesh being drawn (see game_deltas/pod_edits.h): spin groups rotate their
+// triangles about a pivot/axis given in the mesh's own frame; hidden triangles collapse to a point.
+// Knocked-off engine debris (pod_wreck): while drawing its subtree, this fraction of its triangles
+// (picked by a stable hash) has broken away and is collapsed.
+static float g_active_debris = -1.0f;
+static uint32_t g_active_debris_seed = 0;
+static void apply_debris_breakup(std::vector<Vertex> &tris, const swrModel_Mesh *mesh) {
+    if (g_active_debris <= 0.0f)
+        return;
+    const size_t ntri = tris.size() / 3;
+    const uint32_t base = g_active_debris_seed ^ ((uint32_t) (uintptr_t) mesh * 0x9e3779b9u);
+    for (size_t t = 0; t < ntri; t++) {
+        uint32_t h = base ^ ((uint32_t) t * 0x85ebca6bu);
+        h ^= h >> 16;
+        h *= 0x7feb352du;
+        h ^= h >> 15;
+        h *= 0x846ca68bu;
+        h ^= h >> 16;
+        if ((float) (h >> 8) * (1.0f / 16777216.0f) < g_active_debris)
+            tris[t * 3 + 1].pos = tris[t * 3 + 2].pos = tris[t * 3].pos;
     }
-    if (!would_parse)
-        return nullptr;
-    static std::vector<Vertex> parse_only_scratch;
-    parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
-    return &parse_only_scratch;
+}
+static const PodMeshEdit *g_active_mesh_edit = nullptr;
+static rdMatrix44 g_active_mesh_edit_matrix;
+static bool g_active_mesh_edit_normals = false;
+static void apply_pod_mesh_edit(std::vector<Vertex> &tris) {
+    const PodMeshEdit *e = g_active_mesh_edit;
+    if (e == nullptr)
+        return;
+    const size_t ntri = tris.size() / 3;
+    const rdMatrix44 &M = g_active_mesh_edit_matrix;
+    const float t = pod_edits_time();
+    for (const PodEditSpin &sp: e->spins) {
+        const rdVector3 c = {sp.pivot[0] * M.vA.x + sp.pivot[1] * M.vB.x + sp.pivot[2] * M.vC.x + M.vD.x,
+                             sp.pivot[0] * M.vA.y + sp.pivot[1] * M.vB.y + sp.pivot[2] * M.vC.y + M.vD.y,
+                             sp.pivot[0] * M.vA.z + sp.pivot[1] * M.vB.z + sp.pivot[2] * M.vC.z + M.vD.z};
+        rdVector3 a = {sp.axis[0] * M.vA.x + sp.axis[1] * M.vB.x + sp.axis[2] * M.vC.x,
+                       sp.axis[0] * M.vA.y + sp.axis[1] * M.vB.y + sp.axis[2] * M.vC.y,
+                       sp.axis[0] * M.vA.z + sp.axis[1] * M.vB.z + sp.axis[2] * M.vC.z};
+        const float al = std::sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+        if (al < 1e-8f)
+            continue;
+        a = {a.x / al, a.y / al, a.z / al};
+        // Move after spinning: the offset is a direction in the mesh's frame.
+        const rdVector3 off = {sp.offset[0] * M.vA.x + sp.offset[1] * M.vB.x + sp.offset[2] * M.vC.x,
+                               sp.offset[0] * M.vA.y + sp.offset[1] * M.vB.y + sp.offset[2] * M.vC.y,
+                               sp.offset[0] * M.vA.z + sp.offset[1] * M.vB.z + sp.offset[2] * M.vC.z};
+        const float ang = std::fmod(t * sp.rpm / 60.0f, 1.0f) * 6.2831853f;
+        const float cs = std::cos(ang), sn = std::sin(ang);
+        // Rodrigues: v' = v cos + (a x v) sin + a (a.v)(1 - cos)
+        auto rot = [&](rdVector3 &v) {
+            const float d = a.x * v.x + a.y * v.y + a.z * v.z;
+            const rdVector3 cr = {a.y * v.z - a.z * v.y, a.z * v.x - a.x * v.z, a.x * v.y - a.y * v.x};
+            v = {v.x * cs + cr.x * sn + a.x * d * (1.0f - cs), v.y * cs + cr.y * sn + a.y * d * (1.0f - cs),
+                 v.z * cs + cr.z * sn + a.z * d * (1.0f - cs)};
+        };
+        for (const PodEditRange &r: sp.tris)
+            for (uint32_t tri = r.first; tri < r.first + r.count && tri < ntri; tri++)
+                for (int k = 0; k < 3; k++) {
+                    Vertex &v = tris[tri * 3 + k];
+                    rdVector3 rel = {(v.pos.x - c.x) * sp.scale, (v.pos.y - c.y) * sp.scale, (v.pos.z - c.z) * sp.scale};
+                    rot(rel);
+                    v.pos = {c.x + rel.x + off.x, c.y + rel.y + off.y, c.z + rel.z + off.z};
+                    if (g_active_mesh_edit_normals)
+                        rot(v.normal);
+                }
+    }
+    for (const PodEditRange &r: e->hidden)
+        for (uint32_t tri = r.first; tri < r.first + r.count && tri < ntri; tri++)
+            tris[tri * 3 + 1].pos = tris[tri * 3 + 2].pos = tris[tri * 3].pos;
 }
 
 // Pod editor export: the mesh's triangles (world space), its final texture coordinates and texture,
@@ -800,12 +1070,64 @@ static void export_pod_mesh(const swrRace *racer, int part, const swrModel_Mesh 
     pod_edits_export_mesh(racer, part, mesh, model_matrix, pos, uv, tex, tex != 0);
 }
 
+static const std::vector<Vertex> *parse_mesh_without_drawing(const swrModel_Mesh *mesh,
+                                                             const rdMatrix44 &model_matrix) {
+    bool would_parse = true;
+    if (imgui_state.cache_meshes && g_active_debris <= 0.0f) {
+        const auto it = g_mesh_geometry_cache.find(mesh);
+        would_parse = it == g_mesh_geometry_cache.end() || it->second.vao == 0 ||
+                      memcmp(&it->second.model_matrix, &model_matrix, sizeof(rdMatrix44)) != 0;
+    }
+    if (!would_parse)
+        return nullptr;
+    static std::vector<Vertex> parse_only_scratch;
+    parse_display_list_commands(model_matrix, mesh, parse_only_scratch);
+    apply_pod_mesh_edit(parse_only_scratch);
+    apply_debris_breakup(parse_only_scratch, mesh);
+    return &parse_only_scratch;
+}
+
 static void parse_mesh_for_draw(const rdMatrix44 &model_matrix, const swrModel_Mesh *mesh,
                                 std::vector<Vertex> &out) {
-    if (g_preparsed_vertices)
+    if (g_preparsed_vertices) {
         out.assign(g_preparsed_vertices, g_preparsed_vertices + g_preparsed_count);
-    else
+    } else {
         parse_display_list_commands(model_matrix, mesh, out);
+        apply_pod_mesh_edit(out);
+        apply_debris_breakup(out, mesh);
+    }
+}
+
+// Average colour of a texture, weighted by how bright and opaque each texel is (cached per handle).
+static void texture_average_colour(GLuint tex, float out[3]) {
+    static std::unordered_map<GLuint, std::array<float, 3>> cache;
+    auto it = cache.find(tex);
+    if (it == cache.end()) {
+        std::array<float, 3> c = {1.0f, 1.0f, 1.0f};
+        GLint prev = 0;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+        glBindTexture(GL_TEXTURE_2D, tex);
+        GLint w = 0, h = 0;
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+        glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+        if (w > 0 && h > 0 && w <= 1024 && h <= 1024) {
+            std::vector<unsigned char> px((size_t) w * h * 4);
+            glPixelStorei(GL_PACK_ALIGNMENT, 1);
+            glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+            double r = 0, g = 0, b = 0, wsum = 0;
+            for (size_t i = 0; i < px.size(); i += 4) {
+                const double a = px[i + 3] / 255.0;
+                const double lum = std::max({px[i], px[i + 1], px[i + 2]}) / 255.0;
+                const double wt = a * lum;
+                r += wt * px[i], g += wt * px[i + 1], b += wt * px[i + 2], wsum += wt;
+            }
+            if (wsum > 1e-6)
+                c = {(float) (r / wsum / 255.0), (float) (g / wsum / 255.0), (float) (b / wsum / 255.0)};
+        }
+        glBindTexture(GL_TEXTURE_2D, (GLuint) prev);
+        it = cache.emplace(tex, c).first;
+    }
+    out[0] = it->second[0], out[1] = it->second[1], out[2] = it->second[2];
 }
 
 void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabled_lights,
@@ -821,9 +1143,102 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     if (!mesh->vertices)
         return;
 
-    // Pod editor export: this mesh, if it's part of the local pod.
-    if (pod_edits_export_armed() && g_active_export_part != nullptr && !g_preparsed_vertices)
-        export_pod_mesh(g_active_export_part->racer, g_active_export_part->part, mesh, model_matrix);
+    // Pod editor: this mesh's edits (applied wherever it is parsed below) and the pod export.
+    g_active_mesh_edit = pod_edits_find(mesh);
+    if (g_active_mesh_edit != nullptr) {
+        g_active_mesh_edit_matrix = model_matrix;
+        g_active_mesh_edit_normals = (mesh->mesh_material->type & 0x11) != 0;
+    }
+    if (pod_edits_export_armed() && g_active_debug_part != nullptr && !g_preparsed_vertices)
+        export_pod_mesh(g_active_debug_part->racer, g_active_debug_part->side, mesh, model_matrix);
+    else if (g_active_debug_part != nullptr && !g_preparsed_vertices && pod_edits_recording())
+        pod_edits_record_mesh(g_active_debug_part->racer, g_active_debug_part->side, mesh, model_matrix);
+    // Cable clearance: the pod's engines and cockpit, as the cables' obstacles.
+    if (g_active_body != nullptr && !g_preparsed_vertices && pod_edits_cable_clearance() >= 0.0f)
+        record_cable_obstacle(g_active_body->racer, g_active_body->part, mesh, model_matrix);
+
+    // Energy binder meshes (kind 4): report the beam's box to Pod FX (its glow + omni light), and
+    // skip the game's own flat glow card (texture #1411), which that glow replaces. Done on the
+    // first (traversal) visit, before the mesh could be deferred, so the card is never drawn.
+    if (g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 && !g_preparsed_vertices &&
+        mesh->mesh_material != nullptr) {
+        const float *bb = mesh->aabb;
+        const rdMatrix44 &m = model_matrix;
+        (void) bb;
+        // The beam's ends: from the mesh's own world-space vertices, along the direction they spread
+        // out most (principal axis). Bounding boxes don't work here -- the game scales and turns
+        // the binder, so the box's long side isn't the beam.
+        static std::vector<Vertex> tris;
+        parse_display_list_commands(m, mesh, tris);
+        // Unique corners only: the triangle list repeats shared corners (a quad's diagonal twice),
+        // which pulled the average off the real centre and shifted the glow off the beam.
+        static std::vector<Vertex> verts;
+        verts.clear();
+        for (const Vertex &v: tris) {
+            bool dup = false;
+            for (const Vertex &u: verts)
+                if (std::fabs(u.pos.x - v.pos.x) < 1e-3f && std::fabs(u.pos.y - v.pos.y) < 1e-3f &&
+                    std::fabs(u.pos.z - v.pos.z) < 1e-3f) {
+                    dup = true;
+                    break;
+                }
+            if (!dup && verts.size() < 512)
+                verts.push_back(v);
+        }
+        rdVector3 ends[2] = {{m.vD.x, m.vD.y, m.vD.z}, {m.vD.x, m.vD.y, m.vD.z}};
+        if (!verts.empty()) {
+            double c[3] = {0, 0, 0};
+            for (const Vertex &v: verts)
+                c[0] += v.pos.x, c[1] += v.pos.y, c[2] += v.pos.z;
+            for (double &x: c)
+                x /= (double) verts.size();
+            double cov[3][3] = {};
+            for (const Vertex &v: verts) {
+                const double d[3] = {v.pos.x - c[0], v.pos.y - c[1], v.pos.z - c[2]};
+                for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 3; j++)
+                        cov[i][j] += d[i] * d[j];
+            }
+            // Power iteration for the largest eigenvector.
+            double dir[3] = {1, 0.3, 0.1};
+            for (int it = 0; it < 24; it++) {
+                double n[3] = {0, 0, 0};
+                for (int i = 0; i < 3; i++)
+                    for (int j = 0; j < 3; j++)
+                        n[i] += cov[i][j] * dir[j];
+                const double l = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+                if (l < 1e-12)
+                    break;
+                for (int i = 0; i < 3; i++)
+                    dir[i] = n[i] / l;
+            }
+            double lo = 1e30, hi = -1e30;
+            for (const Vertex &v: verts) {
+                const double t = (v.pos.x - c[0]) * dir[0] + (v.pos.y - c[1]) * dir[1] + (v.pos.z - c[2]) * dir[2];
+                lo = std::min(lo, t);
+                hi = std::max(hi, t);
+            }
+            for (int k = 0; k < 2; k++) {
+                const double t = k ? hi : lo;
+                ends[k] = {(float) (c[0] + dir[0] * t), (float) (c[1] + dir[1] * t), (float) (c[2] + dir[2] * t)};
+            }
+        }
+        // Colour: the material colour tinted by the texture's average colour (the beam's own pink /
+        // orange / blue lives in its texture; the material colour is usually plain white).
+        const swrModel_MaterialTexture *mt = mesh->mesh_material->material_texture;
+        const GLuint tex = (mt && mt->loaded_material) ? GLuint(mt->loaded_material->aTextures->pD3DSrcTexture) : 0;
+        const bool stock_glow = tex != 0 && tex == gl_texture_from_texture_id((TEXID) 1411);
+        float col[3] = {1.0f, 1.0f, 1.0f};
+        if (tex != 0 && !stock_glow)
+            texture_average_colour(tex, col);
+        const auto &pc = mesh->mesh_material->material->primitive_color;
+        // The glow card is reported too (it is laid exactly along the beam, so it places the glow),
+        // even though it isn't drawn; it has no colour of its own.
+        pod_fx_report_binder(g_active_nozzle_tag->racer, ends[0], ends[1], col[0] * pc[0] / 255.0f,
+                             col[1] * pc[1] / 255.0f, col[2] * pc[2] / 255.0f, stock_glow);
+        if (stock_glow && pod_fx_hide_stock_binder_glow())
+            return;
+    }
 
 #ifndef NDEBUG
     for (MaterialMember &member: node_material_members) {
@@ -889,8 +1304,11 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         const swrModel_Material *material = mesh->mesh_material->material;
         const uint32_t mode = material->render_mode_1 | material->render_mode_2;
         const RenderMode &rm = (const RenderMode &) mode;
-        if (!rm.z_update && rm.z_compare &&
-            render_mode_is_alpha_blend(mode)) {
+        // Glowing pod parts -- energy binders (kind 4) and the exhaust flames / glows / nozzle rings
+        // (kinds 0..3) -- are drawn after the shadow / dynamic-light pass so neither touches them.
+        const bool emissive = g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind <= 4 &&
+                              shadows_capture_active();
+        if (emissive || (!rm.z_update && rm.z_compare && render_mode_is_alpha_blend(mode))) {
             const std::vector<Vertex> *parsed = parse_mesh_without_drawing(mesh, model_matrix);
             int preparsed_first = -1;
             int preparsed_count = 0;
@@ -905,10 +1323,14 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             rdMatrix44 mv;
             rdMatrix_Multiply44(&mv, &model_matrix, &view_matrix);
             const float view_z = cx * mv.vA.z + cy * mv.vB.z + cz * mv.vC.z + mv.vD.z;
-            g_deferred_translucent.push_back(
+            (emissive ? g_deferred_after_shadows : g_deferred_translucent).push_back(
                 {mesh, light_index, num_enabled_lights, mirrored, proj_matrix, view_matrix,
                  model_matrix, model_id, g_weather_terrain_depth, -view_z, preparsed_first,
                  preparsed_count});
+            // The exhaust glow quads (kind 1: the engine glow, kind 2: the per-nozzle glows) get
+            // soft depth: no hard cut where they meet the engine, and not seen through it.
+            if (emissive && (g_active_nozzle_tag->kind == 1 || g_active_nozzle_tag->kind == 2))
+                g_deferred_after_shadows.back().soft = true;
             return;
         }
     }
@@ -953,10 +1375,12 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         // holds for both the LOD_FRACTION-combiner surfaces (e.g. Oovo tunnels) and the _mipcut_
         // alpha-cutout ones whose colour combiner never references LOD_FRACTION. Unscramble it the
         // first time it is bound (skip user replacements, which are already correct).
-        if (tex->specs[1] && !is_replacement_texture_handle(current_texture_handle)) {
+        const swrModel_MaterialTextureChild *spec0 = material_texture_spec(tex, 0);
+        if (material_texture_spec(tex, 1) &&
+            !is_replacement_texture_handle(current_texture_handle)) {
             // Mirror flags share the spec bits the UV scale uses (0x10000000 = mirror X, 0x01000000
             // = mirror Y); tex->width/height are the original tile dims before the mirror bake.
-            const uint32_t flags = tex->specs[0] ? tex->specs[0]->flags : 0;
+            const uint32_t flags = spec0 ? spec0->flags : 0;
             deswizzle_lod_texture(current_texture_handle, tex->width, tex->height,
                                   flags & 0x10'00'00'00, flags & 0x01'00'00'00);
         }
@@ -970,16 +1394,16 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
                         imgui_state.tex_mag_filter == TEX_MAG_POINT ? GL_NEAREST : GL_LINEAR);
 
-        if (tex->specs[0]) {
-            uv_scale_x = tex->specs[0]->flags & 0x10'00'00'00 ? 2.0 : 1.0;
-            uv_scale_y = tex->specs[0]->flags & 0x01'00'00'00 ? 2.0 : 1.0;
-            if (tex->specs[0]->flags & 0x20'00'00'00) {
+        if (spec0) {
+            uv_scale_x = spec0->flags & 0x10'00'00'00 ? 2.0 : 1.0;
+            uv_scale_y = spec0->flags & 0x01'00'00'00 ? 2.0 : 1.0;
+            if (spec0->flags & 0x20'00'00'00) {
                 uv_offset_x -= 1;
                 wrap_s = GL_CLAMP_TO_EDGE;
             } else {
                 wrap_s = GL_REPEAT;
             }
-            if (tex->specs[0]->flags & 0x02'00'00'00) {
+            if (spec0->flags & 0x02'00'00'00) {
                 uv_offset_y -= 1;
                 wrap_t = GL_CLAMP_TO_EDGE;
             } else {
@@ -1119,6 +1543,20 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         glUniform1f(shader.alpha_cutoff_pos, alpha_cutoff);
     if (shadow_seti(sh.alpha_to_coverage, g_cutout_alpha_to_coverage ? 1 : 0))
         glUniform1i(shader.alpha_to_coverage_pos, g_cutout_alpha_to_coverage ? 1 : 0);
+    {
+        // Soft depth (a pod's exhaust glow quad drawn after the shadow pass): its scene depth.
+        const GLuint depth_tex = g_soft_draw ? shadows_scene_depth_texture() : 0;
+        glUniform1i(shader.soft_depth_pos, depth_tex != 0 ? 1 : 0);
+        if (depth_tex != 0) {
+            glActiveTexture(GL_TEXTURE7);
+            glBindTexture(GL_TEXTURE_2D, depth_tex);
+            glActiveTexture(GL_TEXTURE0);
+            glUniform1i(shader.soft_depth_tex_pos, 7);
+            glUniform2f(shader.soft_proj_pos, proj_matrix.vC.z, proj_matrix.vD.z);
+            glUniform1f(shader.soft_range_pos, 0.8f);
+            glUniform1f(shader.soft_bias_pos, 1.2f);// the nozzle recess: the exhaust face doesn't hide it
+        }
+    }
 
     if (shadow_seti(sh.enable_gouraud, vertices_have_normals ? 1 : 0))
         glUniform1i(shader.enable_gouraud_shading_pos, vertices_have_normals);
@@ -1207,11 +1645,13 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     static std::vector<Vertex> triangles;
     int mesh_vertex_count;
     GLint mesh_first_vertex = 0;
+    bool parsed_this_draw = false;// triangles hold this mesh's fresh world-space geometry
 
     // Geometry cache. Cable meshes are excluded: they regenerate their tube every frame from
     // g_active_cable_amplitude (which animates even when the node matrix is static), so caching
     // would freeze the sway.
-    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f;
+    const bool cacheable = imgui_state.cache_meshes && g_active_cable_amplitude < 0.0f && g_active_mesh_edit == nullptr &&
+                           g_active_debris <= 0.0f;
     const bool can_stream = imgui_state.stream_dynamic_meshes && stream_ring_available();
     if (cacheable) {
         CachedMeshGeometry &cached = g_mesh_geometry_cache[mesh];
@@ -1222,6 +1662,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
             mesh_vertex_count = cached.vertex_count;
         } else {
             parse_mesh_for_draw(model_matrix, mesh, triangles);
+            parsed_this_draw = true;
             // A mesh that rebuilds despite having a buffer is animated (its matrix changed) and
             // will rebuild again next frame -- stream it through the ring instead of re-uploading
             // its dedicated buffer. The cache entry keeps its old matrix+content, which stays
@@ -1265,6 +1706,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
         }
     } else {
         parse_mesh_for_draw(model_matrix, mesh, triangles);
+        parsed_this_draw = true;
         const int stream_base = can_stream ? stream_ring_write(triangles) : -1;
         if (stream_base >= 0) {
             bind_mesh_vao(g_stream_ring.vao);
@@ -1279,6 +1721,34 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     }
     glDrawArrays(GL_TRIANGLES, mesh_first_vertex, mesh_vertex_count);
     perf_count_n64_draw();
+
+    // Real-time shadows: an opaque pod mesh (not its blob shadow) casts; its exhaust/glow parts
+    // (role 1) and energy-binder parts (role 2) instead go into the screen mask the shadow pass
+    // uses to give the exhaust a fixed look and leave the binders untouched.
+    if (g_shadow_caster_depth > 0 && !g_pod_shadow_depth && shadows_capture_active()) {
+        // role 3: a pod cable (casts on the ground, not on pod surfaces)
+        const int role = g_active_nozzle_tag == nullptr ? (g_active_cable_amplitude >= 0.0f ? 3 : 0)
+                                                        : (g_active_nozzle_tag->kind == 4 ? 2 : 1);
+        // Texture coordinates go along so cut-out texels don't cast (same mapping as n64_shader:
+        // uv = tu / (uvScale * 4096) + uvOffset, tu/tv read as signed shorts).
+        static std::vector<ShadowCasterVertex> fresh;
+        if (parsed_this_draw) {
+            fresh.resize(triangles.size());
+            for (size_t i = 0; i < triangles.size(); i++)
+                fresh[i] = {triangles[i].pos, (float) (int16_t) triangles[i].tu, (float) (int16_t) triangles[i].tv};
+        }
+        const ShadowCasterTexture caster_tex = {current_texture_handle, uv_scale_x, uv_scale_y, uv_offset_x,
+                                                uv_offset_y};
+        shadows_add_caster(mesh, model_matrix, parsed_this_draw ? &fresh : nullptr,
+                           [](const rdMatrix44 &m, const swrModel_Mesh *me, std::vector<ShadowCasterVertex> &out) {
+                               static std::vector<Vertex> tmp;
+                               parse_display_list_commands(m, me, tmp);
+                               out.resize(tmp.size());
+                               for (size_t i = 0; i < tmp.size(); i++)
+                                   out[i] = {tmp[i].pos, (float) (int16_t) tmp[i].tu, (float) (int16_t) tmp[i].tv};
+                           },
+                           caster_tex, role);
+    }
 
     if (imgui_state.HD_replacement && !environment_models_drawn &&
         envInfos.skybox.depthTexture != 0) {
@@ -1347,11 +1817,23 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // the traversal end in swrViewport_Render_Hook unbinds program and VAO once.
 }
 
+// Blown-apart pods (pod_wreck): the game hides a dead pod above its parts. While a pod is whole, the
+// chain of nodes down to each of its engines / cockpit is remembered; once it is blown apart, that
+// chain and the debris itself are drawn whatever their visibility flags or selectors say.
+static std::vector<const swrModel_Node *> g_trav_stack;
+static std::unordered_map<const swrModel_Node *, std::vector<const swrModel_Node *>> g_body_paths;
+static std::unordered_set<const swrModel_Node *> g_wreck_force;
+
 void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node, int light_index,
                        int num_enabled_lights, bool mirrored, const rdMatrix44 &proj_mat,
                        const rdMatrix44 &view_mat, rdMatrix44 model_mat) {
     if (!node)
         return;
+    g_trav_stack.push_back(node);
+    struct PopTrav {
+        ~PopTrav() { g_trav_stack.pop_back(); }
+    } pop_trav;
+    const bool wreck_forced = !g_wreck_force.empty() && g_wreck_force.count(node) != 0;
 
     const bool exact_match_fail =
         (current_vp.node_flags1_exact_match_for_rendering & node->flags_1) !=
@@ -1361,13 +1843,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     swrRace *root_owner = pod_root_owner(node);
     const bool local_pod_root =
         root_owner != nullptr && (root_owner->flags0 & swrObjTest_FLAG0_LOCAL) != 0;
-    if (local_pod_root && playercam_HideOwnPod())
+    if (local_pod_root && playercam_HideOwnPod() && !wreck_forced)
         return;
     const bool unhide_local_pod =
         local_pod_root && playercam_ShowPodInFirstPerson() &&
         (root_owner->flags0 & (swrObjTest_FLAG0_POD_HIDDEN | swrObjTest_FLAG0_DEAD)) ==
             swrObjTest_FLAG0_POD_HIDDEN;
-    if ((exact_match_fail || any_match_fail) && !unhide_local_pod) {
+    if ((exact_match_fail || any_match_fail) && !unhide_local_pod && !wreck_forced) {
         // The scene's per-node visibility flags hide this node. We honor that, with one exception:
         // a racer's pod that its OWN camera hides. swrRace_PoddAnimateEngines clears the pod root's
         // visible bit whenever the pod is in a hide-from-own-view camera mode (first-person / bumper
@@ -1381,6 +1863,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         if (!is_foreign_hidden_pod_root(node))
             return;
     }
+
+    // Pod FX can replace the stock dust-kick models with its particle dust.
+    if (pod_fx_hide_stock_dust() && swrRace_IsDustKickNode(node))
+        return;
+    // Real shadows replace the stock flat blob-shadow quads under each pod.
+    if (shadows_hide_blob() && is_pod_shadow_node(node))
+        return;
 
 #ifndef NDEBUG
     for (NodeMember &member: node_members) {
@@ -1460,13 +1949,29 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     // Pod cable curve: if this is a curved cable node (nodeArray[10]/[11]), activate the bend so
     // the cable mesh in its subtree is curved in load_vertex; descendants inherit it. Restored
     // below so sibling/parent geometry is unaffected.
-    const ExportPartTag *prev_export_part = g_active_export_part;
-    if (const ExportPartTag *ep = find_export_part(node))
-        g_active_export_part = ep;
     const float prev_cable_amplitude = g_active_cable_amplitude;
+    const swrModel_Node *prev_cable_node = g_active_cable_node;
     const float node_cable_amplitude = swrRace_GetCableBendAmplitude(node);
-    if (node_cable_amplitude >= 0.0f)
+    if (node_cable_amplitude >= 0.0f) {
         g_active_cable_amplitude = node_cable_amplitude;
+        g_active_cable_node = node;
+    }
+    const BodyNodeTag *prev_body = g_active_body;
+    if (const BodyNodeTag *bt = find_body_tag(node)) {
+        g_active_body = bt;
+        if (!wreck_forced)// remember the chain down to it (while the pod is whole)
+            g_body_paths[node].assign(g_trav_stack.begin(), g_trav_stack.end() - 1);
+    }
+    const float prev_debris = g_active_debris;
+    const uint32_t prev_debris_seed = g_active_debris_seed;
+    {
+        uint32_t seed = 0;
+        const float b = pod_wreck_breakup(node, &seed);
+        if (b >= 0.0f) {
+            g_active_debris = b;
+            g_active_debris_seed = seed;
+        }
+    }
 
     // Entering the static track subtree (node 3): from here down, translucent surfaces are terrain
     // (lakes, swamps) that weather should occlude against -> let set_render_mode force them to write
@@ -1490,7 +1995,31 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
         subtree_proj_mat = &shadow_proj_mat;
     }
 
+    // Entering a racer's pod: everything drawn below casts a real-time shadow.
+    const bool shadow_caster_root = root_owner != nullptr;
+    if (shadow_caster_root)
+        g_shadow_caster_depth++;
+    const NozzleNodeTag *prev_nozzle_tag = g_active_nozzle_tag;
+    if (const NozzleNodeTag *tag = find_nozzle_tag(node))
+        g_active_nozzle_tag = tag;
+    const NozzleNodeTag *prev_debug_part = g_active_debug_part;
+    if (const NozzleNodeTag *dp = find_debug_part(node)) {
+        g_active_debug_part = dp;
+        pod_fx_debug_part(dp->racer, dp->side, node, model_mat);
+    }
+
     if (node->type == NODE_MESH_GROUP) {
+        if (g_active_debug_part != nullptr) {
+            for (int i = 0; i < node->num_children; i++)
+                pod_fx_debug_mesh(g_active_debug_part->racer, g_active_debug_part->side,
+                                  node->children.meshes[i], model_mat);
+        }
+        if (g_active_nozzle_tag != nullptr) {
+            for (int i = 0; i < node->num_children; i++)
+                pod_fx_report_nozzle_mesh(g_active_nozzle_tag->racer, g_active_nozzle_tag->side,
+                                          g_active_nozzle_tag->kind, node->children.meshes[i],
+                                          model_mat);
+        }
         PushDebugGroup(std::format("render mesh group"));
         for (int i = 0; i < node->num_children; i++) {
             const std::optional<MODELID> model_id = find_model_id_for_node(node->children.nodes[i]);
@@ -1517,6 +2046,13 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     } else if (node->type == NODE_SELECTOR) {
         const swrModel_NodeSelector *selector = (const swrModel_NodeSelector *) node;
         int child = selector->selected_child_node;
+        if (wreck_forced) {
+            // On a blown-apart pod's path: walk the child(ren) leading to its debris whatever is selected.
+            for (int i = 0; i < node->num_children; i++)
+                if (i != child && child != -1 && g_wreck_force.count(node->children.nodes[i]))
+                    debug_render_node(current_vp, node->children.nodes[i], light_index, num_enabled_lights,
+                                      mirrored, *subtree_proj_mat, view_mat, model_mat);
+        }
         switch (child) {
             case -2:
                 // dont render any child node
@@ -1543,38 +2079,48 @@ void debug_render_node(const swrViewport &current_vp, const swrModel_Node *node,
     }
 
     g_active_cable_amplitude = prev_cable_amplitude;
-    g_active_export_part = prev_export_part;
+    g_active_cable_node = prev_cable_node;
+    g_active_body = prev_body;
+    g_active_debris = prev_debris;
+    g_active_debris_seed = prev_debris_seed;
     g_weather_terrain_depth = prev_terrain_depth;
     g_pod_shadow_depth = prev_shadow_depth;
+    g_active_nozzle_tag = prev_nozzle_tag;
+    g_active_debug_part = prev_debug_part;
+    if (shadow_caster_root)
+        g_shadow_caster_depth--;
 }
 
-static void flush_deferred_translucent() {
+static void flush_deferred_translucent(std::vector<DeferredTranslucentMesh> &list, bool last) {
     // Back to front; ties keep tree order (what the previous stable_sort gave) without its per-frame
     // temp buffer.
     g_deferred_order.clear();
-    for (int i = 0; i < (int) g_deferred_translucent.size(); i++)
-        g_deferred_order.push_back({g_deferred_translucent[i].view_distance, i});
+    for (int i = 0; i < (int) list.size(); i++)
+        g_deferred_order.push_back({list[i].view_distance, i});
     std::sort(g_deferred_order.begin(), g_deferred_order.end(),
               [](const std::pair<float, int> &a, const std::pair<float, int> &b) {
                   return a.first != b.first ? a.first > b.first : a.second < b.second;
               });
     const bool prev_terrain_depth = g_weather_terrain_depth;
     for (const auto &[distance, index]: g_deferred_order) {
-        const DeferredTranslucentMesh &d = g_deferred_translucent[index];
+        const DeferredTranslucentMesh &d = list[index];
         g_weather_terrain_depth = d.weather_terrain_depth;
         if (d.preparsed_first >= 0) {
             g_preparsed_vertices = g_deferred_vertices.data() + d.preparsed_first;
             g_preparsed_count = d.preparsed_count;
         }
+        g_soft_draw = d.soft;
         debug_render_mesh(d.mesh, d.light_index, d.num_enabled_lights, d.mirrored, d.proj_matrix,
                           d.view_matrix, d.model_matrix, d.model_id);
+        g_soft_draw = false;
         g_preparsed_vertices = nullptr;
         g_preparsed_count = 0;
     }
     g_weather_terrain_depth = prev_terrain_depth;
     invalidate_mesh_gl_state_cache();
-    g_deferred_translucent.clear();
-    g_deferred_vertices.clear();
+    list.clear();
+    if (last)
+        g_deferred_vertices.clear();
 }
 
 #ifndef NDEBUG
@@ -1700,6 +2246,7 @@ static int g_scene_height = 0;
 
 void swrViewport_Render_Hook(int x) {
     begin_texture_replacement();
+    shadows_begin_viewport();
 
     // Reset the per-frame mesh-pick list before this frame's meshes are drawn.
     g_pick_meshes.clear();
@@ -1935,10 +2482,13 @@ void swrViewport_Render_Hook(int x) {
     // In race only (currentPlayer_Test is the in-race signal); harmless to rebuild per viewport.
     // Outside a race (hangar/menu) clear it, so stale ranges from the last race can't mis-resolve a
     // hangar pod node to a dangling entity.
-    pod_edits_animations_frame(currentPlayer_Test != nullptr);// baked spinning parts
+    // Baked spinning parts (pod model animations) run only during races. The race manager ('Jdge')
+    // exists only while a race runs; currentPlayer_Test is set at the first race and never cleared,
+    // so it would keep them spinning on the racer-select screen and in the hangar afterwards.
+    pod_edits_animations_frame(swrEvent_GetItem('Jdge', 0) != nullptr && (uint32_t) root_node == (uint32_t) &someRootNode);
+    pod_edits_layout_frame();
     if (currentPlayer_Test != nullptr) {
         rebuild_pod_node_owners();
-        rebuild_export_parts();
         rebuild_pod_shadow_nodes();
     } else {
         pod_node_owners.clear();
@@ -1949,12 +2499,31 @@ void swrViewport_Render_Hook(int x) {
     invalidate_mesh_gl_state_cache();
 
     g_deferred_translucent.clear();
+    g_deferred_after_shadows.clear();
     g_deferred_vertices.clear();
     g_defer_translucent = true;
+    static std::vector<swrModel_Node *> wreck_nodes;
+    pod_wreck_apart_nodes(wreck_nodes);
+    g_wreck_force.clear();
+    if (currentPlayer_Test == nullptr)
+        g_body_paths.clear();
+    for (swrModel_Node *n: wreck_nodes) {
+        g_wreck_force.insert(n);
+        // The debris' own node, and the chain down to it remembered from when the pod was whole
+        // (pieces riding on an engine sit beside it, so its chain covers them too).
+        const auto it = g_body_paths.find(n);
+        if (it != g_body_paths.end())
+            g_wreck_force.insert(it->second.begin(), it->second.end());
+    }
+    if (!g_wreck_force.empty())
+        for (const auto &[body, path]: g_body_paths)
+            if (g_wreck_force.count(body))
+                g_wreck_force.insert(path.begin(), path.end());
+    g_trav_stack.clear();
     debug_render_node(vp, root_node, default_light_index, default_num_enabled_lights, mirrored,
                       proj_mat, view_mat_corrected, model_mat);
     g_defer_translucent = false;
-    flush_deferred_translucent();
+    flush_deferred_translucent(g_deferred_translucent, g_deferred_after_shadows.empty());
     pod_edits_export_end_frame((uint32_t) root_node == (uint32_t) &someRootNode);
     PopDebugGroup();
 
@@ -1979,6 +2548,27 @@ void swrViewport_Render_Hook(int x) {
     if ((imgui_state.show_collision || imgui_state.show_triggers || imgui_state.show_hitbox) &&
         root_node == &someRootNode)
         render_collision_overlay(vp, root_node, proj_mat, view_mat_corrected);
+
+    // Real-time pod shadows: darken the scene where the sun is blocked, in the scene framebuffer
+    // before it is resolved to the window (in-race only).
+    if ((uint32_t) root_node == (uint32_t) &someRootNode)
+        camera_record(view_mat_corrected);// listener position for positional custom sounds
+    if (default_framebuffer != 0 && (uint32_t) root_node == (uint32_t) &someRootNode)
+        shadows_render(proj_mat, view_mat_corrected, default_framebuffer, scene_width, scene_height);
+
+    // Energy binders on top of the shadowed / lit scene (see g_deferred_after_shadows).
+    if (!g_deferred_after_shadows.empty()) {
+        flush_deferred_translucent(g_deferred_after_shadows, true);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+        g_cutout_alpha_to_coverage = false;
+        std3D_pD3DTex = 0;
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glUseProgram(0);
+        invalidate_mesh_gl_state_cache();
+        std3D_SetRenderState_delta(Std3DRenderState(temp_renderState));
+    }
 
     if (default_framebuffer != 0 && g_scale_resolve_fbo != 0) {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, default_framebuffer);
@@ -2008,6 +2598,9 @@ void swrViewport_Render_Hook(int x) {
     // GL state changes can't corrupt the scene render. TickAndDraw self-gates on whether the game
     // asked for weather this frame (it no-ops otherwise), so this is safe to call every viewport.
     swrWeather_TickAndDraw(&proj_mat, &view_mat_corrected);
+    // Pod FX (damage sparks/smoke/fire, ground dust, exhaust glow), drawn the same way (in-race only).
+    pod_fx_tick_and_draw(&proj_mat, &view_mat_corrected,
+                         (uint32_t) root_node == (uint32_t) &someRootNode);
 
     if (imgui_state.enable_picking_texture_when_hovering) {
         // read hovered pixel -> 1-based index into this frame's pick list -> the exact mesh
@@ -2063,7 +2656,7 @@ void swrViewport_Render_Hook(int x) {
                 imgui_state.picked_mesh_material.tex_unk6 = mtex->unk6;
                 imgui_state.picked_mesh_material.tex_unk7 = mtex->unk7;
                 imgui_state.picked_mesh_material.tex_spec0_flags =
-                    mtex->specs[0] ? mtex->specs[0]->flags : 0;
+                    material_texture_spec(mtex, 0) ? material_texture_spec(mtex, 0)->flags : 0;
             }
             for (int i = 0; handle && i < texture_count; i++) {
                 if (gl_texture_from_texture_id((TEXID) i) == handle) {
@@ -3164,6 +3757,16 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_PoddAnimateVariousThings_ADDR);
     hook_replace(swrRace_PoddAnimateVariousThings, swrRace_PoddAnimateVariousThings_delta);
 
+    // Engine damage smoke / fire: placed at the pod editor's fire spots (and added at extra ones).
+    hook_function("swrRace_UpdateEngineDamageFX", (uint32_t) swrRace_UpdateEngineDamageFX_ADDR,
+                  (uint8_t *) swrRace_UpdateEngineDamageFX_delta);
+
+    // An engine blown off the pod: tumbling debris, and (optionally) a survivable first loss.
+    hook_function("swrRace_Explode", (uint32_t) swrRace_Explode_ADDR, (uint8_t *) swrRace_Explode_delta);
+    hook_function("swrObjTest_F3", (uint32_t) swrObjTest_F3_ADDR, (uint8_t *) swrObjTest_F3_delta);
+    hook_function("swrRace_HandleDeathExplosion", (uint32_t) swrRace_HandleDeathExplosion_ADDR,
+                  (uint8_t *) swrRace_HandleDeathExplosion_delta);
+
     // Display-pod animator (hangar inspect / selection menu / cutscenes) - register its cables too.
     hook_function("swrRace_AnimateDisplayPod", (uint32_t) swrRace_AnimateDisplayPod_ADDR,
                   (uint8_t *) swrRace_AnimateDisplayPod_delta);
@@ -3197,6 +3800,12 @@ extern "C" void init_renderer_hooks() {
                   (uint8_t *) swrRace_UpdatePlayerControl_delta);
     // "Tilt at any speed" cheat: bypass swrRace_Tilt's low-speed bank gate for the local pod.
     hook_function("swrRace_Tilt", (uint32_t) swrRace_Tilt_ADDR, (uint8_t *) swrRace_Tilt_delta);
+    // Time-correct traction (slide decay per second, not per physics step).
+    hook_function("swrRace_ApplyTraction", (uint32_t) swrRace_ApplyTraction_ADDR,
+                  (uint8_t *) swrRace_ApplyTraction_delta);
+    // Movie pod motion: cockpit cable sway + independent engine banking (visual only).
+    hook_function("swrRace_PoddAnimateEngines", (uint32_t) swrRace_PoddAnimateEngines_ADDR,
+                  (uint8_t *) swrRace_PoddAnimateEngines_delta);
 
     // 100-lap support: de-index swrObjJdge_F2's fixed 5-slot per-lap split-time array so lap
     // counts above 5 no longer corrupt the score struct (the real hardcoded 5-lap limit). The

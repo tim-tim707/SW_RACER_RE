@@ -1,0 +1,7 @@
+# SW_RACER_RE in-game pod edits for ElanMak_alt (written by Build & install)
+# The full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable engine 0 -1.9566 1.8748
+binder 1.7219 0.0628 -0.3897
+rearcam -2.5 0
+enginegap 0.9

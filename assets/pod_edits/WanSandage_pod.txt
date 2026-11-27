@@ -1,0 +1,12 @@
+# SW_RACER_RE in-game pod edits for WanSandage_pod (written by Build & install)
+# The spin groups are baked into replacement_models; the full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+binder 1.8578 0 0
+owncable3 cockpit 0.7 -0.66 -0.98
+owncable3 engine -1.4279 -1.4196 1.1921
+owncable4 cockpit -0.7 -0.66 -0.98
+owncable4 engine 1.4279 -1.4196 1.1921
+# extra cable pair: baked into the model ("cables extra"), placed in game from the cable2 lines
+cables extra
+cable2 cockpit 0.7 -0.66 -0.98
+cable2 engine 1.28 -1.52 -1.17

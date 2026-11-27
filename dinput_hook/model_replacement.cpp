@@ -284,6 +284,44 @@ bool read_base_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &d
     return ok;
 }
 
+bool read_loaded_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data) {
+    const auto &repl = current_replacement_models();
+    const auto it = repl.find(id);
+    if (it != repl.end()) {
+        std::vector<uint8_t> rawm;
+        if (read_file(it->second, rawm) && rawm.size() >= 12 && memcmp(rawm.data(), "RAWM", 4) == 0) {
+            uint32_t ms, mm;
+            memcpy(&ms, &rawm[4], 4);
+            memcpy(&mm, &rawm[8], 4);
+            if (12 + (size_t) ms + mm == rawm.size()) {
+                mask.assign(rawm.begin() + 12, rawm.begin() + 12 + ms);
+                data.assign(rawm.begin() + 12 + ms, rawm.end());
+                return true;
+            }
+        }
+    }
+    // The game's block as it is (with any models written into it).
+    FILE *f = fopen(MODELBLOCK_PATH, "rb");
+    if (!f)
+        return false;
+    bool ok = false;
+    uint8_t head[4];
+    if (id >= 0 && fread(head, 1, 4, f) == 4 && (uint32_t) id < be32(head)) {
+        uint8_t w[12];
+        if (fseek(f, 4 + 8 * id, SEEK_SET) == 0 && fread(w, 1, 12, f) == 12) {
+            const uint32_t mask_off = be32(w), model_off = be32(w + 4), end = be32(w + 8);
+            if (model_off >= mask_off && end >= model_off && end - mask_off < (64u << 20)) {
+                mask.resize(model_off - mask_off);
+                data.resize(end - model_off);
+                ok = fseek(f, (long) mask_off, SEEK_SET) == 0 && fread(mask.data(), 1, mask.size(), f) == mask.size() &&
+                     fread(data.data(), 1, data.size(), f) == data.size();
+            }
+        }
+    }
+    fclose(f);
+    return ok;
+}
+
 std::string model_fingerprint(const std::vector<uint8_t> &mask, const std::vector<uint8_t> &data) {
     uint32_t h = 2166136261u;
     for (uint8_t b: mask) {

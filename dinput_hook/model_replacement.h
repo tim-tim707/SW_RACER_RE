@@ -55,6 +55,10 @@ const std::map<int, std::filesystem::path> &current_replacement_models();
 // (out_modelblock.original.bin) if there is one, else the game's block. False if unreadable.
 bool read_base_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data);
 
+// Model `id` as the game loads it: its replacement .bin when there is one, else the game's block
+// entry (which may hold models written in). False if unreadable.
+bool read_loaded_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data);
+
 // A short fingerprint of a model's mask + data ("<mask bytes>.<data bytes>-<FNV-1a>", hex). Build
 // stamps each model it bakes with its base model's, in <id>.base next to <id>.bin; the pod editor's
 // JavaScript (bake.js, fingerprint) computes the same.

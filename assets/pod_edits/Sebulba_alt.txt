@@ -1,0 +1,8 @@
+# SW_RACER_RE in-game pod edits for Sebulba_alt (written by Build & install)
+# The full edits are in pod_edits/source/.
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+cable cockpit 0.8108 2.6683 -0.2
+cable engine 0 -3.2886 1.7363
+binder 1.5818 1.4762 0
+exhaustscale 1 1 0.7
+rearcam -1 0.5

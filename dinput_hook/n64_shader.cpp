@@ -267,6 +267,11 @@ static ColorCombineShader make_color_combine_shader(GLuint program) {
         .alpha_is_coverage_pos = glGetUniformLocation(program, "alphaIsCoverage"),
         .alpha_cutoff_pos = glGetUniformLocation(program, "alphaCutoff"),
         .alpha_to_coverage_pos = glGetUniformLocation(program, "alphaToCoverage"),
+        .soft_depth_pos = glGetUniformLocation(program, "softDepth"),
+        .soft_depth_tex_pos = glGetUniformLocation(program, "softDepthTex"),
+        .soft_proj_pos = glGetUniformLocation(program, "softProj"),
+        .soft_range_pos = glGetUniformLocation(program, "softRange"),
+        .soft_bias_pos = glGetUniformLocation(program, "softBias"),
     };
 }
 

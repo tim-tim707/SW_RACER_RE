@@ -1,0 +1,18 @@
+# SW_RACER_RE pod edits for WanSandage_pod (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/WanSandage_pod.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 15 998.132a0-ad80af6d
+basemodel 17 4e4.9c58-89137fb3
+basemodel 146 80.f94-a0340a82
+# pilot swap: the full-body puppet in the old pilot's place (baked into the alt model)
+pilot 15:11ea4 99 0.2375 0 0 0 0.2375 0 0 0 0.2375 -0.388444 -1.794414 -24.431841 j be0 -5.89 0 0 j f58 -14.52 0 0 j 14e0 18.19 0 0 j 2fa8 -11.71 0 0 j 35e8 4.58 -37.77 -65.02 j 37e0 13.9 -35.93 -28.13 j 3a40 -0.96 0.2 -0.16 j 3e70 27.92 65.45 44.84 j 4068 -5.61 46.16 26.72 m f58 0 7.925 0.818 m 2fa8 0 11.892 1.229 x 294 x 490 x 740 x ac4 x 455c x 494c x 4cdc x 50cc x 5510 x 5960 f 490.578.0 f 490.578.1 f 294.3a0.0 f 455c.4640.1 ui -0.01 -4.39 -2.15 0 0 0 0.0038
+# pod layout (swrRacer_PodVisualData): cable / binder ends
+binder 1.8578 0 0
+owncable3 cockpit 0.7 -0.66 -0.98
+owncable3 engine -1.4279 -1.4196 1.1921
+owncable4 cockpit -0.7 -0.66 -0.98
+owncable4 engine 1.4279 -1.4196 1.1921
+# extra cable pair: baked into the model ("cables extra"), placed in game from the cable2 lines
+cables extra
+cable2 cockpit 0.7 -0.66 -0.98
+cable2 engine 1.28 -1.52 -1.17

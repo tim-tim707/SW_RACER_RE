@@ -19,3 +19,5 @@ bool playercam_ShowPodInFirstPerson();// draw it even where its own camera hides
 
 // Multiplier on the GL near plane (< 1 while the true cockpit is active, so the cockpit isn't clipped).
 float playercam_NearClipScale();
+// Degrees the player camera adds to the game's camera FOV (the "FOV offset" setting).
+float playercam_FovOffset();

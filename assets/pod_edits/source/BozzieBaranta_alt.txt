@@ -1,0 +1,14 @@
+# SW_RACER_RE pod edits for BozzieBaranta_alt (made with tools/pod_editor/pod_editor.html)
+# Put this file in <game>/assets/pod_edits/BozzieBaranta_alt.txt
+# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
+basemodel 31 31c.6320-f9aea6d7
+basemodel 32 574.ae60-86cd88a3
+basemodel 146 80.f94-a0340a82
+# the whole pod (visual / camera only): height offset, cameras (further, higher), engine / cockpit spacing
+chasecam near 2.5 0
+chasecam far -2.5 0
+cockpitmove 0 -2.4805 0
+owncable1 cockpit 0.78 1.98 -0.6
+owncable1 engine 0 -3.1515 0.9773
+owncable2 cockpit -0.78 1.98 -0.6
+owncable2 engine 0 -3.1515 0.9773
