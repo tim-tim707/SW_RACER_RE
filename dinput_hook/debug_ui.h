@@ -36,3 +36,7 @@ void debug_ui_load_settings();
 
 // Draw the toolbar and the open panel windows. Called once per frame from imgui_Update.
 void debug_ui_render();
+
+// True while a shell window needs the OS mouse cursor even though the toolbar is
+// hidden (the update notice over the main menu).
+bool debug_ui_wants_cursor();
