@@ -18,6 +18,9 @@ extern "C" {
 #include "../hook_helper.h"
 #include "pod_fx.h"// pod_fx_engine_damage (damaged-engine wobble)
 #include "pod_edits.h"// pod_edits_apply_gaps (the pod editor's engine / cockpit spacing)
+#include "../math_manipulation.h"
+
+using namespace math_manipulation;
 
 // How it works
 // ------------
@@ -85,33 +88,6 @@ namespace {
     std::unordered_map<const swrRace*, PodState> g_pods;
 
     // ---- affine 4x4 helpers (row-vector convention: world = local * M, rows vA..vD) ----
-    rdMatrix44 mat_mul(const rdMatrix44& a, const rdMatrix44& b) {
-        const float* A = &a.vA.x;
-        const float* B = &b.vA.x;
-        rdMatrix44 o;
-        float* O = &o.vA.x;
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
-                O[i * 4 + j] = A[i * 4 + 0] * B[0 * 4 + j] + A[i * 4 + 1] * B[1 * 4 + j] +
-                               A[i * 4 + 2] * B[2 * 4 + j] + A[i * 4 + 3] * B[3 * 4 + j];
-        return o;
-    }
-    bool mat_inv_affine(const rdMatrix44& m, rdMatrix44& out) {
-        const float a = m.vA.x, b = m.vA.y, c = m.vA.z;
-        const float d = m.vB.x, e = m.vB.y, f = m.vB.z;
-        const float g = m.vC.x, h = m.vC.y, i = m.vC.z;
-        const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-        if (std::fabs(det) < 1e-12f)
-            return false;
-        const float k = 1.0f / det;
-        out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
-        out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
-        out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
-        const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
-        out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
-                  -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
-        return true;
-    }
 
     // Ben Quadinaros (4 engines): the game replays the pod's motion with a lag onto the bottom
     // pair only (engineXfR/L), which is what makes engines bob and pitch; the top pair
@@ -120,12 +96,12 @@ namespace {
     // right now, applied on top of the top engine's own pose.
     void follow_bottom_engines(swrRace* p, PodState& st) {
         rdMatrix44 inv_pod;
-        if (!mat_inv_affine(p->transform, inv_pod))
+        if (!invert_affine(p->transform, inv_pod))
             return;
         for (int side = 0; side < 2; side++) {
             const rdMatrix44& bottom = side == 0 ? p->engineXfR : p->engineXfL;
             rdMatrix44& top = side == 0 ? p->engineXfR2 : p->engineXfL2;
-            const rdMatrix44 local = mat_mul(bottom, inv_pod);
+            const rdMatrix44 local = mat_then(bottom, inv_pod);
             rdMatrix44& rest = st.bottom_rest[side];
             if (!st.has_rest) {
                 rest = local;
@@ -136,10 +112,10 @@ namespace {
                     R[k] += (L[k] - R[k]) * 0.01f;// ~2 s average at 50 Hz
             }
             rdMatrix44 inv_rest_world;
-            if (!mat_inv_affine(mat_mul(rest, p->transform), inv_rest_world))
+            if (!invert_affine(mat_then(rest, p->transform), inv_rest_world))
                 continue;
-            const rdMatrix44 dev = mat_mul(inv_rest_world, bottom);// rest pose -> current pose
-            top = mat_mul(top, dev);
+            const rdMatrix44 dev = mat_then(inv_rest_world, bottom);// rest pose -> current pose
+            top = mat_then(top, dev);
         }
         st.has_rest = true;
     }
@@ -148,17 +124,6 @@ namespace {
     constexpr float kMaxAccel = 8000.0f;   // ignore collision spikes beyond this
     constexpr float kAccelFilterSecs = 0.06f;
     constexpr float kDegToRad = 0.017453293f;
-
-    rdVector3 v3(const rdVector4& v) { return {v.x, v.y, v.z}; }
-    rdVector3 sub(rdVector3 a, rdVector3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
-    rdVector3 scale(rdVector3 a, float k) { return {a.x * k, a.y * k, a.z * k}; }
-    float dot(rdVector3 a, rdVector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-    float len(rdVector3 a) { return std::sqrt(dot(a, a)); }
-    rdVector3 norm(rdVector3 a) {
-        const float l = len(a);
-        return l > 1e-6f ? scale(a, 1.0f / l) : rdVector3{0, 0, 0};
-    }
-    float clampf(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
     rdVector4& axis(rdMatrix44& m, int i) { return i == 0 ? m.vA : (i == 1 ? m.vB : m.vC); }
 
@@ -172,7 +137,7 @@ namespace {
         const float la = len(v3(A)), lb = len(v3(B));
         if (la < 1e-6f || lb < 1e-6f)
             return;
-        const rdVector3 a = scale(v3(A), 1.0f / la), b = scale(v3(B), 1.0f / lb);
+        const rdVector3 a = mul(v3(A), 1.0f / la), b = mul(v3(B), 1.0f / lb);
         const float c = std::cos(angle), sn = std::sin(angle);
         A.x = la * (a.x * c + b.x * sn);
         A.y = la * (a.y * c + b.y * sn);
@@ -234,12 +199,12 @@ namespace {
             const float target_moving =
                 s.only_moving ? clampf((p->speedValue - 3.0f) / 40.0f, 0.0f, 1.0f) : 1.0f;
             st.moving += (target_moving - st.moving) * (1.0f - std::exp(-dt / 0.3f));
-            const rdVector3 vel = scale(sub(pos, st.prev_pos), 1.0f / dt);
+            const rdVector3 vel = mul(sub(pos, st.prev_pos), 1.0f / dt);
             if (st.has_vel) {
-                rdVector3 acc = scale(sub(vel, st.prev_vel), 1.0f / dt);
+                rdVector3 acc = mul(sub(vel, st.prev_vel), 1.0f / dt);
                 const float mag = len(acc);
                 if (mag > kMaxAccel)
-                    acc = scale(acc, kMaxAccel / mag);
+                    acc = mul(acc, kMaxAccel / mag);
                 const float k = 1.0f - std::exp(-dt / kAccelFilterSecs);
                 st.accel = {st.accel.x + (acc.x - st.accel.x) * k,
                             st.accel.y + (acc.y - st.accel.y) * k,
@@ -266,7 +231,7 @@ namespace {
 
         // Pod length (cockpit to the midpoint between the engines) scales the offsets, so big and
         // small pods sway in proportion.
-        const rdVector3 eng_mid = scale(
+        const rdVector3 eng_mid = mul(
             {p->engineXfR.vD.x + p->engineXfL.vD.x, p->engineXfR.vD.y + p->engineXfL.vD.y,
              p->engineXfR.vD.z + p->engineXfL.vD.z},
             0.5f);
@@ -303,8 +268,8 @@ namespace {
 
         // Cockpit: swing outward + bob, while leaning/yawing toward the inside of the turn
         // (sway.x < 0 when the turn centre is to the right).
-        translate(p->cockpitXf, scale(right, m * st.sway.x * s.cockpit_sway * pod_len));
-        translate(p->cockpitXf, scale(up, m * st.bob.x * s.cockpit_bob * pod_len));
+        translate(p->cockpitXf, mul(right, m * st.sway.x * s.cockpit_sway * pod_len));
+        translate(p->cockpitXf, mul(up, m * st.bob.x * s.cockpit_bob * pod_len));
         rotate_plane(p->cockpitXf, kUp, kRight, -m * st.sway.x * s.cockpit_roll * kDegToRad);
         rotate_plane(p->cockpitXf, kForward, kRight, -m * st.sway.x * s.cockpit_yaw * kDegToRad);
 
@@ -337,7 +302,7 @@ namespace {
                         break;
                     rotate_plane(*engines[i], kUp, kRight, roll);
                     rotate_plane(*engines[i], kForward, kRight, yaw);
-                    translate(*engines[i], scale(up, bob));
+                    translate(*engines[i], mul(up, bob));
                 }
             }
         }

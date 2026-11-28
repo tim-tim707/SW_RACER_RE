@@ -32,7 +32,10 @@ extern FILE* hook_log;
 #include "../shadows.h"// SceneLight
 #include "pod_edits.h"// pod_edits_fx_points (the pod editor's effect points)
 #include "pod_wreck.h"// pod_wreck_side_gone (an engine knocked off the pod)
+#include "../math_manipulation.h"
 #include "../shaders_utils.h"// compileProgram
+
+using namespace math_manipulation;
 
 // Drawing follows swrWeather_delta.cpp: particles live in world space (z up), are projected
 // through the scene view/projection handed in by the renderer, and are emitted as screen-space
@@ -42,7 +45,6 @@ extern FILE* hook_log;
 
 namespace {
     using Clock = std::chrono::steady_clock;
-    float clampf_(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
     // ---- settings --------------------------------------------------------------------------
     struct Settings {
@@ -90,26 +92,13 @@ namespace {
     bool g_learn_dirty = false;
     float orange_threshold() {
         if (g_learn_lo >= 0.0f && g_learn_hi <= 1.0f)
-            return clampf_(0.5f * (g_learn_lo + g_learn_hi), 0.0f, 0.95f);
+            return clampf(0.5f * (g_learn_lo + g_learn_hi), 0.0f, 0.95f);
         if (g_learn_hi <= 1.0f)
-            return clampf_(g_learn_hi - 0.02f, 0.0f, 0.95f);
+            return clampf(g_learn_hi - 0.02f, 0.0f, 0.95f);
         if (g_learn_lo >= 0.0f)
-            return clampf_(g_learn_lo + 0.02f > s.threshold ? g_learn_lo + 0.02f : s.threshold, 0.0f, 0.95f);
+            return clampf(g_learn_lo + 0.02f > s.threshold ? g_learn_lo + 0.02f : s.threshold, 0.0f, 0.95f);
         return s.threshold;
     }
-
-    // ---- small math ------------------------------------------------------------------------
-    rdVector3 v3(const rdVector4& v) { return {v.x, v.y, v.z}; }
-    rdVector3 add(rdVector3 a, rdVector3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
-    rdVector3 sub(rdVector3 a, rdVector3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
-    rdVector3 mul(rdVector3 a, float k) { return {a.x * k, a.y * k, a.z * k}; }
-    float dot(rdVector3 a, rdVector3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-    float len(rdVector3 a) { return std::sqrt(dot(a, a)); }
-    rdVector3 norm(rdVector3 a) {
-        const float l = len(a);
-        return l > 1e-6f ? mul(a, 1.0f / l) : rdVector3{0, 0, 0};
-    }
-    float clampf(float x, float lo, float hi) { return x < lo ? lo : (x > hi ? hi : x); }
 
     uint32_t g_rng = 0x9e3779b9u;
     float frand() {
@@ -249,19 +238,6 @@ namespace {
         return out;
     }
 
-    // World <-> engine-local (engine matrices are orthogonal but may carry scale).
-    rdVector3 to_local(const rdMatrix44& e, rdVector3 w) {
-        const rdVector3 d = sub(w, v3(e.vD));
-        auto comp = [&](const rdVector4& a) {
-            const rdVector3 ax = v3(a);
-            const float l2 = dot(ax, ax);
-            return l2 > 1e-9f ? dot(d, ax) / l2 : 0.0f;
-        };
-        return {comp(e.vA), comp(e.vB), comp(e.vC)};
-    }
-    rdVector3 to_world(const rdMatrix44& e, rdVector3 l) {
-        return add(v3(e.vD), add(mul(v3(e.vA), l.x), add(mul(v3(e.vB), l.y), mul(v3(e.vC), l.z))));
-    }
     const rdMatrix44& engine_of(const swrRace* r, int side) { return side == 0 ? r->engineXfR : r->engineXfL; }
     // Fused engines (Neva Kee): both engine transforms are the same one, at the pod's centre, so a
     // side can't be told by its transform -- only by which side of the pod (engine x) a point is on.
@@ -296,7 +272,7 @@ namespace {
             const rdMatrix44& e = engine_of(r, side);
             const float scale = len(v3(e.vA));
             for (const auto& p: *ed)
-                out.push_back({to_world(e, {p[0], p[1], p[2]}), p[3] * scale});
+                out.push_back({xf_point(e, {p[0], p[1], p[2]}), p[3] * scale});
             return;
         }
         auto it = g_nozzles.find(r);
@@ -305,7 +281,7 @@ namespace {
         const rdMatrix44& e = engine_of(r, side);
         const float scale = len(v3(e.vA));
         for (const Nozzle& n: it->second.side[side])
-            out.push_back({to_world(e, n.local), n.radius * scale});
+            out.push_back({xf_point(e, n.local), n.radius * scale});
     }
 
     // The actual engine bodies on one side. Most pods have one per side, at the side's engine
@@ -631,7 +607,7 @@ namespace {
                 auto spot = [&]() {
                     if (edited && !edited->empty()) {
                         const auto& p = (*edited)[(size_t) (frand() * edited->size()) % edited->size()];
-                        return add(to_world(e, {p[0], p[1], p[2]}),
+                        return add(xf_point(e, {p[0], p[1], p[2]}),
                                    add(mul(e_fwd, frand_sym() * radius * 0.5f), mul(e_up, frand_sym() * radius * 0.35f)));
                     }
                     const rdVector3 c = centres[(size_t) (frand() * centres.size()) % centres.size()];
@@ -670,7 +646,7 @@ namespace {
             const bool dust_edited = edited_points(r, 2, 0) != nullptr;
             for (int side = 0; side < 2 && dust_edited; side++)
                 for (const auto& p: *edited_points(r, 2, side)) {
-                    rdVector3 w = to_world(engine_of(r, side), {p[0], p[1], p[2]});
+                    rdVector3 w = xf_point(engine_of(r, side), {p[0], p[1], p[2]});
                     w.z = fx.ground_pos.z;
                     dust_pts.push_back(w);
                 }
@@ -1709,7 +1685,7 @@ void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const s
                              0.5f * (mesh->aabb[2] + mesh->aabb[5])};
         const float ext = std::max(mesh->aabb[3] - mesh->aabb[0],
                                    std::max(mesh->aabb[4] - mesh->aabb[1], mesh->aabb[5] - mesh->aabb[2]));
-        const Nozzle n{to_local(e, to_world(model, c)), 0.5f * ext * m_scale / e_scale};
+        const Nozzle n{to_local(e, xf_point(model, c)), 0.5f * ext * m_scale / e_scale};
         std::vector<Nozzle>& st = fused ? pn.staging[n.local.x >= 0.0f ? 0 : 1][kind] : stage;
         for (const Nozzle& o: st) {
             const rdVector3 d = sub(o.local, n.local);
@@ -1725,13 +1701,13 @@ void pod_fx_report_nozzle_mesh(const swrRace* racer, int side, int kind, const s
         // The exhaust meshes are flames that start at the nozzle and stretch far back, so their
         // centre floats behind the pod. The nozzle mouth is the end of the cluster nearest the
         // engine: average the quarter of its vertices closest to the engine centre.
-        rdVector3 w = to_world(model, c.c);
+        rdVector3 w = xf_point(model, c.c);
         float radius = c.r * m_scale;
         if (!c.pts.empty()) {
             std::vector<std::pair<float, rdVector3>> byd;
             byd.reserve(c.pts.size());
             for (const rdVector3& lp: c.pts) {
-                const rdVector3 pw = to_world(model, lp);
+                const rdVector3 pw = xf_point(model, lp);
                 const rdVector3 d = sub(pw, e_pos);
                 byd.push_back({dot(d, d), pw});
             }
@@ -1798,11 +1774,11 @@ void pod_fx_debug_mesh(const swrRace* racer, int part, const swrModel_Mesh* mesh
     snprintf(buf, sizeof(buf), "    mesh in part 0x%02x %p verts=%u mat_type=0x%x aabb_center=%s", part,
              (const void*) mesh, (unsigned) mesh->num_vertices,
              mesh->mesh_material ? (unsigned) mesh->mesh_material->type : 0u,
-             pod_local_str(racer, to_world(model, c)).c_str());
+             pod_local_str(racer, xf_point(model, c)).c_str());
     g_debug_lines.push_back(buf);
     for (const Cluster& cl: clusters_for(mesh)) {
         snprintf(buf, sizeof(buf), "        cluster center=%s r=%.1f pts=%zu",
-                 pod_local_str(racer, to_world(model, cl.c)).c_str(), cl.r, cl.pts.size());
+                 pod_local_str(racer, xf_point(model, cl.c)).c_str(), cl.r, cl.pts.size());
         g_debug_lines.push_back(buf);
     }
 }

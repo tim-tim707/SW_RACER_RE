@@ -39,6 +39,12 @@ extern FILE* hook_log;
 #include "../node_utils.h"
 #include "../replacements.h"// modelid_cstr
 #include "../model_replacement.h"// refresh_replacement_models
+#include "../math_manipulation.h"
+
+using math_manipulation::invert_affine;
+using math_manipulation::mat_then;
+using math_manipulation::v3;
+using math_manipulation::xf_point;
 
 const std::filesystem::path& pod_workspace() {
     static std::filesystem::path dir;
@@ -547,38 +553,6 @@ namespace {
     const swrRace* g_ex_racer = nullptr;
     int g_ex_model = -1;
 
-    bool inv_affine(const rdMatrix44& m, rdMatrix44& out) {
-        const float a = m.vA.x, b = m.vA.y, c = m.vA.z;
-        const float d = m.vB.x, e = m.vB.y, f = m.vB.z;
-        const float g = m.vC.x, h = m.vC.y, i = m.vC.z;
-        const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-        if (std::fabs(det) < 1e-12f)
-            return false;
-        const float k = 1.0f / det;
-        out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
-        out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
-        out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
-        const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
-        out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
-                  -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
-        return true;
-    }
-    rdMatrix44 mul(const rdMatrix44& a, const rdMatrix44& b) {
-        const float* A = &a.vA.x;
-        const float* B = &b.vA.x;
-        rdMatrix44 o;
-        float* O = &o.vA.x;
-        for (int r = 0; r < 4; r++)
-            for (int c = 0; c < 4; c++)
-                O[r * 4 + c] = A[r * 4] * B[c] + A[r * 4 + 1] * B[4 + c] + A[r * 4 + 2] * B[8 + c] + A[r * 4 + 3] * B[12 + c];
-        return o;
-    }
-    void xf(const rdMatrix44& m, const float* p, float* out) {
-        out[0] = p[0] * m.vA.x + p[1] * m.vB.x + p[2] * m.vC.x + m.vD.x;
-        out[1] = p[0] * m.vA.y + p[1] * m.vB.y + p[2] * m.vC.y + m.vD.y;
-        out[2] = p[0] * m.vA.z + p[1] * m.vB.z + p[2] * m.vC.z + m.vD.z;
-    }
-
     std::string base64(const unsigned char* d, size_t n) {
         static const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         std::string o;
@@ -614,7 +588,7 @@ namespace {
     void write_export() {
         const swrRace* r = g_ex_racer;
         rdMatrix44 inv_pod;
-        if (r == nullptr || !inv_affine(r->transform, inv_pod)) {
+        if (r == nullptr || !invert_affine(r->transform, inv_pod)) {
             g_status = "Export failed: no pod transform.";
             return;
         }
@@ -641,8 +615,8 @@ namespace {
             fprintf(f, "],\"bakedBlock\":%s,", std::filesystem::exists(MODELBLOCK_ORIGINAL_PATH, bec) ? "true" : "false");
         }
         auto local = [&](const rdMatrix44& m, float out[3]) {
-            const float p[3] = {m.vD.x, m.vD.y, m.vD.z};
-            xf(inv_pod, p, out);
+            const rdVector3 p = xf_point(inv_pod, v3(m.vD));
+            out[0] = p.x, out[1] = p.y, out[2] = p.z;
         };
         float eR[3], eL[3], ck[3];
         local(r->engineXfR, eR);
@@ -676,7 +650,7 @@ namespace {
             const rdMatrix44* frames[5] = {&r->cockpitXf, &r->engineXfR, &r->engineXfL, &r->engineXfR2, &r->engineXfL2};
             const char* names[5] = {"cockpit", "engineR", "engineL", "engineR2", "engineL2"};
             for (int i = 0; i < 5; i++) {
-                const rdMatrix44 m = mul(*frames[i], inv_pod);
+                const rdMatrix44 m = mat_then(*frames[i], inv_pod);
                 fprintf(f, "%s\"%s\":", i ? "," : "", names[i]);
                 write_floats(f, &m.vA.x, 16);
             }
@@ -807,7 +781,7 @@ namespace {
         fputs("\"meshes\":[", f);
         for (size_t i = 0; i < g_ex.size(); i++) {
             const ExMesh& m = g_ex[i];
-            const rdMatrix44 to_pod = mul(m.matrix, inv_pod);
+            const rdMatrix44 to_pod = mat_then(m.matrix, inv_pod);
             // "<model>:<file offset>" keys: stable, and they say which model the mesh is in.
             char key[32];
             if (m.file_off >= 0)
@@ -818,8 +792,10 @@ namespace {
                     m.textured ? "\"" : "", m.textured ? m.tex : 0u, m.textured ? "\"" : "");
             write_floats(f, &to_pod.vA.x, 16);
             std::vector<float> p(m.pos.size());
-            for (size_t v = 0; v + 2 < m.pos.size(); v += 3)
-                xf(inv_pod, &m.pos[v], &p[v]);
+            for (size_t v = 0; v + 2 < m.pos.size(); v += 3) {
+                const rdVector3 q = xf_point(inv_pod, {m.pos[v], m.pos[v + 1], m.pos[v + 2]});
+                p[v] = q.x, p[v + 1] = q.y, p[v + 2] = q.z;
+            }
             fputs(",\"pos\":", f);
             write_floats(f, p.data(), p.size());
             fputs(",\"uv\":", f);
@@ -827,7 +803,7 @@ namespace {
             if (!m.instances.empty()) {
                 fputs(",\"instances\":[", f);
                 for (size_t k = 0; k < m.instances.size(); k++) {
-                    const rdMatrix44 inst = mul(m.instances[k].second, inv_pod);
+                    const rdMatrix44 inst = mat_then(m.instances[k].second, inv_pod);
                     fprintf(f, "%s{\"part\":%d,\"localToPod\":", k ? "," : "", m.instances[k].first);
                     write_floats(f, &inst.vA.x, 16);
                     fputc('}', f);
@@ -1060,7 +1036,7 @@ namespace {
             g_rec.waiting = false;
             g_status = "Recording top-speed motion (hold top speed)...";
         }
-        if (g_rec.frames.empty() && g_rec.kind == 0 && !inv_affine(r->transform, g_rec.inv_ref)) {
+        if (g_rec.frames.empty() && g_rec.kind == 0 && !invert_affine(r->transform, g_rec.inv_ref)) {
             g_rec.kind = -1;
             return;
         }
@@ -1070,16 +1046,16 @@ namespace {
         g_rec.t += dt;
         while (g_rec.t >= g_rec.next && g_rec.next <= kRecSecs) {
             rdMatrix44 ref = g_rec.inv_ref;
-            if (g_rec.kind == 1 && !inv_affine(r->transform, ref))
+            if (g_rec.kind == 1 && !invert_affine(r->transform, ref))
                 return;
             const rdMatrix44* parts[5] = {&r->cockpitXf, &r->engineXfR, &r->engineXfL, &r->engineXfR2, &r->engineXfL2};
             for (const rdMatrix44* m: parts) {
-                const rdMatrix44 rel = mul(*m, ref);
+                const rdMatrix44 rel = mat_then(*m, ref);
                 g_rec.frames.insert(g_rec.frames.end(), &rel.vA.x, &rel.vA.x + 16);
             }
             for (MeshMotion& mo: g_mmot) {
                 if (mo.seen) {
-                    const rdMatrix44 rel = mul(mo.cur, ref);
+                    const rdMatrix44 rel = mat_then(mo.cur, ref);
                     for (size_t i = 0; i <= mo.lead; i++)// (earlier samples it wasn't drawn in: its first frame)
                         mo.frames.insert(mo.frames.end(), &rel.vA.x, &rel.vA.x + 16);
                     mo.lead = 0;
@@ -1386,36 +1362,6 @@ namespace {
     std::vector<TrailNode> g_trail_nodes;
 
     // a then b (row vectors).
-    rdMatrix44 mat_then(const rdMatrix44& a, const rdMatrix44& b) {
-        rdMatrix44 o;
-        const rdVector4* ra[4] = {&a.vA, &a.vB, &a.vC, &a.vD};
-        rdVector4* ro[4] = {&o.vA, &o.vB, &o.vC, &o.vD};
-        for (int i = 0; i < 4; i++) {
-            const rdVector4& r = *ra[i];
-            *ro[i] = {r.x * b.vA.x + r.y * b.vB.x + r.z * b.vC.x + r.w * b.vD.x, r.x * b.vA.y + r.y * b.vB.y + r.z * b.vC.y + r.w * b.vD.y,
-                      r.x * b.vA.z + r.y * b.vB.z + r.z * b.vC.z + r.w * b.vD.z, r.x * b.vA.w + r.y * b.vB.w + r.z * b.vC.w + r.w * b.vD.w};
-        }
-        return o;
-    }
-    // Inverse of an affine row-vector matrix; false if singular.
-    bool invert_affine(const rdMatrix44& m, rdMatrix44& out) {
-        const float a = m.vA.x, b = m.vA.y, c = m.vA.z, d = m.vB.x, e = m.vB.y, f = m.vB.z, g = m.vC.x, h = m.vC.y, i = m.vC.z;
-        const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-        if (std::fabs(det) < 1e-12f)
-            return false;
-        const float k = 1.0f / det;
-        out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
-        out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
-        out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
-        const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
-        out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
-                  -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
-        return true;
-    }
-    rdVector3 xf_point(const rdMatrix44& m, const float p[3]) {
-        return {m.vD.x + m.vA.x * p[0] + m.vB.x * p[1] + m.vC.x * p[2], m.vD.y + m.vA.y * p[0] + m.vB.y * p[1] + m.vC.y * p[2],
-                m.vD.z + m.vA.z * p[0] + m.vB.z * p[1] + m.vC.z * p[2]};
-    }
 }// namespace
 
 namespace {
@@ -1778,7 +1724,7 @@ void pod_edits_place_trails(swrRace* player) {
         rdMatrix44 m = t.side == 0 ? player->engineExhaustXfR : player->engineExhaustXfL;
         const rdMatrix44& e = t.side == 0 ? player->engineXfR : player->engineXfL;
         const rdMatrix44& e2 = t.side == 0 ? player->engineXfR2 : player->engineXfL2;
-        rdVector3 p = xf_point(e, t.pos);
+        rdVector3 p = xf_point(e, {t.pos[0], t.pos[1], t.pos[2]});
         if (four) {
             // The trail follows the engine it sits on: the main one or the second pair's (which
             // moves on its own). Decided once, from where the point sits the first time.
@@ -1788,8 +1734,7 @@ void pod_edits_place_trails(swrRace* player) {
                 const float d2 = (p.x - e2.vD.x) * (p.x - e2.vD.x) + (p.y - e2.vD.y) * (p.y - e2.vD.y) + (p.z - e2.vD.z) * (p.z - e2.vD.z);
                 t.engine = 0;
                 if (d2 < d1 && invert_affine(e2, inv2)) {
-                    const float w[3] = {p.x, p.y, p.z};
-                    const rdVector3 l = xf_point(inv2, w);
+                    const rdVector3 l = xf_point(inv2, p);
                     t.local[0] = l.x, t.local[1] = l.y, t.local[2] = l.z;
                     t.engine = 1;
                 }
@@ -1798,7 +1743,7 @@ void pod_edits_place_trails(swrRace* player) {
                 rdMatrix44 inv;
                 if (invert_affine(e, inv))
                     m = mat_then(mat_then(m, inv), e2);// the exhaust's orientation, carried by the second engine
-                p = xf_point(e2, t.local);
+                p = xf_point(e2, {t.local[0], t.local[1], t.local[2]});
             }
         }
         m.vD.x = p.x;

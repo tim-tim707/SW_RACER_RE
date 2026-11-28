@@ -48,6 +48,7 @@ extern "C" {
 #include "./game_deltas/swrPlayerHUD_delta.h"
 #include "./game_deltas/pod_motion.h"
 #include "./game_deltas/pod_fx.h"
+#include "math_manipulation.h"
 #include "./game_deltas/pod_edits.h"
 #include "./game_deltas/pod_wreck.h"
 #include "shadows.h"
@@ -450,28 +451,11 @@ struct CableObstacle {
 // Collected this traversal / used by the cables (the last complete set per racer).
 static std::unordered_map<const swrRace *, std::vector<CableObstacle>> g_cable_obstacles_cur, g_cable_obstacles;
 
+using math_manipulation::invert_affine;
+using math_manipulation::xf_point;
+
 static const rdMatrix44 &part_frame(const swrRace *r, int part) {
     return (&r->unk350_mat)[part];
-}
-// Inverse of an affine row-vector matrix (rotation * scale + translation); false if singular.
-static bool invert_affine(const rdMatrix44 &m, rdMatrix44 &out) {
-    const float a = m.vA.x, b = m.vA.y, c = m.vA.z, d = m.vB.x, e = m.vB.y, f = m.vB.z, g = m.vC.x, h = m.vC.y,
-                i = m.vC.z;
-    const float det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-    if (std::fabs(det) < 1e-12f)
-        return false;
-    const float k = 1.0f / det;
-    out.vA = {(e * i - f * h) * k, (c * h - b * i) * k, (b * f - c * e) * k, 0.0f};
-    out.vB = {(f * g - d * i) * k, (a * i - c * g) * k, (c * d - a * f) * k, 0.0f};
-    out.vC = {(d * h - e * g) * k, (b * g - a * h) * k, (a * e - b * d) * k, 0.0f};
-    const float tx = m.vD.x, ty = m.vD.y, tz = m.vD.z;
-    out.vD = {-(tx * out.vA.x + ty * out.vB.x + tz * out.vC.x), -(tx * out.vA.y + ty * out.vB.y + tz * out.vC.y),
-              -(tx * out.vA.z + ty * out.vB.z + tz * out.vC.z), 1.0f};
-    return true;
-}
-static rdVector3 xf_point(const rdMatrix44 &m, const rdVector3 &p) {
-    return {p.x * m.vA.x + p.y * m.vB.x + p.z * m.vC.x + m.vD.x, p.x * m.vA.y + p.y * m.vB.y + p.z * m.vC.y + m.vD.y,
-            p.x * m.vA.z + p.y * m.vB.z + p.z * m.vC.z + m.vD.z};
 }
 static void record_cable_obstacle(const swrRace *racer, int part, const swrModel_Mesh *mesh,
                                   const rdMatrix44 &model_matrix) {

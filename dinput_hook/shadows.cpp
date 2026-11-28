@@ -1,6 +1,7 @@
 #include <glad/glad.h>
 
 #include "shadows.h"
+#include "math_manipulation.h"
 
 #include <algorithm>
 #include <cmath>
@@ -546,7 +547,7 @@ void main() {
 
     // ---- settings UI -----------------------------------------------------------------------
     const char* kSec = "shadows";
-    float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+    using math_manipulation::clampf;
 
     void load_settings() {
         s.enabled = config::get_int(kSec, "enabled", s.enabled) != 0;
