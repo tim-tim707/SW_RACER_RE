@@ -556,7 +556,7 @@ void __cdecl swrRace_UpdateEngineDamageFX_delta(swrRace* player) {
     const auto set_owner = (SmokSetOwner_t) swrObjSmok_SetOwnerHandle_ADDR;
     for (int slot = 0; slot < 2; slot++) {
         const int side = slot == 0 ? 1 : 0;// edits: 0 = right engine
-        // The pod editor's "gamefire" points (else the stock spot) and "gamefirestreak".
+        // The pod editor's effects.gameFire points (else the stock spot) and effects.gameFireStreak.
         const auto* spots = pod_edits_fx_points(pilot, 3, side);
         float streak[4] = {1.0f, 0.0f, 0.0f, 0.0f};
         const bool has_streak = pod_edits_gamefire_streak(pilot, streak);

@@ -1,0 +1,29 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "AldarBeedo_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "9": "564.ac38-4b80b402",
+    "10": "58c.b120-298ef80f",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "cableEngine": [
+      -1.64,
+      -2.7178,
+      2.0168
+    ],
+    "binder": [
+      3.1562,
+      0.9916,
+      1.0315
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      2.5,
+      0
+    ]
+  }
+}

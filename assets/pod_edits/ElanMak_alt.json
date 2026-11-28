@@ -1,0 +1,24 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "ElanMak_alt",
+  "layout": {
+    "cableEngine": [
+      0,
+      -1.9566,
+      1.8748
+    ],
+    "binder": [
+      1.7219,
+      0.0628,
+      -0.3897
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      -2.5,
+      0
+    ],
+    "engineGap": 0.9
+  }
+}

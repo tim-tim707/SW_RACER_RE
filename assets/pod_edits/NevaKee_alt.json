@@ -1,0 +1,15 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "NevaKee_alt",
+  "pod": {
+    "chaseCamNear": [
+      1,
+      0
+    ],
+    "rearCam": [
+      -7,
+      0
+    ]
+  }
+}

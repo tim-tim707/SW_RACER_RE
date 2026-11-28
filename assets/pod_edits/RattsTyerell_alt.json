@@ -1,0 +1,29 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "RattsTyerell_alt",
+  "layout": {
+    "cableCockpit": [
+      0.243,
+      1.9264,
+      -0.2894
+    ],
+    "cableEngine": [
+      0.0445,
+      -0.7209,
+      2.4476
+    ],
+    "binder": [
+      1.1627,
+      -0.1134,
+      0
+    ]
+  },
+  "pod": {
+    "chaseCamFar": [
+      -3,
+      -1
+    ],
+    "engineGap": 1.1
+  }
+}

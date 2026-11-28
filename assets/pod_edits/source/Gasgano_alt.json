@@ -1,0 +1,64 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "Gasgano_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "23": "75c.eb58-66ff7868",
+    "24": "508.a0e8-43786cb4",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "cableCockpit": [
+      1.06,
+      1.3918,
+      0.0047
+    ],
+    "cableEngine": [
+      0.0189,
+      -1.2449,
+      1.87
+    ],
+    "binder": [
+      1.8648,
+      -0.12,
+      -0.1096
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      4,
+      0.5
+    ]
+  },
+  "effects": {
+    "nozzles": {
+      "R": [
+        {
+          "pos": [
+            0.0008,
+            -2.6106,
+            -0.0364
+          ],
+          "size": 0.1697,
+          "length": 1,
+          "height": 5,
+          "width": 5
+        }
+      ],
+      "L": [
+        {
+          "pos": [
+            -0.0008,
+            -2.6106,
+            -0.0364
+          ],
+          "size": 0.1697,
+          "length": 1,
+          "height": 5,
+          "width": 5
+        }
+      ]
+    }
+  }
+}

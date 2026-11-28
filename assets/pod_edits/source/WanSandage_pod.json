@@ -1,0 +1,58 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "WanSandage_pod",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "15": "998.132a0-ad80af6d",
+    "17": "4e4.9c58-89137fb3",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "binder": [
+      1.8578,
+      0,
+      0
+    ],
+    "ownCables": [
+      {
+        "cable": 3,
+        "cockpit": [
+          0.7,
+          -0.66,
+          -0.98
+        ],
+        "engine": [
+          -1.4279,
+          -1.4196,
+          1.1921
+        ]
+      },
+      {
+        "cable": 4,
+        "cockpit": [
+          -0.7,
+          -0.66,
+          -0.98
+        ],
+        "engine": [
+          1.4279,
+          -1.4196,
+          1.1921
+        ]
+      }
+    ],
+    "extraCables": {
+      "cockpit": [
+        0.7,
+        -0.66,
+        -0.98
+      ],
+      "engine": [
+        1.28,
+        -1.52,
+        -1.17
+      ]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "RattsTyerell_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "7": "99c.1331c-0c53f9a8",
+    "8": "568.ace8-dbb0f4ed",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "cableCockpit": [
+      0.243,
+      1.9264,
+      -0.2894
+    ],
+    "cableEngine": [
+      0.0445,
+      -0.7209,
+      2.4476
+    ],
+    "binder": [
+      1.1627,
+      -0.1134,
+      0
+    ]
+  },
+  "pod": {
+    "chaseCamFar": [
+      -3,
+      -1
+    ],
+    "engineGap": 1.1
+  }
+}

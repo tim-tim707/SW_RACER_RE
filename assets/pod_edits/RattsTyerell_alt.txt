@@ -1,8 +1,0 @@
-# SW_RACER_RE in-game pod edits for RattsTyerell_alt (written by Build & install)
-# The full edits are in pod_edits/source/.
-# pod layout (swrRacer_PodVisualData): cable / binder ends
-cable cockpit 0.243 1.9264 -0.2894
-cable engine 0.0445 -0.7209 2.4476
-binder 1.1627 -0.1134 0
-chasecam far -3 -1
-enginegap 1.1

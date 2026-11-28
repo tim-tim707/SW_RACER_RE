@@ -1,9 +1,0 @@
-# SW_RACER_RE in-game pod edits for EbeEndocott_alt (written by Build & install)
-# The full edits are in pod_edits/source/.
-# pod layout (swrRacer_PodVisualData): cable / binder ends
-cable cockpit 2.1751 -1.0741 -0.4842
-cable engine -0.189 -3.7042 1.13
-binder 1.4688 -2.8085 0.06
-exhaust -0.1301 -6.69 0
-rearcam 0.5 0.5
-enginegap 1.1

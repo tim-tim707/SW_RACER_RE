@@ -1,0 +1,39 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "OdyMandrell_alt",
+  "spinNodes": [
+    {
+      "node": "35:12c08",
+      "rpm": -240,
+      "axis": [
+        0,
+        -1,
+        0
+      ]
+    }
+  ],
+  "layout": {
+    "cableCockpit": [
+      2.92,
+      2.74,
+      -0.8573
+    ],
+    "cableEngine": [
+      0,
+      -1.3682,
+      2.6766
+    ],
+    "binder": [
+      2.6851,
+      2.2093,
+      0.1174
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      5.5,
+      0
+    ]
+  }
+}

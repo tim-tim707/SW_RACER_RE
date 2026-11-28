@@ -1,0 +1,33 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "Sebulba_alt",
+  "layout": {
+    "cableCockpit": [
+      0.8108,
+      2.6683,
+      -0.2
+    ],
+    "cableEngine": [
+      0,
+      -3.2886,
+      1.7363
+    ],
+    "binder": [
+      1.5818,
+      1.4762,
+      0
+    ],
+    "exhaustScale": [
+      1,
+      1,
+      0.7
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      -1,
+      0.5
+    ]
+  }
+}

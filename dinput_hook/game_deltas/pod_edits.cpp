@@ -21,6 +21,7 @@
 #include <unordered_set>
 
 #include <imgui.h>
+#include <simdjson.h>// edits files (JSON)
 #include <shlobj.h>// SHGetFolderPathW (Desktop)
 
 extern "C" {
@@ -86,19 +87,19 @@ namespace {
         std::unordered_map<uint32_t, PodMeshEdit> meshes;
         bool layout_set[4] = {};// cable cockpit, cable engine, binder, exhaust trail
         float layout[4][3] = {};
-        // Camera offsets (further, higher), game units: [0] chase near ("chasecam near"), [1] chase
-        // far ("chasecam far"), [2] looking behind with Tab ("rearcam").
+        // Camera offsets (further, higher), game units: [0] chase near (pod.chaseCamNear), [1] chase
+        // far (pod.chaseCamFar), [2] looking behind with Tab (pod.rearCam).
         bool cam_set[3] = {};
         float cam[3][2] = {};
-        bool height_set = false;// "podheight <dz>": the drawn pod raised / lowered (visual only)
+        bool height_set = false;// pod.height dz: the drawn pod raised / lowered (visual only)
         float height = 0.0f;
-        bool engine_gap_set = false;// "enginegap <k>": the engines' sideways spacing, x the stock one
+        bool engine_gap_set = false;// pod.engineGap k: the engines' sideways spacing, x the stock one
         float engine_gap = 1.0f;
         bool cockpit_gap_set = false;// "cockpitgap <k>": the cockpit's distance from the engines, x stock
         float cockpit_gap = 1.0f;
         bool cockpit_move_set = false;// "cockpitmove <x> <y> <z>": the cockpit moved (pod frame: right, forward, up)
         float cockpit_move[3] = {};
-        // "trailnode <model>:<offset> R|L <x> <y> <z>": an extra exhaust trail the bake added (a copy of
+        // trailNodes { node: "<model>:<offset>", side, pos, scale }: an extra exhaust trail the bake added (a copy of
         // the stock exhaust node, sharing its trail), placed by the mod at that engine-frame point.
         struct TrailNodeLine {
             uint32_t off;
@@ -108,15 +109,15 @@ namespace {
         };
         std::vector<TrailNodeLine> trail_nodes;
         // "exhaustscale <sx> <sy> <sz>": the stock exhaust trails scaled about their anchor.
-        bool exhaust_light_set = false;// "exhaustlight <aim> <reach> <width> <strength>"
+        bool exhaust_light_set = false;// effects.exhaustLight { aim, reach, width, strength }
         float exhaust_light[4] = {0.7f, 1.0f, 1.0f, 1.0f};
-        bool nozzle_flame_set = false;// "nozzleflame <width> <length> [<height>]": the nozzle flame cones' size (x stock)
+        bool nozzle_flame_set = false;// effects.nozzleFlame { width, length, height }: the nozzle flame cones' size (x stock)
         float nozzle_flame[3] = {1.0f, 1.0f, 1.0f};
         bool exhaust_scale_set = false;
         float exhaust_scale[3] = {1.0f, 1.0f, 1.0f};
         bool cable2_set[2] = {};// extra cable pair: cockpit end, engine end
         float cable2[2][3] = {};
-        // "spinnode <model>:<offset> <rpm> <ax> <ay> <az>": a baked pivot node in an alt model, which
+        // spinNodes { node: "<model>:<offset>", rpm, axis }: a baked pivot node in an alt model, which
         // the mod turns (alt models' animations never run).
         struct SpinNodeLine {
             uint32_t off;
@@ -127,12 +128,12 @@ namespace {
         // Engine effect points: [kind: nozzle, fire spot, dust spot][side: right, left].
         bool fx_set[4] = {};
         std::vector<std::array<float, 4>> fx[4][2];
-        bool gamefire_streak_set = false;// "gamefirestreak <length> <rx> <ry> <rz>"
+        bool gamefire_streak_set = false;// effects.gameFireStreak { length, turn }
         float gamefire_streak[4] = {1.0f, 0.0f, 0.0f, 0.0f};
         std::vector<float> nozzle_len[2];// per edited nozzle (same order as fx[0]): its flame's length (x stock)
         std::vector<float> nozzle_hgt[2];// ... its height (vertical size, x its radius: 1 = round)
         std::vector<float> nozzle_wid[2];// ... and its width (horizontal size, x its radius: 1 = round)
-        // Per cable ("owncable1".."owncable4"; older files "cable1".."cable4"): own ends.
+        // Per cable (layout.ownCables, cable 1..4): own ends.
         bool cable_end_set[4][2] = {};
         float cable_end[4][2][3] = {};
     };
@@ -150,7 +151,7 @@ namespace {
     const auto g_t0 = std::chrono::steady_clock::now();
 
     void load_file(const std::filesystem::path& path, int file_model);
-    void load_stream(std::istream& f, const std::string& path, int file_model);
+    void load_edits(const std::string& text, const std::string& path, int file_model);
 
     // Edits a model carries inside its own data: Build appends the pod's in-game edits to the model it
     // writes, so a .bin passed to another player brings its cables, binder, exhaust, effects and
@@ -177,7 +178,7 @@ namespace {
             if (d.empty() || !std::filesystem::is_directory(d, ec))
                 continue;
             for (const auto& e: std::filesystem::directory_iterator(d, ec))
-                if (e.is_regular_file() && e.path().extension() == ".txt")
+                if (e.is_regular_file() && e.path().extension() == ".json")
                     files[e.path().stem().string()] = e.path();
         }
         std::set<int> from_file;
@@ -205,27 +206,9 @@ namespace {
         for (const auto& [id, e]: g_embedded) {
             if (from_file.count(id))
                 continue;
-            std::istringstream in(e.text);
             g_any_files = true;
-            load_stream(in, e.source, id);
+            load_edits(e.text, e.source, id);
         }
-    }
-
-    bool parse_ranges(const std::string& s, std::vector<PodEditRange>& out) {
-        std::stringstream ss(s);
-        std::string part;
-        while (std::getline(ss, part, ',')) {
-            if (part.empty())
-                continue;
-            unsigned a = 0, b = 0;
-            const int n = sscanf(part.c_str(), "%u-%u", &a, &b);
-            if (n == 1)
-                b = a;
-            else if (n != 2 || b < a)
-                return false;
-            out.push_back({a, b - a + 1});
-        }
-        return !out.empty();
     }
 
     // A mesh key: "<model>:<hex offset>" (file offset in that model) or "<hex offset>" (older: asset
@@ -249,255 +232,290 @@ namespace {
     }
 
     void load_file(const std::filesystem::path& file, int file_model) {
-        std::ifstream f(file);
+        std::ifstream f(file, std::ios::binary);
         if (f)
-            load_stream(f, file.string(), file_model);
+            load_edits(std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()), file.string(), file_model);
     }
 
-    void load_stream(std::istream& f, const std::string& path, int file_model) {
-        // Layout lines (cables / binder) belong to the pod the file is named after.
+    // ---- reading an edits document (JSON; written by tools/pod_editor, see bake.js "edits documents")
+    using simdjson::dom::array;
+    using simdjson::dom::element;
+    using simdjson::dom::object;
+
+    bool json_float(element e, float& out) {
+        double d;
+        if (e.get(d) == simdjson::SUCCESS) {
+            out = (float) d;
+            return true;
+        }
+        int64_t i;
+        if (e.get(i) == simdjson::SUCCESS) {
+            out = (float) i;
+            return true;
+        }
+        return false;
+    }
+    // obj[key] as a number; false if missing or not a number.
+    bool json_float(object o, const char* key, float& out) {
+        element e;
+        return o[key].get(e) == simdjson::SUCCESS && json_float(e, out);
+    }
+    // obj[key] (or the element itself when key is null) as n numbers.
+    bool json_floats(element e, float* out, size_t n) {
+        array a;
+        if (e.get(a) != simdjson::SUCCESS || a.size() < n)
+            return false;
+        size_t i = 0;
+        for (element v: a) {
+            if (i == n)
+                break;
+            if (!json_float(v, out[i++]))
+                return false;
+        }
+        return i == n;
+    }
+    bool json_floats(object o, const char* key, float* out, size_t n) {
+        element e;
+        return o[key].get(e) == simdjson::SUCCESS && json_floats(e, out, n);
+    }
+    std::string json_string(object o, const char* key) {
+        std::string_view s;
+        return o[key].get(s) == simdjson::SUCCESS ? std::string(s) : std::string();
+    }
+    // [[first, last], ...] face ranges.
+    bool json_faces(object o, std::vector<PodEditRange>& out) {
+        array a;
+        if (o["faces"].get(a) != simdjson::SUCCESS)
+            return false;
+        for (element r: a) {
+            float v[2];
+            if (!json_floats(r, v, 2) || v[0] < 0.0f || v[1] < v[0])
+                return false;
+            out.push_back({(uint32_t) v[0], (uint32_t) (v[1] - v[0]) + 1});
+        }
+        return !out.empty();
+    }
+    // A "<model>:<hex offset>" node key; false if it isn't one.
+    bool json_node_key(const std::string& key, int& model, uint32_t& off) {
+        const size_t colon = key.find(':');
+        if (colon == std::string::npos)
+            return false;
+        try {
+            model = std::stoi(key.substr(0, colon));
+            off = (uint32_t) std::stoul(key.substr(colon + 1), nullptr, 16);
+            return true;
+        } catch (...) {
+            return false;
+        }
+    }
+
+    void load_edits(const std::string& text, const std::string& path, int file_model) {
+        simdjson::dom::parser parser;
+        element root_el;
+        object root;
+        if (parser.parse(text).get(root_el) != simdjson::SUCCESS || root_el.get(root) != simdjson::SUCCESS ||
+            json_string(root, "format") != "swr-pod-edits") {
+            fprintf(hook_log, "[PodEdits] %s is not a pod edits file (JSON, \"format\": \"swr-pod-edits\"): skipped\n", path.c_str());
+            fflush(hook_log);
+            return;
+        }
+        // Layout, pod and effect settings belong to the pod the file is named after.
         ModelEdits dummy;
         ModelEdits& m = file_model >= 0 ? g_models[file_model] : dummy;
-        int n_lines = 0;
-        std::string line;
-        int lineno = 0, bad = 0;
-        while (std::getline(f, line)) {
-            lineno++;
-            const size_t hash = line.find('#');
-            if (hash != std::string::npos)
-                line.resize(hash);
-            std::istringstream in(line);
-            std::string cmd;
-            if (!(in >> cmd))
-                continue;
-            if (cmd == "spin") {
-                std::string mesh, ranges;
-                PodEditSpin sp{};
-                if (in >> mesh >> sp.rpm >> sp.pivot[0] >> sp.pivot[1] >> sp.pivot[2] >> sp.axis[0] >> sp.axis[1] >>
-                    sp.axis[2] >> ranges &&
-                    parse_ranges(ranges, sp.tris)) {
-                    float o[3];
-                    if (in >> o[0] >> o[1] >> o[2]) {// optional move, then optional scale
-                        sp.offset[0] = o[0], sp.offset[1] = o[1], sp.offset[2] = o[2];
-                        float sc;
-                        if (in >> sc && sc > 0.0f)
-                            sp.scale = sc;
-                    }
-                    if (PodMeshEdit* e = mesh_entry(mesh, file_model)) {
-                        e->spins.push_back(std::move(sp));
-                        n_lines++;
+        int n_lines = 0, bad = 0;
+
+        // Spin / hide groups: one line per mesh, in that mesh's own frame.
+        array groups;
+        if (root["groups"].get(groups) == simdjson::SUCCESS)
+            for (element g_el: groups) {
+                object g;
+                array lines;
+                if (g_el.get(g) != simdjson::SUCCESS || g["lines"].get(lines) != simdjson::SUCCESS)
+                    continue;
+                const std::string type = json_string(g, "type");
+                for (element l_el: lines) {
+                    object l;
+                    std::vector<PodEditRange> faces;
+                    if (l_el.get(l) != simdjson::SUCCESS || !json_faces(l, faces)) {
+                        bad++;
                         continue;
                     }
-                }
-            } else if (cmd == "spinnode") {
-                std::string key;
-                ModelEdits::SpinNodeLine sl{};
-                const size_t colon = (in >> key) ? key.find(':') : std::string::npos;
-                if (colon != std::string::npos && in >> sl.rpm >> sl.axis[0] >> sl.axis[1] >> sl.axis[2]) {
-                    try {
-                        ModelEdits& me = g_models[std::stoi(key.substr(0, colon))];
-                        sl.off = (uint32_t) std::stoul(key.substr(colon + 1), nullptr, 16);
-                        const float l = std::sqrt(sl.axis[0] * sl.axis[0] + sl.axis[1] * sl.axis[1] + sl.axis[2] * sl.axis[2]);
-                        if (l > 1e-6f) {
-                            for (float& a: sl.axis)
-                                a /= l;
-                            me.spin_nodes.push_back(sl);
-                            me.found = true;
-                            n_lines++;
+                    PodMeshEdit* e = mesh_entry(json_string(l, "mesh"), file_model);
+                    if (e == nullptr) {
+                        bad++;
+                        continue;
+                    }
+                    if (type == "hide") {
+                        e->hidden.insert(e->hidden.end(), faces.begin(), faces.end());
+                        n_lines++;
+                    } else if (type == "spin") {
+                        PodEditSpin sp{};
+                        if (!json_float(l, "rpm", sp.rpm) || !json_floats(l, "pivot", sp.pivot, 3) ||
+                            !json_floats(l, "axis", sp.axis, 3)) {
+                            bad++;
                             continue;
                         }
-                    } catch (...) {
-                    }
-                }
-            } else if (((cmd.size() == 6 && cmd.compare(0, 5, "cable") == 0) ||
-                        (cmd.size() == 9 && cmd.compare(0, 8, "owncable") == 0)) &&
-                       cmd.back() >= '1' && cmd.back() <= '4' &&
-                       !(cmd == "cable2" && (line.find(" cockpit") != std::string::npos ||
-                                             line.find(" engine") != std::string::npos))) {
-                // ("cable2 cockpit / engine" is the extra pair's line, handled below.)
-                const int idx = cmd.back() - '1';
-                std::string what;
-                float v[6];
-                if (in >> what && (what == "cockpit" || what == "engine") && in >> v[0] >> v[1] >> v[2]) {
-                    const int end = what == "cockpit" ? 0 : 1;
-                    m.cable_end_set[idx][end] = true;
-                    for (int j = 0; j < 3; j++)
-                        m.cable_end[idx][end][j] = v[j];
-                    m.found = true;
-                    continue;
-                }
-                if (what == "rot")// the removed stiff cables' end turns (older files): ignored
-                    continue;
-            } else if (cmd == "cablerot" || cmd == "cableout" || cmd == "cablestiff") {
-                continue;// the removed stiff cables' settings (older files): ignored
-            } else if (cmd == "gamefirestreak") {
-                float v[4];
-                if (in >> v[0] >> v[1] >> v[2] >> v[3]) {
-                    m.found = true;
-                    m.gamefire_streak_set = true;
-                    for (int j = 0; j < 4; j++)
-                        m.gamefire_streak[j] = v[j];
-                    continue;
-                }
-            } else if (cmd == "nozzle" || cmd == "firespot" || cmd == "dustspot" || cmd == "gamefire") {
-                const int kind = cmd == "nozzle" ? 0 : cmd == "firespot" ? 1 : cmd == "dustspot" ? 2 : 3;
-                std::string side;
-                std::array<float, 4> v{};
-                if (in >> side >> v[0] >> v[1] >> v[2] && (side == "R" || side == "L") && (kind != 0 || in >> v[3])) {
-                    m.fx_set[kind] = true;
-                    m.found = true;
-                    m.fx[kind][side == "R" ? 0 : 1].push_back(v);
-                    if (kind == 0) {// nozzle: an optional flame length factor after the radius
-                        float l = 1.0f, h = 1.0f;
-                        if (!(in >> l) || !(l > 0.0f))
-                            l = 1.0f;
-                        if (!(in >> h) || !(h > 0.0f))
-                            h = 1.0f;
-                        float w = 1.0f;
-                        if (!(in >> w) || !(w > 0.0f))
-                            w = 1.0f;
-                        m.nozzle_len[side == "R" ? 0 : 1].push_back(l);
-                        m.nozzle_hgt[side == "R" ? 0 : 1].push_back(h);
-                        m.nozzle_wid[side == "R" ? 0 : 1].push_back(w);
-                    }
-                    continue;
-                }
-            } else if (cmd == "cables") {// "cables extra": a bake option, nothing to do here
-                std::string what;
-                if (in >> what && what == "extra")
-                    continue;
-            } else if (cmd == "cable2") {
-                std::string which;
-                float v[3];
-                if (in >> which >> v[0] >> v[1] >> v[2] && (which == "cockpit" || which == "engine")) {
-                    const int k = which == "cockpit" ? 0 : 1;
-                    m.cable2_set[k] = true;
-                    m.found = true;
-                    for (int j = 0; j < 3; j++)
-                        m.cable2[k][j] = v[j];
-                    continue;
-                }
-            } else if (cmd == "trail") {// an extra trail for the bake; its node comes as "trailnode"
-                continue;
-            } else if (cmd == "nozzleflame") {
-                float v[3] = {1.0f, 1.0f, 1.0f};
-                if (in >> v[0] >> v[1]) {
-                    if (!(in >> v[2]))// optional (older files: width and length only)
-                        v[2] = 1.0f;
-                    m.found = true;
-                    m.nozzle_flame_set = true;
-                    for (int j = 0; j < 3; j++)
-                        m.nozzle_flame[j] = v[j] > 0.0f ? v[j] : 1.0f;
-                    continue;
-                }
-            } else if (cmd == "exhaustlight") {
-                float v[4];
-                if (in >> v[0] >> v[1] >> v[2] >> v[3]) {
-                    m.exhaust_light_set = true;
-                    m.found = true;
-                    for (int j = 0; j < 4; j++)
-                        m.exhaust_light[j] = v[j];
-                    continue;
-                }
-            } else if (cmd == "rearcam" || cmd == "chasecam") {
-                int which = 2;
-                if (cmd == "chasecam") {
-                    std::string mode;
-                    in >> mode;
-                    which = mode == "near" ? 0 : mode == "far" ? 1 : -1;
-                }
-                float v[2];
-                if (which >= 0 && in >> v[0] >> v[1]) {
-                    m.cam_set[which] = true;
-                    m.cam[which][0] = v[0], m.cam[which][1] = v[1];
-                    m.found = true;
-                    continue;
-                }
-            } else if (cmd == "cockpitmove") {
-                float v[3];
-                if (in >> v[0] >> v[1] >> v[2]) {
-                    m.cockpit_move_set = true;
-                    for (int j = 0; j < 3; j++)
-                        m.cockpit_move[j] = v[j];
-                    m.found = true;
-                    continue;
-                }
-            } else if (cmd == "enginegap" || cmd == "cockpitgap") {
-                float k;
-                if (in >> k && k > 0.0f) {
-                    if (cmd == "enginegap")
-                        m.engine_gap_set = true, m.engine_gap = k;
-                    else
-                        m.cockpit_gap_set = true, m.cockpit_gap = k;
-                    m.found = true;
-                    continue;
-                }
-            } else if (cmd == "podheight") {
-                float h;
-                if (in >> h) {
-                    m.height_set = true;
-                    m.height = h;
-                    m.found = true;
-                    continue;
-                }
-            } else if (cmd == "facesig" || cmd == "basemodel") {
-                continue;// the pod editor's face signatures / base model stamps: for the editor only
-            } else if (cmd == "exhaustscale") {
-                float v[3];
-                if (in >> v[0] >> v[1] >> v[2]) {
-                    m.exhaust_scale_set = true;
-                    m.found = true;
-                    for (int j = 0; j < 3; j++)
-                        m.exhaust_scale[j] = v[j];
-                    continue;
-                }
-            } else if (cmd == "trailnode") {
-                std::string key, side;
-                ModelEdits::TrailNodeLine tl{};
-                const size_t colon = (in >> key) ? key.find(':') : std::string::npos;
-                if (colon != std::string::npos && in >> side >> tl.pos[0] >> tl.pos[1] >> tl.pos[2] &&
-                    (side == "R" || side == "L")) {
-                    if (!(in >> tl.scale[0] >> tl.scale[1] >> tl.scale[2]))
-                        tl.scale[0] = tl.scale[1] = tl.scale[2] = 1.0f;// optional
-                    try {
-                        ModelEdits& me = g_models[std::stoi(key.substr(0, colon))];
-                        tl.off = (uint32_t) std::stoul(key.substr(colon + 1), nullptr, 16);
-                        tl.side = side == "R" ? 0 : 1;
-                        me.trail_nodes.push_back(tl);
-                        me.found = true;
+                        sp.tris = std::move(faces);
+                        json_floats(l, "offset", sp.offset, 3);// optional move, mesh frame
+                        float sc;
+                        if (json_float(l, "scale", sc) && sc > 0.0f)
+                            sp.scale = sc;
+                        e->spins.push_back(std::move(sp));
                         n_lines++;
-                        continue;
-                    } catch (...) {
-                    }
-                }
-            } else if (cmd == "cable" || cmd == "binder" || cmd == "exhaust") {
-                std::string which = cmd;
-                if (cmd == "cable")
-                    in >> which;
-                const int k = which == "cockpit" ? 0 : which == "engine" ? 1 : which == "binder" ? 2 : which == "exhaust" ? 3 : -1;
-                float v[3];
-                if (k >= 0 && (cmd == "cable") == (k < 2) && in >> v[0] >> v[1] >> v[2]) {
-                    m.layout_set[k] = true;
-                    m.found = true;
-                    for (int j = 0; j < 3; j++)
-                        m.layout[k][j] = v[j];
-                    continue;
-                }
-            } else if (cmd == "hide") {
-                std::string mesh, ranges;
-                std::vector<PodEditRange> r;
-                if (in >> mesh >> ranges && parse_ranges(ranges, r)) {
-                    if (PodMeshEdit* e = mesh_entry(mesh, file_model)) {
-                        e->hidden.insert(e->hidden.end(), r.begin(), r.end());
-                        n_lines++;
-                        continue;
                     }
                 }
             }
-            bad++;
-            fprintf(hook_log, "[PodEdits] %s line %d not understood\n", path.c_str(), lineno);
+
+        // Nodes Build added to a model, which the mod drives: alt-model spinning parts and extra trails.
+        array nodes;
+        if (root["spinNodes"].get(nodes) == simdjson::SUCCESS)
+            for (element n_el: nodes) {
+                object n;
+                ModelEdits::SpinNodeLine sl{};
+                int model;
+                if (n_el.get(n) != simdjson::SUCCESS || !json_node_key(json_string(n, "node"), model, sl.off) ||
+                    !json_float(n, "rpm", sl.rpm) || !json_floats(n, "axis", sl.axis, 3)) {
+                    bad++;
+                    continue;
+                }
+                const float l = std::sqrt(sl.axis[0] * sl.axis[0] + sl.axis[1] * sl.axis[1] + sl.axis[2] * sl.axis[2]);
+                if (l <= 1e-6f) {
+                    bad++;
+                    continue;
+                }
+                for (float& a: sl.axis)
+                    a /= l;
+                ModelEdits& me = g_models[model];
+                me.spin_nodes.push_back(sl);
+                me.found = true;
+                n_lines++;
+            }
+        if (root["trailNodes"].get(nodes) == simdjson::SUCCESS)
+            for (element n_el: nodes) {
+                object n;
+                ModelEdits::TrailNodeLine tl{};
+                int model;
+                const std::string side = n_el.get(n) == simdjson::SUCCESS ? json_string(n, "side") : std::string();
+                if ((side != "R" && side != "L") || !json_node_key(json_string(n, "node"), model, tl.off) ||
+                    !json_floats(n, "pos", tl.pos, 3)) {
+                    bad++;
+                    continue;
+                }
+                if (!json_floats(n, "scale", tl.scale, 3))
+                    tl.scale[0] = tl.scale[1] = tl.scale[2] = 1.0f;
+                tl.side = side == "R" ? 0 : 1;
+                ModelEdits& me = g_models[model];
+                me.trail_nodes.push_back(tl);
+                me.found = true;
+                n_lines++;
+            }
+
+        // Cable / binder ends and the exhaust trails' anchor (swrRacer_PodVisualData), per-cable ends,
+        // the extra cable pair.
+        object layout;
+        if (root["layout"].get(layout) == simdjson::SUCCESS) {
+            const char* names[4] = {"cableCockpit", "cableEngine", "binder", "exhaust"};
+            for (int k = 0; k < 4; k++)
+                if (json_floats(layout, names[k], m.layout[k], 3))
+                    m.layout_set[k] = m.found = true;
+            if (json_floats(layout, "exhaustScale", m.exhaust_scale, 3))
+                m.exhaust_scale_set = m.found = true;
+            array own;
+            if (layout["ownCables"].get(own) == simdjson::SUCCESS)
+                for (element c_el: own) {
+                    object c;
+                    float idx;
+                    if (c_el.get(c) != simdjson::SUCCESS || !json_float(c, "cable", idx) || idx < 1.0f || idx > 4.0f)
+                        continue;
+                    const int i = (int) idx - 1;
+                    if (json_floats(c, "cockpit", m.cable_end[i][0], 3))
+                        m.cable_end_set[i][0] = m.found = true;
+                    if (json_floats(c, "engine", m.cable_end[i][1], 3))
+                        m.cable_end_set[i][1] = m.found = true;
+                }
+            object extra;
+            if (layout["extraCables"].get(extra) == simdjson::SUCCESS) {
+                if (json_floats(extra, "cockpit", m.cable2[0], 3))
+                    m.cable2_set[0] = m.found = true;
+                if (json_floats(extra, "engine", m.cable2[1], 3))
+                    m.cable2_set[1] = m.found = true;
+            }
         }
-        fprintf(hook_log, "[PodEdits] loaded %s (%d mesh edit lines, %d bad lines)\n", path.c_str(), n_lines, bad);
+
+        // The whole pod (visual / camera only): height, engine / cockpit spacing, cameras.
+        object pod;
+        if (root["pod"].get(pod) == simdjson::SUCCESS) {
+            if (json_float(pod, "height", m.height))
+                m.height_set = m.found = true;
+            float k;
+            if (json_float(pod, "engineGap", k) && k > 0.0f)
+                m.engine_gap = k, m.engine_gap_set = m.found = true;
+            if (json_float(pod, "cockpitGap", k) && k > 0.0f)
+                m.cockpit_gap = k, m.cockpit_gap_set = m.found = true;
+            if (json_floats(pod, "cockpitMove", m.cockpit_move, 3))
+                m.cockpit_move_set = m.found = true;
+            const char* cams[3] = {"chaseCamNear", "chaseCamFar", "rearCam"};
+            for (int c = 0; c < 3; c++)
+                if (json_floats(pod, cams[c], m.cam[c], 2))
+                    m.cam_set[c] = m.found = true;
+        }
+
+        // Engine effects: the points of each kind (in its engine's frame) and the effect settings.
+        object fx;
+        if (root["effects"].get(fx) == simdjson::SUCCESS) {
+            const char* kinds[4] = {"nozzles", "fireSpots", "dustSpots", "gameFire"};
+            for (int kind = 0; kind < 4; kind++) {
+                object pts;
+                if (fx[kinds[kind]].get(pts) != simdjson::SUCCESS)
+                    continue;
+                m.fx_set[kind] = m.found = true;
+                for (int side = 0; side < 2; side++) {
+                    array list;
+                    if (pts[side == 0 ? "R" : "L"].get(list) != simdjson::SUCCESS)
+                        continue;
+                    for (element p_el: list) {
+                        object p;
+                        std::array<float, 4> v{};
+                        if (p_el.get(p) != simdjson::SUCCESS || !json_floats(p, "pos", v.data(), 3)) {
+                            bad++;
+                            continue;
+                        }
+                        if (kind == 0) {// a nozzle: its size, and its flame's length / height / width (x stock)
+                            float f[3] = {1.0f, 1.0f, 1.0f};
+                            json_float(p, "size", v[3]);
+                            const char* keys[3] = {"length", "height", "width"};
+                            for (int j = 0; j < 3; j++)
+                                if (!json_float(p, keys[j], f[j]) || !(f[j] > 0.0f))
+                                    f[j] = 1.0f;
+                            m.nozzle_len[side].push_back(f[0]);
+                            m.nozzle_hgt[side].push_back(f[1]);
+                            m.nozzle_wid[side].push_back(f[2]);
+                        }
+                        m.fx[kind][side].push_back(v);
+                    }
+                }
+            }
+            object o;
+            if (fx["nozzleFlame"].get(o) == simdjson::SUCCESS) {
+                const char* keys[3] = {"width", "length", "height"};
+                for (int j = 0; j < 3; j++)
+                    if (!json_float(o, keys[j], m.nozzle_flame[j]) || !(m.nozzle_flame[j] > 0.0f))
+                        m.nozzle_flame[j] = 1.0f;
+                m.nozzle_flame_set = m.found = true;
+            }
+            if (fx["exhaustLight"].get(o) == simdjson::SUCCESS) {
+                const char* keys[4] = {"aim", "reach", "width", "strength"};
+                for (int j = 0; j < 4; j++)
+                    json_float(o, keys[j], m.exhaust_light[j]);
+                m.exhaust_light_set = m.found = true;
+            }
+            if (fx["gameFireStreak"].get(o) == simdjson::SUCCESS) {
+                json_float(o, "length", m.gamefire_streak[0]);
+                json_floats(o, "turn", m.gamefire_streak + 1, 3);
+                m.gamefire_streak_set = m.found = true;
+            }
+        }
+        fprintf(hook_log, "[PodEdits] loaded %s (%d mesh / node edits, %d not understood)\n", path.c_str(), n_lines, bad);
         fflush(hook_log);
     }
 
@@ -764,7 +782,7 @@ namespace {
                     text = it->second.text;
                 else if (modelid_cstr[id]) {
                     for (const std::filesystem::path& d: {pod_workspace() / L"pod_edits", std::filesystem::path(kDir)}) {
-                        std::ifstream in(d / (std::string(modelid_cstr[id]) + ".txt"), std::ios::binary);
+                        std::ifstream in(d / (std::string(modelid_cstr[id]) + ".json"), std::ios::binary);
                         if (!in)
                             continue;
                         text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
@@ -1335,7 +1353,7 @@ namespace {
     std::vector<PodAnim> g_pod_anims;
     constexpr uint32_t kTagPodd = 0x506f6464, kTagData = 0x44617461, kTagAnim = 0x416e696d;
 
-    // Spinning parts baked into an alt model ("spinnode" lines): the game runs no animations in
+    // Spinning parts baked into an alt model (spinNodes): the game runs no animations in
     // alt models, so the mod turns these pivot nodes itself, keeping their baked scale and move.
     struct SpinNode {
         swrModel_NodeTransformed* node;
@@ -1350,7 +1368,7 @@ namespace {
     };
     std::vector<SpinNode> g_spin_nodes;
 
-    // Extra exhaust trails ("trailnode" lines): copies of a stock exhaust node (partNodes[0x43] right,
+    // Extra exhaust trails (trailNodes): copies of a stock exhaust node (partNodes[0x43] right,
     // [0x44] left) sharing its children (the trail ribbon the game scales), placed at their own
     // engine-frame point the way the game places the stock one.
     struct TrailNode {
@@ -1535,8 +1553,8 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
     if (registered_spin == 0 && ((const uint32_t*) header)[-1] != kTagPodd && current_replacement_models().count(model_id)) {
         fprintf(hook_log,
                 "[PodEdits] model %d is a baked replacement but %s: any spinning parts baked into it will not turn "
-                "(Build writes the spinnode lines into pod_edits/<Pod>.txt; Mods > Pod Editor > Reload edits)\n",
-                model_id, model_edits(model_id) ? "its pod_edits file has no spinnode lines" : "no pod_edits file for it was found");
+                "(Build writes the spinNodes into pod_edits/<Pod>.json; Mods > Pod Editor > Reload edits)\n",
+                model_id, model_edits(model_id) ? "its pod_edits file has no spinNodes" : "no pod_edits file for it was found");
     }
     const uint32_t* words = (const uint32_t*) header;
     if (words[-1] != kTagPodd)// the loader skips the type tag: header points just past it

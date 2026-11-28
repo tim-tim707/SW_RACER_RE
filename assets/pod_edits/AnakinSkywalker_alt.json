@@ -1,0 +1,17 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "AnakinSkywalker_alt",
+  "layout": {
+    "cableEngine": [
+      0,
+      -0.7537,
+      0.6543
+    ],
+    "binder": [
+      0.6409,
+      0.1761,
+      -0.0559
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "FudSang_alt",
+  "layout": {
+    "cableCockpit": [
+      1.3291,
+      1.0928,
+      0.4466
+    ],
+    "cableEngine": [
+      0,
+      -5.9309,
+      2.0081
+    ],
+    "binder": [
+      2.689,
+      0.101,
+      0.0569
+    ],
+    "exhaust": [
+      0,
+      -6.8497,
+      0.4791
+    ]
+  },
+  "pod": {
+    "height": 0.5,
+    "chaseCamNear": [
+      2.5,
+      1
+    ],
+    "chaseCamFar": [
+      1,
+      0
+    ],
+    "rearCam": [
+      2.5,
+      1.5
+    ],
+    "cockpitGap": 1.25,
+    "cockpitMove": [
+      0,
+      0,
+      -0.5
+    ]
+  }
+}

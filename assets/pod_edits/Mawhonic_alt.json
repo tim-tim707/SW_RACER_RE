@@ -1,0 +1,51 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "Mawhonic_alt",
+  "layout": {
+    "cableEngine": [
+      -0.4432,
+      -2.5407,
+      0.3722
+    ],
+    "binder": [
+      1.0686,
+      0.9855,
+      -0.0157
+    ],
+    "ownCables": [
+      {
+        "cable": 1,
+        "cockpit": [
+          1,
+          2.16,
+          -0.26
+        ],
+        "engine": [
+          0.0031,
+          -2.556,
+          0.6138
+        ]
+      },
+      {
+        "cable": 2,
+        "cockpit": [
+          -1,
+          2.16,
+          -0.26
+        ],
+        "engine": [
+          -0.0031,
+          -2.556,
+          0.6138
+        ]
+      }
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      -1.5,
+      0
+    ]
+  }
+}

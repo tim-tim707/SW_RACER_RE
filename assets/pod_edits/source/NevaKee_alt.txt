@@ -1,8 +1,0 @@
-# SW_RACER_RE pod edits for NevaKee_alt (made with tools/pod_editor/pod_editor.html)
-# Put this file in <game>/assets/pod_edits/NevaKee_alt.txt
-# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
-basemodel 29 48c.9120-6e6416c6
-basemodel 30 48c.9160-e6c22225
-# the whole pod (visual / camera only): height offset, cameras (further, higher), engine / cockpit spacing
-chasecam near 1 0
-rearcam -7 0

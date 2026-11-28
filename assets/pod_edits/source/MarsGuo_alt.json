@@ -1,0 +1,99 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "MarsGuo_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "16": "594.b228-fbfa1e8f",
+    "18": "758.eab0-01aa5aa9",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "cableEngine": [
+      -2.6134,
+      -3.5907,
+      0.1634
+    ],
+    "binder": [
+      2.1589,
+      0,
+      0.1392
+    ],
+    "exhaust": [
+      0,
+      -3.8042,
+      0.0849
+    ],
+    "ownCables": [
+      {
+        "cable": 1,
+        "cockpit": [
+          1.26,
+          3.06,
+          -0.74
+        ],
+        "engine": [
+          -2.6448,
+          -3.5176,
+          0.1612
+        ]
+      },
+      {
+        "cable": 2,
+        "cockpit": [
+          -1.26,
+          3.06,
+          -0.74
+        ],
+        "engine": [
+          2.6448,
+          -3.5176,
+          0.1612
+        ]
+      }
+    ]
+  },
+  "pod": {
+    "height": 0.5,
+    "rearCam": [
+      -2.5,
+      0.5
+    ],
+    "engineGap": 1.1,
+    "cockpitMove": [
+      0,
+      0,
+      -0.5
+    ]
+  },
+  "effects": {
+    "nozzles": {
+      "R": [
+        {
+          "pos": [
+            0.0018,
+            -3.9246,
+            0.0988
+          ],
+          "size": 0.2948,
+          "length": 1,
+          "height": 1,
+          "width": 5
+        }
+      ],
+      "L": [
+        {
+          "pos": [
+            -0.0018,
+            -3.9246,
+            0.0988
+          ],
+          "size": 0.2948,
+          "length": 1,
+          "height": 1,
+          "width": 5
+        }
+      ]
+    }
+  }
+}

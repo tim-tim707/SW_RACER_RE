@@ -1868,7 +1868,7 @@ void pod_fx_gather_lights(std::vector<SceneLight>& out) {
         const float L = pod_length(r);
 
         // Exhaust: a warm spotlight aimed backward from every nozzle while moving. The pod editor's
-        // "exhaustlight" edit sets where it lands (aim, pod lengths) and scales its reach / cone / power.
+        // effects.exhaustLight edit sets where it lands (aim, pod lengths) and scales its reach / cone / power.
         float xl[4] = {0.7f, 1.0f, 1.0f, 1.0f};
         pod_edits_exhaust_light(pilot_of(r), xl);
         const float ex = fx.throttle * fx.accel * s.exhaust_light * std::max(xl[3], 0.0f);

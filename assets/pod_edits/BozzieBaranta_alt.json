@@ -1,0 +1,50 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "BozzieBaranta_alt",
+  "pod": {
+    "chaseCamNear": [
+      2.5,
+      0
+    ],
+    "chaseCamFar": [
+      -2.5,
+      0
+    ],
+    "cockpitMove": [
+      0,
+      -2.4805,
+      0
+    ]
+  },
+  "layout": {
+    "ownCables": [
+      {
+        "cable": 1,
+        "cockpit": [
+          0.78,
+          1.98,
+          -0.6
+        ],
+        "engine": [
+          0,
+          -3.1515,
+          0.9773
+        ]
+      },
+      {
+        "cable": 2,
+        "cockpit": [
+          -0.78,
+          1.98,
+          -0.6
+        ],
+        "engine": [
+          0,
+          -3.1515,
+          0.9773
+        ]
+      }
+    ]
+  }
+}

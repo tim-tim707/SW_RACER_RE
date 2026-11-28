@@ -105,6 +105,32 @@ int __stdcall WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLin
 }
 ```
 
+### Pod editor
+`tools/pod_editor/pod_editor.html` edits a pod's model and layout for the mod: spinning and hidden parts, cable /
+binder ends, pod spacing and cameras, and engine effect points (nozzle flames, fire, dust). Open it in Chrome or Edge.
+
+1. In game: Mods > Pod Editor > "Export my pod" during a race. The mod writes the pod's meshes, textures and base
+   models to `assets/pod_edits/export/<Pod>.json` (and to the workspace's `export` folder).
+2. Open that export in the editor, make the edits, then "Build & install" and pick the workspace folder below.
+3. In game: Mods > Pod Editor > "Reload edits", then restart the race to load a rebuilt model.
+
+The mod makes a workspace on the Desktop, `SWEP1R Pod Editor` (browsers can't write into Program Files), and reads
+from it before the game folder's `assets`:
+
+| Path | What |
+|---|---|
+| `out_modelblock.bin` | a copy of the game's stock model block (`data/lev01`), the bake's input |
+| `replacement_models/<id>.bin` | baked pod models (spinning parts, extra cables / trails), each carrying its pod's in-game edits |
+| `replacement_models/<id>.hash` | the fingerprint of the base model a `.bin` was built from (the mod skips a `.bin` built on other game data) |
+| `pod_edits/<Pod>.json` | the in-game edits (hides, cables, binder, effects, cameras) |
+| `pod_edits/source/<Pod>.json` | the full edits, to reopen in the editor |
+| `export/` | the pod exports |
+
+Delete a file there to undo it. Edits files are JSON documents (`"format": "swr-pod-edits"`), described in
+`tools/pod_editor/bake.js` ("edits documents"); the editor still opens edits saved in the older text format.
+`tools/pod_editor/bake_pod_edits.py` bakes the spin groups from the command line
+(`uv run tools/pod_editor/bake_pod_edits.py <game or workspace folder> <edits .json>`).
+
 ## Miscellaneous
 The freshly installed GOG version of the game (`SWEP1RCR.EXE`) has the following md5: e1fcf50c8de2dbef70e6ad8e09371322
 Other versions are not yet tested

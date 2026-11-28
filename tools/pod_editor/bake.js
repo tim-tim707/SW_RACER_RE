@@ -1,12 +1,12 @@
 // Bake pod editor edits into the game's own model format -- the in-browser twin of
 // bake_pod_edits.py (same algorithm, same output; see that file's notes for the details).
 //
-//   bakePod(blockBytes, editsText, exportKeys) -> { models: [{ modelId, bytes, keyShift, triRemap }], resolved, log }
+//   bakePod(blockBytes, edits, exportKeys) -> { models: [{ modelId, bytes, keyShift, triRemap }], resolved, log }
 //   resolveKeys(blockBytes, keys, exportKeys) -> Map(key -> { model, off })
 //
 // blockBytes: <game>/data/lev01/out_modelblock.bin (Uint8Array)
-// editsText:  an edits file from pod_editor.html (spin lines, "cables extra"; hide / cable /
-//             cable2 / binder lines are runtime edits and are left to the mod)
+// edits:      an edits document from pod_editor.html (its spin groups, extra cables and trails are
+//             baked; hides, cables, binder, effects are runtime edits and are left to the mod)
 // exportKeys: every mesh key of the pod's export (finds its models; resolves older keys)
 //
 // Mesh keys: "<model>:<hex offset>" (offset in that model's file data; current exports) or a plain hex
@@ -301,61 +301,179 @@ function readBlockEntry(block, id) {
   return [block.subarray(maskOff, modelOff), block.subarray(modelOff, end)];
 }
 
-// Spin lines grouped like the script: one group per (rpm, pivot, axis, offset, scale, cut).
-function parseEdits(text) {
-  const groups = new Map(), notes = [], hideKeys = [], trails = [];
-  let extraCables = false;
+// ---- edits documents ----------------------------------------------------------------------------
+// A pod's edits are one JSON document (the pod editor writes it; the mod, bake.js and
+// bake_pod_edits.py read it). "format" / "version" identify it; every other field is optional:
+//   model            the pod model the edits are named after (e.g. "AldarBeedo_alt")
+//   rpmSense         "mesh": spin rpm about the axis in each mesh's own frame (always, from version 2)
+//   baseModels       { "<model id>": "<fingerprint>" }: the base models the edits were made on
+//   groups           [{ name, type: "spin" | "hide", lines: [...], signatures: [...] }]
+//     hide line      { mesh: "<model>:<file offset hex>", faces: [[first, last], ...] }
+//     spin line      { mesh, faces, rpm, pivot: [3], axis: [3] (mesh frame) } and, optionally,
+//                    offset: [3], scale, ellipse: { u: [3], rx, ry }, rot: [3] (degrees), rotm: [9],
+//                    stretch: [3], mirror: { linear: [9], move: [3] }, reshape: true,
+//                    piece: { merged, move: [3] }
+//     signature      { mesh, meshHash, faces: { "<face>": "<hash>" } }: the faces' shapes, to find
+//                    them again in another version of the model
+//   layout           { cableCockpit, cableEngine, binder, exhaust, exhaustScale: [3],
+//                      ownCables: [{ cable: 1..4, cockpit: [3], engine: [3] }],
+//                      extraCables: { cockpit: [3], engine: [3] } }
+//   pod              { height, engineGap, cockpitGap, cockpitMove: [3], chaseCamNear: [2],
+//                      chaseCamFar: [2], rearCam: [2] }
+//   effects          { nozzles: { R: [{ pos: [3], size, length, height, width }], L: [...] },
+//                      fireSpots / dustSpots / gameFire: { R: [{ pos: [3] }], L: [...] },
+//                      trails: { R: [{ pos: [3], scale: [3] }], L: [...] },
+//                      nozzleFlame: { width, length, height },
+//                      exhaustLight: { aim, reach, width, strength },
+//                      gameFireStreak: { length, turn: [3] } }
+//   spinNodes        [{ node: "<model>:<offset hex>", rpm, axis: [3] }]   (written by Build)
+//   trailNodes       [{ node, side: "R" | "L", pos: [3], scale: [3] }]   (written by Build)
+const EDITS_FORMAT = 'swr-pod-edits', EDITS_VERSION = 2;
+function newEdits(model = '') { return { format: EDITS_FORMAT, version: EDITS_VERSION, model }; }
+// "0-5,9" <-> [[0, 5], [9, 9]]
+const facesFromRanges = s => (s || '').split(',').filter(Boolean).map(r => { const [a, b] = r.split('-').map(Number); return [a, Number.isNaN(b) || b === undefined ? a : b]; });
+function faceSet(list) { const out = new Set(); for (const [a, b] of list || []) for (let t = a; t <= b; t++) out.add(t); return out; }
+function faceList(set) {
+  const s = [...set].sort((a, b) => a - b), out = [];
+  for (const t of s) { const last = out[out.length - 1]; if (last && t === last[1] + 1) last[1] = t; else out.push([t, t]); }
+  return out;
+}
+// An edits document from JSON text, checked for its format.
+function parseEditsJson(text) {
+  const doc = JSON.parse(text);
+  if (!doc || doc.format !== EDITS_FORMAT) throw new BakeError('Not a pod edits file (no "format": "' + EDITS_FORMAT + '").');
+  if ((doc.version || 0) > EDITS_VERSION) throw new BakeError(`These edits are version ${doc.version}; this editor reads up to ${EDITS_VERSION}.`);
+  return doc;
+}
+// Edits from the text format the editor used before (one line per edit): read once, kept as JSON.
+function editsFromText(text, model = '') {
+  const doc = newEdits(model), nums = (t, a, n) => t.slice(a, a + n).map(Number);
+  const ok = v => v.length > 0 && v.every(Number.isFinite);
+  let group = null, n = 0;
+  doc.groups = [];
+  const groupOf = type => {
+    if (!group || group.type !== type) { doc.groups.push(group = { name: (type === 'spin' ? 'Spin ' : 'Hide ') + (n + 1), type, lines: [], signatures: [] }); n++; }
+    return group;
+  };
+  const layout = () => (doc.layout = doc.layout || {}), pod = () => (doc.pod = doc.pod || {}), fx = () => (doc.effects = doc.effects || {});
+  const sides = k => (fx()[k] = fx()[k] || { R: [], L: [] });
   for (const raw of text.split(/\r?\n/)) {
-    const line = raw.split('#', 1)[0].trim().split(/\s+/).filter(Boolean);
-    if (!line.length) continue;
-    if (line[0] === 'spin') {
-      // Placement (a part moved / turned / mirrored without spinning): "rot <deg x3>" (the editor's own,
-      // ignored here), "rotm <9 numbers>" (the rotation as a row-vector matrix, mesh frame) and
-      // "mirror <9 numbers + 3>" (a mirrored copy: linear part and move, mesh frame).
-      const take = (kw, n) => { const i = line.indexOf(kw); if (i < 0) return null; const v = line.slice(i + 1, i + 1 + n).map(Number); line.splice(i, 1 + n); return v.length === n && v.every(Number.isFinite) ? v : null; };
-      take('rot', 3);
-      const rotm = take('rotm', 9), mirror = take('mirror', 12);
-      take('stretch', 3);// (the editor's own: it is already in rotm)
-      const reshape = take('reshape', 0) !== null;// bend the mesh itself instead of adding a part
-      // A spin group piece's faces: "piece" / "pre" <dx dy dz> (mesh frame) after the other fields --
-      // moved by that much before the group spins.
-      let pre = null;
-      const pi = line.findIndex(x => x === 'piece' || x === 'pre');
-      if (pi >= 0) { pre = line.slice(pi + 1, pi + 4).map(Number); line.length = pi; if (!pre.every(Number.isFinite) || !pre.some(Boolean)) pre = null; }
-      const key = line[1].toLowerCase(), rpm = +line[2];
-      const pivot = line.slice(3, 6).map(Number), axis = line.slice(6, 9).map(Number);
-      const offset = line.length >= 13 && line[10] !== 'ellipse' ? line.slice(10, 13).map(Number) : [0, 0, 0];
-      const scale = line.length >= 14 && line[13] !== 'ellipse' ? +line[13] : 1;
-      const ei = line.indexOf('ellipse');
-      const cut = ei >= 0 ? line.slice(ei + 1, ei + 6).map(Number) : null;
-      const tris = new Set();
-      for (const r of line[9].split(',')) { const [a, b] = r.split('-').map(Number); for (let t = a; t <= (isNaN(b) ? a : b); t++) tris.add(t); }
-      const gk = JSON.stringify([rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape]);
-      if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape, meshes: new Map(), pre: new Map() });
-      const g = groups.get(gk);
-      // One group can have several lines for a mesh (its pieces): their faces add up.
-      if (g.meshes.has(key)) for (const t of tris) g.meshes.get(key).add(t); else g.meshes.set(key, tris);
-      if (pre) {
-        if (!g.pre.has(key)) g.pre.set(key, new Map());
-        for (const t of tris) g.pre.get(key).set(t, pre);
-      }
-    } else if (line[0] === 'hide') { hideKeys.push(line[1].toLowerCase()); notes.push(`hide line for mesh ${line[1]} stays an in-game edit`); }
-    else if (line[0] === 'cables' && line[1] === 'extra') extraCables = true;
-    else if (line[0] === 'trail' && (line[1] === 'R' || line[1] === 'L')) {
-      const pos = line.slice(2, 5).map(Number), sc = line.slice(5, 8).map(Number);
-      const scale = sc.length === 3 && sc.every(Number.isFinite) ? sc : [1, 1, 1];// optional
-      if (pos.length === 3 && pos.every(Number.isFinite)) trails.push({ side: line[1], pos, scale });
+    const line = raw.trim();
+    if (line.startsWith('#')) {
+      const m = line.match(/^#\s*(spin|hide):\s*(.*)$/);
+      if (m) { doc.groups.push(group = { name: m[2], type: m[1], lines: [], signatures: [] }); n++; }
+      if (/^#\s*rpm-sense:\s*mesh/.test(line)) doc.rpmSense = 'mesh';
+      continue;
+    }
+    const t = line.split('#', 1)[0].trim().split(/\s+/).filter(Boolean);
+    if (!t.length) continue;
+    const c = t[0], v3 = a => nums(t, a, 3);
+    if (c === 'basemodel' && t.length >= 3) (doc.baseModels = doc.baseModels || {})[t[1]] = t[2];
+    else if (c === 'facesig' && t.length >= 4) {
+      const faces = {};
+      for (const pr of t[3].split(',')) { const [i, h] = pr.split(':'); if (h !== undefined) faces[i] = h; }
+      groupOf(group ? group.type : 'spin').signatures.push({ mesh: t[1].toLowerCase(), meshHash: t[2], faces });
+    } else if (c === 'hide' && t.length >= 3) groupOf('hide').lines.push({ mesh: t[1].toLowerCase(), faces: facesFromRanges(t[2]) });
+    else if (c === 'spin' && t.length >= 10) {
+      const take = (kw, k) => { const i = t.indexOf(kw); if (i < 0) return null; const v = nums(t, i + 1, k); t.splice(i, 1 + k); return v.length === k && v.every(Number.isFinite) ? v : null; };
+      const rot = take('rot', 3), rotm = take('rotm', 9), stretch = take('stretch', 3), mirror = take('mirror', 12);
+      const reshape = take('reshape', 0) !== null;
+      let piece = null;
+      const pi = t.findIndex(x => x === 'piece' || x === 'pre');
+      if (pi >= 0) { piece = { merged: t[pi] === 'pre', move: nums(t, pi + 1, 3) }; t.length = pi; }
+      const sl = { mesh: t[1].toLowerCase(), faces: facesFromRanges(t[9]), rpm: +t[2], pivot: v3(3), axis: v3(6) };
+      const ei = t.indexOf('ellipse');
+      if (t.length >= 13 && ei !== 10) sl.offset = v3(10);
+      if (t.length >= 14 && ei !== 13 && ei !== 10) sl.scale = +t[13];
+      if (ei >= 0) sl.ellipse = { u: v3(ei + 1), rx: +t[ei + 4], ry: +t[ei + 5] };
+      if (rot) sl.rot = rot;
+      if (rotm) sl.rotm = rotm;
+      if (stretch) sl.stretch = stretch;
+      if (mirror) sl.mirror = { linear: mirror.slice(0, 9), move: mirror.slice(9) };
+      if (reshape) sl.reshape = true;
+      if (piece) sl.piece = piece;
+      groupOf('spin').lines.push(sl);
+    } else if ((c === 'cable' && (t[1] === 'cockpit' || t[1] === 'engine')) || c === 'binder' || c === 'exhaust') {
+      const v = c === 'cable' ? v3(2) : v3(1);
+      if (ok(v)) layout()[c === 'cable' ? (t[1] === 'cockpit' ? 'cableCockpit' : 'cableEngine') : c] = v;
+    } else if (c === 'exhaustscale' && ok(v3(1))) layout().exhaustScale = v3(1);
+    else if (c === 'cables' && t[1] === 'extra') layout().extraCables = layout().extraCables || {};
+    else if (c === 'cable2' && (t[1] === 'cockpit' || t[1] === 'engine')) (layout().extraCables = layout().extraCables || {})[t[1]] = v3(2);
+    else if (/^(own)?cable[1-4]$/.test(c) && (t[1] === 'cockpit' || t[1] === 'engine') && ok(v3(2))) {
+      const list = (layout().ownCables = layout().ownCables || []), cable = +c.slice(-1);
+      let o = list.find(x => x.cable === cable);
+      if (!o) list.push(o = { cable });
+      o[t[1]] = v3(2);
+    } else if (c === 'podheight') pod().height = +t[1];
+    else if (c === 'enginegap') pod().engineGap = +t[1];
+    else if (c === 'cockpitgap') pod().cockpitGap = +t[1];
+    else if (c === 'cockpitmove') pod().cockpitMove = v3(1);
+    else if (c === 'rearcam') pod().rearCam = nums(t, 1, 2);
+    else if (c === 'chasecam' && (t[1] === 'near' || t[1] === 'far')) pod()[t[1] === 'near' ? 'chaseCamNear' : 'chaseCamFar'] = nums(t, 2, 2);
+    else if ((c === 'nozzle' || c === 'firespot' || c === 'dustspot' || c === 'gamefire' || c === 'trail') && (t[1] === 'R' || t[1] === 'L')) {
+      const pos = v3(2);
+      if (!ok(pos) || pos.length < 3) continue;
+      if (c === 'nozzle') {
+        const v = nums(t, 5, 4), f = x => (x > 0 ? x : 1);
+        sides('nozzles')[t[1]].push({ pos, size: Number.isFinite(v[0]) ? v[0] : 0, length: f(v[1]), height: f(v[2]), width: f(v[3]) });
+      } else if (c === 'trail') {
+        const sc = nums(t, 5, 3);
+        sides('trails')[t[1]].push({ pos, scale: sc.length === 3 && sc.every(Number.isFinite) ? sc : [1, 1, 1] });
+      } else sides({ firespot: 'fireSpots', dustspot: 'dustSpots', gamefire: 'gameFire' }[c])[t[1]].push({ pos });
+    } else if (c === 'nozzleflame') { const v = nums(t, 1, 3); fx().nozzleFlame = { width: v[0], length: v[1], height: Number.isFinite(v[2]) ? v[2] : 1 }; }
+    else if (c === 'exhaustlight') { const v = nums(t, 1, 4); fx().exhaustLight = { aim: v[0], reach: v[1], width: v[2], strength: v[3] }; }
+    else if (c === 'gamefirestreak') { const v = nums(t, 1, 4); fx().gameFireStreak = { length: v[0], turn: v.slice(1) }; }
+    else if (c === 'spinnode' && t.length >= 6) (doc.spinNodes = doc.spinNodes || []).push({ node: t[1].toLowerCase(), rpm: +t[2], axis: v3(3) });
+    else if (c === 'trailnode' && t.length >= 6) {
+      const sc = nums(t, 6, 3);
+      (doc.trailNodes = doc.trailNodes || []).push({ node: t[1].toLowerCase(), side: t[2], pos: v3(3), scale: sc.length === 3 ? sc : [1, 1, 1] });
+    }
+    // (cablestiff / cableout / cablerot / "owncable<N> rot": settings of the removed stiff cables)
+  }
+  if (!doc.rpmSense && doc.groups.some(g => g.type === 'spin' && g.lines.length)) doc.rpmSense = 'pod';// older: the editor's own rpm
+  doc.groups = doc.groups.filter(g => g.lines.length || g.signatures.length);
+  if (!doc.groups.length) delete doc.groups;
+  return doc;
+}
+// An edits document from either kind of file: JSON, or the older text format.
+function editsFromFileText(text, model = '') { return /^\s*\{/.test(text) ? parseEditsJson(text) : editsFromText(text, model); }
+
+// What Build bakes from the edits: the spin groups' lines merged by their motion (one group in the
+// model per distinct motion), the hidden meshes, the extra cable pair and the extra trails.
+function parseEdits(doc) {
+  const groups = new Map(), notes = [], hideKeys = [], trails = [];
+  for (const gr of doc.groups || []) for (const ln of gr.lines || []) {
+    const key = String(ln.mesh).toLowerCase();
+    if (gr.type === 'hide') { hideKeys.push(key); notes.push(`hide line for mesh ${ln.mesh} stays an in-game edit`); continue; }
+    if (gr.type !== 'spin') continue;
+    const rpm = +ln.rpm, pivot = ln.pivot, axis = ln.axis, offset = ln.offset || [0, 0, 0], scale = ln.scale ?? 1;
+    const cut = ln.ellipse ? [...ln.ellipse.u, ln.ellipse.rx, ln.ellipse.ry] : null;
+    const rotm = ln.rotm || null, mirror = ln.mirror ? [...ln.mirror.linear, ...ln.mirror.move] : null, reshape = !!ln.reshape;
+    const tris = faceSet(ln.faces);
+    const gk = JSON.stringify([rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape]);
+    if (!groups.has(gk)) groups.set(gk, { rpm, pivot, axis, offset, scale, cut, rotm, mirror, reshape, meshes: new Map(), pre: new Map() });
+    const g = groups.get(gk);
+    // One group can have several lines for a mesh (its pieces): their faces add up.
+    if (g.meshes.has(key)) for (const t of tris) g.meshes.get(key).add(t); else g.meshes.set(key, tris);
+    // A piece's faces are moved by its move (mesh frame) before the group spins.
+    const pre = ln.piece && ln.piece.move && ln.piece.move.some(Boolean) ? ln.piece.move : null;
+    if (pre) {
+      if (!g.pre.has(key)) g.pre.set(key, new Map());
+      for (const t of tris) g.pre.get(key).set(t, pre);
     }
   }
-  return { groups: [...groups.values()], notes, hideKeys, extraCables, trails };
+  for (const side of ['R', 'L'])
+    for (const p of (doc.effects && doc.effects.trails && doc.effects.trails[side]) || [])
+      if (p.pos && p.pos.length === 3 && p.pos.every(Number.isFinite)) trails.push({ side, pos: p.pos, scale: p.scale || [1, 1, 1] });
+  return { groups: [...groups.values()], notes, hideKeys, extraCables: !!(doc.layout && doc.layout.extraCables), trails };
 }
 
-// "cables extra": copies of cable nodes 10 / 11 in part slots 12 / 13 (2-engine pods), sharing the
+// Extra cables (layout.extraCables): copies of cable nodes 10 / 11 in part slots 12 / 13 (2-engine pods), sharing the
 // cable meshes, hung next to the originals; the mod places them (see bake_pod_edits.py).
 const CABLE_SLOTS = [[10, 12], [11, 13]];
-// "trail R|L x y z": an extra exhaust trail -- a copy of that side's stock exhaust node (part slot
+// An extra exhaust trail (effects.trails) -- a copy of that side's stock exhaust node (part slot
 // 0x43 right, 0x44 left) next to it, sharing its children (the trail ribbon the game scales); the mod
-// places each copy at its point ("trailnode" lines). Returns [{ node, side, pos }].
+// places each copy at its point (the edits' trailNodes). Returns [{ node, side, pos }].
 function addTrails(m, trails, log) {
   const roots = m.header().roots, out = [];
   for (const t of trails) {
@@ -417,7 +535,7 @@ function addExtraCables(m, log) {
 // ---- edits carried in a model ----------------------------------------------------------------
 // Build appends the pod's in-game edits (cables, binder, exhaust, engine effects, cameras, the
 // spinning / trail nodes the mod drives) to the end of the model data it writes:
-//   <text> <zero padding> <u32 text length, little-endian> "SWRPEDT1"
+//   <edits JSON> <zero padding> <u32 text length, little-endian> "SWRPEDT1"
 // padded so the whole trailer is a multiple of 8 bytes. No mask bits cover it, so the game loads it
 // untouched and the mod reads it back (pod_edits_note_model): the .bin carries its own edits.
 const EMBED_MAGIC = [0x53, 0x57, 0x52, 0x50, 0x45, 0x44, 0x54, 0x31];// 'SWRPEDT1'
@@ -472,9 +590,9 @@ function rawmFromBlock(block, id) {
 
 // The spinning parts a model already has: its axis-angle animations (a pod model's own spinning
 // parts and earlier bakes) and, for an alt model (whose animations never run), the nodes its carried
-// edits list as "spinnode" lines (the mod turns those). Each: { node, pivot (the node's own frame:
+// edits (an edits document) list as spinNodes (the mod turns those). Each: { node, pivot (the node's own frame:
 // the axis goes through it), axis, rpm, meshes (file offsets) }.
-function bakedSpins(block, id, text) {
+function bakedSpins(block, id, carried) {
   const [mask, raw] = readBlockEntry(block, id);
   if (raw.length < 8) return [];
   const m = new Model(mask, stripEmbedded(raw)), out = [];
@@ -507,14 +625,12 @@ function bakedSpins(block, id, text) {
         out.push({ node, pivot: pivotOf(node), axis, rpm: turn / 360 * 60 / period, meshes: meshesUnder(node) });
       }
   } catch { /* not a readable model */ }
-  for (const line of (text || '').split(/\r?\n/)) {
-    const t = line.trim().split(/\s+/);
-    if (t[0] !== 'spinnode' || !t[1]) continue;
-    const [mid, off] = t[1].split(':');
+  for (const sn of (carried && carried.spinNodes) || []) {
+    const [mid, off] = String(sn.node).split(':');
     if (+mid !== id) continue;
     const node = parseInt(off, 16);
     if (!(node > 0) || node + PIVOT_NODE_SIZE > m.len) continue;
-    out.push({ node, pivot: pivotOf(node), axis: t.slice(3, 6).map(Number), rpm: +t[2], meshes: meshesUnder(node), mod: true });
+    out.push({ node, pivot: pivotOf(node), axis: sn.axis, rpm: +sn.rpm, meshes: meshesUnder(node), mod: true });
   }
   return out;
 }
@@ -601,13 +717,14 @@ function podModels(block, exportKeys) {
 }
 
 // ---- bake -----------------------------------------------------------------------------------
-function bakePod(block, editsText, exportKeys = []) {
+// edits: an edits document (see "edits documents").
+function bakePod(block, edits, exportKeys = []) {
   const log = [];
-  const { groups: allGroups, notes, hideKeys, extraCables, trails } = parseEdits(editsText);
+  const { groups: allGroups, notes, hideKeys, extraCables, trails } = parseEdits(edits);
   const spinGroups = allGroups.filter(g => !g.reshape), reshapeGroups = allGroups.filter(g => g.reshape);
   log.push(...notes);
   if (!allGroups.length && !extraCables && !trails.length)
-    throw new BakeError('Nothing to bake: no spin groups, reshapes, extra cables or extra trails (cable, binder and hide edits are applied in game from the .txt).');
+    throw new BakeError('Nothing to bake: no spin groups, reshapes, extra cables or extra trails (cable, binder and hide edits are applied in game from the edits file).');
   const keys = [...new Set([...allGroups.flatMap(g => [...g.meshes.keys()]), ...hideKeys])];
   const resolved = resolveKeys(block, keys, exportKeys);
   const missing = keys.filter(k => !resolved.has(k));
@@ -754,7 +871,7 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], reshapes =
   // 1) Room in the header's 'Anim' list for the new animations. Not in an alt model ('MAlt'): the
   // game merges its AltN parts into the pod model only when AltN follows the part slots directly
   // (swrModel_FixupAltNodePointers), and never runs an alt model's animations anyway -- its spinning
-  // nodes are listed instead ("spinnode" lines) and the mod turns them.
+  // nodes are listed instead (spinNodes) and the mod turns them.
   const isAlt = m.tag(0) === 'MAlt', spinNodes = [];
   const h = m.header();
   let animSlots = [];
@@ -941,5 +1058,7 @@ function bakeModel(m, mid, spinGroups, extraCables, log, trails = [], reshapes =
 
 (typeof window !== 'undefined' ? window : globalThis).PodBake = { bakePod, resolveKeys, podModels, BakeError, Model, readBlockEntry,
                                                                  fingerprint, blockFromBase, exportMismatch, embeddedText,
-                                                                 stripEmbedded, rawmWithEdits, rawmFromBlock, bakedSpins, podIndex };
+                                                                 stripEmbedded, rawmWithEdits, rawmFromBlock, bakedSpins, podIndex,
+                                                                 EDITS_FORMAT, EDITS_VERSION, newEdits, parseEditsJson, editsFromText,
+                                                                 editsFromFileText, parseEdits, faceSet, faceList, facesFromRanges };
 })();

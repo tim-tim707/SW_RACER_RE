@@ -1,6 +1,0 @@
-# SW_RACER_RE pod edits for TeemtoPagalies_alt (made with tools/pod_editor/pod_editor.html)
-# Put this file in <game>/assets/pod_edits/TeemtoPagalies_alt.txt
-# rpm-sense: mesh (spin rpm about the axis in each mesh's own frame)
-basemodel 3 754.ea38-b5ce9a69
-basemodel 4 910.121e8-a9e54d15
-basemodel 146 80.f94-a0340a82

@@ -1,0 +1,16 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "ToyDampner_alt",
+  "spinNodes": [
+    {
+      "node": "43:9f40",
+      "rpm": -240,
+      "axis": [
+        0,
+        -1,
+        0
+      ]
+    }
+  ]
+}

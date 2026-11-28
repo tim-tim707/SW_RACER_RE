@@ -1,0 +1,20 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "NevaKee_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "29": "48c.9120-6e6416c6",
+    "30": "48c.9160-e6c22225"
+  },
+  "pod": {
+    "chaseCamNear": [
+      1,
+      0
+    ],
+    "rearCam": [
+      -7,
+      0
+    ]
+  }
+}

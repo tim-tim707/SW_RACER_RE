@@ -1,0 +1,23 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "DudBolt_alt",
+  "layout": {
+    "cableEngine": [
+      -1.1852,
+      -1.2722,
+      0.1724
+    ],
+    "binder": [
+      1.6561,
+      -0.4957,
+      -0.1114
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      1.5,
+      1
+    ]
+  }
+}

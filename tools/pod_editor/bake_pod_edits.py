@@ -1,7 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "pydantic>=2",
+# ]
+# ///
 """Bake pod editor spin groups into the game's own model format.
 
-Takes an edits file saved by pod_editor.html (<Pod>.txt) and writes a modified copy of the pod's
+Takes an edits file saved by pod_editor.html (<Pod>.json) and writes a modified copy of the pod's
 model as a per-model replacement the mod loads instead of the stock one:
 
     <game>/assets/replacement_models/<model id>.bin      (RAWM: mask + model, see model_replacement.h)
@@ -15,7 +21,7 @@ pivot, so the part turns about the editor's pivot / axis at the editor's RPM. A 
 is shrunk / grown about its pivot and moved, then spins in place (the game's axis-angle update keeps
 a node's scale and translation when it rebuilds the rotation).
 
-A group's ellipse cut ("ellipse ux uy uz rx ry" on its spin lines, mesh frame) splits the selected
+A group's ellipse cut (its spin lines' "ellipse": { u, rx, ry }, mesh frame) splits the selected
 meshes along an ellipse in the plane across the spin axis through the pivot (e.g. an intake face:
 only the fan in the middle spins, the rim around it stays put). Every triangle is split exactly
 along a 48-sided ellipse (positions, texture coordinates and colours / normals blended along the
@@ -26,14 +32,14 @@ becomes a copy of the mesh in a static mesh group next to the spinning node:
 The animation is written switched off: the racer-select preview would otherwise spin it too. The
 mod switches baked pod animations on only during races (pod_edits_animations_frame).
 
-"cables extra" gives a 2-engine pod a second pair of cockpit -> engine cables: copies of its cable
+layout.extraCables gives a 2-engine pod a second pair of cockpit -> engine cables: copies of its cable
 nodes (part slots 10 / 11) in the 4-engine pods' cable slots 12 / 13, sharing the cable meshes and
 added next to the originals in the model tree. The game would aim those at the (missing) second
-engine pair, so the mod places them at the right / left engines from the edit file's "cable2"
-lines (swrRace_delta.cpp).
+engine pair, so the mod places them at the right / left engines from the edits file's
+layout.extraCables ends (swrRace_delta.cpp).
 
 Usage:
-    python bake_pod_edits.py <game folder | Desktop/SWEP1R Pod Editor> <edits .txt> [--export <pod .json>]
+    uv run bake_pod_edits.py <game folder | Desktop/SWEP1R Pod Editor> <edits .json> [--export <pod .json>]
                              [--out <folder>] [--dry-run]
 Writes <model id>.bin for each model the edits touch (a pod is drawn from two models, its "alt" model
 and its pod model) to --out, or the folder's replacement_models (assets\replacement_models for a game
@@ -52,10 +58,14 @@ plain hex offset (older exports: the in-memory offset, off the file offset by th
 at load time -- worked out per model from the keys, like pod_editor.html / bake.js).
 """
 import argparse
+import json
 import math
 import os
 import struct
 import sys
+from typing import Dict, List, Literal, Optional, Tuple
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 NODE_MESH_GROUP = 0x3064
@@ -450,7 +460,7 @@ def clone_next_to(m, src, roots):
 
 def add_trails(m, trails):
     """Extra exhaust trails: a copy of that side's stock exhaust node (part slot 0x43 right, 0x44
-    left) per trail, sharing its trail; the mod places them ("trailnode" lines)."""
+    left) per trail, sharing its trail; the mod places them (the edits' trailNodes)."""
     roots = m.header()['roots']
     out = []
     for side, pos, scale in trails:
@@ -468,11 +478,11 @@ def add_extra_cables(m):
     h = m.header()
     roots = h['roots']
     if m.ptr(roots[3]) or m.ptr(roots[4]):
-        sys.exit('"cables extra": this pod already has four engines (and their cables)')
+        sys.exit('extra cables: this pod already has four engines (and their cables)')
     for src_slot, dst_slot in CABLE_SLOTS:
         src = m.ptr(roots[src_slot])
         if not src:
-            sys.exit(f'"cables extra": this pod has no cable in part slot {src_slot} to copy')
+            sys.exit(f'extra cables: this pod has no cable in part slot {src_slot} to copy')
         if m.ptr(roots[dst_slot]):
             print(f'  part slot {dst_slot} already holds a cable: kept')
             continue
@@ -517,7 +527,7 @@ def strip_embedded(data):
 
 def fingerprint(mask, data):
     """A short fingerprint of a model's mask + data ("<mask bytes>.<data bytes>-<FNV-1a 32>", hex), the
-    same as bake.js and the mod compute. A baked model is stamped with its base model's (<id>.base),
+    same as bake.js and the mod compute. A baked model is stamped with its base model's (<id>.hash),
     so the mod can tell when a model built on other game data doesn't fit this game."""
     h = 2166136261
     for b in bytes(mask) + bytes(data):
@@ -530,54 +540,235 @@ def read_block_entry(block, model_id):
     return block[mask_off:model_off], block[model_off:end]
 
 
+Vec2 = Tuple[float, float]
+Vec3 = Tuple[float, float, float]
+
+
+class EditsModel(BaseModel):
+    # Unknown fields are kept out of the way rather than refused: newer editors may add some.
+    model_config = ConfigDict(extra='ignore')
+
+
+class Ellipse(EditsModel):
+    u: Vec3  # the ellipse's first axis (mesh frame)
+    rx: float
+    ry: float
+
+
+class Mirror(EditsModel):
+    linear: Tuple[float, float, float, float, float, float, float, float, float]
+    move: Vec3
+
+
+class Piece(EditsModel):
+    merged: bool = False
+    move: Vec3 = (0.0, 0.0, 0.0)
+
+
+class Signature(EditsModel):
+    mesh: str
+    meshHash: str
+    faces: Dict[str, str] = {}
+
+
+class Line(EditsModel):
+    """One mesh's faces in a group: hidden (a "hide" group) or spun (a "spin" group, mesh frame)."""
+    mesh: str
+    faces: List[Tuple[int, int]]
+    rpm: Optional[float] = None
+    pivot: Optional[Vec3] = None
+    axis: Optional[Vec3] = None
+    offset: Vec3 = (0.0, 0.0, 0.0)
+    scale: float = 1.0
+    ellipse: Optional[Ellipse] = None
+    rot: Optional[Vec3] = None
+    rotm: Optional[Tuple[float, float, float, float, float, float, float, float, float]] = None
+    stretch: Optional[Vec3] = None
+    mirror: Optional[Mirror] = None
+    reshape: bool = False
+    piece: Optional[Piece] = None
+
+    def face_set(self):
+        out = set()
+        for a, b in self.faces:
+            out.update(range(a, b + 1))
+        return out
+
+
+class Group(EditsModel):
+    name: str = ''
+    type: Literal['spin', 'hide']
+    lines: List[Line] = []
+    signatures: List[Signature] = []
+
+    @model_validator(mode='after')
+    def spin_lines_have_motion(self):
+        if self.type == 'spin':
+            for ln in self.lines:
+                if ln.rpm is None or ln.pivot is None or ln.axis is None:
+                    raise ValueError(f'spin group "{self.name}": a line for mesh {ln.mesh} has no rpm / pivot / axis')
+        return self
+
+
+class OwnCable(EditsModel):
+    cable: int
+    cockpit: Optional[Vec3] = None
+    engine: Optional[Vec3] = None
+
+
+class CablePair(EditsModel):
+    cockpit: Optional[Vec3] = None
+    engine: Optional[Vec3] = None
+
+
+class Layout(EditsModel):
+    cableCockpit: Optional[Vec3] = None
+    cableEngine: Optional[Vec3] = None
+    binder: Optional[Vec3] = None
+    exhaust: Optional[Vec3] = None
+    exhaustScale: Optional[Vec3] = None
+    ownCables: List[OwnCable] = []
+    extraCables: Optional[CablePair] = None
+
+
+class Pod(EditsModel):
+    height: Optional[float] = None
+    engineGap: Optional[float] = None
+    cockpitGap: Optional[float] = None
+    cockpitMove: Optional[Vec3] = None
+    chaseCamNear: Optional[Vec2] = None
+    chaseCamFar: Optional[Vec2] = None
+    rearCam: Optional[Vec2] = None
+
+
+class Nozzle(EditsModel):
+    pos: Vec3
+    size: float = 0.0
+    length: float = 1.0
+    height: float = 1.0
+    width: float = 1.0
+
+
+class Point(EditsModel):
+    pos: Vec3
+
+
+class Trail(EditsModel):
+    pos: Vec3
+    scale: Vec3 = (1.0, 1.0, 1.0)
+
+
+class Sides(EditsModel):
+    R: List[Point] = []
+    L: List[Point] = []
+
+
+class NozzleSides(EditsModel):
+    R: List[Nozzle] = []
+    L: List[Nozzle] = []
+
+
+class TrailSides(EditsModel):
+    R: List[Trail] = []
+    L: List[Trail] = []
+
+
+class NozzleFlame(EditsModel):
+    width: float = 1.0
+    length: float = 1.0
+    height: float = 1.0
+
+
+class ExhaustLight(EditsModel):
+    aim: float = 0.7
+    reach: float = 1.0
+    width: float = 1.0
+    strength: float = 1.0
+
+
+class GameFireStreak(EditsModel):
+    length: float = 1.0
+    turn: Vec3 = (0.0, 0.0, 0.0)
+
+
+class Effects(EditsModel):
+    nozzles: Optional[NozzleSides] = None
+    fireSpots: Optional[Sides] = None
+    dustSpots: Optional[Sides] = None
+    gameFire: Optional[Sides] = None
+    trails: Optional[TrailSides] = None
+    nozzleFlame: Optional[NozzleFlame] = None
+    exhaustLight: Optional[ExhaustLight] = None
+    gameFireStreak: Optional[GameFireStreak] = None
+
+
+class SpinNode(EditsModel):
+    node: str
+    rpm: float
+    axis: Vec3
+
+
+class TrailNode(EditsModel):
+    node: str
+    side: Literal['R', 'L']
+    pos: Vec3
+    scale: Vec3 = (1.0, 1.0, 1.0)
+
+
+class Edits(EditsModel):
+    """A pod's edits: the JSON document pod_editor.html writes (described in bake.js, "edits documents")."""
+    format: Literal['swr-pod-edits']
+    version: int
+    model: str = ''
+    rpmSense: Literal['mesh', 'pod'] = 'mesh'
+    baseModels: Dict[str, str] = {}
+    groups: List[Group] = []
+    layout: Optional[Layout] = None
+    pod: Optional[Pod] = None
+    effects: Optional[Effects] = None
+    spinNodes: List[SpinNode] = []
+    trailNodes: List[TrailNode] = []
+
+
+class BakeInput:
+    """What the bake takes from the edits: spin groups by motion, piece moves, hidden meshes, the extra
+    cable pair and the extra trails."""
+
+    def __init__(self, edits):
+        self.groups = {}  # (rpm, pivot, axis, offset, scale, cut): {mesh key: {faces}}
+        self.pre = {}  # spin group pieces: {group params: {mesh key: {face: (dx, dy, dz)}}} (mesh frame)
+        self.hide_keys = []
+        self.extra_cables = edits.layout is not None and edits.layout.extraCables is not None
+        self.trails = []
+        placed = False
+        for g in edits.groups:
+            for ln in g.lines:
+                key = ln.mesh.lower()
+                if g.type == 'hide':
+                    self.hide_keys.append(key)
+                    print(f'note: hide line for mesh {ln.mesh} skipped (it stays an in-game edit: keep the edits '
+                          f'file in assets/pod_edits)')
+                    continue
+                placed |= ln.rotm is not None or ln.mirror is not None or ln.reshape
+                cut = (*ln.ellipse.u, ln.ellipse.rx, ln.ellipse.ry) if ln.ellipse else None
+                params = (ln.rpm, tuple(ln.pivot), tuple(ln.axis), tuple(ln.offset), ln.scale, cut)
+                faces = ln.face_set()
+                self.groups.setdefault(params, {}).setdefault(key, set()).update(faces)  # a mesh's pieces add up
+                if ln.piece is not None and any(ln.piece.move):
+                    self.pre.setdefault(params, {}).setdefault(key, {}).update({t: tuple(ln.piece.move) for t in faces})
+        if placed:
+            print('note: turned / mirrored parts and reshapes are baked by the pod editor (Build & install), not by this '
+                  'script: their placement is left out here')
+        if edits.effects is not None and edits.effects.trails is not None:
+            for side in ('R', 'L'):
+                for t in getattr(edits.effects.trails, side):
+                    self.trails.append((side, tuple(t.pos), tuple(t.scale)))
+
+
 def parse_edits(path):
-    groups = {}
-    parse_edits.pre = {}  # spin group pieces: {group params: {mesh key: {face: (dx, dy, dz)}}} (mesh frame)
-    parse_edits.extra_cables = False
-    parse_edits.hide_keys = []
-    parse_edits.trails = []
-    for raw in open(path, encoding='utf-8'):
-        line = raw.split('#', 1)[0].split()
-        if not line:
-            continue
-        if line[0] == 'spin':
-            # A spin group piece's faces: "piece" / "pre" <dx dy dz> after the other fields -- moved
-            # by that much before the group spins.
-            pre = None
-            for tok in ('piece', 'pre'):
-                if tok in line:
-                    i = line.index(tok)
-                    pre = tuple(map(float, line[i + 1:i + 4]))
-                    line = line[:i]
-                    break
-            if pre is not None and not any(pre):
-                pre = None
-            key, rpm = line[1].lower(), float(line[2])
-            pivot, axis = tuple(map(float, line[3:6])), tuple(map(float, line[6:9]))
-            offset = tuple(map(float, line[10:13])) if len(line) >= 13 else (0.0, 0.0, 0.0)
-            scale = float(line[13]) if len(line) >= 14 else 1.0
-            cut = None
-            if 'ellipse' in line:
-                i = line.index('ellipse')
-                cut = tuple(map(float, line[i + 1:i + 6]))  # ux uy uz rx ry (mesh frame)
-            tris = set()
-            for r in line[9].split(','):
-                a, _, b = r.partition('-')
-                tris.update(range(int(a), int(b or a) + 1))
-            params = (rpm, pivot, axis, offset, scale, cut)
-            g = groups.setdefault(params, {})
-            g.setdefault(key, set()).update(tris)  # one group can have several lines for a mesh (its pieces)
-            if pre is not None:
-                parse_edits.pre.setdefault(params, {}).setdefault(key, {}).update({t: pre for t in tris})
-        elif line[0] == 'hide':
-            parse_edits.hide_keys.append(line[1].lower())
-            print(f'note: hide line for mesh {line[1]} skipped (keep the .txt in assets/pod_edits for it)')
-        elif line[:2] == ['cables', 'extra']:
-            parse_edits.extra_cables = True
-        elif line[0] == 'trail' and len(line) >= 5 and line[1] in ('R', 'L'):
-            scale = tuple(map(float, line[5:8])) if len(line) >= 8 else (1.0, 1.0, 1.0)  # optional
-            parse_edits.trails.append((line[1], tuple(map(float, line[2:5])), scale))
-    return groups
+    """The edits file (JSON) at path, checked against the Edits model."""
+    with open(path, encoding='utf-8') as f:
+        return BakeInput(Edits.model_validate_json(f.read()))
 
 
 def pod_index(block):
@@ -636,16 +827,14 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
     block_path = os.path.join(game_dir, 'out_modelblock.bin') if workspace else \
         os.path.join(game_dir, 'data', 'lev01', 'out_modelblock.bin')
     block = open(block_path, 'rb').read()
-    spin_groups = parse_edits(edits_path)
-    extra_cables = parse_edits.extra_cables
-    trails = parse_edits.trails
+    edits = parse_edits(edits_path)
+    spin_groups, extra_cables, trails = edits.groups, edits.extra_cables, edits.trails
     if not spin_groups and not extra_cables and not trails:
-        sys.exit('nothing to bake: no spin groups, "cables extra" or "trail" lines in the edits file')
+        sys.exit('nothing to bake: no spin groups, extra cables or extra trails in the edits file')
     export_keys = []
     if export_path:
-        import json
         export_keys = [x['key'].lower() for x in json.load(open(export_path, encoding='utf-8'))['meshes']]
-    keys = list(dict.fromkeys([k for g in spin_groups.values() for k in g] + parse_edits.hide_keys))
+    keys = list(dict.fromkeys([k for g in spin_groups.values() for k in g] + edits.hide_keys))
     idx = pod_index(block)
     resolved = resolve_keys(idx, keys, export_keys)
     missing = [k for k in keys if k not in resolved]
@@ -662,14 +851,14 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
             by_model.setdefault(mid, {})[off] = tris
         for mid, ms in by_model.items():
             per_model.setdefault(mid, {})[params] = ms
-        for k, faces in parse_edits.pre.get(params, {}).items():
+        for k, faces in edits.pre.get(params, {}).items():
             mid, off = resolved[k]
             moves_per_model.setdefault(mid, {}).setdefault(off, {}).update(faces)
     cable_model = None
     if extra_cables or trails:
         cable_model = pod_model_of(idx, export_keys or keys)
         if cable_model is None:
-            sys.exit('"cables extra": cannot find this pod\'s model (pass --export <the pod\'s export .json>)')
+            sys.exit('extra cables / trails: cannot find this pod\'s model (pass --export <the pod\'s export .json>)')
         per_model.setdefault(cable_model, {})
     if out_dir is None:
         out_dir = os.path.join(game_dir, 'replacement_models') if workspace else \
@@ -688,16 +877,17 @@ def bake(game_dir, edits_path, out_dir=None, dry_run=False, export_path=None):
         open(path, 'wb').write(out)
         print(f'wrote {path} ({len(out)} bytes)')
         written.append(path)
-        open(os.path.join(out_dir, f'{mid}.base'), 'w').write(fingerprint(*read_block_entry(block, mid)) + '\n')
-        fmt = lambda v: f'{round(v * 1e4) / 1e4:g}'
+        open(os.path.join(out_dir, f'{mid}.hash'), 'w').write(fingerprint(*read_block_entry(block, mid)) + '\n')
+        r4 = lambda v: round(v * 1e4) / 1e4
         if bake_model.trail_nodes:
-            print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod places them:')
+            print('  add to the in-game edits\' "trailNodes" (assets/pod_edits/<Pod>.json) so the mod places them:')
             for node, side, pos, scale in bake_model.trail_nodes:
-                print(f'    trailnode {mid}:{node:x} {side} {" ".join(fmt(c) for c in pos + scale)}')
+                print('    ' + json.dumps({'node': f'{mid}:{node:x}', 'side': side, 'pos': [r4(c) for c in pos],
+                                         'scale': [r4(c) for c in scale]}))
         if bake_model.spin_nodes:
-            print('  add to the in-game edits (assets/pod_edits/<Pod>.txt) so the mod turns them:')
+            print('  add to the in-game edits\' "spinNodes" (assets/pod_edits/<Pod>.json) so the mod turns them:')
             for node, rpm, ax in bake_model.spin_nodes:
-                print(f'    spinnode {mid}:{node:x} {fmt(rpm)} {" ".join(fmt(c) for c in ax)}')
+                print('    ' + json.dumps({'node': f'{mid}:{node:x}', 'rpm': r4(rpm), 'axis': [r4(c) for c in ax]}))
     return written
 
 
@@ -753,7 +943,7 @@ def bake_model(m, mid, spin_groups, extra_cables, dry_run=False, moves=None, tra
     # 1) Room in the header's 'Anim' list for the new animations (shifts everything after it). Not in
     # an alt model ('MAlt'): the game merges its AltN parts into the pod model only when AltN follows
     # the part slots directly, and never runs an alt model's animations -- its spinning nodes are
-    # printed as "spinnode" lines instead (the mod turns them; the editor's Build & install writes
+    # printed as spinNodes instead (the mod turns them; the editor's Build & install writes
     # them to the in-game edits file).
     is_alt = m.data[:4] == b'MAlt'
     bake_model.spin_nodes = []

@@ -1,0 +1,70 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "CleggHoldfast_alt",
+  "layout": {
+    "cableEngine": [
+      -0.033,
+      -2.8799,
+      2.403
+    ],
+    "binder": [
+      2.8237,
+      3.3723,
+      0
+    ],
+    "exhaust": [
+      0,
+      -4.5,
+      -0.1797
+    ]
+  },
+  "pod": {
+    "rearCam": [
+      5.5,
+      0
+    ],
+    "engineGap": 1.1
+  },
+  "effects": {
+    "nozzles": {
+      "R": [
+        {
+          "pos": [
+            -0.0004,
+            -4.1009,
+            -0.2004
+          ],
+          "size": 0.271,
+          "length": 1,
+          "height": 3,
+          "width": 3
+        }
+      ],
+      "L": [
+        {
+          "pos": [
+            0.0004,
+            -4.1009,
+            -0.2004
+          ],
+          "size": 0.271,
+          "length": 1,
+          "height": 3,
+          "width": 3
+        }
+      ]
+    }
+  },
+  "spinNodes": [
+    {
+      "node": "25:13080",
+      "rpm": -240,
+      "axis": [
+        0,
+        -1,
+        0
+      ]
+    }
+  ]
+}

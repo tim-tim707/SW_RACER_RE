@@ -72,11 +72,11 @@ void refresh_replacement_models() {
             std::smatch match;
             if (std::regex_match(filename, match, file_regex)) {
                 const int id = std::stoi(match.str(1));
-                // A model built by the pod editor carries <id>.base: the fingerprint of the base model it
+                // A model built by the pod editor carries <id>.hash: the fingerprint of the base model it
                 // was built from. If this game's base model for that id is different (the file came from
                 // other game data), it would load as garbage or not at all: leave it out and say so.
                 {
-                    std::ifstream stamp(fs::path(entry.path()).replace_extension(L".base"));
+                    std::ifstream stamp(fs::path(entry.path()).replace_extension(L".hash"));
                     std::string want;
                     if (stamp && std::getline(stamp, want)) {
                         while (!want.empty() && (want.back() == '\r' || want.back() == ' '))

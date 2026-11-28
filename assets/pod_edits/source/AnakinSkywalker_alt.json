@@ -1,0 +1,23 @@
+{
+  "format": "swr-pod-edits",
+  "version": 2,
+  "model": "AnakinSkywalker_alt",
+  "rpmSense": "mesh",
+  "baseModels": {
+    "0": "2f4.5e18-a24d6c90",
+    "2": "944.12858-3569ef2c",
+    "146": "80.f94-a0340a82"
+  },
+  "layout": {
+    "cableEngine": [
+      0,
+      -0.7537,
+      0.6543
+    ],
+    "binder": [
+      0.6409,
+      0.1761,
+      -0.0559
+    ]
+  }
+}
