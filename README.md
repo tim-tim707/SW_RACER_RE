@@ -37,6 +37,11 @@ This repository still lacks a lot of functions, symbols and global variables.
 
 If you want to contribute, you'll need python, a windows C compiler and Ghidra.
 
+CI checks the formatting of the files a pull request changes (clang-format for C / C++ with the repo's
+`.clang-format`, ruff for Python, prettier for JavaScript / HTML, and a 2-space layout for JSON). To format your
+changes before pushing: `pip install clang-format==19.1.7 ruff==0.8.4` (and Node.js for prettier), then
+`python scripts/check_formatting.py --base origin/master --fix` (without `--fix` it only checks).
+
 ### Ghidra Setup
 Symbols can be imported using scripts in the `scripts/Ghidra` directory. You should "Parse C source" on the `src/types.h` file
 before using the scripts to import functions prototypes via headers.

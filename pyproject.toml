@@ -1,0 +1,7 @@
+# Formatting of the repo's Python scripts (scripts/check_formatting.py runs ruff format with this).
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.format]
+quote-style = "single"
