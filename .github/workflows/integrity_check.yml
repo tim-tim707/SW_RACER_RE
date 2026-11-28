@@ -93,6 +93,37 @@ jobs:
           cmake --preset ${{ matrix.preset }}
           cmake --build --preset ${{ matrix.preset }}
 
+  formatting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # the base of the change, to diff against
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install formatters
+        # Pinned: another clang-format / ruff / prettier version can lay the same code out differently.
+        run: pip install clang-format==19.1.7 ruff==0.8.4
+
+      - name: Check the changed files' formatting
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"; else base="$BEFORE"; fi
+          # A new branch's first push has no "before": compare with the previous commit.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then base="HEAD~1"; fi
+          python scripts/check_formatting.py --base "$base"
+
   static-analysis:
     runs-on: windows-latest
     permissions:
