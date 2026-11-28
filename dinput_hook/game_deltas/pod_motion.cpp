@@ -1,6 +1,7 @@
 #include "pod_motion.h"
 
 #include <cmath>
+#include <memory>// std::destroy_at / std::construct_at
 #include <cstdint>
 #include <unordered_map>
 
@@ -219,7 +220,8 @@ namespace {
 
         const rdVector3 pos = v3(p->transform.vD);
         if (!st.has_pos || len(sub(pos, st.prev_pos)) > kTeleportDist) {
-            st = PodState{};// fresh pod or respawn: start at rest
+            std::destroy_at(&st);// fresh pod or respawn: start at rest
+            std::construct_at(&st);
             st.has_pos = true;
             st.prev_pos = pos;
             return;

@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <memory>// std::destroy_at / std::construct_at
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -527,7 +528,8 @@ namespace {
     void tick_pod(swrRace* r, PodFx& fx, float dt) {
         const rdVector3 pos = v3(r->transform.vD);
         if (!fx.has_pos || len(sub(pos, fx.prev_pos)) > kTeleportDist) {
-            fx = PodFx{};
+            std::destroy_at(&fx);
+            std::construct_at(&fx);
             fx.has_pos = true;
             fx.prev_pos = pos;
             return;
@@ -1656,7 +1658,8 @@ namespace {
         ImGui::EndDisabled();
 
         if (ImGui::Button("Reset to defaults")) {
-            s = kDefaults;
+            std::destroy_at(&s);
+            std::construct_at(&s, kDefaults);
             changed = true;
         }
         if (changed)

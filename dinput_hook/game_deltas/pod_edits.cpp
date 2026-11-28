@@ -66,21 +66,6 @@ const std::filesystem::path& pod_workspace() {
     if (!e1 && (e2 || ssize != dsize ||
                 std::filesystem::last_write_time(src, e1) > std::filesystem::last_write_time(dst, e2)))
         std::filesystem::copy_file(src, dst, std::filesystem::copy_options::overwrite_existing, ec);
-    const std::filesystem::path readme = d / L"README.txt";
-    if (!std::filesystem::exists(readme, ec)) {
-        if (FILE* r = _wfopen(readme.c_str(), L"wb")) {
-            fputs("SW_RACER_RE pod editor workspace (made by the mod).\r\n\r\n"
-                  "In tools/pod_editor/pod_editor.html, \"Build & install\" asks for a folder: pick this one.\r\n"
-                  "It reads out_modelblock.bin (a copy of the game's) and writes:\r\n"
-                  "  replacement_models\\<id>.bin   baked pod models (spinning parts, extra cables)\r\n"
-                  "  pod_edits\\<Pod>.txt          in-game edits (hides, cables, binder)\r\n"
-                  "  pod_edits\\source\\<Pod>.txt   the full edits, to reopen in the editor\r\n"
-                  "The mod uses these before the game folder's assets\\replacement_models and assets\\pod_edits.\r\n"
-                  "Delete a file here to undo it.\r\n",
-                  r);
-            fclose(r);
-        }
-    }
     dir = d;
     fprintf(hook_log, "[PodEdits] workspace %ls\n", d.c_str());
     fflush(hook_log);
@@ -1472,7 +1457,7 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
     // not at the end of the load's range, though: the model's textures are loaded after its data (and
     // the buffer may be aligned), so the trailer is looked for from the model data onward.
     const char* trailer = nullptr;
-    uint32_t len = 0, padded = 0;
+    uint32_t len = 0;
     if (model_id >= 0) {
         const char* data = std::max((const char*) header - 4, asset_begin);
         for (const char* p = data + 12; p + 8 <= asset_end; p++) {
@@ -1488,7 +1473,7 @@ void pod_edits_note_model(swrModel_Header* header, const char* asset_begin, cons
             const char* t = p - 4 - pd;
             if (memchr(t, 0, l) != nullptr)// the text has no zero bytes: not the trailer
                 continue;
-            trailer = t, len = l, padded = pd;
+            trailer = t, len = l;
             break;
         }
     }
@@ -1579,8 +1564,18 @@ void pod_edits_drop_models_from(const char* asset_begin) {
     // Anything that reaches past asset_begin is overwritten by the new load (an old model overlapping
     // the new one too): stale pointers there would turn parts of other models (e.g. the pit droids).
     std::erase_if(g_pod_anims, [&](const PodAnim& a) { return a.end > asset_begin; });
-    std::erase_if(g_spin_nodes, [&](const SpinNode& s) { return s.end > asset_begin; });
-    std::erase_if(g_trail_nodes, [&](const TrailNode& t) { return t.begin >= asset_begin; });
+    // (Rebuilt rather than erase_if'd: these small trivially-copyable entries are only ever
+    // copy-constructed, never assigned.)
+    const auto keep = [](auto& list, auto drop) {
+        std::remove_reference_t<decltype(list)> kept;
+        kept.reserve(list.size());
+        for (const auto& e: list)
+            if (!drop(e))
+                kept.push_back(e);
+        list.swap(kept);
+    };
+    keep(g_spin_nodes, [&](const SpinNode& s) { return s.end > asset_begin; });
+    keep(g_trail_nodes, [&](const TrailNode& t) { return t.begin >= asset_begin; });
 }
 
 namespace {

@@ -1140,7 +1140,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     const auto &aabb = mesh->aabb;
     // glDrawAABBLines({ aabb[0], aabb[1], aabb[2] }, { aabb[3], aabb[4], aabb[5] });
 
-    if (!mesh->vertices)
+    if (!mesh->vertices || mesh->mesh_material == nullptr)
         return;
 
     // Pod editor: this mesh's edits (applied wherever it is parsed below) and the pod export.
@@ -1160,8 +1160,7 @@ void debug_render_mesh(const swrModel_Mesh *mesh, int light_index, int num_enabl
     // Energy binder meshes (kind 4): report the beam's box to Pod FX (its glow + omni light), and
     // skip the game's own flat glow card (texture #1411), which that glow replaces. Done on the
     // first (traversal) visit, before the mesh could be deferred, so the card is never drawn.
-    if (g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 && !g_preparsed_vertices &&
-        mesh->mesh_material != nullptr) {
+    if (g_active_nozzle_tag != nullptr && g_active_nozzle_tag->kind == 4 && !g_preparsed_vertices) {
         const float *bb = mesh->aabb;
         const rdMatrix44 &m = model_matrix;
         (void) bb;

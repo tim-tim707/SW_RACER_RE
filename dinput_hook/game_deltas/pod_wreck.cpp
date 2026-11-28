@@ -1,5 +1,8 @@
 #include "pod_wreck.h"
 
+#include <cstddef>// offsetof
+#include <memory> // std::destroy_at / std::construct_at
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -223,7 +226,15 @@ namespace {
         const float l = len(sub(v3(r->cockpitXf.vD), mid));
         return (l > 0.5f && l < 500.0f) ? l : 10.0f;
     }
-    const rdMatrix44& part_xf(const swrRace* r, int part) { return (&r->unk350_mat)[part]; }
+    // The racer's per-part transforms: one rdMatrix44[75] from unk350_mat on (index-aligned with
+    // partNodes; engineXfR, cockpitXf ... are its named elements).
+    // (Addressed from the racer's base: types.h declares the array as its named members, so indexing
+    // past unk350_mat would read as leaving that one member.)
+    const rdMatrix44& part_xf(const swrRace* r, int part) {
+        const uintptr_t at = reinterpret_cast<uintptr_t>(r) + offsetof(swrRace, unk350_mat) +
+                             sizeof(rdMatrix44) * (uintptr_t) (part >= 0 && part < 75 ? part : 0);
+        return *reinterpret_cast<const rdMatrix44*>(at);
+    }
     bool four_engines(const swrRace* r) { return r->partNodes && r->partNodes[3] && r->partNodes[4]; }
     // Explode's side argument (2 = the right engine at engineXfR, 1 = the left) -> side 0 / 1.
     int side_of_arg(int arg) { return (arg & 2) ? 0 : 1; }
@@ -492,7 +503,8 @@ namespace {
                 r->engineStatus[i] = 0;
             }
         }
-        w = Wreck{};
+        std::destroy_at(&w);
+        std::construct_at(&w);
     }
 
     bool pod_down(const swrRace* r) {

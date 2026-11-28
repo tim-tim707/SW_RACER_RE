@@ -260,28 +260,31 @@ namespace {
     }
 }// namespace
 
+namespace {
+    // One model of a model block file (out_modelblock.bin): its mask and data. The file starts with
+    // the model count, then per model the offsets of its mask and data (big-endian); the next
+    // offset after a model's data offset ends it.
+    bool read_block_entry(const char *path, int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data) {
+        std::ifstream f(path, std::ios::binary);
+        uint8_t head[4], w[12];
+        if (id < 0 || !f.read((char *) head, 4) || (uint32_t) id >= be32(head))
+            return false;
+        if (!f.seekg(4 + 8 * (std::streamoff) id) || !f.read((char *) w, 12))
+            return false;
+        const uint32_t mask_off = be32(w), model_off = be32(w + 4), end = be32(w + 8);
+        if (model_off < mask_off || end < model_off || end - mask_off >= (64u << 20))
+            return false;
+        mask.resize(model_off - mask_off);
+        data.resize(end - model_off);
+        return f.seekg(mask_off) && f.read((char *) mask.data(), (std::streamsize) mask.size()) &&
+               f.read((char *) data.data(), (std::streamsize) data.size());
+    }
+}// namespace
+
 bool read_base_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data) {
     std::error_code ec;
     const char *path = fs::exists(MODELBLOCK_ORIGINAL_PATH, ec) ? MODELBLOCK_ORIGINAL_PATH : MODELBLOCK_PATH;
-    FILE *f = fopen(path, "rb");
-    if (!f)
-        return false;
-    bool ok = false;
-    uint8_t head[4];
-    if (id >= 0 && fread(head, 1, 4, f) == 4 && (uint32_t) id < be32(head)) {
-        uint8_t w[12];
-        if (fseek(f, 4 + 8 * id, SEEK_SET) == 0 && fread(w, 1, 12, f) == 12) {
-            const uint32_t mask_off = be32(w), model_off = be32(w + 4), end = be32(w + 8);
-            if (model_off >= mask_off && end >= model_off && end - mask_off < (64u << 20)) {
-                mask.resize(model_off - mask_off);
-                data.resize(end - model_off);
-                ok = fseek(f, (long) mask_off, SEEK_SET) == 0 && fread(mask.data(), 1, mask.size(), f) == mask.size() &&
-                     fread(data.data(), 1, data.size(), f) == data.size();
-            }
-        }
-    }
-    fclose(f);
-    return ok;
+    return read_block_entry(path, id, mask, data);
 }
 
 bool read_loaded_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> &data) {
@@ -301,25 +304,7 @@ bool read_loaded_model(int id, std::vector<uint8_t> &mask, std::vector<uint8_t> 
         }
     }
     // The game's block as it is (with any models written into it).
-    FILE *f = fopen(MODELBLOCK_PATH, "rb");
-    if (!f)
-        return false;
-    bool ok = false;
-    uint8_t head[4];
-    if (id >= 0 && fread(head, 1, 4, f) == 4 && (uint32_t) id < be32(head)) {
-        uint8_t w[12];
-        if (fseek(f, 4 + 8 * id, SEEK_SET) == 0 && fread(w, 1, 12, f) == 12) {
-            const uint32_t mask_off = be32(w), model_off = be32(w + 4), end = be32(w + 8);
-            if (model_off >= mask_off && end >= model_off && end - mask_off < (64u << 20)) {
-                mask.resize(model_off - mask_off);
-                data.resize(end - model_off);
-                ok = fseek(f, (long) mask_off, SEEK_SET) == 0 && fread(mask.data(), 1, mask.size(), f) == mask.size() &&
-                     fread(data.data(), 1, data.size(), f) == data.size();
-            }
-        }
-    }
-    fclose(f);
-    return ok;
+    return read_block_entry(MODELBLOCK_PATH, id, mask, data);
 }
 
 std::string model_fingerprint(const std::vector<uint8_t> &mask, const std::vector<uint8_t> &data) {
